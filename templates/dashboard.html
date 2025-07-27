@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>TaxLink Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Custom CSS for animations and elements not covered by Tailwind */
+        .sidebar-item.active {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left: 4px solid #3b82f6;
+        }
+
+        .sidebar-item:hover:not(.active) {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .status-badge.success {
+            background-color: #10b981;
+        }
+
+        .status-badge.failed {
+            background-color: #ef4444;
+        }
+
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .checkmark {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            display: block;
+            stroke-width: 4;
+            stroke: #fff;
+            stroke-miterlimit: 10;
+            margin: 10% auto;
+            box-shadow: inset 0px 0px 0px #10b981;
+            animation: fill .4s ease-in-out .4s forwards, scale .3s ease-in-out .9s both;
+        }
+
+        .checkmark__circle {
+            stroke-dasharray: 166;
+            stroke-dashoffset: 166;
+            stroke-width: 4;
+            stroke-miterlimit: 10;
+            stroke: #10b981;
+            fill: none;
+            animation: stroke .6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+        }
+
+        .checkmark__check {
+            transform-origin: 50% 50%;
+            stroke-dasharray: 48;
+            stroke-dashoffset: 48;
+            animation: stroke .3s cubic-bezier(0.65, 0, 0.45, 1) .8s forwards;
+        }
+
+        .crossmark {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            display: block;
+            stroke-width: 4;
+            stroke: #fff;
+            stroke-miterlimit: 10;
+            margin: 10% auto;
+            box-shadow: inset 0px 0px 0px #ef4444;
+            animation: fill .4s ease-in-out .4s forwards, scale .3s ease-in-out .9s both;
+        }
+
+        .crossmark__circle {
+            stroke-dasharray: 166;
+            stroke-dashoffset: 166;
+            stroke-width: 4;
+            stroke-miterlimit: 10;
+            stroke: #ef4444;
+            fill: none;
+            animation: stroke .6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+        }
+
+        .crossmark__cross {
+            transform-origin: 50% 50%;
+            stroke-dasharray: 48;
+            stroke-dashoffset: 48;
+            animation: stroke .3s cubic-bezier(0.65, 0, 0.45, 1) .8s forwards;
+        }
+
+        @keyframes stroke {
+            100% {
+                stroke-dashoffset: 0;
+            }
+        }
+
+        @keyframes scale {
+
+            0%,
+            100% {
+                transform: none;
+            }
+
+            50% {
+                transform: scale3d(1.1, 1.1, 1);
+            }
+        }
+
+        @keyframes fill {
+            100% {
+                box-shadow: inset 0px 0px 0px 30px #10b981;
+            }
+        }
+
+        .spinner {
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Responsive table */
+        @media (max-width: 768px) {
+            table {
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 font-sans">
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <div class="hidden md:flex md:flex-shrink-0">
+            <div class="flex flex-col"
+                style="width: 200px; min-width: 200px; max-width: 200px; background-color: #1e40af; color: #fff;">
+                <!-- Changed w-64 to w-44 -->
+                <div class="flex items-center justify-center h-16 px-4 border-b border-blue-700">
+                    <div class="flex items-center">
+                        <i class="fas fa-building text-xl mr-2"></i>
+                        <span class="text-xl font-bold">{{ session['name'] }}</span>
+                    </div>
+                </div>
+                <div class="flex flex-col flex-grow pt-5 pb-4 overflow-y-auto">
+                    <nav class="flex-1 space-y-2 px-2">
+                        <a href="#" id="dashboard-tab"
+                            class="sidebar-item active flex items-center px-4 py-3 text-sm font-medium rounded-md">
+                            <i class="fas fa-tachometer-alt mr-3"></i>
+                            Dashboard
+                        </a>
+                    </nav>
+
+                    <div class="px-4 py-2">
+                        <span class="bg-blue-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
+                            <i class="fas fa-cube mr-1"></i>{{ session['env'] }}
+                        </span>
+                    </div>
+                    
+                    <div class="px-2 pb-4">
+                        <a href="/logout" class="sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-md">
+                            <i class="fas fa-sign-out-alt mr-3"></i>
+                            Logout
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main content -->
+        <div class="flex flex-col flex-1 overflow-hidden">
+            <!-- Main content area -->
+            <main class="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 bg-gray-100 mt-0">
+                <div id="dashboard-content" class="content-section">
+                    <div class="mb-6">
+                        <h1 class="text-2xl font-bold text-gray-800">Past Records</h1>
+                    </div>
+
+                    <div class="bg-white shadow rounded-lg">
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col"
+                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Sr #</th>
+                                        <th scope="col"
+                                            class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Invoice Number</th>
+                                        <th scope="col"
+                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Invoice Type</th>
+                                        <th scope="col"
+                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Invoice Date</th> <!-- Added Invoice Date column -->
+                                        <th scope="col"
+                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Buyer Name</th>
+                                        <th scope="col"
+                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Seller Name</th>
+                                        <th scope="col"
+                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Total Value</th>
+                                        <th scope="col"
+                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="records-table-body" class="bg-white divide-y divide-gray-200">
+                                    <!-- Records will be loaded here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Add this just after the records table, before the buttons, inside #dashboard-content -->
+                    <div id="records-pagination" class="flex justify-center items-center mt-4 space-x-2"></div>
+
+                    <div class="mt-6 flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
+                        <button id="import-excel-btn"
+                            class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out">
+                            <i class="fas fa-file-excel mr-2"></i> Import Excel
+                        </button>
+                        <button id="validate-json-btn"
+                            class="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out">
+                            <i class="fas fa-check-circle mr-2"></i> Validate JSON
+                        </button>
+                        <button id="submit-fbr-btn"
+                            class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out">
+                            <i class="fas fa-paper-plane mr-2"></i> Submit to FBR
+                        </button>
+                        <!-- New Get Excel button -->
+                        <button id="get-excel-btn"
+                            class="flex-1 bg-red-400 hover:bg-red-500 text-white font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out">
+                            <i class="fas fa-file-pdf mr-2"></i> Download PDF
+                        </button>
+                    </div>
+                    <!-- Add status references here -->
+                    <div id="excel-upload-status" class="mt-2 text-sm text-green-600 flex items-center space-x-2"></div>
+                    <div id="json-validate-status" class="mt-2 text-sm text-green-600 flex items-center space-x-2">
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Import Excel File Input (hidden) -->
+    <input type="file" id="excel-file-input" accept=".xls,.xlsx" class="hidden">
+
+    <!-- JSON Validation Modal -->
+    <div id="json-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
+        <div class="modal-overlay absolute inset-0"></div>
+        <div class="bg-white rounded-lg shadow-xl z-50 w-full max-w-3xl max-h-screen overflow-auto">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Validate JSON Data</h3>
+                    <button id="close-json-modal" class="text-gray-400 hover:text-gray-500">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="mb-4">
+                    <textarea id="json-textarea"
+                        class="w-full h-64 p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 font-mono text-base"
+                        placeholder="JSON data will appear here..."
+                        readonly></textarea>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button id="cancel-json-btn"
+                        class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button id="validate-json-data-btn"
+                        class="px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700">
+                        Continue
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Submission Status Modal -->
+    <div id="submission-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
+        <div class="modal-overlay absolute inset-0"></div>
+        <div class="bg-white rounded-lg shadow-xl z-50 w-full max-w-md">
+            <div class="p-6 text-center">
+                <div id="success-icon" class="hidden">
+                    <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+                        <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none" />
+                        <path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8" />
+                    </svg>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-2">Submitted Successfully!</h3>
+                    <p class="text-gray-600">Your data has been successfully submitted to FBR.</p>
+                    <p id="invoice-number-success" class="text-gray-600 mt-2"></p>
+                </div>
+                <div id="failed-icon" class="hidden">
+                    <svg class="crossmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+                        <circle class="crossmark__circle" cx="26" cy="26" r="25" fill="none" />
+                        <path class="crossmark__cross" fill="none" d="M16 16 36 36 M36 16 16 36" />
+                    </svg>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-2">Submission Failed</h3>
+                    <p id="error-message" class="text-gray-600">There was an error submitting your data to FBR.</p>
+                </div>
+                <div id="loading-spinner" class="hidden">
+                    <div class="flex justify-center mb-4">
+                        <i class="fas fa-circle-notch fa-spin text-4xl text-blue-600 spinner"></i>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-2">Submitting to FBR</h3>
+                    <p class="text-gray-600">Please wait while we process your request...</p>
+                </div>
+                <div class="mt-6">
+                    <button id="close-submission-modal"
+                        class="px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ENV = "{{ session['env'] }}";
+        function apiUrl(endpoint) {
+            return `${endpoint}?env=${ENV}`;
+        }
+
+
+        // API endpoints
+        const API_ENDPOINTS = {
+            UPLOAD_EXCEL: '/upload-excel',
+            GET_JSON: '/get-json',
+            SUBMIT_FBR: '/submit-fbr',
+            GET_RECORDS: '/records'
+        };
+
+        // Track last uploaded file name
+        let lastUploadedFileName = "";
+
+        // Add these variables at the top of your <script>
+        let allRecords = [];
+        let currentPage = 1;
+        const pageSize = 6;
+
+        // On page load, fetch records
+        document.addEventListener('DOMContentLoaded', function () {
+        let env = window.localStorage.getItem('erp_env');
+
+        if (!env) {
+            // Fallback to default session env (server sets this)
+            env = 'sandbox';
+            window.localStorage.setItem('erp_env', env);
+        }
+
+        loadRecords();
+    });
+
+        // Load past records from backend
+        function loadRecords() {
+            fetch(apiUrl(API_ENDPOINTS.GET_RECORDS))
+                .then(response => response.json())
+                .then(data => {
+                    // Sort records by date descending (newest first)
+                    allRecords = data.sort((a, b) => new Date(b.date) - new Date(a.date));
+                    renderRecordsTable(getCurrentPageRecords());
+                    renderPaginationControls();
+
+                })
+                .catch(error => {
+                    console.error('Error loading records:', error);
+                    alert('Failed to load records. Please try again.');
+                });
+        }
+
+        // Helper to get records for the current page
+        function getCurrentPageRecords() {
+            const start = (currentPage - 1) * pageSize;
+            return allRecords.slice(start, start + pageSize);
+        }
+
+        // Update renderRecordsTable to only render the records passed in
+        function renderRecordsTable(records) {
+            const tableBody = document.getElementById('records-table-body');
+            tableBody.innerHTML = '';
+
+            if (records.length === 0) {
+                const emptyRow = document.createElement('tr');
+                emptyRow.innerHTML = `
+                    <td colspan="8" class="px-6 py-4 text-center text-gray-500">
+                        No records found.
+                    </td>
+                `;
+                tableBody.appendChild(emptyRow);
+                return;
+            }
+
+            // Calculate the starting serial number for the current page
+            const startSr = (currentPage - 1) * pageSize + 1;
+
+            records.forEach((record, idx) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">${startSr + idx}</td>
+                    <td class="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${record.invoiceReference}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${record.invoiceType}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${record.invoiceDate ? record.invoiceDate : ''}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${record.buyerName}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${record.sellerName}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">PKR ${record.totalValue.toFixed(2)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="status-badge ${record.status.toLowerCase() === 'success' ? 'success' : 'failed'} px-2 py-1 text-xs font-semibold rounded-full text-white">
+                            ${record.status}
+                        </span>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+
+
+        document.getElementById('dashboard-tab').addEventListener('click', function (e) {
+            e.preventDefault();
+            document.querySelectorAll('.sidebar-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            this.classList.add('active');
+
+            document.querySelectorAll('.content-section').forEach(section => {
+                section.classList.add('hidden');
+            });
+            document.getElementById('dashboard-content').classList.remove('hidden');
+        });
+
+
+        // Import Excel button
+        document.getElementById('import-excel-btn').addEventListener('click', function () {
+            document.getElementById('excel-file-input').click();
+        });
+
+        document.getElementById('excel-file-input').addEventListener('change', function (e) {
+            if (e.target.files.length > 0) {
+                const file = e.target.files[0];
+                const formData = new FormData();
+                formData.append('file', file);
+
+                fetch(apiUrl(API_ENDPOINTS.UPLOAD_EXCEL), {
+                    method: 'POST',
+                    body: formData
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.error) {
+                            document.getElementById('excel-upload-status').innerHTML =
+                                `<span class="text-red-600"><i class="fas fa-times-circle mr-1"></i>Error: ${data.error}</span>`;
+                        } else {
+                            lastUploadedFileName = file.name;
+                            document.getElementById('excel-upload-status').innerHTML =
+                                `<i class="fas fa-check-circle text-green-600 mr-1"></i>Uploaded: <span class="font-semibold">${file.name}</span>`;
+                            alert('Excel file uploaded successfully');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error uploading file:', error);
+                        document.getElementById('excel-upload-status').innerHTML =
+                            `<span class="text-red-600"><i class="fas fa-times-circle mr-1"></i>Failed to upload file. Please try again.</span>`;
+                    });
+            }
+        });
+
+        // JSON Validation Modal
+        document.getElementById('validate-json-btn').addEventListener('click', function () {
+            // Clear previous validation status
+            document.getElementById('json-validate-status').innerHTML = "";
+            // Get the JSON data from the backend
+            fetch(apiUrl(API_ENDPOINTS.GET_JSON))
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert('Error: ' + data.error);
+                    } else {
+                        document.getElementById('json-textarea').value = JSON.stringify(data, null, 2);
+                        document.getElementById('json-modal').classList.remove('hidden');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error getting JSON:', error);
+                    alert('Failed to get JSON data. Please upload an Excel file first.');
+                });
+        });
+
+        document.getElementById('close-json-modal').addEventListener('click', function () {
+            document.getElementById('json-modal').classList.add('hidden');
+        });
+
+        document.getElementById('cancel-json-btn').addEventListener('click', function () {
+            document.getElementById('json-modal').classList.add('hidden');
+        });
+
+        document.getElementById('validate-json-data-btn').addEventListener('click', function () {
+            try {
+                const jsonData = JSON.parse(document.getElementById('json-textarea').value);
+                document.getElementById('json-modal').classList.add('hidden');
+                // Show tick and message under the Validate JSON button
+                document.getElementById('json-validate-status').innerHTML =
+                    `<i class="fas fa-check-circle text-green-600 mr-1"></i>JSON validated successfully`;
+            } catch (e) {
+                alert('Invalid JSON: ' + e.message);
+                document.getElementById('json-validate-status').innerHTML = "";
+            }
+        });
+
+        // FBR Submission
+        document.getElementById('submit-fbr-btn').addEventListener('click', function () {
+            const submissionModal = document.getElementById('submission-modal');
+            const loadingSpinner = document.getElementById('loading-spinner');
+            const successIcon = document.getElementById('success-icon');
+            const failedIcon = document.getElementById('failed-icon');
+
+            // Show modal with loading spinner
+            submissionModal.classList.remove('hidden');
+            loadingSpinner.classList.remove('hidden');
+            successIcon.classList.add('hidden');
+            failedIcon.classList.add('hidden');
+
+            // Submit data to FBR via backend API
+            fetch(apiUrl(API_ENDPOINTS.SUBMIT_FBR), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+                .then(async response => {
+                    const status = response.status;
+                    let data;
+                    try {
+                        data = await response.json();
+                    } catch (e) {
+                        data = await response.text();
+                    }
+                    loadingSpinner.classList.add('hidden');
+
+                    // Show the raw API response in the modal (pretty-printed)
+                    let responseText = '';
+                    if (typeof data === 'object') {
+                        if (data.response_text) {
+                            responseText = data.response_text;
+                        } else {
+                            responseText = JSON.stringify(data, null, 2);
+                        }
+                    } else {
+                        responseText = data;
+                    }
+
+                    let fullResponse = `Response Code: ${status}\nResponse Content:\n${responseText}`;
+
+                    // Only check for invoiceNumber in the response
+                    const isSuccess = data && typeof data === 'object' && data.status === "Success" && data.invoiceNumber && data.invoiceNumber !== "N/A";
+
+                    if (isSuccess) {
+                        successIcon.classList.remove('hidden');
+                        document.getElementById('invoice-number-success').textContent = fullResponse;
+                        loadRecords();
+                    } else {
+                        failedIcon.classList.remove('hidden');
+                        document.getElementById('error-message').textContent = fullResponse;
+                        loadRecords();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error submitting to FBR:', error);
+                    loadingSpinner.classList.add('hidden');
+                    failedIcon.classList.remove('hidden');
+                    document.getElementById('error-message').textContent = 'Network error. Please try again.';
+                });
+        });
+        document.getElementById('close-submission-modal').addEventListener('click', function () {
+            document.getElementById('submission-modal').classList.add('hidden');
+        });
+
+        document.getElementById('get-excel-btn').addEventListener('click', function () {
+            const btn = this;
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = `<i class="fas fa-circle-notch fa-spin mr-2"></i>Generating...`;
+            btn.disabled = true;
+
+            fetch(apiUrl('/generate-invoice-excel'))
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(data => { throw new Error(data.error || 'Failed to generate PDF'); });
+                    }
+                    return response.blob();
+                })
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'generated_invoice.pdf';
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    window.URL.revokeObjectURL(url);
+                })
+                .catch(error => {
+                    alert(error.message);
+                })
+                .finally(() => {
+                    location.reload();
+                });
+        });
+
+        // Add this function to render pagination controls
+        function renderPaginationControls() {
+            const pagination = document.getElementById('records-pagination');
+            const totalPages = Math.ceil(allRecords.length / pageSize);
+            const maxVisiblePages = 4;
+
+            if (totalPages <= 1) {
+                pagination.innerHTML = '';
+                return;
+            }
+
+            let buttons = '';
+
+            // Previous button
+            buttons += `<button id="prev-page-btn" class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 text-xs" ${currentPage === 1 ? 'disabled' : ''}>&lt;</button>`;
+
+            // Calculate start and end for page window
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+            let endPage = startPage + maxVisiblePages - 1;
+
+            if (endPage > totalPages) {
+                endPage = totalPages;
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+            }
+
+            // Page number buttons (windowed)
+            for (let i = startPage; i <= endPage; i++) {
+                buttons += `<button class="px-2 py-1 rounded ${i === currentPage ? 'bg-blue-600 text-white' : 'bg-gray-200 hover:bg-gray-300'} text-xs mx-1 page-btn" data-page="${i}">${i}</button>`;
+            }
+
+            // Next button
+            buttons += `<button id="next-page-btn" class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 text-xs" ${currentPage === totalPages ? 'disabled' : ''}>&gt;</button>`;
+
+            pagination.innerHTML = buttons;
+
+            // Event listeners
+            document.getElementById('prev-page-btn').onclick = function () {
+                if (currentPage > 1) {
+                    currentPage--;
+                    renderRecordsTable(getCurrentPageRecords());
+                    renderPaginationControls();
+                }
+            };
+            document.getElementById('next-page-btn').onclick = function () {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    renderRecordsTable(getCurrentPageRecords());
+                    renderPaginationControls();
+                }
+            };
+            document.querySelectorAll('.page-btn').forEach(btn => {
+                btn.onclick = function () {
+                    const page = parseInt(this.getAttribute('data-page'));
+                    if (page !== currentPage) {
+                        currentPage = page;
+                        renderRecordsTable(getCurrentPageRecords());
+                        renderPaginationControls();
+                    }
+                };
+            });
+        }
+
+
+    </script>
+</body>
+
+</html>
