@@ -5,7 +5,12 @@
         body {
             font-family: Arial, sans-serif;
             font-size: 13px;
-            margin: 20px;
+            margin: 0;
+            padding: 0;
+        }
+        .container{
+            width: 100%;
+            margin: 0 auto;
         }
         table {
             width: 100%;
@@ -44,77 +49,89 @@
     </style>
 </head>
 <body>
-
+    <div class="container">
+    <br><br><br><br>
     <table class="no-border">
         <tr>
-            <td style="width: 60%; vertical-align: top; text-align: left;">
-                {% if client_logo_url %}
+            <td style="width: 75%; vertical-align: top; text-align: right; ">
+                <!-- {% if client_logo_url %}
                     <img src="{{ client_logo_url }}" alt="Client Logo" style="width: 160px; height: auto;">
-                {% endif %}
+                {% endif %} -->
             </td>
-            <td style="width: 40%; text-align: right; text-align: left;">
-                <p>{{ data.sellerAddress }}</p>
+            <td style="width: 25%; text-align: left;">
                 <p><strong>NTN:</strong> {{ data.sellerNTNCNIC }}</p>
                 <p><strong>STRN:</strong> {{ data.sellerSTRN }}</p>
             </td>
         </tr>
     </table>
 
-<br><br>
-    <h2><center><strong>Sales Tax Invoice</strong></center></h2>
-    <table class="no-border" style="width: 100%; margin-bottom: 15px;">
-        <tr>
-            <!-- LEFT: Buyer Info -->
-            <td style="width: 60%; vertical-align: top; border: none; text-align: left;">
-                <p><strong>Buyer:</strong> {{ data.buyerBusinessName }}</p>
-                <p><strong>Address:</strong> {{ data.buyerAddress }}</p>
-                <p><strong>NTN:</strong> {{ data.buyerNTNCNIC }}</p>
-                <p><strong>STRN:</strong> {{ data.buyerSTRN }}</p>
-                <p><strong>CNIC:</strong> {{ data.buyerCNIC }}</p>
-            </td>
+    <div style="border: 2px solid black; padding: 10px; text-align: center; width: fit-content; margin: 0 auto;">
+        <h2 style="margin: 0;"><strong>Sales Tax Invoice</strong></h2>
+    </div>
 
-            <!-- RIGHT: QR + FBR Logo -->
-            <td style="width: 40%; vertical-align: top; text-align: left; border: none;">
-                <p><strong>Date:</strong> {{ data.invoiceDate }}</p>
-                <p><strong>Invoice No:</strong> {{ data.invoiceRefNo }}</p>
-                <p><strong>FBR Invoice No:</strong> {{ data.fbrInvoiceNumber or "" }}</p>
-            </td>
-        </tr>
-    </table>
+    <br><br>
 
+    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+        <!-- LEFT: Buyer Info Box -->
+        <div style="flex: 1; border: 0.5px solid black; padding: 10px; text-align: left;">
+            <p><strong>Buyer:</strong> {{ data.buyerBusinessName }}</p>
+            <p><strong>Address:</strong> {{ data.buyerAddress }}</p>
+            <p><strong>NTN:</strong> {{ data.buyerNTNCNIC }}</p>
+            <p><strong>STRN:</strong> {{ data.buyerSTRN }}</p>
+        </div>
 
-    <div style="margin-bottom: 15px;" class="section-title">Invoice Details </div>
+        <!-- RIGHT: Invoice Info Box -->
+        <div style="flex: 1; border: 0.5px solid black; padding: 10px; text-align: left;">
+            <p><strong>Date:</strong> {{ data.invoiceDate | format_date }}</p>
+            <p><strong>Invoice No:</strong> {{ data.invoiceRefNo }}</p>
+            <p><strong>Delivery Challan No:</strong> {{ data.deliverychallanno }}</p>
+            <p><strong>Delivery Challan Date:</strong> {{ data.deliverychallandate or "N/A"  }}   </p>
+            <p><strong>FBR Invoice No:</strong> {{ data.fbrInvoiceNumber or "" }}</p>
+        </div>
+    </div>
+
+    <br>
+
+    <div style="margin-bottom: 15px;" class="section-title">Invoice Details</div>
     <table>
         <thead>
             <tr>
                 <th>Sr. No.</th>
-                <th>HS CODE</th>
-                <th>Product Detail</th>
-                <th>Quantity (MT)</th>
-                <th>Rate</th>
-                <th>Amount Excl. ST</th>
-                <th>ST Rate</th>
-                <th>Sales Tax</th>
-                <th>Gross Total</th>
+                <th colspan="2" style="text-align: center;">Product Details</th>
+                <th>Quantity (Nos)</th>
+                <th>Rate Rs.</th>
+                <th>Amount Excl. ST Rs.</th>
+                <th>Sales Tax (18%)</th>
+                <th>Gross Total Rs.</th>
             </tr>
         </thead>
         <tbody>
             {% for item in data["items"] %}
             <tr>
                 <td>{{ loop.index }}</td>
-                <td>{{ item.hsCode }}</td>
-                <td>{{ item.productDescription }}</td>
-                <td>{{ item.quantity }}</td>
-                <td>{{ item.unitrate }}</td>
-                <td>{{ item.valueSalesExcludingST }}</td>
-                <td>{{ item.rate }}</td>
-                <td>{{ item.salesTaxApplicable }}</td>
-                <td>{{ item.valueSalesExcludingST + item.salesTaxApplicable }}</td>
+                <td colspan="2">{{ item.productDescription }}</td>
+                <td>{{ "{:,.0f}".format(item.quantity) }}</td>
+                <td>{{ "{:,.2f}".format(item.unitrate) }}</td>
+                <td>{{ "{:,.2f}".format(item.valueSalesExcludingST) }}</td>
+                <td>{{ "{:,.2f}".format(item.salesTaxApplicable) }}</td>
+                <td>{{ "{:,.2f}".format(item.valueSalesExcludingST + item.salesTaxApplicable) }}</td>
+            </tr>
+            {% endfor %}
+
+             <!-- Add 4 empty rows for better template appearance -->
+            {% for i in range(4) %}
+            <tr>
+                <td>&nbsp;</td>
+                <td colspan="2">&nbsp;</td>
+                <td>&nbsp;</td>
+                <td>&nbsp;</td>
+                <td>&nbsp;</td>
+                <td>&nbsp;</td>
+                <td>&nbsp;</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
-
 
     <p><strong>Amount in Words:</strong> <i>{{ data.amountInWords }}</i></p>
 
@@ -125,9 +142,9 @@
 
             <!-- Right-aligned values -->
             <td style="width: 80%; border: none; text-align: right; vertical-align: top;">
-                <p><strong>Value Excluding Sales Tax:</strong> {{ data.totalExcl }}</p>
-                <p><strong>Sales Tax:</strong> {{ data.totalTax }}</p>
-                <p><strong>Total Value Inclusive Sales Tax:</strong> {{ data.totalInclusive }}</p>
+                <p><strong>Value Excluding Sales Tax:</strong> {{ "{:,.2f}".format(data.totalExcl) }}</p>
+                <p><strong>Sales Tax:</strong> {{ "{:,.2f}".format(data.totalTax) }}</p>
+                <p><strong>Total Value Inclusive Sales Tax:</strong> {{ "{:,.2f}".format(data.totalInclusive) }}</p>
             </td>
         </tr>
     </table>
@@ -135,10 +152,9 @@
     <table class="no-border" style="width: 100%; margin-top: 20px;">
         <tr>
             <!-- Empty space on the left -->
-            <td style="width: 40%; border: none;">
-                <p><strong>Prepared By: ______________</strong></p>
-                <p><strong>Checked By:  ______________</strong></p>
-
+            <td style="text-align: left; width: 40%; border: none;">
+                <p><strong>______________________</strong></p>
+                <p><strong><bold>For Computer Gold Printing and Packaging (Pvt) Ltd.</bold></strong></p>
             </td>
 
             <!-- Right-aligned values -->
@@ -154,6 +170,6 @@
         </tr>
     </table>
 
-
+</div>
 </body>
 </html>

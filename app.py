@@ -36,6 +36,29 @@ app.config.update(
     SESSION_COOKIE_PATH='/'
 )
 
+@app.template_filter('format_date')
+def format_date(date_string):
+    """Convert date from YYYY-M-D to DD-MM-YYYY format"""
+    try:
+        # Handle different input formats
+        if isinstance(date_string, datetime.datetime):
+            return date_string.strftime("%d-%m-%Y")
+        
+        # Parse string date - handle both YYYY-M-D and YYYY-MM-DD formats
+        date_obj = datetime.datetime.strptime(str(date_string).strip(), "%Y-%m-%d")
+        return date_obj.strftime("%d-%m-%Y")
+    except ValueError:
+        try:
+            # Try parsing with single digit month/day
+            parts = str(date_string).split('-')
+            if len(parts) == 3:
+                year, month, day = parts
+                date_obj = datetime.datetime(int(year), int(month), int(day))
+                return date_obj.strftime("%d-%m-%Y")
+        except:
+            pass
+    except:
+        pass
 
 def get_client_config(client_id, env):
     conn = get_db_connection()
@@ -68,16 +91,26 @@ def get_client_config(client_id, env):
         }
 
 
-
+print("HOST:", os.getenv("DB_HOST"))
+print("PORT:", os.getenv("DB_PORT"))
+print("USER:", os.getenv("DB_USER"))
+print("PASS:", os.getenv("DB_PASSWORD"))
+print("DB:", os.getenv("DB_NAME"))
 
 def get_db_connection():
-    return psycopg2.connect(
-        host=os.getenv("DB_HOST"),
-        database=os.getenv("DB_NAME"),
-        user=os.getenv("DB_USER"),
-        password=os.getenv("DB_PASSWORD"),
-        port=os.getenv("DB_PORT"),
-    )
+    try:
+        conn = psycopg2.connect(
+            host=os.environ.get("DB_HOST"),
+            port=os.environ.get("DB_PORT"),
+            user=os.environ.get("DB_USER"),
+            password=os.environ.get("DB_PASSWORD"),
+            dbname=os.environ.get("DB_NAME")
+        )
+        print("✅ Connected to the database successfully.")
+        return conn
+    except Exception as e:
+        print("❌ Failed to connect to the database:", e)
+        return None
 
 def get_env():
     env = request.args.get('env') or request.headers.get('X-ERP-ENV') or 'sandbox'
@@ -311,7 +344,7 @@ def get_json():
 
     raw_date = section_data.get("invoiceDate", "")
     if isinstance(raw_date, datetime.datetime):
-        invoice_date = raw_date.strftime("%Y-%m-%d")
+        invoice_date = raw_date.strftime("%d-%m-%Y")
     else:
         invoice_date = str(raw_date).strip()
 
@@ -458,6 +491,27 @@ def generate_invoice_excel():
         # Add STRNs to `data` for invoice rendering
         data["sellerSTRN"] = section_data.get("sellerSTRN", "")
         data["buyerSTRN"] = section_data.get("buyerSTRN", "")
+        data["deliverychallanno"] = section_data.get("deliverychallanno", "")
+       
+        raw_challan_date = section_data.get("deliverychallandate", "")
+        if isinstance(raw_challan_date, datetime.datetime):
+            data["deliverychallandate"] = raw_challan_date.strftime("%d-%m-%Y")
+        else:
+            challan_date_str = str(raw_challan_date).strip()
+            if challan_date_str and '-' in challan_date_str and challan_date_str != "":
+                try:
+                    parts = challan_date_str.split('-')
+                    if len(parts) == 3:
+                        year, month, day = parts
+                        # Convert to DD-MM-YYYY format
+                        data["deliverychallandate"] = f"{day.zfill(2)}-{month.zfill(2)}-{year}"
+                    else:
+                        data["deliverychallandate"] = challan_date_str
+                except:
+                    data["deliverychallandate"] = challan_date_str
+            else:
+                data["deliverychallandate"] = ""
+
 
         # --- Extract simple rate per item for HTML invoice ---
         product_df = pd.read_excel(filepath, skiprows=product_start_index)
@@ -466,8 +520,6 @@ def generate_invoice_excel():
                 item["unitrate"] = float(product_df.iloc[i].get("rate", 0))  # simple unit rate
             except:
                 item["unitrate"] = 0
-
-
 
 
 
