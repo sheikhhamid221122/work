@@ -12,7 +12,7 @@ import tempfile
 from weasyprint import HTML
 import math
 import base64
-import psycopg2
+import psycopg as psycopg2
 from flask_cors import CORS
 from dotenv import load_dotenv
 load_dotenv()
