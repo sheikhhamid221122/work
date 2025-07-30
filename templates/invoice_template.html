@@ -46,6 +46,10 @@
             padding: 10px;
             text-align: right;
         }
+        .ntn-strn-container {
+            text-align: left;
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body>
@@ -53,14 +57,16 @@
     <br><br><br><br>
     <table class="no-border">
         <tr>
-            <td style="width: 80%; vertical-align: top; text-align: right; ">
+            <td style="width: 75%; vertical-align: top; text-align: right; ">
                 <!-- {% if client_logo_url %}
                     <img src="{{ client_logo_url }}" alt="Client Logo" style="width: 160px; height: auto;">
                 {% endif %} -->
             </td>
-            <td style="width: 20%; text-align: left;">
-                <p><strong>NTN:</strong> {{ data.sellerNTNCNIC }}</p>
-                <p><strong>STRN:</strong> {{ data.sellerSTRN }}</p>
+            <td style="width: 25%; text-align: right; vertical-align: top;">
+                <div class="ntn-strn-container">
+                    <p style="margin: 5px 0;"><strong>NTN: {{ data.sellerNTNCNIC }}</strong></p>
+                    <p style="margin: 5px 0;"><strong>STRN: {{ data.sellerSTRN }}</strong></p>
+                </div>
             </td>
         </tr>
     </table>
