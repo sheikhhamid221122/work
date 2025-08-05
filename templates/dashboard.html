@@ -215,7 +215,7 @@
                                         <th scope="col"
                                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Total Value</th>
-                                        <th scope="col"
+                                        <th scope="col" id="status-column-header"
                                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Status</th>
                                     </tr>
@@ -241,7 +241,7 @@
                         </button>
                         <button id="submit-fbr-btn"
                             class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out">
-                            <i class="fas fa-paper-plane mr-2"></i> Submit to FBR
+                            <i class="fas fa-paper-plane mr-2"></i> <span id="submit-btn-text">Submit to FBR</span>
                         </button>
                         <!-- New Get Excel button -->
                         <button id="get-excel-btn"
@@ -318,13 +318,40 @@
                     <div class="flex justify-center mb-4">
                         <i class="fas fa-circle-notch fa-spin text-4xl text-blue-600 spinner"></i>
                     </div>
-                    <h3 class="text-xl font-semibold text-gray-900 mb-2">Submitting to FBR</h3>
+                    <h3 class="text-xl font-semibold text-gray-900 mb-2" id="submitting-title">Submitting to FBR</h3>
                     <p class="text-gray-600">Please wait while we process your request...</p>
                 </div>
                 <div class="mt-6">
                     <button id="close-submission-modal"
                         class="px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
                         Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-confirmation-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
+        <div class="modal-overlay absolute inset-0"></div>
+        <div class="bg-white rounded-lg shadow-xl z-50 w-full max-w-md">
+            <div class="p-6">
+                <div class="flex flex-col items-center mb-4">
+                    <div class="bg-red-100 p-3 rounded-full mb-4">
+                        <i class="fas fa-exclamation-triangle text-red-600 text-2xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900">Confirm Deletion</h3>
+                    <p class="mt-2 text-center text-gray-600">Are you sure you want to delete this invoice? This action cannot be undone.</p>
+                    <p id="delete-invoice-reference" class="mt-2 font-semibold"></p>
+                </div>
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button id="cancel-delete-btn"
+                        class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button id="confirm-delete-btn"
+                        class="px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700">
+                        Delete
                     </button>
                 </div>
             </div>
@@ -343,7 +370,8 @@
             UPLOAD_EXCEL: '/upload-excel',
             GET_JSON: '/get-json',
             SUBMIT_FBR: '/submit-fbr',
-            GET_RECORDS: '/records'
+            GET_RECORDS: '/records',
+            DELETE_INVOICE: '/delete-invoice'
         };
 
         // Track last uploaded file name
@@ -353,19 +381,23 @@
         let allRecords = [];
         let currentPage = 1;
         const pageSize = 6;
+        
+        // Store the invoice to be deleted
+        let invoiceToDelete = null;
 
         // On page load, fetch records
         document.addEventListener('DOMContentLoaded', function () {
-        let env = window.localStorage.getItem('erp_env');
+            let env = "{{ session['env'] }}";
 
-        if (!env) {
-            // Fallback to default session env (server sets this)
-            env = 'sandbox';
-            window.localStorage.setItem('erp_env', env);
-        }
+            // Update table header and submit button based on environment
+            if (env === "sandbox") {
+                document.getElementById('status-column-header').textContent = "Delete";
+                document.getElementById('submit-btn-text').textContent = "Submit to Sandbox";
+                document.getElementById('submitting-title').textContent = "Submitting to Sandbox";
+            }
 
-        loadRecords();
-    });
+            loadRecords();
+        });
 
         // Load past records from backend
         function loadRecords() {
@@ -411,6 +443,24 @@
 
             records.forEach((record, idx) => {
                 const row = document.createElement('tr');
+                
+                // Create the status/delete column content based on environment
+                let statusColumnContent = '';
+                if (ENV === 'sandbox') {
+                    statusColumnContent = `
+                        <button class="delete-invoice-btn bg-red-500 hover:bg-red-600 text-white px-3 py-1 text-xs font-semibold rounded-full transition-colors"
+                            data-invoice-ref="${record.invoiceReference}">
+                            <i class="fas fa-trash-alt mr-1"></i> Delete
+                        </button>
+                    `;
+                } else {
+                    statusColumnContent = `
+                        <span class="status-badge ${record.status.toLowerCase() === 'success' ? 'success' : 'failed'} px-2 py-1 text-xs font-semibold rounded-full text-white">
+                            ${record.status}
+                        </span>
+                    `;
+                }
+                
                 row.innerHTML = `
                     <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">${startSr + idx}</td>
                     <td class="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${record.invoiceReference}</td>
@@ -420,16 +470,74 @@
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${record.sellerName}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">PKR ${record.totalValue.toFixed(2)}</td>
                     <td class="px-6 py-4 whitespace-nowrap">
-                        <span class="status-badge ${record.status.toLowerCase() === 'success' ? 'success' : 'failed'} px-2 py-1 text-xs font-semibold rounded-full text-white">
-                            ${record.status}
-                        </span>
+                        ${statusColumnContent}
                     </td>
                 `;
                 tableBody.appendChild(row);
             });
+            
+            // Add event listeners to delete buttons if in sandbox mode
+            if (ENV === 'sandbox') {
+                document.querySelectorAll('.delete-invoice-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const invoiceRef = this.getAttribute('data-invoice-ref');
+                        showDeleteConfirmationModal(invoiceRef);
+                    });
+                });
+            }
         }
 
+        // Function to show delete confirmation modal
+        function showDeleteConfirmationModal(invoiceRef) {
+            invoiceToDelete = invoiceRef;
+            document.getElementById('delete-invoice-reference').textContent = `Invoice: ${invoiceRef}`;
+            document.getElementById('delete-confirmation-modal').classList.remove('hidden');
+        }
 
+        // Delete invoice function
+        function deleteInvoice(invoiceRef) {
+            fetch(apiUrl(API_ENDPOINTS.DELETE_INVOICE), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ invoiceReference: invoiceRef })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Remove the invoice from the local records array
+                    allRecords = allRecords.filter(record => record.invoiceReference !== invoiceRef);
+                    
+                    // Re-render the table
+                    renderRecordsTable(getCurrentPageRecords());
+                    renderPaginationControls();
+                    
+                    // Show success message
+                    alert('Invoice deleted successfully');
+                } else {
+                    alert('Failed to delete invoice: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error deleting invoice:', error);
+                alert('An error occurred while deleting the invoice');
+            });
+        }
+
+        // Set up event listeners for delete modal
+        document.getElementById('cancel-delete-btn').addEventListener('click', function() {
+            document.getElementById('delete-confirmation-modal').classList.add('hidden');
+            invoiceToDelete = null;
+        });
+
+        document.getElementById('confirm-delete-btn').addEventListener('click', function() {
+            if (invoiceToDelete) {
+                deleteInvoice(invoiceToDelete);
+                document.getElementById('delete-confirmation-modal').classList.add('hidden');
+                invoiceToDelete = null;
+            }
+        });
 
         document.getElementById('dashboard-tab').addEventListener('click', function (e) {
             e.preventDefault();
@@ -682,8 +790,6 @@
                 };
             });
         }
-
-
     </script>
 </body>
 

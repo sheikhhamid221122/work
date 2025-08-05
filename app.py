@@ -16,6 +16,7 @@ import psycopg2
 from flask_cors import CORS
 from dotenv import load_dotenv
 load_dotenv()
+import datetime
 
 
 app = Flask(__name__)
@@ -36,29 +37,28 @@ app.config.update(
     SESSION_COOKIE_PATH='/'
 )
 
-@app.template_filter('format_date')
-def format_date(date_string):
-    """Convert date from YYYY-M-D to DD-MM-YYYY format"""
+@app.template_filter('datetimeformat')
+def datetimeformat(value):
     try:
-        # Handle different input formats
-        if isinstance(date_string, datetime.datetime):
-            return date_string.strftime("%d-%m-%Y")
-        
-        # Parse string date - handle both YYYY-M-D and YYYY-MM-DD formats
-        date_obj = datetime.datetime.strptime(str(date_string).strip(), "%Y-%m-%d")
-        return date_obj.strftime("%d-%m-%Y")
-    except ValueError:
-        try:
-            # Try parsing with single digit month/day
-            parts = str(date_string).split('-')
-            if len(parts) == 3:
-                year, month, day = parts
-                date_obj = datetime.datetime(int(year), int(month), int(day))
-                return date_obj.strftime("%d-%m-%Y")
-        except:
-            pass
+        return datetime.datetime.strptime(value, "%Y-%m-%d").strftime("%d %B %Y")
     except:
-        pass
+        return value
+
+# @app.template_filter('datetimeformat')
+# def datetimeformat(value):
+#     try:
+#         return datetime.datetime.strptime(value, "%Y-%m-%d").strftime("%d-%m-%Y")
+#     except:
+#         return value
+
+
+@app.template_filter('comma_format')
+def comma_format(value):
+    try:
+        return "{:,.2f}".format(float(value))
+    except (ValueError, TypeError):
+        return value
+    
 
 def get_client_config(client_id, env):
     conn = get_db_connection()
@@ -91,26 +91,16 @@ def get_client_config(client_id, env):
         }
 
 
-print("HOST:", os.getenv("DB_HOST"))
-print("PORT:", os.getenv("DB_PORT"))
-print("USER:", os.getenv("DB_USER"))
-print("PASS:", os.getenv("DB_PASSWORD"))
-print("DB:", os.getenv("DB_NAME"))
+
 
 def get_db_connection():
-    try:
-        conn = psycopg2.connect(
-            host=os.environ.get("DB_HOST"),
-            port=os.environ.get("DB_PORT"),
-            user=os.environ.get("DB_USER"),
-            password=os.environ.get("DB_PASSWORD"),
-            dbname=os.environ.get("DB_NAME")
-        )
-        print("✅ Connected to the database successfully.")
-        return conn
-    except Exception as e:
-        print("❌ Failed to connect to the database:", e)
-        return None
+    return psycopg2.connect(
+        host=os.getenv("DB_HOST"),
+        database=os.getenv("DB_NAME"),
+        user=os.getenv("DB_USER"),
+        password=os.getenv("DB_PASSWORD"),
+        port=os.getenv("DB_PORT"),
+    )
 
 def get_env():
     env = request.args.get('env') or request.headers.get('X-ERP-ENV') or 'sandbox'
@@ -252,8 +242,60 @@ def get_records():
     return jsonify(records)
 
 
-
-
+# New endpoint to delete an invoice
+@app.route('/delete-invoice', methods=['POST'])
+def delete_invoice():
+    # Only allow deletions in sandbox environment
+    env = get_env()
+    if env != 'sandbox':
+        return jsonify({'success': False, 'error': 'Deletion only allowed in sandbox environment'}), 403
+    
+    # Get client ID from session
+    client_id = session.get('client_id')
+    if not client_id:
+        return jsonify({'success': False, 'error': 'No client ID in session'}), 401
+    
+    # Get invoice reference from request
+    data = request.get_json()
+    invoice_ref = data.get('invoiceReference')
+    if not invoice_ref:
+        return jsonify({'success': False, 'error': 'No invoice reference provided'}), 400
+    
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # Find invoices matching the reference, client ID, and environment
+        cur.execute("""
+            SELECT id FROM invoices 
+            WHERE client_id = %s AND env = %s AND 
+            (
+                (invoice_data::jsonb->>'fbrInvoiceNumber' = %s) OR
+                (fbr_response::jsonb->>'invoiceNumber' = %s)
+            )
+        """, (client_id, env, invoice_ref, invoice_ref))
+        
+        row = cur.fetchone()
+        
+        if not row:
+            cur.close()
+            conn.close()
+            return jsonify({'success': False, 'error': 'Invoice not found'}), 404
+        
+        invoice_id = row[0]
+        
+        # Delete the invoice
+        cur.execute("DELETE FROM invoices WHERE id = %s", (invoice_id,))
+        conn.commit()
+        
+        cur.close()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Invoice deleted successfully'})
+        
+    except Exception as e:
+        print(f"Error deleting invoice: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 #  Upload Excel File
@@ -292,7 +334,7 @@ def get_json():
         key = str(row[0]).strip() if pd.notna(row[0]) else ''
         val = row[1] if len(row) > 1 else None
 
-        if key.lower() == "hscode":
+        if key.lower() == "productdescription":
             product_start_index = i
             break
 
@@ -324,11 +366,11 @@ def get_json():
                 ("productDescription", safe(row.get("productDescription"))),
                 ("rate", rate),
                 ("uoM", safe(row.get("uoM"))),
-                ("quantity", float(safe(row.get("quantity"), 0))),
-                ("totalValues", float(safe(row.get("totalValues"), 0))),
-                ("valueSalesExcludingST", float(safe(row.get("valueSalesExcludingST"), 0))),
+                ("quantity", round(float(safe(row.get("quantity"), 0)), 2)),
+                ("totalValues", round(float(safe(row.get("totalValues"), 0)), 2)),
+                ("valueSalesExcludingST", round(float(safe(row.get("valueSalesExcludingST"), 0)), 2)),
                 ("fixedNotifiedValueOrRetailPrice", float(safe(row.get("fixedNotifiedValueOrRetailPrice"), 0))),
-                ("salesTaxApplicable", float(safe(row.get("salesTaxApplicable"), 0))),
+                ("salesTaxApplicable", round(float(safe(row.get("salesTaxApplicable"), 0)), 2)),
                 ("salesTaxWithheldAtSource", float(safe(row.get("salesTaxWithheldAtSource"), 0))),
                 ("extraTax", str(safe(row.get("extraTax")))),
                 ("furtherTax", float(safe(row.get("furtherTax"), 0))),
@@ -344,7 +386,7 @@ def get_json():
 
     raw_date = section_data.get("invoiceDate", "")
     if isinstance(raw_date, datetime.datetime):
-        invoice_date = raw_date.strftime("%d-%m-%Y")
+        invoice_date = raw_date.strftime("%Y-%m-%d")
     else:
         invoice_date = str(raw_date).strip()
 
@@ -464,16 +506,12 @@ def generate_invoice_excel():
     data = last_json_data[env]
     items = data['items']
     
-    
-    
-    
-    
     # Read from Excel file again to get display-only values
     filepath = last_uploaded_file.get(env)
     if filepath and os.path.exists(filepath):
-        df = pd.read_excel(filepath, header=None)
+        df = pd.read_excel(filepath, header=None,keep_default_na=False)
 
-        # --- Extract section data like sellerSTRN and buyerSTRN ---
+        # --- Extract section data (header fields above the product list) ---
         section_data = {}
         product_start_index = None
 
@@ -481,48 +519,30 @@ def generate_invoice_excel():
             key = str(row[0]).strip() if pd.notna(row[0]) else ''
             val = row[1] if len(row) > 1 else None
 
-            if key.lower() == "hscode":
+            # Check where product section starts
+            if key.lower() == "productdescription":
                 product_start_index = i
                 break
 
+            # Store key-value pairs from the header section
             if key and not any(key.startswith(s) for s in ["1)", "2)", "3)", "4)"]):
                 section_data[key] = val
 
-        # Add STRNs to `data` for invoice rendering
+        # --- Assign extracted fields to `data` dictionary ---
         data["sellerSTRN"] = section_data.get("sellerSTRN", "")
         data["buyerSTRN"] = section_data.get("buyerSTRN", "")
-        data["deliverychallanno"] = section_data.get("deliverychallanno", "")
-       
-        raw_challan_date = section_data.get("deliverychallandate", "")
-        if isinstance(raw_challan_date, datetime.datetime):
-            data["deliverychallandate"] = raw_challan_date.strftime("%d-%m-%Y")
-        else:
-            challan_date_str = str(raw_challan_date).strip()
-            if challan_date_str and '-' in challan_date_str and challan_date_str != "":
-                try:
-                    parts = challan_date_str.split('-')
-                    if len(parts) == 3:
-                        year, month, day = parts
-                        # Convert to DD-MM-YYYY format
-                        data["deliverychallandate"] = f"{day.zfill(2)}-{month.zfill(2)}-{year}"
-                    else:
-                        data["deliverychallandate"] = challan_date_str
-                except:
-                    data["deliverychallandate"] = challan_date_str
-            else:
-                data["deliverychallandate"] = ""
+        data["CNIC"] = section_data.get("CNIC", "")          # Add CNIC
+        data["PO"] = section_data.get("PO#", "")             # Add PO#
 
-
-        # --- Extract simple rate per item for HTML invoice ---
+        # --- Read products table from product_start_index ---
         product_df = pd.read_excel(filepath, skiprows=product_start_index)
+
+        # Extract unit rate for each product item
         for i, item in enumerate(items):
             try:
-                item["unitrate"] = float(product_df.iloc[i].get("rate", 0))  # simple unit rate
+                item["unitrate"] = float(product_df.iloc[i].get("rate", 0))  # Extract unit rate
             except:
                 item["unitrate"] = 0
-
-
-
 
     # Calculate totals (in case not done earlier)
     total_excl = 0
@@ -561,8 +581,6 @@ def generate_invoice_excel():
     # Add to template context
     data['amountInWords'] = amount_in_words
 
-
-    
     # Get FBR invoice number
     fbr_invoice = data.get("fbrInvoiceNumber", "")
 
@@ -579,44 +597,46 @@ def generate_invoice_excel():
 
         os.remove(qr_path)
          
- 
     # Fetch client logo from Supabase
     client_id = session.get('client_id')
+    user_id = session.get('user_id')
     client_logo_url = None
-    if client_id:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("SELECT logo_url FROM clients WHERE id = %s", (client_id,))
-        row = cur.fetchone()
-        cur.close()
-        conn.close()
-        if row:
-            client_logo_url = row[0]
-            
     
-    # Fetch FBR logo URL from DB
-    fbr_logo_url = None
-
+    # Check user's username to determine which template to use
     conn = get_db_connection()
     cur = conn.cursor()
+    
+    # Get the username for the current user
+    cur.execute("SELECT username FROM users WHERE id = %s", (user_id,))
+    user_row = cur.fetchone()
+    username = user_row[0] if user_row else None
+    
+    # Get client logo
+    if client_id:
+        cur.execute("SELECT logo_url FROM clients WHERE id = %s", (client_id,))
+        logo_row = cur.fetchone()
+        if logo_row:
+            client_logo_url = logo_row[0]
+    
+    # Fetch FBR logo URL from DB
     cur.execute("SELECT fbr_logo FROM fbr LIMIT 1;")
-    row = cur.fetchone()
+    fbr_row = cur.fetchone()
+    fbr_logo_url = fbr_row[0] if fbr_row else None
+    
     cur.close()
     conn.close()
+    
+    # Select the appropriate template based on username
+    template_name = 'invoice_template.html' if username == '8974121' else 'invoice_template2.html'
 
-    if row:
-        fbr_logo_url = row[0]
-
-            
-
-    # --- Render HTML invoice ---
+    # --- Render HTML invoice with the selected template ---
     rendered_html = render_template(
-    'invoice_template.html',
-    data=data,
-    qr_base64=qr_base64,
-    client_logo_url=client_logo_url,
-    fbr_logo_url=fbr_logo_url
-)
+        template_name,
+        data=data,
+        qr_base64=qr_base64,
+        client_logo_url=client_logo_url,
+        fbr_logo_url=fbr_logo_url
+    )
 
     # --- Generate PDF ---
     pdf_file_path = 'invoice.pdf'
@@ -652,7 +672,4 @@ def logout():
 
     
 if __name__ == '__main__':
-    # app.run(debug=True)
-    port = int(os.environ.get('PORT', 5000))
-    debug = os.environ.get('FLASK_ENV') == 'development'
-    app.run(host='0.0.0.0', port=port, debug=debug)
+    app.run(debug=True)
