@@ -109,7 +109,7 @@
         <tr>
             <td style="font-weight: bold; border: 1px solid #333;" class="left">STRN</td>
             <td style="border: 1px solid #333;" class="left">{{ data.buyerSTRN }}</td>
-            <td style="font-weight: bold; border: 1px solid #333;" class="left" rowspan="2">P.O # / DATE</td>
+            <td style="font-weight: bold; border: 1px solid #333;" class="left" rowspan="2">Delivery Challan Number / DATE</td>
             <td style="border: 1px solid #333;" class="left" rowspan="2">{{ data.PO }}</td>
         </tr>
         <tr>
@@ -127,12 +127,12 @@
         <tr>
             <th style="width: 5%;">Sr. No.</th>
             <th style="width: 25%;">Product Detail</th>
-            <th style="width: 10%;">Quantity</th>
-            <th style="width: 10%;">Rate</th>
-            <th style="width: 12%;">Value Exclusive of ST</th>
+            <th style="width: 10%;">Quantity (Nos)</th>
+            <th style="width: 10%;">Rate Rs.</th>
+            <th style="width: 12%;">Value Exclusive of ST Rs.</th>
             <th style="width: 10%;">Sales Tax Rate</th>
-            <th style="width: 10%;">Sales Tax</th>
-            <th style="width: 18%;">Value Inclusive of Sales Tax</th>
+            <th style="width: 10%;">Sales Tax Rs.</th>
+            <th style="width: 18%;">Value Inclusive of Sales Tax Rs.</th>
         </tr>
     </thead>
     <tbody>
@@ -187,15 +187,15 @@
                 <table style="width: 98%;">
                     <tr>
                         <td style="width: 56%; text-align: left; font-weight: bold; border: 1px solid #333; padding-left: 6px;">Value Exclusive of Sales Tax</td>
-                        <td style="width: 44%; text-align: center; font-weight: bold; border: 1px solid #333; padding-right: 6px;">{{ data.totalExcl | comma_format}}</td>
+                        <td style="width: 44%; text-align: center; font-weight: bold; border: 1px solid #333; padding-right: 6px;">Rs. {{ data.totalExcl | comma_format}}</td>
                     </tr>
                     <tr>
                         <td style="text-align: left; font-weight: bold; border: 1px solid #333; height: 30px; padding-left: 6px;">Value of Sales Tax</td>
-                        <td style="text-align: center; font-weight: bold; border: 1px solid #333; height: 30px; padding-right: 6px;">{{ data.totalTax | comma_format }}</td>
+                        <td style="text-align: center; font-weight: bold; border: 1px solid #333; height: 30px; padding-right: 6px;">Rs. {{ data.totalTax | comma_format }}</td>
                     </tr>
                     <tr>
                         <td style="text-align: left; font-weight: bold; border: 1px solid #333; padding-left: 6px;">Value Inclusive of Sales Tax</td>
-                        <td style="text-align: center; font-weight: bold; border: 1px solid #333; padding-right: 6px;">{{ data.totalInclusive | comma_format }}</td>
+                        <td style="text-align: center; font-weight: bold; border: 1px solid #333; padding-right: 6px;">Rs. {{ data.totalInclusive | comma_format }}</td>
                     </tr>
                 </table>
             </div>
