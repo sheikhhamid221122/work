@@ -56,6 +56,12 @@
             font-weight: bold;
             margin-top: 25px;
         }
+        .signature-line {
+            border-top: 1px solid #333;
+            width: 250px;
+            margin-bottom: 10px;
+            margin-top: 30px;
+        }
     </style>
 </head>
 <body>
@@ -118,20 +124,20 @@
         </tr>
     </table>
 
+<br>
 <!-- Detail Section -->
 <div class="section-header" style="margin-top: 15px;">DETAILS</div>
 
-<!-- Products Table -->
+<!-- Products Table - Modified to remove Sales Tax Rate column -->
 <table style="margin-bottom: 0; border-bottom: none; width: 100%; border-collapse: collapse;">
     <thead>
         <tr>
             <th style="width: 5%;">Sr. No.</th>
-            <th style="width: 25%;">Product Detail</th>
+            <th style="width: 30%;">Product Detail</th>  <!-- Increased width -->
             <th style="width: 10%;">Quantity (Nos)</th>
             <th style="width: 10%;">Rate Rs.</th>
-            <th style="width: 12%;">Value Exclusive of ST Rs.</th>
-            <th style="width: 10%;">Sales Tax Rate</th>
-            <th style="width: 10%;">Sales Tax Rs.</th>
+            <th style="width: 17%;">Value Exclusive of ST Rs.</th>  <!-- Increased width -->
+            <th style="width: 10%;">Sales Tax (18%)</th>
             <th style="width: 18%;">Value Inclusive of Sales Tax Rs.</th>
         </tr>
     </thead>
@@ -143,7 +149,6 @@
             <td>{{ item.quantity }}</td>
             <td>{{ item.unitrate | comma_format }}</td>
             <td>{{ item.valueSalesExcludingST | comma_format }}</td>
-            <td>{{ item.rate }}</td>
             <td>{{ item.salesTaxApplicable | comma_format }}</td>
             <td>{{ (item.valueSalesExcludingST + item.salesTaxApplicable) | comma_format }}</td>
         </tr>
@@ -151,22 +156,17 @@
 
         {# Add empty rows to make total rows = 7 #}
         {% set total_rows = data["items"]|length %}
-        {% for i in range(total_rows + 1, 6) %}
+        {% for i in range(total_rows + 1, 2) %}
         <tr>
             <td>{{ i }}</td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td></td>
-            <td></td>
             <td></td>
             <td></td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
-
-<!-- Summary Section -->
+<br>
+<!-- Summary Section with increased gap between tables -->
 <table class="no-border" style="width: 101.7%; margin-top: -3px; border-top: none;">
     <tr>
         <!-- Left: Centered Amount in Words -->
@@ -181,9 +181,9 @@
             </table>
         </td>
 
-        <!-- Right: Aligned Summary Table -->
+        <!-- Right: Aligned Summary Table with added margin-top to create gap -->
         <td style="width: 42%; border: none; vertical-align: top;">
-            <div style="margin-left: auto; width: 100%;">
+            <div style="margin-left: auto; width: 100%; margin-top: 50px;">
                 <table style="width: 98%;">
                     <tr>
                         <td style="width: 56%; text-align: left; font-weight: bold; border: 1px solid #333; padding-left: 6px;">Value Exclusive of Sales Tax</td>
@@ -205,7 +205,10 @@
 
 <table class="no-border" style="width: 101%;">
     <tr>
-        <td style="width: 60%; vertical-align: bottom; text-align: left; border: none;">
+        <td style="width: 60%; vertical-align: bottom; text-align: left; border: none; margin-top: 20px;">
+            <!-- Signature line and company name added here -->
+            <div class="signature-line"></div>
+            <div style="font-weight: bold;">For Computer Gold Printing and Packaging (Pvt) Ltd.</div>
         </td>
 
         <!-- FBR Logo -->
@@ -224,8 +227,7 @@
     </tr>
 </table>
 
-<div class="footer-note">NOTE: THIS IS FBR GENERATED INVOICE, NO NEED TO SIGN</div>
-
+<!-- Original footer note removed -->
 </div>
 </body>
 </html>
