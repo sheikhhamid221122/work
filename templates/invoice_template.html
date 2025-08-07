@@ -25,7 +25,7 @@
             padding: 4px 6px;
         }
         .section-header {
-            background-color: #a7c7e7;
+            background-color: #ffff;
             font-weight: bold;
             text-align: center;
             padding: 8px;
@@ -95,34 +95,35 @@
     <!-- Buyer and Invoice Info -->
     <table style="width: 100%; border: 1px solid #333;">
         <tr>
-            <td style="width: 20%; font-weight: bold; border: 1px solid #333;" class="left">BUYER NAME</td>
-            <td style="width: 45%; border: 1px solid #333;" class="left">{{ data.buyerBusinessName }}</td>
-            <td style="width: 15%; font-weight: bold; border: 1px solid #333;" class="left">DATE</td>
-            <td style="width: 20%; border: 1px solid #333;" class="left">{{ data.invoiceDate | datetimeformat }}</td>
+            <td style="width: 20%; font-weight: bold;" class="left">BUYER NAME</td>
+            <td style="width: 45%;" class="left">{{ data.buyerBusinessName }}</td>
+            <td style="width: 15%; font-weight: bold;" class="left">DATE</td>
+            <td style="width: 20%;" class="left">{{ data.invoiceDate | datetimeformat }}</td>
         </tr>
         <tr>
-            <td style="font-weight: bold; border: 1px solid #333;" class="left">ADDRESS</td>
-            <td style="border: 1px solid #333;" class="left">{{ data.buyerAddress }}</td>
-            <td style="font-weight: bold; border: 1px solid #333;" class="left">INVOICE #</td>
-            <td style="border: 1px solid #333;" class="left">{{ data.invoiceRefNo }}</td>
+            <td style="font-weight: bold;" class="left" rowspan="2">ADDRESS</td>
+            <td rowspan="2" class="left">{{ data.buyerAddress }}</td>
+            <td style="font-weight: bold;" class="left">INVOICE #</td>
+            <td class="left">{{ data.invoiceRefNo }}</td>
         </tr>
         <tr>
-            <td style="font-weight: bold; border: 1px solid #333;" class="left">NTN</td>
-            <td style="border: 1px solid #333;" class="left">{{ data.buyerNTNCNIC }}</td>
-            <td style="font-weight: bold; border: 1px solid #333;" class="left">FBR INVOICE #</td>
-            <td style="border: 1px solid #333;" class="left">{{ data.fbrInvoiceNumber or "" }}</td>
+            <td style="font-weight: bold;" class="left">FBR INVOICE #</td>
+            <td class="left">{{ data.fbrInvoiceNumber or "" }}</td>
         </tr>
         <tr>
-            <td style="font-weight: bold; border: 1px solid #333;" class="left">STRN</td>
-            <td style="border: 1px solid #333;" class="left">{{ data.buyerSTRN }}</td>
-            <td style="font-weight: bold; border: 1px solid #333;" class="left" rowspan="2">Delivery Challan Number / DATE</td>
-            <td style="border: 1px solid #333;" class="left" rowspan="2">{{ data.PO }}</td>
+            <td style="font-weight: bold;" class="left">NTN</td>
+            <td class="left">{{ data.buyerNTNCNIC }}</td>
+            <td style="font-weight: bold;" class="left">PURCHASE ORDER #</td>
+            <td class="left">{{ data.PO }}</td>
         </tr>
         <tr>
-            <td style="font-weight: bold; border: 1px solid #333;" class="left">CNIC</td>
-            <td style="border: 1px solid #333;" class="left">{{ data.CNIC }}</td>
+            <td style="font-weight: bold;" class="left">STRN</td>
+            <td class="left">{{ data.buyerSTRN }}</td>
+            <td style="font-weight: bold;" class="left">DELIVERY CHALLAN #</td>
+            <td class="left">{{ data.CNIC }}</td>
         </tr>
     </table>
+
 
 <br>
 <!-- Detail Section -->
