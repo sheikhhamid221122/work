@@ -627,7 +627,12 @@ def generate_invoice_excel():
     conn.close()
     
     # Select the appropriate template based on username
-    template_name = 'invoice_template.html' if username == '8974121' else 'invoice_template2.html'
+    if username == '8974121':
+        template_name = 'invoice_template.html'
+    elif username == '5207949':
+        template_name = 'invoice_zeeshanst.html'
+    else:
+        template_name = 'invoice_template2.html'
 
     # --- Render HTML invoice with the selected template ---
     rendered_html = render_template(

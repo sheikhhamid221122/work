@@ -59,6 +59,7 @@
     </style>
 </head>
 <body>
+    <br><br><br><br>
     <div class="container">
     <!-- Header with Logo and Seller Info -->
 <table class="no-border" style="width: 100%; margin-bottom: 2px;">
@@ -72,18 +73,18 @@
 
         <!-- Seller Text Aligned Vertically Center and Right -->
         <td style="width: 50%; vertical-align: middle; text-align: right;">
-            <div style="line-height: 1.6; display: inline-block; text-align: left;">
+            <!-- <div style="line-height: 1.6; display: inline-block; text-align: left;">
                 <p style="margin: 0;"><strong>{{ data.sellerAddress }}</strong></p>
                 <p style="margin: 0;"><strong>NTN:</strong><span style="margin-left: 12px;">{{ data.sellerNTNCNIC }}</span></p>
                 <p style="margin: 0;"><strong>STRN:</strong> {{ data.sellerSTRN }}</p>
-            </div>
+            </div> -->
         </td>
     </tr>
 </table>
 
 
     <!-- Invoice Title -->
-    <div class="section-header" style="margin-top: 15px;">SALES TAX INVOICE</div>
+    <div class="section-header" style="margin-top: 15px; font-size: 15px;">SALES TAX INVOICE</div>
 
     <!-- Buyer and Invoice Info -->
     <table style="width: 100%; border: 1px solid #333;">
@@ -94,27 +95,28 @@
             <td style="width: 20%; border: 1px solid #333;" class="left">{{ data.invoiceDate | datetimeformat }}</td>
         </tr>
         <tr>
-            <td style="font-weight: bold;" class="left" rowspan="2">BUYER ADDRESS</td>
-            <td rowspan="2" class="left">{{ data.buyerAddress }}</td>
-            <td style="font-weight: bold;" class="left">INVOICE #</td>
-            <td class="left">{{ data.invoiceRefNo }}</td>
+            <td style="font-weight: bold; border: 1px solid #333;" class="left">ADDRESS</td>
+            <td style="border: 1px solid #333;" class="left">{{ data.buyerAddress }}</td>
+            <td style="font-weight: bold; border: 1px solid #333;" class="left">INVOICE #</td>
+            <td style="border: 1px solid #333;" class="left">{{ data.invoiceRefNo }}</td>
         </tr>
         <tr>
-            <td style="font-weight: bold;" class="left">FBR INVOICE #</td>
-            <td class="left">{{ data.fbrInvoiceNumber or "" }}</td>
-        </tr>
-        <tr>
-            <td style="font-weight: bold; border: 1px solid #333;" class="left">BUYER NTN/CNIC</td>
+            <td style="font-weight: bold; border: 1px solid #333;" class="left">NTN</td>
             <td style="border: 1px solid #333;" class="left">{{ data.buyerNTNCNIC }}</td>
+            <td style="font-weight: bold; border: 1px solid #333;" class="left">FBR INVOICE #</td>
+            <td style="border: 1px solid #333;" class="left">{{ data.fbrInvoiceNumber or "" }}</td>
+        </tr>
+        <tr>
+            <td style="font-weight: bold; border: 1px solid #333;" class="left">STRN</td>
+            <td style="border: 1px solid #333;" class="left">{{ data.buyerSTRN }}</td>
             <td style="font-weight: bold; border: 1px solid #333;" class="left" rowspan="2">P.O # / DATE</td>
             <td style="border: 1px solid #333;" class="left" rowspan="2">{{ data.PO }}</td>
         </tr>
         <tr>
-            <td style="font-weight: bold; border: 1px solid #333;" class="left">BUYER STRN</td>
-            <td style="border: 1px solid #333;" class="left">{{ data.buyerSTRN }}</td>
+            <td style="font-weight: bold; border: 1px solid #333;" class="left">CNIC</td>
+            <td style="border: 1px solid #333;" class="left">{{ data.CNIC }}</td>
         </tr>
     </table>
-
 
 <!-- Detail Section -->
 <div class="section-header" style="margin-top: 15px;">DETAILS</div>
@@ -125,12 +127,12 @@
         <tr>
             <th style="width: 5%;">Sr. No.</th>
             <th style="width: 25%;">Product Detail</th>
-            <th style="width: 10%;">Quantity</th>
-            <th style="width: 10%;">Rate</th>
-            <th style="width: 12%;">Value Exclusive of ST</th>
+            <th style="width: 10%;">Quantity (nos)</th>
+            <th style="width: 10%;">Rate Rs.</th>
+            <th style="width: 12%;">Value Exclusive of ST Rs.</th>
             <th style="width: 10%;">Sales Tax Rate</th>
-            <th style="width: 10%;">Sales Tax</th>
-            <th style="width: 18%;">Value Inclusive of Sales Tax</th>
+            <th style="width: 10%;">Sales Tax Applicable Rs.</th>
+            <th style="width: 18%;">Value Inclusive of Sales Tax Rs.</th>
         </tr>
     </thead>
     <tbody>
@@ -168,7 +170,7 @@
 <table class="no-border" style="width: 101.7%; margin-top: -3px; border-top: none;">
     <tr>
         <!-- Left: Centered Amount in Words -->
-        <td style="width: 58%; border: none; vertical-align: top;">
+        <td style="width: 58%; border: none; vertical-align: top; margin-top: 20px;">
             <table style="width: 100%;">
                 <tr>
                     <td colspan="2" style="text-align: left;">
@@ -222,7 +224,7 @@
     </tr>
 </table>
 
-<div class="footer-note" style="margin-top: 30px; text-align: left;">
+<div class="footer-note" style="margin-top: 40px; text-align: left;">
     <hr style="width: 200px; margin-left: 0; border-top: 1px solid #000;">
     <p style="margin-top: 5px;">AUTHORISED SIGNATORY</p>
 </div>
