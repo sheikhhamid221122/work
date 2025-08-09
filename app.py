@@ -15,12 +15,13 @@ import base64
 import psycopg2
 from flask_cors import CORS
 from dotenv import load_dotenv
+from io import BytesIO
 load_dotenv()
 import datetime
 
 
 app = Flask(__name__)
-CORS(app, supports_credentials=True)
+CORS(app, supports_credentials=True, origins=["https://erp-taxlinkpro.onrender.com", "http://127.0.0.1:5000"])
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
@@ -44,14 +45,6 @@ def datetimeformat(value):
     except:
         return value
 
-# @app.template_filter('datetimeformat')
-# def datetimeformat(value):
-#     try:
-#         return datetime.datetime.strptime(value, "%Y-%m-%d").strftime("%d-%m-%Y")
-#     except:
-#         return value
-
-
 @app.template_filter('comma_format')
 def comma_format(value):
     try:
@@ -61,37 +54,43 @@ def comma_format(value):
     
 
 def get_client_config(client_id, env):
-    conn = get_db_connection()
-    cur = conn.cursor()
-    
-    cur.execute("""
-        SELECT sandbox_api_url, sandbox_api_token, production_api_url, production_api_token
-        FROM clients
-        WHERE id = %s
-    """, (client_id,))
-    row = cur.fetchone()
-    
-    cur.close()
-    conn.close()
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        print(f"Getting client config for client_id: {client_id}, env: {env}")
+        
+        cur.execute("""
+            SELECT sandbox_api_url, sandbox_api_token, production_api_url, production_api_token
+            FROM clients
+            WHERE id = %s
+        """, (client_id,))
+        row = cur.fetchone()
+        
+        cur.close()
+        conn.close()
 
-    if not row:
-        raise Exception("Client configuration not found")
+        if not row:
+            print(f"No client configuration found for client_id: {client_id}")
+            raise Exception("Client configuration not found")
 
-    sandbox_api_url, sandbox_api_token, production_api_url, production_api_token = row
+        sandbox_api_url, sandbox_api_token, production_api_url, production_api_token = row
 
-    if env == "sandbox":
-        return {
-            "api_url": sandbox_api_url,
-            "api_token": sandbox_api_token
-        }
-    else:
-        return {
-            "api_url": production_api_url,
-            "api_token": production_api_token
-        }
+        print(f"Retrieved client config successfully for env: {env}")
 
-
-
+        if env == "sandbox":
+            return {
+                "api_url": sandbox_api_url,
+                "api_token": sandbox_api_token
+            }
+        else:
+            return {
+                "api_url": production_api_url,
+                "api_token": production_api_token
+            }
+    except Exception as e:
+        print(f"Error in get_client_config: {str(e)}")
+        raise
 
 def get_db_connection():
     return psycopg2.connect(
@@ -171,8 +170,6 @@ def before_request():
             print("No user_id in session, redirecting to login")
             return redirect(url_for('index'))
 
-
-import json
 
 @app.route('/records', methods=['GET'])
 def get_records():
@@ -419,34 +416,49 @@ def get_json():
     )
 
 
-
 @app.route('/submit-fbr', methods=['POST'])
 def submit_fbr():
     env = get_env()
     if env not in last_json_data:
         return jsonify({'error': 'No JSON to submit'}), 400
 
-    client_id = session.get("client_id")
-    config = get_client_config(client_id, env)
-    api_url = config["api_url"]
-    api_token = config["api_token"]
-
-    headers = {
-        "Authorization": f"Bearer {api_token}",
-        "Content-Type": "application/json"
-    }
-
+    # Use a separate variable and clear global variable to save memory
+    json_data = last_json_data[env].copy()
+    
     try:
-        # Send request to FBR
-        response = requests.post(api_url, headers=headers, json=last_json_data[env])
+        client_id = session.get("client_id")
+        if not client_id:
+            return jsonify({"error": "No client ID in session"}), 400
+            
+        config = get_client_config(client_id, env)
+        api_url = config["api_url"]
+        api_token = config["api_token"]
+        
+        print(f"API URL: {api_url}")  # Logging API URL (without token for security)
+        
+        headers = {
+            "Authorization": f"Bearer {api_token}",
+            "Content-Type": "application/json"
+        }
+
+        # Log request data (excluding sensitive info)
+        print(f"Submitting data to FBR, env: {env}")
+        
+        # Send request to FBR with timeout to prevent worker hanging
+        response = requests.post(api_url, headers=headers, json=json_data, timeout=15)
+        print(f"FBR API Response status: {response.status_code}")
         
         # Parse response
         try:
             res_json = response.json()
-        except Exception:
+            print(f"FBR API Response: {res_json}")
+        except Exception as e:
+            print(f"Failed to parse response as JSON: {str(e)}")
+            print(f"Response text: {response.text}")
             res_json = {}
 
         invoice_no = res_json.get("invoiceNumber", "N/A")
+        json_data["fbrInvoiceNumber"] = invoice_no
         last_json_data[env]["fbrInvoiceNumber"] = invoice_no
         is_success = bool(invoice_no and invoice_no != "N/A")
 
@@ -458,31 +470,32 @@ def submit_fbr():
                 "response_text": response.text
             }), 400
 
-        # Extract values
+        # Extract minimal necessary data
         status = "Success"
         date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        invoice_date = last_json_data[env].get("invoiceDate", "")
-        items = last_json_data[env]["items"]
-        value_sales_ex_st = sum(float(item.get("valueSalesExcludingST", 0) or 0) for item in items)
-        sales_tax_applicable = sum(float(item.get("salesTaxApplicable", 0) or 0) for item in items)
-        total_value = value_sales_ex_st + sales_tax_applicable
 
-        # Insert into invoices table in Supabase
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("""
-            INSERT INTO invoices (client_id, env, invoice_data, fbr_response, status, created_at)
-            VALUES (%s, %s, %s, %s, %s, NOW())
-        """, (
-            client_id,
-            env,
-            json.dumps(last_json_data[env]),
-            json.dumps(res_json),
-            status
-        ))
-        conn.commit()
-        cur.close()
-        conn.close()
+        # Insert into invoices table - use try/finally to ensure connection is closed
+        conn = None
+        cur = None
+        try:
+            conn = get_db_connection()
+            cur = conn.cursor()
+            cur.execute("""
+                INSERT INTO invoices (client_id, env, invoice_data, fbr_response, status, created_at)
+                VALUES (%s, %s, %s, %s, %s, NOW())
+            """, (
+                client_id,
+                env,
+                json.dumps(json_data),
+                json.dumps(res_json),
+                status
+            ))
+            conn.commit()
+        finally:
+            if cur:
+                cur.close()
+            if conn:
+                conn.close()
 
         # Return response
         return jsonify({
@@ -491,165 +504,184 @@ def submit_fbr():
             "date": date
         })
 
+    except requests.Timeout:
+        print("Request to FBR API timed out")
+        return jsonify({"error": "Request to FBR API timed out after 15 seconds"}), 504
+    except requests.ConnectionError:
+        print("Failed to connect to FBR API server")
+        return jsonify({"error": "Failed to connect to FBR API server"}), 503
     except Exception as e:
+        print(f"Error in submit_fbr: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 
-
-# Generate Invoice PDF
+# Generate Invoice PDF - optimized to use less memory
 @app.route('/generate-invoice-excel', methods=['GET'])
 def generate_invoice_excel():
     env = get_env()
     if env not in last_json_data:
         return jsonify({'error': 'No JSON data to generate invoice'}), 400
 
-    data = last_json_data[env]
-    items = data['items']
-    
-    # Read from Excel file again to get display-only values
-    filepath = last_uploaded_file.get(env)
-    if filepath and os.path.exists(filepath):
-        df = pd.read_excel(filepath, header=None,keep_default_na=False)
+    try:
+        # Work with a copy of the data to avoid modifying global state
+        data = last_json_data[env].copy()
+        items = data['items']
+        
+        # Read from Excel file again to get display-only values
+        filepath = last_uploaded_file.get(env)
+        if filepath and os.path.exists(filepath):
+            df = pd.read_excel(filepath, header=None, keep_default_na=False)
 
-        # --- Extract section data (header fields above the product list) ---
-        section_data = {}
-        product_start_index = None
+            # --- Extract section data (header fields above the product list) ---
+            section_data = {}
+            product_start_index = None
 
-        for i, row in df.iterrows():
-            key = str(row[0]).strip() if pd.notna(row[0]) else ''
-            val = row[1] if len(row) > 1 else None
+            for i, row in df.iterrows():
+                key = str(row[0]).strip() if pd.notna(row[0]) else ''
+                val = row[1] if len(row) > 1 else None
 
-            # Check where product section starts
-            if key.lower() == "productdescription":
-                product_start_index = i
-                break
+                # Check where product section starts
+                if key.lower() == "productdescription":
+                    product_start_index = i
+                    break
 
-            # Store key-value pairs from the header section
-            if key and not any(key.startswith(s) for s in ["1)", "2)", "3)", "4)"]):
-                section_data[key] = val
+                # Store key-value pairs from the header section
+                if key and not any(key.startswith(s) for s in ["1)", "2)", "3)", "4)"]):
+                    section_data[key] = val
 
-        # --- Assign extracted fields to `data` dictionary ---
-        data["sellerSTRN"] = section_data.get("sellerSTRN", "")
-        data["buyerSTRN"] = section_data.get("buyerSTRN", "")
-        data["CNIC"] = section_data.get("CNIC", "")          # Add CNIC
-        data["PO"] = section_data.get("PO#", "")             # Add PO#
+            # --- Assign extracted fields to `data` dictionary ---
+            data["sellerSTRN"] = section_data.get("sellerSTRN", "")
+            data["buyerSTRN"] = section_data.get("buyerSTRN", "")
+            data["CNIC"] = section_data.get("CNIC", "")
+            data["PO"] = section_data.get("PO#", "")
 
-        # --- Read products table from product_start_index ---
-        product_df = pd.read_excel(filepath, skiprows=product_start_index)
+            # --- Read products table from product_start_index ---
+            product_df = pd.read_excel(filepath, skiprows=product_start_index)
 
-        # Extract unit rate for each product item
-        for i, item in enumerate(items):
+            # Extract unit rate for each product item
+            for i, item in enumerate(items):
+                if i < len(product_df):  # Ensure index is in range
+                    try:
+                        item["unitrate"] = float(product_df.iloc[i].get("rate", 0))
+                    except:
+                        item["unitrate"] = 0
+
+        # Calculate totals
+        total_excl = 0
+        total_tax = 0
+
+        for item in items:
             try:
-                item["unitrate"] = float(product_df.iloc[i].get("rate", 0))  # Extract unit rate
+                excl = float(str(item.get('valueSalesExcludingST', 0)).replace(",", ""))
             except:
-                item["unitrate"] = 0
+                excl = 0
+            try:
+                tax = float(str(item.get('salesTaxApplicable', 0)).replace(",", ""))
+            except:
+                tax = 0
 
-    # Calculate totals (in case not done earlier)
-    total_excl = 0
-    total_tax = 0
+            total_excl += excl
+            total_tax += tax
 
-    for item in items:
+        # Add totals to data
+        data["totalExcl"] = round(total_excl, 2)
+        data["totalTax"] = round(total_tax, 2)
+        data["totalInclusive"] = round(total_excl + total_tax, 2)
+
+        from num2words import num2words
+
+        # Convert to words with PKR style
+        total = round(data['totalInclusive'], 2)
+        amount_in_words = num2words(total, to='currency', lang='en', currency='USD')
+        amount_in_words = amount_in_words.replace("dollars", "rupees").replace("cents", "paisa")
+        amount_in_words += " only"
+        data['amountInWords'] = amount_in_words
+
+        # Get FBR invoice number
+        fbr_invoice = data.get("fbrInvoiceNumber", "")
+
+        # --- Generate QR Code as base64 ---
+        qr_base64 = ""
+        if fbr_invoice:
+            try:
+                qr = qrcode.make(fbr_invoice)
+                with BytesIO() as buffer:
+                    qr.save(buffer)
+                    buffer.seek(0)
+                    qr_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+            except Exception as e:
+                print(f"Error generating QR code: {str(e)}")
+                # Continue without QR code if there's an error
+             
+        # Fetch client logo from database
+        client_id = session.get('client_id')
+        user_id = session.get('user_id')
+        client_logo_url = None
+        
+        # Fetch required data from DB in a single connection
+        conn = None
+        cur = None
         try:
-            excl = float(str(item.get('valueSalesExcludingST', 0)).replace(",", ""))
-        except:
-            excl = 0
-        try:
-            tax = float(str(item.get('salesTaxApplicable', 0)).replace(",", ""))
-        except:
-            tax = 0
+            conn = get_db_connection()
+            cur = conn.cursor()
+            
+            # Get username in one query
+            cur.execute("SELECT username FROM users WHERE id = %s", (user_id,))
+            user_row = cur.fetchone()
+            username = user_row[0] if user_row else None
+            
+            # Get client logo in another query
+            if client_id:
+                cur.execute("SELECT logo_url FROM clients WHERE id = %s", (client_id,))
+                logo_row = cur.fetchone()
+                client_logo_url = logo_row[0] if logo_row else None
+            
+            # Fetch FBR logo URL in a third query
+            cur.execute("SELECT fbr_logo FROM fbr LIMIT 1;")
+            fbr_row = cur.fetchone()
+            fbr_logo_url = fbr_row[0] if fbr_row else None
+        finally:
+            if cur:
+                cur.close()
+            if conn:
+                conn.close()
+        
+        # Select the appropriate template based on username
+        if username == '8974121':
+            template_name = 'invoice_template.html'
+        elif username == '5207949':
+            template_name = 'invoice_zeeshanst.html'
+        else:
+            template_name = 'invoice_template2.html'
 
-        total_excl += excl
-        total_tax += tax
+        # --- Render HTML invoice with the selected template ---
+        rendered_html = render_template(
+            template_name,
+            data=data,
+            qr_base64=qr_base64,
+            client_logo_url=client_logo_url,
+            fbr_logo_url=fbr_logo_url
+        )
 
-    # Add totals to data so template can use them
-    data["totalExcl"] = round(total_excl, 2)
-    data["totalTax"] = round(total_tax, 2)
-    data["totalInclusive"] = round(total_excl + total_tax, 2)
-
-    from num2words import num2words
-
-    # Round to 2 decimals if needed
-    total = round(data['totalInclusive'], 2)
-
-    # Convert to words with PKR style
-    amount_in_words = num2words(total, to='currency', lang='en', currency='USD')
-    amount_in_words = amount_in_words.replace("dollars", "rupees").replace("cents", "paisa")
-
-    # Optional: Add "only" at the end
-    amount_in_words += " only"
-
-    # Add to template context
-    data['amountInWords'] = amount_in_words
-
-    # Get FBR invoice number
-    fbr_invoice = data.get("fbrInvoiceNumber", "")
-
-    # --- Generate QR Code as base64 ---
-    qr_base64 = ""
-    if fbr_invoice:
-        qr = qrcode.make(fbr_invoice)
-        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
-            qr_path = tmp.name
-            qr.save(qr_path)
-
-        with open(qr_path, "rb") as qr_file:
-            qr_base64 = base64.b64encode(qr_file.read()).decode("utf-8")
-
-        os.remove(qr_path)
-         
-    # Fetch client logo from Supabase
-    client_id = session.get('client_id')
-    user_id = session.get('user_id')
-    client_logo_url = None
-    
-    # Check user's username to determine which template to use
-    conn = get_db_connection()
-    cur = conn.cursor()
-    
-    # Get the username for the current user
-    cur.execute("SELECT username FROM users WHERE id = %s", (user_id,))
-    user_row = cur.fetchone()
-    username = user_row[0] if user_row else None
-    
-    # Get client logo
-    if client_id:
-        cur.execute("SELECT logo_url FROM clients WHERE id = %s", (client_id,))
-        logo_row = cur.fetchone()
-        if logo_row:
-            client_logo_url = logo_row[0]
-    
-    # Fetch FBR logo URL from DB
-    cur.execute("SELECT fbr_logo FROM fbr LIMIT 1;")
-    fbr_row = cur.fetchone()
-    fbr_logo_url = fbr_row[0] if fbr_row else None
-    
-    cur.close()
-    conn.close()
-    
-    # Select the appropriate template based on username
-    if username == '8974121':
-        template_name = 'invoice_template.html'
-    elif username == '5207949':
-        template_name = 'invoice_zeeshanst.html'
-    else:
-        template_name = 'invoice_template2.html'
-
-    # --- Render HTML invoice with the selected template ---
-    rendered_html = render_template(
-        template_name,
-        data=data,
-        qr_base64=qr_base64,
-        client_logo_url=client_logo_url,
-        fbr_logo_url=fbr_logo_url
-    )
-
-    # --- Generate PDF ---
-    pdf_file_path = 'invoice.pdf'
-    HTML(string=rendered_html).write_pdf(pdf_file_path)
-
-    return send_file(pdf_file_path, as_attachment=True)
-
-
+        # --- Generate PDF directly to a stream ---
+        pdf_stream = BytesIO()
+        HTML(string=rendered_html).write_pdf(pdf_stream)
+        pdf_stream.seek(0)
+        
+        return send_file(
+            pdf_stream, 
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name='invoice.pdf'
+        )
+        
+    except Exception as e:
+        print(f"Error generating PDF: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Failed to generate PDF: {str(e)}"}), 500
 
 
 @app.route('/')
@@ -661,7 +693,7 @@ def dashboard_html():
     print("Dashboard access attempt")
     print("Full session data:", dict(session))
     print("User ID in session:", session.get('user_id'))
-    print("Request cookies:", dict(request.cookies))  # Add this line
+    print("Request cookies:", dict(request.cookies))
     
     if 'user_id' not in session:
         print("No user_id in session, redirecting to login")
