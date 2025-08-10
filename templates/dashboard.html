@@ -10,15 +10,62 @@
     <title>TaxLink Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            200: '#bae6fd',
+                            300: '#7dd3fc',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        },
+                        secondary: {
+                            50: '#f5f3ff',
+                            100: '#ede9fe',
+                            200: '#ddd6fe',
+                            300: '#c4b5fd',
+                            400: '#a78bfa',
+                            500: '#8b5cf6',
+                            600: '#7c3aed',
+                            700: '#6d28d9',
+                            800: '#5b21b6',
+                            900: '#4c1d95',
+                        },
+                        accent: {
+                            50: '#f0fdfa',
+                            100: '#ccfbf1',
+                            200: '#99f6e4',
+                            300: '#5eead4',
+                            400: '#2dd4bf',
+                            500: '#14b8a6',
+                            600: '#0d9488',
+                            700: '#0f766e',
+                            800: '#115e59',
+                            900: '#134e4a',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
     <style>
         /* Custom CSS for animations and elements not covered by Tailwind */
         .sidebar-item.active {
             background-color: rgba(255, 255, 255, 0.1);
-            border-left: 4px solid #3b82f6;
+            border-left: 4px solid #38bdf8;
         }
 
         .sidebar-item:hover:not(.active) {
-            background-color: rgba(255, 255, 255, 0.05);
+            background-color: rgba(255, 255, 255, 0.08);
+            transition: all 0.2s ease;
         }
 
         .status-badge.success {
@@ -31,6 +78,7 @@
 
         .modal-overlay {
             background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(2px);
         }
 
         .checkmark {
@@ -100,12 +148,9 @@
         }
 
         @keyframes scale {
-
-            0%,
-            100% {
+            0%, 100% {
                 transform: none;
             }
-
             50% {
                 transform: scale3d(1.1, 1.1, 1);
             }
@@ -125,7 +170,6 @@
             from {
                 transform: rotate(0deg);
             }
-
             to {
                 transform: rotate(360deg);
             }
@@ -139,39 +183,136 @@
                 white-space: nowrap;
             }
         }
+
+        /* Enhanced sidebar styles */
+        .sidebar {
+            background: linear-gradient(to bottom, #075985, #0c4a6e);
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-logo {
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-logo:hover {
+            transform: scale(1.05);
+        }
+
+        /* Table row hover effect */
+        .table-row:hover {
+            background-color: #f8fafc;
+            transition: background-color 0.2s ease;
+        }
+
+        /* Button hover effects */
+        .btn-hover-effect {
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-hover-effect:after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.1);
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+        }
+
+        .btn-hover-effect:hover:after {
+            transform: translateX(0);
+        }
+
+        /* Improved card styles */
+        .card-shadow {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: box-shadow 0.3s ease, transform 0.3s ease;
+        }
+
+        .card-shadow:hover {
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            transform: translateY(-2px);
+        }
+        
+        /* Status message container */
+        .status-container {
+            position: relative;
+            min-height: 80px; /* Fixed height for button + status area */
+        }
+        
+        .action-button {
+            width: 100%;
+        }
+        
+        .status-message {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            text-align: center;
+            height: 30px; /* Fixed height for status message */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
     </style>
 </head>
 
-<body class="bg-gray-100 font-sans">
+<body class="bg-gray-50 font-sans">
     <div class="flex h-screen overflow-hidden">
         <!-- Sidebar -->
         <div class="hidden md:flex md:flex-shrink-0">
-            <div class="flex flex-col"
-                style="width: 200px; min-width: 200px; max-width: 200px; background-color: #1e40af; color: #fff;">
-                <!-- Changed w-64 to w-44 -->
-                <div class="flex items-center justify-center h-16 px-4 border-b border-blue-700">
-                    <div class="flex items-center">
-                        <i class="fas fa-building text-xl mr-2"></i>
-                        <span class="text-xl font-bold">{{ session['name'] }}</span>
+            <div class="flex flex-col sidebar"
+                style="width: 200px; min-width: 200px; max-width: 200px;">
+                <!-- Logo and User Info Section -->
+                <div class="flex flex-col items-center justify-center pt-5 pb-2">
+                    <!-- Logo -->
+                    <div class="sidebar-logo w-32 mb-4">
+                        <img src="https://clkbskiomtjlqkbbheaj.supabase.co/storage/v1/object/public/taxlinkprologo/ChatGPT_Image_Aug_11__2025__02_40_38_AM-removebg-preview.png" 
+                             alt="TaxLink Pro Logo" class="w-full h-auto">
+                    </div>
+                    
+                    <!-- Divider -->
+                    <div class="w-full px-6">
+                        <div class="border-b border-blue-400 opacity-50"></div>
+                    </div>
+                    
+                    <!-- User Info -->
+                    <div class="flex items-center justify-center mt-4 mb-2 px-4">
+                        <div class="flex items-center">
+                            <div class="w-8 h-8 bg-blue-300 rounded-full flex items-center justify-center text-primary-800 font-bold mr-2">
+                                {{ session['name'][0] }}
+                            </div>
+                            <span class="text-white font-medium">{{ session['name'] }}</span>
+                        </div>
                     </div>
                 </div>
-                <div class="flex flex-col flex-grow pt-5 pb-4 overflow-y-auto">
+                
+                <!-- Navigation Menu -->
+                <div class="flex flex-col flex-grow pt-4 pb-4 overflow-y-auto">
                     <nav class="flex-1 space-y-2 px-2">
                         <a href="#" id="dashboard-tab"
-                            class="sidebar-item active flex items-center px-4 py-3 text-sm font-medium rounded-md">
+                            class="sidebar-item active flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
                             <i class="fas fa-tachometer-alt mr-3"></i>
                             Dashboard
                         </a>
                     </nav>
 
-                    <div class="px-4 py-2">
-                        <span class="bg-blue-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md">
-                            <i class="fas fa-cube mr-1"></i>{{ session['env'] }}
+                    <!-- Environment Badge - Increased Size -->
+                    <div class="px-4 py-4 text-center">
+                        <span class="bg-primary-400 text-white text-sm font-bold px-4 py-2 rounded-full shadow-md inline-flex items-center">
+                            <i class="fas fa-cube mr-2 text-base"></i>{{ session['env'] }}
                         </span>
                     </div>
                     
-                    <div class="px-2 pb-4">
-                        <a href="/logout" class="sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-md">
+                    <!-- Logout Button - Centered -->
+                    <div class="px-2 mt-auto text-center">
+                        <a href="/logout" class="sidebar-item flex items-center justify-center px-4 py-3 text-sm font-medium rounded-md text-white">
                             <i class="fas fa-sign-out-alt mr-3"></i>
                             Logout
                         </a>
@@ -182,39 +323,127 @@
 
         <!-- Main content -->
         <div class="flex flex-col flex-1 overflow-hidden">
+            <!-- Mobile Header -->
+            <div class="md:hidden bg-primary-700 text-white p-4 flex items-center justify-between">
+                <div class="flex items-center">
+                    <img src="https://clkbskiomtjlqkbbheaj.supabase.co/storage/v1/object/public/taxlinkprologo/ChatGPT_Image_Aug_11__2025__02_40_38_AM-removebg-preview.png" 
+                         alt="TaxLink Pro Logo" class="h-8 mr-2">
+                    <span class="font-semibold text-lg">TaxLink Pro</span>
+                </div>
+                <button id="mobile-menu-button" class="focus:outline-none">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+            </div>
+            
+            <!-- Mobile Menu (hidden by default) -->
+            <div id="mobile-menu" class="fixed inset-0 z-40 md:hidden hidden">
+                <div class="absolute inset-0 bg-black opacity-50"></div>
+                <div class="absolute inset-y-0 left-0 max-w-xs w-full bg-primary-800 text-white shadow-xl flex flex-col">
+                    <div class="flex items-center justify-between p-4 border-b border-primary-700">
+                        <img src="https://clkbskiomtjlqkbbheaj.supabase.co/storage/v1/object/public/taxlinkprologo/ChatGPT_Image_Aug_11__2025__02_40_38_AM-removebg-preview.png" 
+                             alt="TaxLink Pro Logo" class="h-8">
+                        <button id="close-mobile-menu" class="text-white focus:outline-none">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    <div class="p-4 border-b border-primary-700">
+                        <div class="flex items-center">
+                            <div class="w-8 h-8 bg-blue-300 rounded-full flex items-center justify-center text-primary-800 font-bold mr-2">
+                                {{ session['name'][0] }}
+                            </div>
+                            <span class="text-white font-medium">{{ session['name'] }}</span>
+                        </div>
+                    </div>
+                    <nav class="flex-1 p-4">
+                        <a href="#" class="block py-2 px-4 text-white hover:bg-primary-700 rounded-md">
+                            <i class="fas fa-tachometer-alt mr-3"></i> Dashboard
+                        </a>
+                    </nav>
+                    <div class="p-4 border-t border-primary-700">
+                        <span class="bg-primary-400 text-white text-sm font-bold px-4 py-2 rounded-full shadow-md inline-flex items-center">
+                            <i class="fas fa-cube mr-2 text-base"></i>{{ session['env'] }}
+                        </span>
+                    </div>
+                    <div class="p-4 border-t border-primary-700">
+                        <a href="/logout" class="block py-2 px-4 text-white hover:bg-primary-700 rounded-md">
+                            <i class="fas fa-sign-out-alt mr-3"></i> Logout
+                        </a>
+                    </div>
+                </div>
+            </div>
+
             <!-- Main content area -->
-            <main class="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 bg-gray-100 mt-0">
+            <main class="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 bg-gray-50">
                 <div id="dashboard-content" class="content-section">
-                    <div class="mb-6">
-                        <h1 class="text-2xl font-bold text-gray-800">Past Records</h1>
+                    <!-- Dashboard Header with Stats -->
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+                        <h1 class="text-2xl font-bold text-gray-800">Dashboard Overview</h1>
                     </div>
 
-                    <div class="bg-white shadow rounded-lg">
+                    <!-- Summary Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div class="bg-white p-4 rounded-lg shadow card-shadow border-l-4 border-primary-500">
+                            <div class="flex items-center">
+                                <div class="p-3 rounded-full bg-primary-100 text-primary-600 mr-4">
+                                    <i class="fas fa-file-invoice text-xl"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-gray-500 text-sm">Total Invoices</h3>
+                                    <p class="text-2xl font-semibold" id="total-invoices-count">0</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg shadow card-shadow border-l-4 border-green-500">
+                            <div class="flex items-center">
+                                <div class="p-3 rounded-full bg-green-100 text-green-600 mr-4">
+                                    <i class="fas fa-check-circle text-xl"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-gray-500 text-sm">Successful Submissions</h3>
+                                    <p class="text-2xl font-semibold" id="success-count">0</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg shadow card-shadow border-l-4 border-red-500">
+                            <div class="flex items-center">
+                                <div class="p-3 rounded-full bg-red-100 text-red-600 mr-4">
+                                    <i class="fas fa-exclamation-circle text-xl"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-gray-500 text-sm">Failed Submissions</h3>
+                                    <p class="text-2xl font-semibold" id="failed-count">0</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Records Table -->
+                    <div class="bg-white shadow rounded-lg overflow-hidden">
                         <div class="overflow-x-auto">
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
                                     <tr>
                                         <th scope="col"
-                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Sr #</th>
+                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" id="sort-sr">
+                                            Sr # <i class="fas fa-sort ml-1"></i></th>
                                         <th scope="col"
-                                            class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Invoice Number</th>
+                                            class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" id="sort-number">
+                                            Invoice Number <i class="fas fa-sort ml-1"></i></th>
                                         <th scope="col"
-                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Invoice Type</th>
+                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" id="sort-type">
+                                            Invoice Type <i class="fas fa-sort ml-1"></i></th>
                                         <th scope="col"
-                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Invoice Date</th> <!-- Added Invoice Date column -->
+                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" id="sort-date">
+                                            Invoice Date <i class="fas fa-sort ml-1"></i></th>
                                         <th scope="col"
-                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Buyer Name</th>
+                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" id="sort-buyer">
+                                            Buyer Name <i class="fas fa-sort ml-1"></i></th>
                                         <th scope="col"
-                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Seller Name</th>
+                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" id="sort-seller">
+                                            Seller Name <i class="fas fa-sort ml-1"></i></th>
                                         <th scope="col"
-                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Total Value</th>
+                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100" id="sort-value">
+                                            Total Value <i class="fas fa-sort ml-1"></i></th>
                                         <th scope="col" id="status-column-header"
                                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                             Status</th>
@@ -227,31 +456,46 @@
                         </div>
                     </div>
 
-                    <!-- Add this just after the records table, before the buttons, inside #dashboard-content -->
+                    <!-- Pagination -->
                     <div id="records-pagination" class="flex justify-center items-center mt-4 space-x-2"></div>
 
-                    <div class="mt-6 flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4">
-                        <button id="import-excel-btn"
-                            class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out">
-                            <i class="fas fa-file-excel mr-2"></i> Import Excel
-                        </button>
-                        <button id="validate-json-btn"
-                            class="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out">
-                            <i class="fas fa-check-circle mr-2"></i> Validate JSON
-                        </button>
-                        <button id="submit-fbr-btn"
-                            class="flex-1 bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out">
-                            <i class="fas fa-paper-plane mr-2"></i> <span id="submit-btn-text">Submit to FBR</span>
-                        </button>
-                        <!-- New Get Excel button -->
-                        <button id="get-excel-btn"
-                            class="flex-1 bg-red-400 hover:bg-red-500 text-white font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out">
-                            <i class="fas fa-file-pdf mr-2"></i> Download PDF
-                        </button>
-                    </div>
-                    <!-- Add status references here -->
-                    <div id="excel-upload-status" class="mt-2 text-sm text-green-600 flex items-center space-x-2"></div>
-                    <div id="json-validate-status" class="mt-2 text-sm text-green-600 flex items-center space-x-2">
+                    <!-- Action Buttons with Fixed Height Status Messages -->
+                    <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <!-- Import Excel Button -->
+                        <div class="status-container">
+                            <button id="import-excel-btn"
+                                class="action-button bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out flex items-center justify-center btn-hover-effect">
+                                <i class="fas fa-file-excel mr-2"></i> Import Excel
+                            </button>
+                            <div id="excel-upload-status" class="status-message"></div>
+                        </div>
+                        
+                        <!-- Validate JSON Button -->
+                        <div class="status-container">
+                            <button id="validate-json-btn"
+                                class="action-button bg-secondary-600 hover:bg-secondary-700 text-white font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out flex items-center justify-center btn-hover-effect">
+                                <i class="fas fa-check-circle mr-2"></i> Validate JSON
+                            </button>
+                            <div id="json-validate-status" class="status-message"></div>
+                        </div>
+                        
+                        <!-- Submit to FBR Button -->
+                        <div class="status-container">
+                            <button id="submit-fbr-btn"
+                                class="action-button bg-accent-600 hover:bg-accent-700 text-white font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out flex items-center justify-center btn-hover-effect">
+                                <i class="fas fa-paper-plane mr-2"></i> <span id="submit-btn-text">Submit to FBR</span>
+                            </button>
+                            <div class="status-message"></div> <!-- Empty status message placeholder -->
+                        </div>
+                        
+                        <!-- Download PDF Button -->
+                        <div class="status-container">
+                            <button id="get-excel-btn"
+                                class="action-button bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out flex items-center justify-center btn-hover-effect">
+                                <i class="fas fa-file-pdf mr-2"></i> Download PDF
+                            </button>
+                            <div class="status-message"></div> <!-- Empty status message placeholder -->
+                        </div>
                     </div>
                 </div>
             </main>
@@ -274,7 +518,7 @@
                 </div>
                 <div class="mb-4">
                     <textarea id="json-textarea"
-                        class="w-full h-64 p-3 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 font-mono text-base"
+                        class="w-full h-64 p-3 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500 font-mono text-base"
                         placeholder="JSON data will appear here..."
                         readonly></textarea>
                 </div>
@@ -284,7 +528,7 @@
                         Cancel
                     </button>
                     <button id="validate-json-data-btn"
-                        class="px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700">
+                        class="px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-secondary-600 hover:bg-secondary-700">
                         Continue
                     </button>
                 </div>
@@ -316,14 +560,14 @@
                 </div>
                 <div id="loading-spinner" class="hidden">
                     <div class="flex justify-center mb-4">
-                        <i class="fas fa-circle-notch fa-spin text-4xl text-blue-600 spinner"></i>
+                        <i class="fas fa-circle-notch fa-spin text-4xl text-primary-600 spinner"></i>
                     </div>
                     <h3 class="text-xl font-semibold text-gray-900 mb-2" id="submitting-title">Submitting to FBR</h3>
                     <p class="text-gray-600">Please wait while we process your request...</p>
                 </div>
                 <div class="mt-6">
                     <button id="close-submission-modal"
-                        class="px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700">
+                        class="px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700">
                         Close
                     </button>
                 </div>
@@ -358,6 +602,21 @@
         </div>
     </div>
 
+    <!-- Notification Component -->
+    <div id="notification-container" class="fixed inset-0 flex items-center justify-center z-50 pointer-events-none hidden">
+        <div class="bg-white rounded-lg shadow-xl p-4 max-w-sm w-full mx-auto pointer-events-auto">
+            <div class="flex items-center">
+                <div id="notification-icon" class="flex-shrink-0 mr-4">
+                    <!-- Icon will be inserted here dynamically -->
+                </div>
+                <div class="flex-1">
+                    <h3 id="notification-title" class="text-lg font-medium text-gray-900"></h3>
+                    <p id="notification-message" class="text-sm text-gray-500"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const ENV = "{{ session['env'] }}";
         function apiUrl(endpoint) {
@@ -385,6 +644,49 @@
         // Store the invoice to be deleted
         let invoiceToDelete = null;
 
+        // Notification system
+        function showNotification(type, title, message, duration = 3000) {
+            const container = document.getElementById('notification-container');
+            const titleEl = document.getElementById('notification-title');
+            const messageEl = document.getElementById('notification-message');
+            const iconEl = document.getElementById('notification-icon');
+            
+            // Set content
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+            
+            // Set icon based on type
+            if (type === 'success') {
+                iconEl.innerHTML = `
+                    <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52" width="40" height="40">
+                        <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none" />
+                        <path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8" />
+                    </svg>
+                `;
+            } else if (type === 'error') {
+                iconEl.innerHTML = `
+                    <svg class="crossmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52" width="40" height="40">
+                        <circle class="crossmark__circle" cx="26" cy="26" r="25" fill="none" />
+                        <path class="crossmark__cross" fill="none" d="M16 16 36 36 M36 16 16 36" />
+                    </svg>
+                `;
+            } else if (type === 'info') {
+                iconEl.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                `;
+            }
+            
+            // Show notification
+            container.classList.remove('hidden');
+            
+            // Hide after duration
+            setTimeout(() => {
+                container.classList.add('hidden');
+            }, duration);
+        }
+
         // On page load, fetch records
         document.addEventListener('DOMContentLoaded', function () {
             let env = "{{ session['env'] }}";
@@ -394,6 +696,21 @@
                 document.getElementById('status-column-header').textContent = "Delete";
                 document.getElementById('submit-btn-text').textContent = "Submit to Sandbox";
                 document.getElementById('submitting-title').textContent = "Submitting to Sandbox";
+            }
+
+            // Mobile menu toggle functionality
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const closeMobileMenuButton = document.getElementById('close-mobile-menu');
+            const mobileMenu = document.getElementById('mobile-menu');
+
+            if (mobileMenuButton && closeMobileMenuButton && mobileMenu) {
+                mobileMenuButton.addEventListener('click', function() {
+                    mobileMenu.classList.remove('hidden');
+                });
+
+                closeMobileMenuButton.addEventListener('click', function() {
+                    mobileMenu.classList.add('hidden');
+                });
             }
 
             loadRecords();
@@ -408,11 +725,19 @@
                     allRecords = data.sort((a, b) => new Date(b.date) - new Date(a.date));
                     renderRecordsTable(getCurrentPageRecords());
                     renderPaginationControls();
-
+                    
+                    // Update dashboard counters
+                    const totalInvoices = allRecords.length;
+                    const successCount = allRecords.filter(record => record.status && record.status.toLowerCase() === 'success').length;
+                    const failedCount = totalInvoices - successCount;
+                    
+                    document.getElementById('total-invoices-count').textContent = totalInvoices;
+                    document.getElementById('success-count').textContent = successCount;
+                    document.getElementById('failed-count').textContent = failedCount;
                 })
                 .catch(error => {
                     console.error('Error loading records:', error);
-                    alert('Failed to load records. Please try again.');
+                    showNotification('error', 'Error', 'Failed to load records. Please try again.');
                 });
         }
 
@@ -443,6 +768,7 @@
 
             records.forEach((record, idx) => {
                 const row = document.createElement('tr');
+                row.className = 'table-row hover:bg-gray-50 transition-colors';
                 
                 // Create the status/delete column content based on environment
                 let statusColumnContent = '';
@@ -513,15 +839,24 @@
                     renderRecordsTable(getCurrentPageRecords());
                     renderPaginationControls();
                     
+                    // Update dashboard counters
+                    const totalInvoices = allRecords.length;
+                    const successCount = allRecords.filter(record => record.status && record.status.toLowerCase() === 'success').length;
+                    const failedCount = totalInvoices - successCount;
+                    
+                    document.getElementById('total-invoices-count').textContent = totalInvoices;
+                    document.getElementById('success-count').textContent = successCount;
+                    document.getElementById('failed-count').textContent = failedCount;
+                    
                     // Show success message
-                    alert('Invoice deleted successfully');
+                    showNotification('success', 'Invoice Deleted', `Invoice ${invoiceRef} has been deleted successfully.`);
                 } else {
-                    alert('Failed to delete invoice: ' + data.error);
+                    showNotification('error', 'Deletion Failed', `Failed to delete invoice: ${data.error}`);
                 }
             })
             .catch(error => {
                 console.error('Error deleting invoice:', error);
-                alert('An error occurred while deleting the invoice');
+                showNotification('error', 'Deletion Failed', 'An error occurred while deleting the invoice');
             });
         }
 
@@ -552,7 +887,6 @@
             document.getElementById('dashboard-content').classList.remove('hidden');
         });
 
-
         // Import Excel button
         document.getElementById('import-excel-btn').addEventListener('click', function () {
             document.getElementById('excel-file-input').click();
@@ -577,7 +911,7 @@
                             lastUploadedFileName = file.name;
                             document.getElementById('excel-upload-status').innerHTML =
                                 `<i class="fas fa-check-circle text-green-600 mr-1"></i>Uploaded: <span class="font-semibold">${file.name}</span>`;
-                            alert('Excel file uploaded successfully');
+                            showNotification('success', 'Excel Uploaded', `File "${file.name}" has been uploaded successfully.`);
                         }
                     })
                     .catch(error => {
@@ -597,7 +931,7 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.error) {
-                        alert('Error: ' + data.error);
+                        showNotification('error', 'Error', data.error);
                     } else {
                         document.getElementById('json-textarea').value = JSON.stringify(data, null, 2);
                         document.getElementById('json-modal').classList.remove('hidden');
@@ -605,7 +939,7 @@
                 })
                 .catch(error => {
                     console.error('Error getting JSON:', error);
-                    alert('Failed to get JSON data. Please upload an Excel file first.');
+                    showNotification('error', 'Error', 'Failed to get JSON data. Please upload an Excel file first.');
                 });
         });
 
@@ -624,8 +958,9 @@
                 // Show tick and message under the Validate JSON button
                 document.getElementById('json-validate-status').innerHTML =
                     `<i class="fas fa-check-circle text-green-600 mr-1"></i>JSON validated successfully`;
+                showNotification('success', 'JSON Validated', 'The JSON data has been validated successfully.');
             } catch (e) {
-                alert('Invalid JSON: ' + e.message);
+                showNotification('error', 'JSON Error', 'Invalid JSON: ' + e.message);
                 document.getElementById('json-validate-status').innerHTML = "";
             }
         });
@@ -694,6 +1029,7 @@
                     document.getElementById('error-message').textContent = 'Network error. Please try again.';
                 });
         });
+        
         document.getElementById('close-submission-modal').addEventListener('click', function () {
             document.getElementById('submission-modal').classList.add('hidden');
         });
@@ -722,7 +1058,7 @@
                     window.URL.revokeObjectURL(url);
                 })
                 .catch(error => {
-                    alert(error.message);
+                    showNotification('error', 'PDF Generation Failed', error.message);
                 })
                 .finally(() => {
                     location.reload();
@@ -730,9 +1066,9 @@
         });
 
         // Add this function to render pagination controls
-        function renderPaginationControls() {
+        function renderPaginationControls(totalPages) {
             const pagination = document.getElementById('records-pagination');
-            const totalPages = Math.ceil(allRecords.length / pageSize);
+            totalPages = totalPages || Math.ceil(allRecords.length / pageSize);
             const maxVisiblePages = 4;
 
             if (totalPages <= 1) {
@@ -743,7 +1079,7 @@
             let buttons = '';
 
             // Previous button
-            buttons += `<button id="prev-page-btn" class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 text-xs" ${currentPage === 1 ? 'disabled' : ''}>&lt;</button>`;
+            buttons += `<button id="prev-page-btn" class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 text-xs ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}" ${currentPage === 1 ? 'disabled' : ''}>&lt;</button>`;
 
             // Calculate start and end for page window
             let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
@@ -756,11 +1092,11 @@
 
             // Page number buttons (windowed)
             for (let i = startPage; i <= endPage; i++) {
-                buttons += `<button class="px-2 py-1 rounded ${i === currentPage ? 'bg-blue-600 text-white' : 'bg-gray-200 hover:bg-gray-300'} text-xs mx-1 page-btn" data-page="${i}">${i}</button>`;
+                buttons += `<button class="px-2 py-1 rounded ${i === currentPage ? 'bg-primary-600 text-white' : 'bg-gray-200 hover:bg-gray-300'} text-xs mx-1 page-btn" data-page="${i}">${i}</button>`;
             }
 
             // Next button
-            buttons += `<button id="next-page-btn" class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 text-xs" ${currentPage === totalPages ? 'disabled' : ''}>&gt;</button>`;
+            buttons += `<button id="next-page-btn" class="px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 text-xs ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''}" ${currentPage === totalPages ? 'disabled' : ''}>&gt;</button>`;
 
             pagination.innerHTML = buttons;
 
@@ -769,27 +1105,86 @@
                 if (currentPage > 1) {
                     currentPage--;
                     renderRecordsTable(getCurrentPageRecords());
-                    renderPaginationControls();
+                    renderPaginationControls(totalPages);
                 }
             };
+            
             document.getElementById('next-page-btn').onclick = function () {
                 if (currentPage < totalPages) {
                     currentPage++;
                     renderRecordsTable(getCurrentPageRecords());
-                    renderPaginationControls();
+                    renderPaginationControls(totalPages);
                 }
             };
+            
             document.querySelectorAll('.page-btn').forEach(btn => {
                 btn.onclick = function () {
                     const page = parseInt(this.getAttribute('data-page'));
                     if (page !== currentPage) {
                         currentPage = page;
                         renderRecordsTable(getCurrentPageRecords());
-                        renderPaginationControls();
+                        renderPaginationControls(totalPages);
                     }
                 };
             });
         }
+
+        // Column sorting
+        document.querySelectorAll('[id^="sort-"]').forEach(header => {
+            header.addEventListener('click', function() {
+                const sortField = this.id.replace('sort-', '');
+                let field;
+                
+                switch(sortField) {
+                    case 'sr': field = 'sr'; break;
+                    case 'number': field = 'invoiceReference'; break;
+                    case 'type': field = 'invoiceType'; break;
+                    case 'date': field = 'invoiceDate'; break;
+                    case 'buyer': field = 'buyerName'; break;
+                    case 'seller': field = 'sellerName'; break;
+                    case 'value': field = 'totalValue'; break;
+                    default: field = 'sr';
+                }
+                
+                // Toggle sort direction
+                const currentDir = this.getAttribute('data-sort-dir') || 'asc';
+                const newDir = currentDir === 'asc' ? 'desc' : 'asc';
+                this.setAttribute('data-sort-dir', newDir);
+                
+                // Update sort indicators
+                document.querySelectorAll('[id^="sort-"]').forEach(h => {
+                    h.querySelector('i').className = 'fas fa-sort ml-1';
+                });
+                
+                this.querySelector('i').className = `fas fa-sort-${newDir === 'asc' ? 'up' : 'down'} ml-1`;
+                
+                // Sort records
+                allRecords.sort((a, b) => {
+                    let valueA = a[field];
+                    let valueB = b[field];
+                    
+                    // Handle date sorting
+                    if (field === 'invoiceDate') {
+                        valueA = new Date(valueA || '1970-01-01');
+                        valueB = new Date(valueB || '1970-01-01');
+                    }
+                    
+                    // Handle numeric sorting
+                    if (field === 'totalValue' || field === 'sr') {
+                        valueA = Number(valueA);
+                        valueB = Number(valueB);
+                    }
+                    
+                    if (valueA < valueB) return newDir === 'asc' ? -1 : 1;
+                    if (valueA > valueB) return newDir === 'asc' ? 1 : -1;
+                    return 0;
+                });
+                
+                currentPage = 1;
+                renderRecordsTable(getCurrentPageRecords());
+                renderPaginationControls();
+            });
+        });
     </script>
 </body>
 
