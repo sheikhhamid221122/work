@@ -54,7 +54,8 @@
         }
         .footer-note {
             font-weight: bold;
-            margin-top: 25px;
+            margin-top: 2px;
+            text-align: left;
         }
     </style>
 </head>
@@ -201,31 +202,35 @@
     </tr>
 </table>
 
-<table class="no-border" style="width: 101%;">
+<!-- Footer with Signature, FBR Logo and QR Code on the same line -->
+<table class="no-border" style="width: 101%; margin-top: 20px;">
     <tr>
-        <td style="width: 60%; vertical-align: bottom; text-align: left; border: none;">
+        <!-- Left: Authorized Signatory -->
+        <td style="width: 40%; vertical-align: bottom; text-align: left; border: none;">
+            <div class="footer-note">
+                <hr style="width: 200px; margin-left: 0; border-top: 1px solid #000;">
+                <p style="margin-top: -5px;">AUTHORISED SIGNATORY</p>
+            </div>
         </td>
+        
+        <!-- Middle Space -->
+        <td style="width: 20%; border: none;"></td>
 
         <!-- FBR Logo -->
-        <td style="width: auto; text-align: right; vertical-align: middle; border: none; margin-right: -10px;">
+        <td style="width: 20%; text-align: right; vertical-align: middle; border: none;">
             {% if fbr_logo_url %}
-                <img src="{{ fbr_logo_url }}" style="width: 100px; height: auto; vertical-align: middle; margin-top: -8px;" alt="FBR Logo">
+                <img src="{{ fbr_logo_url }}" style="width: 100px; height: auto; vertical-align: middle;" alt="FBR Logo">
             {% endif %}
         </td>
 
         <!-- QR Code -->
-        <td style="width: auto; text-align: right; vertical-align: middle; border: none;">
+        <td style="width: 20%; text-align: right; vertical-align: middle; border: none;">
             {% if qr_base64 %}
                 <img src="data:image/png;base64,{{ qr_base64 }}" style="width: 100px; height: 100px; vertical-align: middle;" alt="QR Code">
             {% endif %}
         </td>
     </tr>
 </table>
-
-<div class="footer-note" style="margin-top: 30px; text-align: left;">
-    <hr style="width: 200px; margin-left: 0; border-top: 1px solid #000;">
-    <p style="margin-top: 5px;">AUTHORISED SIGNATORY</p>
-</div>
 
 </div>
 </body>
