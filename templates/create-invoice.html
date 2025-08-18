@@ -1,0 +1,3099 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>Create Invoice - TaxLink Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: "#f0f9ff",
+                            100: "#e0f2fe",
+                            200: "#bae6fd",
+                            300: "#7dd3fc",
+                            400: "#38bdf8",
+                            500: "#0ea5e9",
+                            600: "#0284c7",
+                            700: "#0369a1",
+                            800: "#075985",
+                            900: "#0c4a6e",
+                        },
+                        secondary: {
+                            50: "#f5f3ff",
+                            100: "#ede9fe",
+                            200: "#ddd6fe",
+                            300: "#c4b5fd",
+                            400: "#a78bfa",
+                            500: "#8b5cf6",
+                            600: "#7c3aed",
+                            700: "#6d28d9",
+                            800: "#5b21b6",
+                            900: "#4c1d95",
+                        },
+                        accent: {
+                            50: "#f0fdfa",
+                            100: "#ccfbf1",
+                            200: "#99f6e4",
+                            300: "#5eead4",
+                            400: "#2dd4bf",
+                            500: "#14b8a6",
+                            600: "#0d9488",
+                            700: "#0f766e",
+                            800: "#115e59",
+                            900: "#134e4a",
+                        },
+                    },
+                },
+            },
+        };
+    </script>
+    <style>
+        /* Custom CSS for animations and elements not covered by Tailwind */
+        .sidebar-item.active {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left: 4px solid #38bdf8;
+        }
+
+        .step-active {
+            background-color: #0ea5e9;
+            color: white;
+        }
+
+        .step-completed {
+            background-color: #10b981;
+            color: white;
+        }
+
+        .step-inactive {
+            background-color: #e5e7eb;
+            color: #6b7280;
+        }
+
+        .step-line {
+            height: 2px;
+            background-color: #e5e7eb;
+            flex-grow: 1;
+            margin: 0 8px;
+        }
+
+        .step-line-active {
+            background-color: #0ea5e9;
+        }
+
+        .step-line-completed {
+            background-color: #10b981;
+        }
+
+        .sidebar-item:hover:not(.active) {
+            background-color: rgba(255, 255, 255, 0.08);
+            transition: all 0.2s ease;
+        }
+
+        .step-active {
+            background-color: #0ea5e9;
+            color: white;
+        }
+
+        .step-completed {
+            background-color: #10b981;
+            color: white;
+        }
+
+        .step-inactive {
+            background-color: #e5e7eb;
+            color: #6b7280;
+        }
+
+        .step-line {
+            height: 2px;
+            background-color: #e5e7eb;
+            flex-grow: 1;
+            margin: 0 8px;
+        }
+
+        .step-line-active {
+            background-color: #0ea5e9;
+        }
+
+        .step-line-completed {
+            background-color: #10b981;
+        }
+
+        /* Enhanced sidebar styles */
+        .sidebar {
+            background: linear-gradient(to bottom, #075985, #0c4a6e);
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-logo {
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-logo:hover {
+            transform: scale(1.05);
+        }
+
+        /* Form input styles */
+        .form-input:focus {
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.2);
+        }
+
+        /* Modal styles */
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(2px);
+        }
+
+        /* Notification component */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 50;
+            transition: all 0.3s ease;
+            transform: translateY(-100px);
+            opacity: 0;
+        }
+
+        .notification.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .notification-success {
+            background-color: #10b981;
+            color: white;
+        }
+
+        .notification-error {
+            background-color: #ef4444;
+            color: white;
+        }
+
+        .notification-info {
+            background-color: #3b82f6;
+            color: white;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 font-sans">
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <div class="hidden md:flex md:flex-shrink-0">
+            <div class="flex flex-col sidebar" style="width: 200px; min-width: 200px; max-width: 200px">
+                <!-- Logo and User Info Section -->
+                <div class="flex flex-col items-center justify-center pt-5 pb-2">
+                    <!-- Logo -->
+                    <div class="sidebar-logo w-32 mb-4">
+                        <img src="https://clkbskiomtjlqkbbheaj.supabase.co/storage/v1/object/public/taxlinkprologo/ChatGPT_Image_Aug_11__2025__02_40_38_AM-removebg-preview.png"
+                            alt="TaxLink Pro Logo" class="w-full h-auto" />
+                    </div>
+
+                    <!-- Divider -->
+                    <div class="w-full px-6">
+                        <div class="border-b border-blue-400 opacity-50"></div>
+                    </div>
+
+                    <!-- User Info -->
+                    <div class="flex items-center justify-center mt-4 mb-2 px-4">
+                        <div class="flex items-center">
+                            <div
+                                class="w-8 h-8 bg-blue-300 rounded-full flex items-center justify-center text-primary-800 font-bold mr-2">
+                                {{ session['name'][0] }}
+                            </div>
+                            <span class="text-white font-medium">{{ session['name'] }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation Menu -->
+                <div class="flex flex-col flex-grow pt-4 pb-4 overflow-y-auto">
+                    <nav class="flex-1 space-y-2 px-2">
+                        <a href="/dashboard.html" id="dashboard-tab"
+                            class="sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
+                            <i class="fas fa-tachometer-alt mr-3"></i>
+                            Dashboard
+                        </a>
+                        <a href="/create-invoice.html" id="create-invoice-tab"
+                            class="sidebar-item active flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
+                            <i class="fas fa-file-invoice mr-3"></i>
+                            Create Invoice
+                        </a>
+                    </nav>
+
+                    <!-- Environment Badge - Increased Size -->
+                    <div class="px-4 py-4 text-center">
+                        <span
+                            class="bg-primary-400 text-white text-sm font-bold px-4 py-2 rounded-full shadow-md inline-flex items-center">
+                            <i class="fas fa-cube mr-2 text-base"></i>{{ session['env'] }}
+                        </span>
+                    </div>
+
+                    <!-- Logout Button - Centered -->
+                    <div class="px-2 mt-auto text-center">
+                        <a href="/logout"
+                            class="sidebar-item flex items-center justify-center px-4 py-3 text-sm font-medium rounded-md text-white">
+                            <i class="fas fa-sign-out-alt mr-3"></i>
+                            Logout
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main content -->
+        <div class="flex flex-col flex-1 overflow-hidden">
+            <!-- Mobile Header -->
+            <div class="md:hidden bg-primary-700 text-white p-4 flex items-center justify-between">
+                <div class="flex items-center">
+                    <img src="https://clkbskiomtjlqkbbheaj.supabase.co/storage/v1/object/public/taxlinkprologo/ChatGPT_Image_Aug_11__2025__02_40_38_AM-removebg-preview.png"
+                        alt="TaxLink Pro Logo" class="h-8 mr-2" />
+                    <span class="font-semibold text-lg">TaxLink Pro</span>
+                </div>
+                <button id="mobile-menu-button" class="focus:outline-none">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Mobile Menu (hidden by default) -->
+            <div id="mobile-menu" class="fixed inset-0 z-40 md:hidden hidden">
+                <div class="absolute inset-0 bg-black opacity-50"></div>
+                <div
+                    class="absolute inset-y-0 left-0 max-w-xs w-full bg-primary-800 text-white shadow-xl flex flex-col">
+                    <div class="flex items-center justify-between p-4 border-b border-primary-700">
+                        <img src="https://clkbskiomtjlqkbbheaj.supabase.co/storage/v1/object/public/taxlinkprologo/ChatGPT_Image_Aug_11__2025__02_40_38_AM-removebg-preview.png"
+                            alt="TaxLink Pro Logo" class="h-8" />
+                        <button id="close-mobile-menu" class="text-white focus:outline-none">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    <div class="p-4 border-b border-primary-700">
+                        <div class="flex items-center">
+                            <div
+                                class="w-8 h-8 bg-blue-300 rounded-full flex items-center justify-center text-primary-800 font-bold mr-2">
+                                {{ session['name'][0] }}
+                            </div>
+                            <span class="text-white font-medium">{{ session['name'] }}</span>
+                        </div>
+                    </div>
+                    <nav class="flex-1 p-4">
+                        <a href="/dashboard.html" class="block py-2 px-4 text-white hover:bg-primary-700 rounded-md">
+                            <i class="fas fa-tachometer-alt mr-3"></i> Dashboard
+                        </a>
+                        <a href="/create-invoice.html" class="block py-2 px-4 text-white bg-primary-700 rounded-md">
+                            <i class="fas fa-file-invoice mr-3"></i> Create Invoice
+                        </a>
+                    </nav>
+                    <div class="p-4 border-t border-primary-700">
+                        <span
+                            class="bg-primary-400 text-white text-sm font-bold px-4 py-2 rounded-full shadow-md inline-flex items-center">
+                            <i class="fas fa-cube mr-2 text-base"></i>{{ session['env'] }}
+                        </span>
+                    </div>
+                    <div class="p-4 border-t border-primary-700">
+                        <a href="/logout" class="block py-2 px-4 text-white hover:bg-primary-700 rounded-md">
+                            <i class="fas fa-sign-out-alt mr-3"></i> Logout
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main content area -->
+            <main class="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 bg-gray-50">
+                <div id="create-invoice-content">
+                    <!-- Header -->
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+                        <h1 class="text-2xl font-bold text-gray-800">
+                            Create New Invoice
+                        </h1>
+                        <a href="/dashboard.html"
+                            class="mt-3 md:mt-0 text-primary-600 hover:text-primary-700 font-medium flex items-center">
+                            <i class="fas fa-arrow-left mr-2"></i> Back to Dashboard
+                        </a>
+                    </div>
+
+                    <!-- Progress Steps -->
+                    <!-- Progress Steps -->
+                    <div class="mb-8">
+                        <div class="flex items-center">
+                            <!-- Step 1 -->
+                            <div class="flex flex-col items-center">
+                                <div id="step-1-indicator"
+                                    class="step-active w-8 h-8 rounded-full flex items-center justify-center">
+                                    1
+                                </div>
+                                <div class="mt-2 text-xs text-center w-20">Seller Info</div>
+                            </div>
+
+                            <!-- Line 1-2 -->
+                            <div id="step-1-2-line" class="step-line"></div>
+
+                            <!-- Step 2 -->
+                            <div class="flex flex-col items-center">
+                                <div id="step-2-indicator"
+                                    class="step-inactive w-8 h-8 rounded-full flex items-center justify-center">
+                                    2
+                                </div>
+                                <div class="mt-2 text-xs text-center w-20">Invoice Details</div>
+                            </div>
+
+                            <!-- Line 2-3 -->
+                            <div id="step-2-3-line" class="step-line"></div>
+
+                            <!-- Step 3 -->
+                            <div class="flex flex-col items-center">
+                                <div id="step-3-indicator"
+                                    class="step-inactive w-8 h-8 rounded-full flex items-center justify-center">
+                                    3
+                                </div>
+                                <div class="mt-2 text-xs text-center w-20">Buyer Info</div>
+                            </div>
+
+                            <!-- Line 3-4 -->
+                            <div id="step-3-4-line" class="step-line"></div>
+
+                            <!-- Step 4 -->
+                            <div class="flex flex-col items-center">
+                                <div id="step-4-indicator"
+                                    class="step-inactive w-8 h-8 rounded-full flex items-center justify-center">
+                                    4
+                                </div>
+                                <div class="mt-2 text-xs text-center w-20">Products</div>
+                            </div>
+
+                            <!-- Line 4-5 -->
+                            <div id="step-4-5-line" class="step-line"></div>
+
+                            <!-- Step 5 -->
+                            <div class="flex flex-col items-center">
+                                <div id="step-5-indicator"
+                                    class="step-inactive w-8 h-8 rounded-full flex items-center justify-center">
+                                    5
+                                </div>
+                                <div class="mt-2 text-xs text-center w-20">Review</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 1: Seller Information -->
+                    <div id="step-1" class="bg-white p-6 rounded-lg shadow">
+                        <h2 class="text-lg font-semibold mb-4">Seller Information</h2>
+
+                        <!-- Select Existing Business Profile or Create New -->
+                        <div class="mb-6">
+                            <label class="block text-gray-700 font-medium mb-2">Select Business Profile</label>
+                            <div class="flex items-center">
+                                <select id="business-profile-select"
+                                    class="form-input w-full px-4 py-2 border border-gray-300 rounded-md mr-2 focus:outline-none focus:border-primary-500">
+                                    <option value="">-- Select Business Profile --</option>
+                                </select>
+                                <button id="add-business-profile-btn"
+                                    class="bg-secondary-600 hover:bg-secondary-700 text-white px-4 py-2 rounded-md">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Business Form Fields -->
+                        <div id="seller-form">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="seller-business-name"
+                                        class="block text-gray-700 font-medium mb-2">Business Name*</label>
+                                    <input type="text" id="seller-business-name"
+                                        class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
+                                        placeholder="Enter business name" />
+                                </div>
+                                <div>
+                                    <label for="seller-ntn-cnic"
+                                        class="block text-gray-700 font-medium mb-2">NTN/CNIC*</label>
+                                    <input type="text" id="seller-ntn-cnic"
+                                        class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
+                                        placeholder="Enter NTN or CNIC" />
+                                </div>
+                                <div>
+                                    <label for="seller-strn" class="block text-gray-700 font-medium mb-2">STRN</label>
+                                    <input type="text" id="seller-strn"
+                                        class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
+                                        placeholder="Enter STRN (if applicable)" />
+                                </div>
+                                <div>
+                                    <label for="seller-province"
+                                        class="block text-gray-700 font-medium mb-2">Province*</label>
+                                    <select id="seller-province"
+                                        class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500">
+                                        <option value="">-- Select Province --</option>
+                                    </select>
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label for="seller-address"
+                                        class="block text-gray-700 font-medium mb-2">Address*</label>
+                                    <textarea id="seller-address" rows="3"
+                                        class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
+                                        placeholder="Enter business address"></textarea>
+                                </div>
+                            </div>
+
+                            <div class="mt-4">
+                                <label class="inline-flex items-center">
+                                    <input type="checkbox" id="save-business-profile"
+                                        class="form-checkbox h-5 w-5 text-primary-600" />
+                                    <span class="ml-2 text-gray-700">Save as business profile for future use</span>
+                                </label>
+                            </div>
+
+                            <div class="mt-4">
+                                <label class="inline-flex items-center">
+                                    <input type="checkbox" id="set-default-business-profile"
+                                        class="form-checkbox h-5 w-5 text-primary-600" />
+                                    <span class="ml-2 text-gray-700">Set as default business profile</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Navigation Buttons -->
+                        <div class="mt-8 flex justify-end">
+                            <button id="step1-next"
+                                class="bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-6 rounded-md transition duration-150 ease-in-out flex items-center">
+                                Next <i class="fas fa-arrow-right ml-2"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2: Invoice Details (Initially Hidden) -->
+                <div id="step-2" class="bg-white p-6 rounded-lg shadow hidden">
+                    <h2 class="text-lg font-semibold mb-4">Invoice Details</h2>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="invoice-type" class="block text-gray-700 font-medium mb-2">Invoice Type*</label>
+                            <input type="text" id="invoice-type" value="Sale Invoice"
+                                class="form-input w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-700 cursor-not-allowed"
+                                readonly disabled>
+                            <!-- Hidden field to ensure the value is still submitted with the form -->
+                            <input type="hidden" id="invoice-type-hidden" value="Sale Invoice">
+                        </div>
+                        <div>
+                            <label for="invoice-date" class="block text-gray-700 font-medium mb-2">Invoice Date*</label>
+                            <input type="date" id="invoice-date"
+                                class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500" />
+                        </div>
+                        <div>
+                            <label for="invoice-ref-no" class="block text-gray-700 font-medium mb-2">Invoice Reference
+                                No.</label>
+                            <input type="text" id="invoice-ref-no"
+                                class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
+                                placeholder="Enter reference number" />
+                        </div>
+                        <div>
+                            <label for="po-number" class="block text-gray-700 font-medium mb-2">PO#</label>
+                            <input type="text" id="po-number"
+                                class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
+                                placeholder="Enter purchase order number" />
+                        </div>
+
+                        <!-- Sandbox Scenario ID (only shown in sandbox) -->
+                        <div id="scenario-id-container" class="hidden">
+                            <label for="scenario-id" class="block text-gray-700 font-medium mb-2">Scenario ID
+                                (Sandbox)</label>
+                            <select id="scenario-id"
+                                class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500">
+                                <option value="">-- Select Scenario ID --</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Navigation Buttons -->
+                    <div class="mt-8 flex justify-between">
+                        <button id="step2-prev"
+                            class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 font-medium py-2 px-6 rounded-md transition duration-150 ease-in-out flex items-center">
+                            <i class="fas fa-arrow-left mr-2"></i> Back
+                        </button>
+                        <button id="step2-next"
+                            class="bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-6 rounded-md transition duration-150 ease-in-out flex items-center">
+                            Next <i class="fas fa-arrow-right ml-2"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 3: Buyer Information (Initially Hidden) -->
+                <div id="step-3" class="bg-white p-6 rounded-lg shadow hidden">
+                    <h2 class="text-lg font-semibold mb-4">Buyer Information</h2>
+
+                    <!-- Select Existing Buyer or Create New -->
+                    <div class="mb-6">
+                        <label class="block text-gray-700 font-medium mb-2">Select Buyer</label>
+                        <div class="flex items-center">
+                            <select id="buyer-select"
+                                class="form-input w-full px-4 py-2 border border-gray-300 rounded-md mr-2 focus:outline-none focus:border-primary-500">
+                                <option value="">-- Select Buyer --</option>
+                            </select>
+                            <button id="add-buyer-btn"
+                                class="bg-secondary-600 hover:bg-secondary-700 text-white px-4 py-2 rounded-md">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Buyer Form Fields -->
+                    <div id="buyer-form">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label for="buyer-business-name" class="block text-gray-700 font-medium mb-2">Business
+                                    Name*</label>
+                                <input type="text" id="buyer-business-name"
+                                    class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
+                                    placeholder="Enter business name" />
+                            </div>
+                            <div>
+                                <label for="buyer-ntn-cnic"
+                                    class="block text-gray-700 font-medium mb-2">NTN/CNIC*</label>
+                                <input type="text" id="buyer-ntn-cnic"
+                                    class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
+                                    placeholder="Enter NTN or CNIC" />
+                            </div>
+                            <div>
+                                <label for="buyer-strn" class="block text-gray-700 font-medium mb-2">STRN</label>
+                                <input type="text" id="buyer-strn"
+                                    class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
+                                    placeholder="Enter STRN (if applicable)" />
+                            </div>
+                            <div>
+                                <label for="buyer-province"
+                                    class="block text-gray-700 font-medium mb-2">Province*</label>
+                                <select id="buyer-province"
+                                    class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500">
+                                    <option value="">-- Select Province --</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="buyer-registration-type"
+                                    class="block text-gray-700 font-medium mb-2">Registration Type*</label>
+                                <select id="buyer-registration-type"
+                                    class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500">
+                                    <option value="">-- Select Registration Type --</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="buyer-code" class="block text-gray-700 font-medium mb-2">Buyer Code</label>
+                                <input type="text" id="buyer-code"
+                                    class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
+                                    placeholder="Enter buyer code (if any)" />
+                            </div>
+                            <div class="md:col-span-2">
+                                <label for="buyer-address" class="block text-gray-700 font-medium mb-2">Address*</label>
+                                <textarea id="buyer-address" rows="3"
+                                    class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
+                                    placeholder="Enter business address"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="mt-4">
+                            <label class="inline-flex items-center">
+                                <input type="checkbox" id="save-buyer" class="form-checkbox h-5 w-5 text-primary-600" />
+                                <span class="ml-2 text-gray-700">Save buyer for future use</span>
+                            </label>
+                        </div>
+
+                        <div class="mt-4">
+                            <label class="inline-flex items-center">
+                                <input type="checkbox" id="set-default-buyer"
+                                    class="form-checkbox h-5 w-5 text-primary-600" />
+                                <span class="ml-2 text-gray-700">Set as default buyer</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Navigation Buttons -->
+                    <div class="mt-8 flex justify-between">
+                        <button id="step3-prev"
+                            class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 font-medium py-2 px-6 rounded-md transition duration-150 ease-in-out flex items-center">
+                            <i class="fas fa-arrow-left mr-2"></i> Back
+                        </button>
+                        <button id="step3-next"
+                            class="bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-6 rounded-md transition duration-150 ease-in-out flex items-center">
+                            Next <i class="fas fa-arrow-right ml-2"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 4: Products (Initially Hidden) -->
+                <div id="step-4" class="bg-white p-6 rounded-lg shadow hidden">
+                    <h2 class="text-lg font-semibold mb-4">Product Items</h2>
+
+                    <!-- Product Item Form -->
+                    <div class="bg-gray-50 p-4 rounded-md mb-6">
+                        <h3 class="font-medium text-gray-700 mb-3">Add Product Item</h3>
+
+                        <!-- Product Dropdown Section (will be shown conditionally) -->
+                        <div id="product-dropdown-container" class="hidden mb-3">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
+                                <div class="md:col-span-3">
+                                    <label for="product-select" class="block text-gray-700 text-sm mb-1">Select
+                                        Product*</label>
+                                    <div class="flex">
+                                        <select id="product-select"
+                                            class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm">
+                                            <option value="">-- Select Product --</option>
+                                        </select>
+                                        <button id="custom-product-btn"
+                                            class="ml-2 bg-secondary-600 hover:bg-secondary-700 text-white px-3 py-2 rounded-md">
+                                            <i class="fas fa-plus mr-1"></i> Custom
+                                        </button>
+                                    </div>
+                                    <div id="custom-product-field" class="hidden mt-2">
+                                        <input type="text" id="custom-product-input"
+                                            class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm"
+                                            placeholder="Enter custom product name">
+                                        <div class="flex justify-end mt-2">
+                                            <button id="save-custom-product-btn"
+                                                class="bg-primary-600 hover:bg-primary-700 text-white px-3 py-1 rounded-md text-sm">
+                                                <i class="fas fa-save mr-1"></i> Save & Select
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label for="product-description"
+                                    class="block text-gray-700 text-sm mb-1">Description*</label>
+                                <input type="text" id="product-description"
+                                    class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm"
+                                    placeholder="Enter product description">
+                            </div>
+                            <div>
+                                <label for="product-hs-code" class="block text-gray-700 text-sm mb-1">HS Code*</label>
+                                <input type="text" id="product-hs-code"
+                                    class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm"
+                                    placeholder="HS code">
+                            </div>
+                            <div>
+                                <label for="product-quantity" class="block text-gray-700 text-sm mb-1">Quantity*</label>
+                                <input type="number" id="product-quantity"
+                                    class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm"
+                                    placeholder="Quantity" min="0" step="1">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+                            <div>
+                                <label for="product-uom" class="block text-gray-700 text-sm mb-1">UoM*</label>
+                                <select id="product-uom"
+                                    class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm">
+                                    <option value="">-- Select Unit --</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="product-value-excl" class="block text-gray-700 text-sm mb-1">Value Excl.
+                                    ST*</label>
+                                <input type="number" id="product-value-excl"
+                                    class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm"
+                                    placeholder="Value excluding sales tax" min="0" step="0.01">
+                            </div>
+                            <div>
+                                <label for="product-rate" class="block text-gray-700 text-sm mb-1">Rate (per
+                                    unit)</label>
+                                <input type="number" id="product-rate"
+                                    class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm bg-gray-100"
+                                    placeholder="Auto-calculated" min="0" step="0.01" readonly>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+                            <div>
+                                <label for="product-tax-rate" class="block text-gray-700 text-sm mb-1">Tax Rate*</label>
+                                <select id="product-tax-rate"
+                                    class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm">
+                                    <option value="">-- Select Tax Rate --</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="product-tax-amount" class="block text-gray-700 text-sm mb-1">Tax
+                                    Amount*</label>
+                                <input type="number" id="product-tax-amount"
+                                    class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm"
+                                    placeholder="Sales tax amount" min="0" step="0.01">
+                            </div>
+                            <div>
+                                <label for="product-sale-type" class="block text-gray-700 text-sm mb-1">Sale
+                                    Type*</label>
+                                <input type="text" id="product-sale-type"
+                                    class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm"
+                                    placeholder="Sale type" value="Goods at Reduced Rate">
+                            </div>
+                        </div>
+
+                        <!-- Add the additional FBR fields -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+                            <div>
+                                <label for="product-sro-schedule-no" class="block text-gray-700 text-sm mb-1">SRO
+                                    Schedule No</label>
+                                <input type="text" id="product-sro-schedule-no"
+                                    class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm"
+                                    >
+                            </div>
+                            <div>
+                                <label for="product-sro-item-serial-no" class="block text-gray-700 text-sm mb-1">SRO
+                                    Item Serial No</label>
+                                <input type="text" id="product-sro-item-serial-no"
+                                    class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm"
+                                    >
+                            </div>
+                            <div>
+                                <label for="product-further-tax" class="block text-gray-700 text-sm mb-1">Further
+                                    Tax</label>
+                                <input type="number" id="product-further-tax"
+                                    class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm"
+                                    placeholder="0" value="0" min="0" step="0.01">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+                            <div>
+                                <label for="product-extra-tax" class="block text-gray-700 text-sm mb-1">Extra
+                                    Tax</label>
+                                <input type="text" id="product-extra-tax"
+                                    class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm"
+                                    placeholder="" value="">
+                            </div>
+                            <div>
+                                <label for="product-st-withheld" class="block text-gray-700 text-sm mb-1">Sales Tax
+                                    Withheld</label>
+                                <input type="number" id="product-st-withheld"
+                                    class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm"
+                                    placeholder="0" value="0" min="0" step="0.01">
+                            </div>
+                            <div>
+                                <label for="product-fed-payable" class="block text-gray-700 text-sm mb-1">FED
+                                    Payable</label>
+                                <input type="number" id="product-fed-payable"
+                                    class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm"
+                                    placeholder="0" value="0" min="0" step="0.01">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+                            <div>
+                                <label for="product-discount" class="block text-gray-700 text-sm mb-1">Discount</label>
+                                <input type="number" id="product-discount"
+                                    class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm"
+                                    placeholder="0" value="0" min="0" step="0.01">
+                            </div>
+                            <div>
+                                <label for="product-fixed-value" class="block text-gray-700 text-sm mb-1">Fixed Notified
+                                    Value</label>
+                                <input type="number" id="product-fixed-value"
+                                    class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm"
+                                    placeholder="0" value="0" min="0" step="0.01">
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end mt-4">
+                            <button id="add-product-item-btn"
+                                class="bg-secondary-600 hover:bg-secondary-700 text-white px-4 py-2 rounded-md text-sm">
+                                <i class="fas fa-plus mr-1"></i> Add Item
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Product Items Table -->
+                    <div class="overflow-x-auto mt-6">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th scope="col"
+                                        class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                        Description
+                                    </th>
+                                    <th scope="col"
+                                        class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                        HS Code
+                                    </th>
+                                    <th scope="col"
+                                        class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                        Qty
+                                    </th>
+                                    <th scope="col"
+                                        class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                        UoM
+                                    </th>
+                                    <th scope="col"
+                                        class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                        Rate
+                                    </th>
+                                    <th scope="col"
+                                        class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                        Value Excl.
+                                    </th>
+                                    <th scope="col"
+                                        class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                        Tax Amount
+                                    </th>
+                                    <th scope="col"
+                                        class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                        Total
+                                    </th>
+                                    <th scope="col"
+                                        class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                        Actions
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody id="product-items-table" class="bg-white divide-y divide-gray-200">
+                                <!-- No products message -->
+                                <tr id="no-products-row">
+                                    <td colspan="9" class="px-6 py-4 text-center text-gray-500">
+                                        No products added yet. Add products using the form
+                                        above.
+                                    </td>
+                                </tr>
+                            </tbody>
+                            <!-- Totals row -->
+                            <tfoot class="bg-gray-50">
+                                <tr>
+                                    <td colspan="5" class="px-6 py-3 text-right font-medium">
+                                        Totals:
+                                    </td>
+                                    <td class="px-3 py-3 font-medium" id="total-value-excl">
+                                        0.00
+                                    </td>
+                                    <td class="px-3 py-3 font-medium" id="total-tax-amount">
+                                        0.00
+                                    </td>
+                                    <td class="px-3 py-3 font-medium" id="grand-total">
+                                        0.00
+                                    </td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <!-- Navigation Buttons -->
+                    <div class="mt-8 flex justify-between">
+                        <button id="step4-prev"
+                            class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 font-medium py-2 px-6 rounded-md transition duration-150 ease-in-out flex items-center">
+                            <i class="fas fa-arrow-left mr-2"></i> Back
+                        </button>
+                        <button id="step4-next"
+                            class="bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-6 rounded-md transition duration-150 ease-in-out flex items-center">
+                            Next <i class="fas fa-arrow-right ml-2"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 5: Review (Initially Hidden) -->
+                <div id="step-5" class="bg-white p-6 rounded-lg shadow hidden">
+                    <h2 class="text-lg font-semibold mb-4">Review Invoice</h2>
+
+                    <!-- Review Summary -->
+                    <div class="mb-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Seller Information -->
+                            <div class="bg-gray-50 p-4 rounded-md">
+                                <h3 class="font-medium text-gray-800 mb-2">
+                                    Seller Information
+                                </h3>
+                                <div class="text-sm">
+                                    <p>
+                                        <span class="font-semibold">Business:</span>
+                                        <span id="review-seller-name"></span>
+                                    </p>
+                                    <p>
+                                        <span class="font-semibold">NTN/CNIC:</span>
+                                        <span id="review-seller-ntn"></span>
+                                    </p>
+                                    <p>
+                                        <span class="font-semibold">STRN:</span>
+                                        <span id="review-seller-strn"></span>
+                                    </p>
+                                    <p>
+                                        <span class="font-semibold">Address:</span>
+                                        <span id="review-seller-address"></span>
+                                    </p>
+                                    <p>
+                                        <span class="font-semibold">Province:</span>
+                                        <span id="review-seller-province"></span>
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Buyer Information -->
+                            <div class="bg-gray-50 p-4 rounded-md">
+                                <h3 class="font-medium text-gray-800 mb-2">
+                                    Buyer Information
+                                </h3>
+                                <div class="text-sm">
+                                    <p>
+                                        <span class="font-semibold">Business:</span>
+                                        <span id="review-buyer-name"></span>
+                                    </p>
+                                    <p>
+                                        <span class="font-semibold">NTN/CNIC:</span>
+                                        <span id="review-buyer-ntn"></span>
+                                    </p>
+                                    <p>
+                                        <span class="font-semibold">STRN:</span>
+                                        <span id="review-buyer-strn"></span>
+                                    </p>
+                                    <p>
+                                        <span class="font-semibold">Address:</span>
+                                        <span id="review-buyer-address"></span>
+                                    </p>
+                                    <p>
+                                        <span class="font-semibold">Province:</span>
+                                        <span id="review-buyer-province"></span>
+                                    </p>
+                                    <p>
+                                        <span class="font-semibold">Registration Type:</span>
+                                        <span id="review-buyer-registration"></span>
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Invoice Details -->
+                            <div class="bg-gray-50 p-4 rounded-md">
+                                <h3 class="font-medium text-gray-800 mb-2">
+                                    Invoice Details
+                                </h3>
+                                <div class="text-sm">
+                                    <p>
+                                        <span class="font-semibold">Invoice Type:</span>
+                                        <span id="review-invoice-type"></span>
+                                    </p>
+                                    <p>
+                                        <span class="font-semibold">Invoice Date:</span>
+                                        <span id="review-invoice-date"></span>
+                                    </p>
+                                    <p>
+                                        <span class="font-semibold">Invoice Ref No:</span>
+                                        <span id="review-invoice-ref"></span>
+                                    </p>
+                                    <p>
+                                        <span class="font-semibold">PO#:</span>
+                                        <span id="review-po-number"></span>
+                                    </p>
+                                    <p id="review-scenario-container" class="hidden">
+                                        <span class="font-semibold">Scenario ID:</span>
+                                        <span id="review-scenario-id"></span>
+                                    </p>
+                                </div>
+                            </div>
+
+                            <!-- Totals -->
+                            <div class="bg-gray-50 p-4 rounded-md">
+                                <h3 class="font-medium text-gray-800 mb-2">
+                                    Invoice Totals
+                                </h3>
+                                <div class="text-sm">
+                                    <p>
+                                        <span class="font-semibold">Items Count:</span>
+                                        <span id="review-items-count">0</span>
+                                    </p>
+                                    <p>
+                                        <span class="font-semibold">Value Excl. Tax:</span> PKR
+                                        <span id="review-value-excl">0.00</span>
+                                    </p>
+                                    <p>
+                                        <span class="font-semibold">Sales Tax:</span> PKR
+                                        <span id="review-tax-amount">0.00</span>
+                                    </p>
+                                    <p class="text-base font-bold mt-2 text-primary-700">
+                                        <span>Total Amount:</span> PKR
+                                        <span id="review-grand-total">0.00</span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Product Items Review -->
+                    <div class="mt-6">
+                        <h3 class="font-medium text-gray-800 mb-3">Product Items</h3>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th scope="col"
+                                            class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                            Description
+                                        </th>
+                                        <th scope="col"
+                                            class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                            HS Code
+                                        </th>
+                                        <th scope="col"
+                                            class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                            Qty
+                                        </th>
+                                        <th scope="col"
+                                            class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                            UoM
+                                        </th>
+                                        <th scope="col"
+                                            class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                            Rate
+                                        </th>
+                                        <th scope="col"
+                                            class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                            Value Excl.
+                                        </th>
+                                        <th scope="col"
+                                            class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                            Tax Amount
+                                        </th>
+                                        <th scope="col"
+                                            class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                            Total
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody id="review-items-table" class="bg-white divide-y divide-gray-200">
+                                    <!-- Product items will be populated here -->
+                                    <tr id="review-no-products-row">
+                                        <td colspan="8" class="px-6 py-4 text-center text-gray-500">
+                                            No products added yet.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Navigation Buttons -->
+                    <!-- Navigation Buttons for Step 5 -->
+                    <!-- Navigation Buttons for Step 5 -->
+                    <div class="mt-8 flex justify-between">
+                        <button id="step5-prev"
+                            class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 font-medium py-2 px-6 rounded-md transition duration-150 ease-in-out flex items-center">
+                            <i class="fas fa-arrow-left mr-2"></i> Back
+                        </button>
+                        <div class="flex space-x-3">
+                            <button id="view-json-btn"
+                                class="bg-secondary-600 hover:bg-secondary-700 text-white font-medium py-2 px-6 rounded-md transition duration-150 ease-in-out flex items-center">
+                                <i class="fas fa-code mr-2"></i> View JSON
+                            </button>
+                            <button id="submit-invoice-btn"
+                                class="bg-accent-600 hover:bg-accent-700 text-white font-medium py-2 px-6 rounded-md transition duration-150 ease-in-out flex items-center">
+                                <i class="fas fa-paper-plane mr-2"></i> Submit to FBR
+                            </button>
+                            <button id="generate-invoice-btn"
+                                class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded-md transition duration-150 ease-in-out flex items-center">
+                                <i class="fas fa-file-pdf mr-2"></i> Generate Invoice
+                            </button>
+                            <button id="save-draft-btn"
+                                class="bg-secondary-600 hover:bg-secondary-700 text-white font-medium py-2 px-6 rounded-md transition duration-150 ease-in-out flex items-center">
+                                <i class="fas fa-save mr-2"></i> Save Draft
+                            </button>
+                        </div>
+                    </div>
+                </div>
+        </div>
+    </div>
+    </main>
+    </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notification" class="notification">
+        <div class="flex items-center">
+            <i id="notification-icon" class="mr-3"></i>
+            <div>
+                <h4 id="notification-title" class="font-medium"></h4>
+                <p id="notification-message" class="text-sm opacity-90"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ENV = "{{ session['env'] }}";
+        function apiUrl(endpoint) {
+            return `${endpoint}?env=${ENV}`;
+        }
+
+        // State to store form data
+        const state = {
+            currentStep: 1,
+            formOptions: null,
+            sellerData: {},
+            buyerData: {},
+            invoiceData: {},
+            productItems: [],
+        };
+
+        const scenarioToSaleType = {
+            'SN001': 'Goods at standard rate (default)',
+            'SN002': 'Goods at standard rate (default)',
+            'SN003': 'Steel melting and re-rolling',
+            'SN004': 'Ship breaking',
+            'SN005': 'Goods at Reduced Rate',
+            'SN006': 'Exempt goods',
+            'SN007': 'Goods at zero-rate',
+            'SN008': '3rd Schedule Goods',
+            'SN009': 'Cotton Ginners',
+            'SN010': 'Telecommunication services',
+            'SN011': 'Toll Manufacturing',
+            'SN012': 'Petroleum Products',
+            'SN013': 'Electricity Supply to Retailers',
+            'SN014': 'Gas to CNG stations',
+            'SN015': 'Mobile Phones',
+            'SN016': 'Processing/ Conversion of Goods',
+            'SN017': 'Goods (FED in ST Mode)',
+            'SN018': 'Services (FED in ST Mode)',
+            'SN019': 'Services',
+            'SN020': 'Electric Vehicle',
+            'SN021': 'Cement /Concrete Block',
+            'SN022': 'Potassium Chlorate',
+            'SN023': 'CNG Sales',
+            'SN024': 'Goods as per SRO.297(|)/2023',
+            'SN025': 'Non-Adjustable Supplies',
+            'SN026': 'Goods at standard rate',
+            'SN027': '3rd Schedule Goods',
+            'SN028': 'Goods at Reduced Rate'
+        };
+
+        let currentUsername = null;
+
+        // Notification system
+        function showNotification(type, title, message, duration = 3000) {
+            const notification = document.getElementById("notification");
+            const notificationIcon = document.getElementById("notification-icon");
+            const notificationTitle = document.getElementById("notification-title");
+            const notificationMessage = document.getElementById(
+                "notification-message"
+            );
+
+            notification.className = "notification";
+            notification.classList.add(`notification-${type}`);
+
+            // Set icon based on type
+            if (type === "success") {
+                notificationIcon.className = "fas fa-check-circle text-xl";
+            } else if (type === "error") {
+                notificationIcon.className = "fas fa-exclamation-circle text-xl";
+            } else {
+                notificationIcon.className = "fas fa-info-circle text-xl";
+            }
+
+            notificationTitle.textContent = title;
+            notificationMessage.textContent = message;
+
+            // Show notification
+            notification.classList.add("show");
+
+            // Hide after duration
+            setTimeout(() => {
+                notification.classList.remove("show");
+            }, duration);
+        }
+
+        // Fetch form options from API
+        async function fetchFormOptions() {
+            try {
+                const response = await fetch(apiUrl("/api/form-options"));
+                if (!response.ok) throw new Error("Failed to fetch form options");
+
+                state.formOptions = await response.json();
+                populateFormOptions();
+
+                // Show scenario ID field only in sandbox environment
+                if (ENV === "sandbox") {
+                    document
+                        .getElementById("scenario-id-container")
+                        .classList.remove("hidden");
+                    document
+                        .getElementById("review-scenario-container")
+                        .classList.remove("hidden");
+                }
+            } catch (error) {
+                console.error("Error fetching form options:", error);
+                showNotification("error", "Error", "Failed to load form options");
+            }
+        }
+
+        // Fetch business profiles
+        async function fetchBusinessProfiles() {
+            try {
+                const response = await fetch(apiUrl("/api/business-profiles"));
+                if (!response.ok)
+                    throw new Error("Failed to fetch business profiles");
+
+                const profiles = await response.json();
+                const select = document.getElementById("business-profile-select");
+
+                // Clear existing options except the first one
+                while (select.options.length > 1) {
+                    select.remove(1);
+                }
+
+                // Add profiles to select
+                profiles.forEach((profile) => {
+                    const option = document.createElement("option");
+                    option.value = profile.id;
+                    option.textContent = profile.business_name;
+                    option.dataset.profile = JSON.stringify(profile);
+                    select.appendChild(option);
+
+                    // If this is the default profile, select it
+                    if (profile.is_default) {
+                        select.value = profile.id;
+                        populateSellerForm(profile);
+                    }
+                });
+            } catch (error) {
+                console.error("Error fetching business profiles:", error);
+                showNotification(
+                    "error",
+                    "Error",
+                    "Failed to load business profiles"
+                );
+            }
+        }
+
+        // Fetch buyers
+        async function fetchBuyers() {
+            try {
+                const response = await fetch(apiUrl("/api/buyers"));
+                if (!response.ok) throw new Error("Failed to fetch buyers");
+
+                const buyers = await response.json();
+                const select = document.getElementById("buyer-select");
+
+                // Clear existing options except the first one
+                while (select.options.length > 1) {
+                    select.remove(1);
+                }
+
+                // Add buyers to select
+                buyers.forEach((buyer) => {
+                    const option = document.createElement("option");
+                    option.value = buyer.id;
+                    option.textContent = buyer.business_name;
+                    option.dataset.buyer = JSON.stringify(buyer);
+                    select.appendChild(option);
+
+                    // If this is the default buyer, select it
+                    if (buyer.is_default) {
+                        select.value = buyer.id;
+                        populateBuyerForm(buyer);
+                    }
+                });
+            } catch (error) {
+                console.error("Error fetching buyers:", error);
+                showNotification("error", "Error", "Failed to load buyers");
+            }
+        }
+
+        // Populate form options
+        // Populate form options
+        function populateFormOptions() {
+            if (!state.formOptions) return;
+
+            // Populate seller province
+            const sellerProvince = document.getElementById("seller-province");
+            populateSelect(sellerProvince, state.formOptions.provinces);
+
+            // Populate buyer province
+            const buyerProvince = document.getElementById("buyer-province");
+            populateSelect(buyerProvince, state.formOptions.provinces);
+
+            // Populate buyer registration type
+            const buyerRegType = document.getElementById("buyer-registration-type");
+            populateSelect(buyerRegType, state.formOptions.registrationTypes);
+
+            // No longer need to populate invoice type as it's now locked
+            // const invoiceType = document.getElementById("invoice-type");
+            // populateSelect(invoiceType, state.formOptions.invoiceTypes);
+
+            // Populate scenario ID if in sandbox
+            if (ENV === "sandbox") {
+                const scenarioId = document.getElementById("scenario-id");
+                populateSelect(scenarioId, state.formOptions.scenarioIds);
+            }
+
+            // Populate product UoM
+            const productUom = document.getElementById("product-uom");
+            populateSelect(productUom, state.formOptions.uoms);
+
+            // Populate tax rate
+            const taxRate = document.getElementById("product-tax-rate");
+            populateSelect(taxRate, state.formOptions.taxRates);
+        }
+
+        // Helper function to populate select elements
+        function populateSelect(selectElement, options) {
+            // Keep the first option (placeholder)
+            while (selectElement.options.length > 1) {
+                selectElement.remove(1);
+            }
+
+            options.forEach((option) => {
+                const optElement = document.createElement("option");
+                optElement.value = option.value;
+                optElement.textContent = option.label;
+                selectElement.appendChild(optElement);
+            });
+        }
+
+        // Populate seller form with selected profile
+        function populateSellerForm(profile) {
+            document.getElementById("seller-business-name").value =
+                profile.business_name || "";
+            document.getElementById("seller-ntn-cnic").value =
+                profile.ntn_cnic || "";
+            document.getElementById("seller-strn").value = profile.strn || "";
+            document.getElementById("seller-province").value =
+                profile.province || "";
+            document.getElementById("seller-address").value = profile.address || "";
+
+            // Update state
+            state.sellerData = {
+                id: profile.id,
+                sellerBusinessName: profile.business_name,
+                sellerNTNCNIC: profile.ntn_cnic,
+                sellerSTRN: profile.strn,
+                sellerProvince: profile.province,
+                sellerAddress: profile.address,
+            };
+        }
+
+        // Populate buyer form with selected buyer
+        function populateBuyerForm(buyer) {
+            document.getElementById("buyer-business-name").value =
+                buyer.business_name || "";
+            document.getElementById("buyer-ntn-cnic").value = buyer.ntn_cnic || "";
+            document.getElementById("buyer-strn").value = buyer.strn || "";
+            document.getElementById("buyer-province").value = buyer.province || "";
+            document.getElementById("buyer-registration-type").value =
+                buyer.registration_type || "";
+            document.getElementById("buyer-code").value = buyer.buyer_code || "";
+            document.getElementById("buyer-address").value = buyer.address || "";
+
+            // Update state
+            state.buyerData = {
+                id: buyer.id,
+                buyerBusinessName: buyer.business_name,
+                buyerNTNCNIC: buyer.ntn_cnic,
+                buyerSTRN: buyer.strn,
+                buyerProvince: buyer.province,
+                buyerAddress: buyer.address,
+                buyerRegistrationType: buyer.registration_type,
+                buyerCode: buyer.buyer_code,
+            };
+        }
+
+        // Save business profile
+        async function saveBusinessProfile() {
+            try {
+                const businessName = document.getElementById(
+                    "seller-business-name"
+                ).value;
+                const ntnCnic = document.getElementById("seller-ntn-cnic").value;
+                const strn = document.getElementById("seller-strn").value;
+                const province = document.getElementById("seller-province").value;
+                const address = document.getElementById("seller-address").value;
+                const setDefault = document.getElementById(
+                    "set-default-business-profile"
+                ).checked;
+
+                // Validate required fields
+                if (!businessName || !ntnCnic || !province || !address) {
+                    showNotification(
+                        "error",
+                        "Validation Error",
+                        "Please fill all required fields"
+                    );
+                    return;
+                }
+
+                const profileData = {
+                    business_name: businessName,
+                    ntn_cnic: ntnCnic,
+                    strn: strn,
+                    province: province,
+                    address: address,
+                    is_default: setDefault,
+                };
+
+                const response = await fetch(apiUrl("/api/business-profiles"), {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(profileData),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(
+                        errorData.error || "Failed to save business profile"
+                    );
+                }
+
+                const result = await response.json();
+                showNotification(
+                    "success",
+                    "Profile Saved",
+                    "Business profile has been saved successfully"
+                );
+
+                // Refresh profiles and update state
+                await fetchBusinessProfiles();
+
+                // Update state with the new ID
+                state.sellerData.id = result.id;
+            } catch (error) {
+                console.error("Error saving business profile:", error);
+                showNotification(
+                    "error",
+                    "Error",
+                    error.message || "Failed to save business profile"
+                );
+            }
+        }
+
+        // Save buyer
+        async function saveBuyer() {
+            try {
+                const businessName = document.getElementById(
+                    "buyer-business-name"
+                ).value;
+                const ntnCnic = document.getElementById("buyer-ntn-cnic").value;
+                const strn = document.getElementById("buyer-strn").value;
+                const province = document.getElementById("buyer-province").value;
+                const regType = document.getElementById(
+                    "buyer-registration-type"
+                ).value;
+                const buyerCode = document.getElementById("buyer-code").value;
+                const address = document.getElementById("buyer-address").value;
+                const setDefault =
+                    document.getElementById("set-default-buyer").checked;
+
+                // Validate required fields
+                if (!businessName || !ntnCnic || !province || !address || !regType) {
+                    showNotification(
+                        "error",
+                        "Validation Error",
+                        "Please fill all required fields"
+                    );
+                    return;
+                }
+
+                const buyerData = {
+                    business_name: businessName,
+                    ntn_cnic: ntnCnic,
+                    strn: strn,
+                    province: province,
+                    registration_type: regType,
+                    buyer_code: buyerCode,
+                    address: address,
+                    is_default: setDefault,
+                };
+
+                const response = await fetch(apiUrl("/api/buyers"), {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(buyerData),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || "Failed to save buyer");
+                }
+
+                const result = await response.json();
+                showNotification(
+                    "success",
+                    "Buyer Saved",
+                    "Buyer has been saved successfully"
+                );
+
+                // Refresh buyers and update state
+                await fetchBuyers();
+
+                // Update state with the new ID
+                state.buyerData.id = result.id;
+            } catch (error) {
+                console.error("Error saving buyer:", error);
+                showNotification(
+                    "error",
+                    "Error",
+                    error.message || "Failed to save buyer"
+                );
+            }
+        }
+
+        // Add product item to table
+        // Add product item to table
+        function addProductItem() {
+            const description = document.getElementById("product-description").value;
+            const hsCode = document.getElementById("product-hs-code").value;
+            const quantity = parseFloat(document.getElementById("product-quantity").value);
+            const uom = document.getElementById("product-uom").value;
+            const rate = parseFloat(document.getElementById("product-rate").value) || 0;
+            const valueExcl = parseFloat(document.getElementById("product-value-excl").value);
+            const taxRate = document.getElementById("product-tax-rate").value;
+            const taxAmount = parseFloat(document.getElementById("product-tax-amount").value);
+
+            console.log("Adding product:", description);
+
+            // Get scenario-based sale type
+            const scenarioId = document.getElementById("scenario-id")?.value;
+            const saleType = scenarioToSaleType[scenarioId] || 'Goods at standard rate';
+
+            // Set SRO values based on username
+            let sroScheduleNo = '';
+            let sroItemSerialNo = '';
+
+            if (currentUsername === '3075270') {
+                sroScheduleNo = 'EIGHTH SCHEDULE Table 1';
+                sroItemSerialNo = '81';
+            } else {
+                sroScheduleNo = document.getElementById('product-sro-schedule-no')?.value || '';
+                sroItemSerialNo = document.getElementById('product-sro-item-serial-no')?.value || '';
+            }
+
+            // Validate required fields
+            if (!description || isNaN(quantity) || quantity <= 0 || !uom || isNaN(valueExcl) || valueExcl < 0 || isNaN(taxAmount) || taxAmount < 0) {
+                showNotification("error", "Validation Error", "Please fill all required fields with valid values");
+                console.error("Validation failed:", {
+                    description,
+                    quantity: isNaN(quantity) ? "NaN" : quantity,
+                    uom,
+                    valueExcl: isNaN(valueExcl) ? "NaN" : valueExcl,
+                    taxAmount: isNaN(taxAmount) ? "NaN" : taxAmount
+                });
+                return;
+            }
+
+            // Calculate total
+            const total = valueExcl + taxAmount;
+
+            // Create item object with all FBR fields
+            const item = {
+                productDescription: description,
+                hsCode: hsCode,
+                quantity: quantity,
+                uoM: uom,
+                rate: rate,
+                valueSalesExcludingST: valueExcl,
+                salesTaxApplicable: taxAmount,
+                totalValues: total,
+                total: total, // Make sure this is set correctly
+                saleType: saleType,
+                taxRate: taxRate,
+                sroScheduleNo: sroScheduleNo,
+                sroItemSerialNo: sroItemSerialNo,
+                furtherTax: parseFloat(document.getElementById('product-further-tax')?.value || 0),
+                extraTax: document.getElementById('product-extra-tax')?.value || '',
+                salesTaxWithheldAtSource: parseFloat(document.getElementById('product-st-withheld')?.value || 0),
+                fedPayable: parseFloat(document.getElementById('product-fed-payable')?.value || 0),
+                discount: parseFloat(document.getElementById('product-discount')?.value || 0),
+                fixedNotifiedValueOrRetailPrice: parseFloat(document.getElementById('product-fixed-value')?.value || 0)
+            };
+
+            console.log("Item created:", item);
+
+            // Add item to state
+            state.productItems.push(item);
+            console.log("State updated, items count:", state.productItems.length);
+
+            // Update table
+            updateProductTable();
+
+            // Clear form fields
+            document.getElementById("product-description").value = "";
+            document.getElementById("product-hs-code").value = "";
+            document.getElementById("product-quantity").value = "";
+            document.getElementById("product-uom").value = "";
+            document.getElementById("product-rate").value = "";
+            document.getElementById("product-value-excl").value = "";
+            document.getElementById("product-tax-rate").value = "";
+            document.getElementById("product-tax-amount").value = "";
+
+            // Reset SRO fields with proper defaults for the current user
+            setSRODefaults(currentUsername);
+
+            // Clear additional FBR fields
+            if (document.getElementById('product-further-tax')) document.getElementById('product-further-tax').value = '0';
+            if (document.getElementById('product-extra-tax')) document.getElementById('product-extra-tax').value = '';
+            if (document.getElementById('product-st-withheld')) document.getElementById('product-st-withheld').value = '0';
+            if (document.getElementById('product-fed-payable')) document.getElementById('product-fed-payable').value = '0';
+            if (document.getElementById('product-discount')) document.getElementById('product-discount').value = '0';
+            if (document.getElementById('product-fixed-value')) document.getElementById('product-fixed-value').value = '0';
+
+            console.log("Form cleared");
+        }
+        // Update product table
+        // Update product table
+        // Update product table
+        function updateProductTable() {
+            const tableBody = document.getElementById("product-items-table");
+            const noProductsRow = document.getElementById("no-products-row");
+
+            if (state.productItems.length > 0) {
+                // Hide "no products" row
+                if (noProductsRow) {
+                    noProductsRow.classList.add("hidden");
+                }
+
+                // Clear existing rows but keep the no-products row
+                while (tableBody.firstChild) {
+                    tableBody.removeChild(tableBody.firstChild);
+                }
+
+                // Add the no-products row back (it will be hidden)
+                tableBody.appendChild(noProductsRow);
+
+                // Add product rows
+                state.productItems.forEach((item, index) => {
+                    const row = document.createElement("tr");
+                    row.className = "hover:bg-gray-50 transition-colors";
+
+                    row.innerHTML = `
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-900">${item.productDescription}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.hsCode}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.quantity}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.uoM}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.rate.toFixed(2)}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.valueSalesExcludingST.toFixed(2)}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.salesTaxApplicable.toFixed(2)}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${(item.valueSalesExcludingST + item.salesTaxApplicable).toFixed(2)}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-right text-sm">
+                    <button class="delete-product-btn text-red-600 hover:text-red-900" data-index="${index}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            `;
+
+                    tableBody.insertBefore(row, noProductsRow);
+                });
+
+                // Add event listeners to delete buttons
+                document.querySelectorAll(".delete-product-btn").forEach((btn) => {
+                    btn.addEventListener("click", function () {
+                        const index = parseInt(this.getAttribute("data-index"));
+                        state.productItems.splice(index, 1);
+                        updateProductTable();
+                        updateTotals();
+                    });
+                });
+            } else {
+                // Show "no products" row
+                if (noProductsRow) {
+                    noProductsRow.classList.remove("hidden");
+                }
+            }
+
+            // Update totals
+            updateTotals();
+
+            // Log for debugging
+            console.log("Product items in state:", state.productItems.length);
+            console.log("Table updated with products");
+        }
+
+        // Update totals
+        function updateTotals() {
+            const totalValueExcl = state.productItems.reduce(
+                (sum, item) => sum + item.valueSalesExcludingST,
+                0
+            );
+            const totalTaxAmount = state.productItems.reduce(
+                (sum, item) => sum + item.salesTaxApplicable,
+                0
+            );
+            const grandTotal = totalValueExcl + totalTaxAmount;
+
+            document.getElementById("total-value-excl").textContent =
+                totalValueExcl.toFixed(2);
+            document.getElementById("total-tax-amount").textContent =
+                totalTaxAmount.toFixed(2);
+            document.getElementById("grand-total").textContent =
+                grandTotal.toFixed(2);
+        }
+
+        // Navigation and step management
+        // Navigation and step management
+        function goToStep(step) {
+            // Hide all steps
+            for (let i = 1; i <= 5; i++) {
+                document.getElementById(`step-${i}`).classList.add("hidden");
+                document.getElementById(`step-${i}-indicator`).className =
+                    "step-inactive w-8 h-8 rounded-full flex items-center justify-center";
+            }
+
+            // Reset all connecting lines
+            for (let i = 1; i <= 4; i++) {
+                document.getElementById(`step-${i}-${i + 1}-line`).className = "step-line";
+            }
+
+            // Show current step
+            document.getElementById(`step-${step}`).classList.remove("hidden");
+
+            // Mark completed steps and their connecting lines
+            for (let i = 1; i < step; i++) {
+                document.getElementById(`step-${i}-indicator`).className =
+                    "step-completed w-8 h-8 rounded-full flex items-center justify-center";
+
+                // Mark the connecting line after this step as completed
+                if (i < 5) {
+                    document.getElementById(`step-${i}-${i + 1}-line`).className =
+                        "step-line step-line-completed";
+                }
+            }
+
+            // Mark current step as active
+            document.getElementById(`step-${step}-indicator`).className =
+                "step-active w-8 h-8 rounded-full flex items-center justify-center";
+
+            // Update state
+            state.currentStep = step;
+
+            // Perform step-specific actions
+            if (step === 5) {
+                updateReviewSection();
+            }
+        }
+
+        // Update review section
+        function updateReviewSection() {
+            // Seller information
+            document.getElementById("review-seller-name").textContent =
+                state.sellerData.sellerBusinessName || "";
+            document.getElementById("review-seller-ntn").textContent =
+                state.sellerData.sellerNTNCNIC || "";
+            document.getElementById("review-seller-strn").textContent =
+                state.sellerData.sellerSTRN || "";
+            document.getElementById("review-seller-address").textContent =
+                state.sellerData.sellerAddress || "";
+            document.getElementById("review-seller-province").textContent =
+                state.sellerData.sellerProvince || "";
+
+            // Buyer information
+            document.getElementById("review-buyer-name").textContent =
+                state.buyerData.buyerBusinessName || "";
+            document.getElementById("review-buyer-ntn").textContent =
+                state.buyerData.buyerNTNCNIC || "";
+            document.getElementById("review-buyer-strn").textContent =
+                state.buyerData.buyerSTRN || "";
+            document.getElementById("review-buyer-address").textContent =
+                state.buyerData.buyerAddress || "";
+            document.getElementById("review-buyer-province").textContent =
+                state.buyerData.buyerProvince || "";
+            document.getElementById("review-buyer-registration").textContent =
+                state.buyerData.buyerRegistrationType || "";
+
+            // Invoice details
+            document.getElementById("review-invoice-type").textContent = "Sale Invoice"; // Hardcoded value
+            document.getElementById("review-invoice-date").textContent =
+                state.invoiceData.invoiceDate || "";
+            document.getElementById("review-invoice-ref").textContent =
+                state.invoiceData.invoiceRefNo || "";
+            document.getElementById("review-po-number").textContent =
+                state.invoiceData.poNumber || "";
+
+            if (ENV === "sandbox" && state.invoiceData.scenarioId) {
+                document.getElementById("review-scenario-id").textContent =
+                    state.invoiceData.scenarioId;
+                document
+                    .getElementById("review-scenario-container")
+                    .classList.remove("hidden");
+            } else {
+                document
+                    .getElementById("review-scenario-container")
+                    .classList.add("hidden");
+            }
+
+            // Totals
+            document.getElementById("review-items-count").textContent =
+                state.productItems.length;
+
+            const totalValueExcl = state.productItems.reduce(
+                (sum, item) => sum + item.valueSalesExcludingST,
+                0
+            );
+            const totalTaxAmount = state.productItems.reduce(
+                (sum, item) => sum + item.salesTaxApplicable,
+                0
+            );
+            const grandTotal = totalValueExcl + totalTaxAmount;
+
+            document.getElementById("review-value-excl").textContent =
+                totalValueExcl.toFixed(2);
+            document.getElementById("review-tax-amount").textContent =
+                totalTaxAmount.toFixed(2);
+            document.getElementById("review-grand-total").textContent =
+                grandTotal.toFixed(2);
+
+            // Product items
+            const tableBody = document.getElementById("review-items-table");
+            const noProductsRow = document.getElementById("review-no-products-row");
+
+            if (state.productItems.length > 0) {
+                // Hide "no products" row
+                if (noProductsRow) noProductsRow.classList.add("hidden");
+
+                // Clear existing rows
+                tableBody.innerHTML = "";
+
+                // Add product rows
+                state.productItems.forEach((item) => {
+                    const row = document.createElement("tr");
+                    row.className = "hover:bg-gray-50 transition-colors";
+
+                    row.innerHTML = `
+                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-900">${item.productDescription
+                        }</td>
+                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.hsCode
+                        }</td>
+                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.quantity
+                        }</td>
+                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.uoM
+                        }</td>
+                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.rate.toFixed(
+                            2
+                        )}</td>
+                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.valueSalesExcludingST.toFixed(
+                            2
+                        )}</td>
+                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.salesTaxApplicable.toFixed(
+                            2
+                        )}</td>
+                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${(
+                            item.valueSalesExcludingST + item.salesTaxApplicable
+                        ).toFixed(2)}</td>
+                    `;
+
+                    tableBody.appendChild(row);
+                });
+            } else {
+                tableBody.innerHTML = `
+                    <tr id="review-no-products-row">
+                        <td colspan="8" class="px-6 py-4 text-center text-gray-500">
+                            No products added yet.
+                        </td>
+                    </tr>
+                `;
+            }
+        }
+
+        // Validate form steps
+        function validateStep(step) {
+            switch (step) {
+                case 1:
+                    // Validate seller information
+                    const sellerName = document.getElementById("seller-business-name").value;
+                    const sellerNtn = document.getElementById("seller-ntn-cnic").value;
+                    const sellerProvince = document.getElementById("seller-province").value;
+                    const sellerAddress = document.getElementById("seller-address").value;
+
+                    if (!sellerName || !sellerNtn || !sellerProvince || !sellerAddress) {
+                        showNotification(
+                            "error",
+                            "Validation Error",
+                            "Please fill all required seller fields"
+                        );
+                        return false;
+                    }
+
+                    // Update state
+                    state.sellerData = {
+                        sellerBusinessName: sellerName,
+                        sellerNTNCNIC: sellerNtn,
+                        sellerSTRN: document.getElementById("seller-strn").value,
+                        sellerProvince: sellerProvince,
+                        sellerAddress: sellerAddress,
+                    };
+
+                    // Save profile if checkbox is checked
+                    if (document.getElementById("save-business-profile").checked) {
+                        saveBusinessProfile();
+                    }
+
+                    return true;
+
+
+                case 2:
+                    // Validate invoice details
+                    // No need to validate invoice type as it's now locked to "Sale Invoice"
+                    const invoiceDate = document.getElementById("invoice-date").value;
+
+                    if (!invoiceDate) {
+                        showNotification(
+                            "error",
+                            "Validation Error",
+                            "Please fill in the invoice date"
+                        );
+                        return false;
+                    }
+
+                    // Update state - use hidden field value for invoice type
+                    state.invoiceData = {
+                        invoiceType: document.getElementById("invoice-type-hidden").value, // "Sale Invoice"
+                        invoiceDate: invoiceDate,
+                        invoiceRefNo: document.getElementById("invoice-ref-no").value,
+                        poNumber: document.getElementById("po-number").value,
+                    };
+
+                    // Add scenario ID if in sandbox
+                    if (ENV === "sandbox") {
+                        state.invoiceData.scenarioId =
+                            document.getElementById("scenario-id").value;
+                    }
+
+                    return true;
+
+                case 3:
+                    // Validate buyer information
+                    const buyerName = document.getElementById(
+                        "buyer-business-name"
+                    ).value;
+                    const buyerNtn = document.getElementById("buyer-ntn-cnic").value;
+                    const buyerProvince =
+                        document.getElementById("buyer-province").value;
+                    const buyerAddress = document.getElementById("buyer-address").value;
+                    const buyerRegType = document.getElementById(
+                        "buyer-registration-type"
+                    ).value;
+
+                    if (
+                        !buyerName ||
+                        !buyerNtn ||
+                        !buyerProvince ||
+                        !buyerAddress ||
+                        !buyerRegType
+                    ) {
+                        showNotification(
+                            "error",
+                            "Validation Error",
+                            "Please fill all required buyer fields"
+                        );
+                        return false;
+                    }
+
+                    // Update state
+                    state.buyerData = {
+                        buyerBusinessName: buyerName,
+                        buyerNTNCNIC: buyerNtn,
+                        buyerSTRN: document.getElementById("buyer-strn").value,
+                        buyerProvince: buyerProvince,
+                        buyerAddress: buyerAddress,
+                        buyerRegistrationType: buyerRegType,
+                        buyerCode: document.getElementById("buyer-code").value,
+                    };
+
+                    // Save buyer if checkbox is checked
+                    if (document.getElementById("save-buyer").checked) {
+                        saveBuyer();
+                    }
+
+                    return true;
+
+                case 4:
+                    // Validate products
+                    if (state.productItems.length === 0) {
+                        showNotification(
+                            "error",
+                            "Validation Error",
+                            "Please add at least one product"
+                        );
+                        return false;
+                    }
+
+                    return true;
+
+                default:
+                    return true;
+            }
+        }
+
+        // Submit invoice
+        // Submit invoice
+        async function submitInvoice(saveDraft = false) {
+            try {
+                // Prepare data
+                const invoiceData = {
+                    invoiceType: state.invoiceData.invoiceType,
+                    invoiceDate: state.invoiceData.invoiceDate,
+                    invoiceRefNo: state.invoiceData.invoiceRefNo,
+                    sellerData: state.sellerData,
+                    buyerData: state.buyerData,
+                    items: state.productItems,
+                    saveDraft: saveDraft,
+                    submit: !saveDraft,
+                };
+
+                if (ENV === "sandbox" && state.invoiceData.scenarioId) {
+                    invoiceData.scenarioId = state.invoiceData.scenarioId;
+                }
+
+                // Send to API
+                const response = await fetch(apiUrl("/api/invoice/create"), {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(invoiceData),
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.error || "Failed to submit invoice");
+                }
+
+                if (saveDraft) {
+                    showNotification(
+                        "success",
+                        "Draft Saved",
+                        "Invoice has been saved as draft"
+                    );
+                } else {
+                    showNotification(
+                        "success",
+                        "Invoice Submitted",
+                        "Invoice has been submitted to FBR"
+                    );
+                    // Don't redirect immediately so user can see response in modal
+                }
+
+                return result;
+            } catch (error) {
+                console.error("Error submitting invoice:", error);
+                showNotification(
+                    "error",
+                    "Error",
+                    error.message || "Failed to submit invoice"
+                );
+                throw error;
+            }
+        }
+
+        // View JSON button
+        document.getElementById("view-json-btn").addEventListener("click", function () {
+            // Add loading animation before showing JSON
+            const jsonValidateStatus = document.getElementById('json-validate-status');
+            if (jsonValidateStatus) {
+                jsonValidateStatus.innerHTML =
+                    `<i class="fas fa-circle-notch fa-spin text-blue-500 mr-1"></i>Validating...`;
+            }
+
+            // Create JSON modal if it doesn't exist
+            let jsonModal = document.getElementById("json-preview-modal");
+            if (!jsonModal) {
+                jsonModal = document.createElement("div");
+                jsonModal.id = "json-preview-modal";
+                jsonModal.className = "fixed inset-0 z-50 flex items-center justify-center hidden";
+                jsonModal.innerHTML = `
+        <div class="modal-overlay absolute inset-0"></div>
+        <div class="bg-white rounded-lg shadow-xl z-50 w-full max-w-3xl max-h-screen overflow-auto">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Invoice JSON Data</h3>
+                    <button id="close-json-preview-modal" class="text-gray-400 hover:text-gray-500">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="mb-4">
+                    <textarea id="json-preview-textarea"
+                        class="w-full h-64 p-3 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500 font-mono text-sm"
+                        readonly></textarea>
+                </div>
+                <div class="flex justify-end">
+                    <button id="close-json-preview-btn"
+                        class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+                document.body.appendChild(jsonModal);
+
+                // Add event listeners to close buttons
+                document
+                    .getElementById("close-json-preview-modal")
+                    .addEventListener("click", function () {
+                        document
+                            .getElementById("json-preview-modal")
+                            .classList.add("hidden");
+                    });
+
+                document
+                    .getElementById("close-json-preview-btn")
+                    .addEventListener("click", function () {
+                        document
+                            .getElementById("json-preview-modal")
+                            .classList.add("hidden");
+                    });
+            }
+
+            // Prepare data for JSON preview with all required FBR fields exactly matching their expected format
+            const invoiceData = {
+                "invoiceType": state.invoiceData.invoiceType || "Sale Invoice",
+                "invoiceDate": state.invoiceData.invoiceDate || "yyyy-MM-dd",
+                "sellerNTNCNIC": state.sellerData.sellerNTNCNIC || "0000000000000",
+                "sellerBusinessName": state.sellerData.sellerBusinessName || "Your Business Name",
+                "sellerProvince": state.sellerData.sellerProvince || "Seller Province",
+                "sellerAddress": state.sellerData.sellerAddress || "Seller Address",
+                "buyerNTNCNIC": state.buyerData.buyerNTNCNIC || "0000000000000",
+                "buyerBusinessName": state.buyerData.buyerBusinessName || "Buyer Business Name",
+                "buyerProvince": state.buyerData.buyerProvince || "Buyer Province",
+                "buyerAddress": state.buyerData.buyerAddress || "Buyer Address",
+                "buyerRegistrationType": state.buyerData.buyerRegistrationType || "Registered",
+                "invoiceRefNo": state.invoiceData.invoiceRefNo || "",
+            };
+
+            // Add scenario ID if in sandbox
+            if (ENV === "sandbox") {
+                invoiceData.scenarioId = state.invoiceData.scenarioId || "SN000";
+            }
+
+            // Format items array exactly as FBR expects
+            invoiceData.items = state.productItems.map((item) => ({
+                "hsCode": item.hsCode || "0000.0000",
+                "productDescription": item.productDescription || "",
+                "rate": item.taxRate || "0%",
+                "uoM": item.uoM || "",
+                "quantity": item.quantity || 0,
+                "totalValues": item.totalValues || 0,
+                "valueSalesExcludingST": item.valueSalesExcludingST || 0,
+                "fixedNotifiedValueOrRetailPrice": item.fixedNotifiedValueOrRetailPrice || 0,
+                "salesTaxApplicable": item.salesTaxApplicable || 0,
+                "salesTaxWithheldAtSource": item.salesTaxWithheldAtSource || 0,
+                "extraTax": item.extraTax || "",
+                "furtherTax": item.furtherTax || 0,
+                "sroScheduleNo": item.sroScheduleNo || "",
+                "fedPayable": item.fedPayable || 0,
+                "discount": item.discount || 0,
+                "saleType": item.saleType || "Goods at Reduced Rate",
+                "sroItemSerialNo": item.sroItemSerialNo || "S1"
+            }));
+
+            // If there are no items, add a default empty one
+            if (invoiceData.items.length === 0) {
+                invoiceData.items = [{
+                    "hsCode": "0000.0000",
+                    "productDescription": "",
+                    "rate": "0%",
+                    "uoM": "",
+                    "quantity": 0,
+                    "totalValues": 0,
+                    "valueSalesExcludingST": 0,
+                    "fixedNotifiedValueOrRetailPrice": 0,
+                    "salesTaxApplicable": 0,
+                    "salesTaxWithheldAtSource": 0,
+                    "extraTax": "",
+                    "furtherTax": 0,
+                    "sroScheduleNo": "",
+                    "fedPayable": 0,
+                    "discount": 0,
+                    "saleType": "",
+                    "sroItemSerialNo": "S1"
+                }];
+            }
+
+            // Display JSON in the modal with exact formatting
+            document.getElementById("json-preview-textarea").value = JSON.stringify(invoiceData, null, 2);
+            document.getElementById("json-preview-modal").classList.remove("hidden");
+
+            // Show success message under the button after a brief delay
+            setTimeout(() => {
+                if (jsonValidateStatus) {
+                    jsonValidateStatus.innerHTML =
+                        `<i class="fas fa-check-circle text-green-600 mr-1"></i>JSON validated successfully`;
+                }
+            }, 800);
+        });        // Auto-calculate rate when quantity or value excluding sales tax changes
+
+        function calculateRate() {
+            const quantity = parseFloat(document.getElementById('product-quantity').value) || 0;
+            const valueExcl = parseFloat(document.getElementById('product-value-excl').value) || 0;
+
+            // Calculate rate as value / quantity, but only if quantity is not zero
+            if (quantity > 0) {
+                const rate = valueExcl / quantity;
+                document.getElementById('product-rate').value = rate.toFixed(2);
+            } else {
+                document.getElementById('product-rate').value = '';
+            }
+
+            // Also update tax amount based on the tax rate
+            const taxRateSelect = document.getElementById('product-tax-rate');
+            if (taxRateSelect.selectedIndex > 0) {
+                const taxRateText = taxRateSelect.options[taxRateSelect.selectedIndex].textContent;
+                const taxRate = parseFloat(taxRateText) || 0;
+
+                const taxAmount = valueExcl * (taxRate / 100);
+                document.getElementById('product-tax-amount').value = taxAmount.toFixed(2);
+            }
+        }
+
+        // Event Listeners
+        document.addEventListener("DOMContentLoaded", function () {
+            // Fetch data
+            fetchUsername();
+            fetchFormOptions();
+            fetchBusinessProfiles();
+            fetchBuyers();
+
+            // Mobile menu toggle
+            const mobileMenuButton = document.getElementById("mobile-menu-button");
+            const closeMobileMenuButton =
+                document.getElementById("close-mobile-menu");
+            const mobileMenu = document.getElementById("mobile-menu");
+
+            if (mobileMenuButton && closeMobileMenuButton && mobileMenu) {
+                mobileMenuButton.addEventListener("click", function () {
+                    mobileMenu.classList.remove("hidden");
+                });
+
+                closeMobileMenuButton.addEventListener("click", function () {
+                    mobileMenu.classList.add("hidden");
+                });
+            }
+
+            document.getElementById('product-quantity').addEventListener('input', calculateRate);
+            document.getElementById('product-value-excl').addEventListener('input', calculateRate);
+
+
+            // Business profile select change
+            document
+                .getElementById("business-profile-select")
+                .addEventListener("change", function () {
+                    if (this.value) {
+                        const profileData = JSON.parse(
+                            this.options[this.selectedIndex].dataset.profile
+                        );
+                        populateSellerForm(profileData);
+                    }
+                });
+
+            // Add business profile button
+            document
+                .getElementById("add-business-profile-btn")
+                .addEventListener("click", function () {
+                    document.getElementById("business-profile-select").value = "";
+                    document.getElementById("seller-business-name").value = "";
+                    document.getElementById("seller-ntn-cnic").value = "";
+                    document.getElementById("seller-strn").value = "";
+                    document.getElementById("seller-province").value = "";
+                    document.getElementById("seller-address").value = "";
+                    document.getElementById("save-business-profile").checked = true;
+                });
+
+            // Buyer select change
+            document
+                .getElementById("buyer-select")
+                .addEventListener("change", function () {
+                    if (this.value) {
+                        const buyerData = JSON.parse(
+                            this.options[this.selectedIndex].dataset.buyer
+                        );
+                        populateBuyerForm(buyerData);
+                    }
+                });
+
+            // Add buyer button
+            document
+                .getElementById("add-buyer-btn")
+                .addEventListener("click", function () {
+                    document.getElementById("buyer-select").value = "";
+                    document.getElementById("buyer-business-name").value = "";
+                    document.getElementById("buyer-ntn-cnic").value = "";
+                    document.getElementById("buyer-strn").value = "";
+                    document.getElementById("buyer-province").value = "";
+                    document.getElementById("buyer-registration-type").value = "";
+                    document.getElementById("buyer-code").value = "";
+                    document.getElementById("buyer-address").value = "";
+                    document.getElementById("save-buyer").checked = true;
+                });
+
+            // Add product item button
+            document
+                .getElementById("add-product-item-btn")
+                .addEventListener("click", addProductItem);
+
+            // Tax calculation helpers
+            document
+                .getElementById("product-value-excl")
+                .addEventListener("input", function () {
+                    const valueExcl = parseFloat(this.value) || 0;
+                    const taxRateSelect = document.getElementById("product-tax-rate");
+                    const taxRateText =
+                        taxRateSelect.options[taxRateSelect.selectedIndex].textContent;
+                    const taxRate = parseFloat(taxRateText) || 0;
+
+                    const taxAmount = valueExcl * (taxRate / 100);
+                    document.getElementById("product-tax-amount").value =
+                        taxAmount.toFixed(2);
+                });
+
+            document
+                .getElementById("product-tax-rate")
+                .addEventListener("change", function () {
+                    const valueExcl =
+                        parseFloat(document.getElementById("product-value-excl").value) ||
+                        0;
+                    const taxRateText = this.options[this.selectedIndex].textContent;
+                    const taxRate = parseFloat(taxRateText) || 0;
+
+                    const taxAmount = valueExcl * (taxRate / 100);
+                    document.getElementById("product-tax-amount").value =
+                        taxAmount.toFixed(2);
+                });
+
+            // Navigation buttons
+            document
+                .getElementById("step1-next")
+                .addEventListener("click", function () {
+                    if (validateStep(1)) {
+                        goToStep(2);
+                    }
+                });
+
+            document
+                .getElementById("step2-prev")
+                .addEventListener("click", function () {
+                    goToStep(1);
+                });
+
+            document
+                .getElementById("step2-next")
+                .addEventListener("click", function () {
+                    if (validateStep(2)) {
+                        goToStep(3);
+                    }
+                });
+
+            document
+                .getElementById("step3-prev")
+                .addEventListener("click", function () {
+                    goToStep(2);
+                });
+
+            document
+                .getElementById("step3-next")
+                .addEventListener("click", function () {
+                    if (validateStep(3)) {
+                        goToStep(4);
+                    }
+                });
+
+            document
+                .getElementById("step4-prev")
+                .addEventListener("click", function () {
+                    goToStep(3);
+                });
+
+            document
+                .getElementById("step4-next")
+                .addEventListener("click", function () {
+                    if (validateStep(4)) {
+                        goToStep(5);
+                    }
+                });
+
+            document
+                .getElementById("step5-prev")
+                .addEventListener("click", function () {
+                    goToStep(4);
+                });
+
+            // Submit button handler - Only include ONE submit button handler
+            document.getElementById("submit-invoice-btn").addEventListener("click", function () {
+                // Store original button content and disable button
+                const submitBtn = this;
+                const originalContent = submitBtn.innerHTML;
+                submitBtn.innerHTML = `<i class="fas fa-circle-notch fa-spin mr-2"></i>Submitting...`;
+                submitBtn.disabled = true;
+
+                // Create submission modal if it doesn't exist
+                let submissionModal = document.getElementById("fbr-submission-modal");
+                if (!submissionModal) {
+                    submissionModal = document.createElement("div");
+                    submissionModal.id = "fbr-submission-modal";
+                    submissionModal.className = "fixed inset-0 z-50 flex items-center justify-center hidden";
+                    submissionModal.innerHTML = `
+    <div class="modal-overlay absolute inset-0"></div>
+    <div class="bg-white rounded-lg shadow-xl z-50 w-full max-w-md">
+        <div class="p-6 text-center">
+            <div id="submission-loading" class="flex flex-col items-center">
+                <div class="mb-4">
+                    <i class="fas fa-circle-notch fa-spin text-4xl text-primary-600"></i>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900 mb-2">Submitting to FBR</h3>
+                <p class="text-gray-600">Please wait while we process your request...</p>
+            </div>
+            <div id="submission-success" class="hidden">
+                <svg class="checkmark mx-auto" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52" width="70">
+                    <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none" />
+                    <path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8" />
+                </svg>
+                <h3 class="text-xl font-semibold text-gray-900 mb-2">Submitted Successfully!</h3>
+                <p class="text-gray-600">Your data has been successfully submitted to FBR.</p>
+                <p id="invoice-number-display" class="mt-2 font-bold text-primary-700"></p>
+                <div class="mt-4 p-4 bg-gray-100 rounded-md text-sm max-h-40 overflow-auto">
+                    <pre id="success-response-data" class="text-left"></pre>
+                </div>
+            </div>
+            <div id="submission-error" class="hidden">
+                <svg class="crossmark mx-auto" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52" width="70">
+                    <circle class="crossmark__circle" cx="26" cy="26" r="25" fill="none" />
+                    <path class="crossmark__cross" fill="none" d="M16 16 36 36 M36 16 16 36" />
+                </svg>
+                <h3 class="text-xl font-semibold text-gray-900 mb-2">Submission Failed</h3>
+                <p class="text-gray-600 mb-2">There was an error submitting your data.</p>
+                <div class="mt-2 p-4 bg-gray-100 rounded-md text-sm max-h-40 overflow-auto">
+                    <pre id="error-response-data" class="text-left text-red-600"></pre>
+                </div>
+            </div>
+            <div class="mt-6">
+                <button id="close-submission-modal" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+`;
+                    document.body.appendChild(submissionModal);
+
+                    // Add event listener to close button
+                    document.getElementById("close-submission-modal").addEventListener("click", function () {
+                        document.getElementById("fbr-submission-modal").classList.add("hidden");
+                        // We're removing the redirect to dashboard
+                    });
+                }
+
+                // Show the loading state of the modal
+                submissionModal.classList.remove("hidden");
+                document.getElementById("submission-loading").style.display = "flex";
+                document.getElementById("submission-success").classList.add("hidden");
+                document.getElementById("submission-error").classList.add("hidden");
+
+                // Submit the invoice
+                submitInvoice(false)
+                    .then(result => {
+                        // Hide loading
+                        document.getElementById("submission-loading").style.display = "none";
+
+                        // Show success if we have invoice number
+                        if (result && result.invoiceNumber && result.invoiceNumber !== "N/A") {
+                            document.getElementById("submission-success").classList.remove("hidden");
+                            document.getElementById("invoice-number-display").textContent = `Invoice Number: ${result.invoiceNumber}`;
+                            document.getElementById("success-response-data").textContent = JSON.stringify(result, null, 2);
+
+                            // Enable the Generate Invoice button after successful submission
+                            document.getElementById("generate-invoice-btn").disabled = false;
+                            document.getElementById("generate-invoice-btn").classList.remove("opacity-50", "cursor-not-allowed");
+                        } else {
+                            document.getElementById("submission-error").classList.remove("hidden");
+                            document.getElementById("error-response-data").textContent = JSON.stringify(result, null, 2);
+
+                            // Keep Generate Invoice button disabled on failure
+                            document.getElementById("generate-invoice-btn").disabled = true;
+                            document.getElementById("generate-invoice-btn").classList.add("opacity-50", "cursor-not-allowed");
+                        }
+                    })
+                    .catch(error => {
+                        // Hide loading and show error
+                        document.getElementById("submission-loading").style.display = "none";
+                        document.getElementById("submission-error").classList.remove("hidden");
+                        document.getElementById("error-response-data").textContent = error.message || "Unknown error occurred";
+
+                        // Keep Generate Invoice button disabled on error
+                        document.getElementById("generate-invoice-btn").disabled = true;
+                        document.getElementById("generate-invoice-btn").classList.add("opacity-50", "cursor-not-allowed");
+                    })
+                    .finally(() => {
+                        // Reset button state
+                        submitBtn.innerHTML = originalContent;
+                        submitBtn.disabled = false;
+                    });
+            });
+
+            // Generate Invoice button handler - This is a SEPARATE handler
+            document.getElementById('generate-invoice-btn').addEventListener('click', function () {
+                const btn = this;
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = `<i class="fas fa-circle-notch fa-spin mr-2"></i>Generating...`;
+                btn.disabled = true;
+
+                // Use the current form data to generate PDF
+                fetch(apiUrl('/api/generate-form-invoice'))
+                    .then(response => {
+                        if (!response.ok) {
+                            return response.json().then(data => { throw new Error(data.error || 'Failed to generate PDF'); });
+                        }
+                        return response.blob();
+                    })
+                    .then(blob => {
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'invoice.pdf';
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                        window.URL.revokeObjectURL(url);
+
+                        // Reset button
+                        btn.innerHTML = originalHTML;
+                        btn.disabled = false;
+
+                        showNotification('success', 'PDF Generated', 'Invoice PDF has been generated successfully.');
+                    })
+                    .catch(error => {
+                        // Reset button
+                        btn.innerHTML = originalHTML;
+                        btn.disabled = false;
+
+                        showNotification('error', 'PDF Generation Failed', error.message);
+                    });
+            });
+
+            // Save Draft button
+            // Replace the existing save-draft-btn event listener with this:
+            document.getElementById("save-draft-btn").addEventListener("click", function () {
+                // Show the modal instead of using prompt
+                document.getElementById("save-draft-modal").classList.remove("hidden");
+            });
+
+            // Add these event listeners for the modal
+            document.getElementById("close-save-draft-modal").addEventListener("click", function () {
+                document.getElementById("save-draft-modal").classList.add("hidden");
+            });
+
+            document.getElementById("cancel-save-draft").addEventListener("click", function () {
+                document.getElementById("save-draft-modal").classList.add("hidden");
+            });
+
+            document.getElementById("confirm-save-draft").addEventListener("click", function () {
+                const title = document.getElementById("draft-invoice-title").value.trim();
+
+                // Hide the modal
+                document.getElementById("save-draft-modal").classList.add("hidden");
+
+                // Include title in the request
+                const invoiceData = {
+                    invoiceType: state.invoiceData.invoiceType || "Sale Invoice",
+                    invoiceDate: state.invoiceData.invoiceDate,
+                    invoiceRefNo: state.invoiceData.invoiceRefNo,
+                    sellerData: state.sellerData,
+                    buyerData: state.buyerData,
+                    items: state.productItems,
+                    saveDraft: true,
+                    title: title,
+                    original_env: ENV  // Store original environment
+                };
+
+                if (ENV === "sandbox" && state.invoiceData.scenarioId) {
+                    invoiceData.scenarioId = state.invoiceData.scenarioId;
+                }
+
+                // Call API
+                fetch(apiUrl("/api/invoice/create"), {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify(invoiceData),
+                })
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.draft_id) {
+                            showNotification(
+                                "success",
+                                "Draft Saved",
+                                `Invoice has been saved as draft${title ? ` with title "${title}"` : ''}`
+                            );
+                        } else {
+                            showNotification(
+                                "success",
+                                "Draft Saved",
+                                "Invoice has been saved as draft"
+                            );
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Error saving draft:", error);
+                        showNotification(
+                            "error",
+                            "Error",
+                            error.message || "Failed to save draft"
+                        );
+                    });
+            });
+
+            // Scenario select change
+            const scenarioSelect = document.getElementById("scenario-id");
+            if (scenarioSelect) {
+                scenarioSelect.addEventListener("change", function () {
+                    const selectedScenario = this.value;
+                    const saleType = scenarioToSaleType[selectedScenario] || '';
+                    const saleTypeInput = document.getElementById("product-sale-type");
+                    if (saleTypeInput) {
+                        saleTypeInput.value = saleType;
+                    }
+                });
+            }
+
+            // Initialize the Generate Invoice button as disabled until submission is successful
+            const generateBtn = document.getElementById("generate-invoice-btn");
+            if (generateBtn) {
+                generateBtn.disabled = true;
+                generateBtn.classList.add("opacity-50", "cursor-not-allowed");
+            }
+
+            // Fetch username when page loads
+            async function fetchUsername() {
+                try {
+                    const response = await fetch(apiUrl("/api/user-product-settings"));
+                    if (!response.ok) throw new Error("Failed to fetch user settings");
+                    const settings = await response.json();
+                    currentUsername = settings.username;
+                } catch (error) {
+                    console.error("Error fetching username:", error);
+                }
+            }
+
+            // Fetch username on load
+            fetchUsername();
+        });
+
+        // Product management
+        let useProductDropdown = false;
+        let productList = [];
+
+        // Fetch product settings based on user
+        async function fetchProductSettings() {
+            try {
+                const response = await fetch(apiUrl("/api/user-product-settings"));
+                if (!response.ok) throw new Error("Failed to fetch product settings");
+
+                const settings = await response.json();
+                useProductDropdown = settings.useProductDropdown;
+                currentUsername = settings.username; // Store username for later use
+
+                // Show or hide product dropdown based on settings
+                if (useProductDropdown) {
+                    document.getElementById("product-dropdown-container").classList.remove("hidden");
+                    await fetchProducts();
+                } else {
+                    document.getElementById("product-dropdown-container").classList.add("hidden");
+                }
+
+                // Set SRO field defaults based on username
+                setSRODefaults(currentUsername);
+
+            } catch (error) {
+                console.error("Error fetching product settings:", error);
+            }
+        }
+
+        // Set SRO field defaults based on username
+        function setSRODefaults(username) {
+            if (username === '3075270') {
+                // For Care Pharmaceuticals
+                document.getElementById("product-sro-schedule-no").value = "EIGHTH SCHEDULE Table 1";
+                document.getElementById("product-sro-item-serial-no").value = "81"; // Changed from 12 to 81 as requested
+            } else {
+                // For all other clients
+                document.getElementById("product-sro-schedule-no").value = "";
+                document.getElementById("product-sro-item-serial-no").value = "";
+            }
+        }
+
+        // Fetch products
+        async function fetchProducts() {
+            try {
+                const response = await fetch(apiUrl("/api/products"));
+                if (!response.ok) throw new Error("Failed to fetch products");
+
+                productList = await response.json();
+                populateProductDropdown();
+            } catch (error) {
+                console.error("Error fetching products:", error);
+            }
+        }
+
+        // Populate product dropdown
+        function populateProductDropdown() {
+            const select = document.getElementById("product-select");
+
+            // Keep the first option (placeholder)
+            while (select.options.length > 1) {
+                select.remove(1);
+            }
+
+            // Sort products alphabetically
+            productList.sort((a, b) => a.description.localeCompare(b.description));
+
+            // Add products to select
+            productList.forEach((product) => {
+                const option = document.createElement("option");
+                option.value = product.id;
+                option.textContent = product.description;
+                option.dataset.product = JSON.stringify(product);
+                select.appendChild(option);
+            });
+        }
+
+        // Select product from dropdown
+        function selectProduct(productId) {
+            const product = productList.find(p => p.id === parseInt(productId));
+            if (!product) return;
+
+            document.getElementById("product-description").value = product.description;
+            document.getElementById("product-hs-code").value = product.hs_code || "";
+
+            // Set UOM if available
+            const uomSelect = document.getElementById("product-uom");
+            if (product.uom) {
+                for (let i = 0; i < uomSelect.options.length; i++) {
+                    if (uomSelect.options[i].value === product.uom) {
+                        uomSelect.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            // Set tax rate if available
+            const taxRateSelect = document.getElementById("product-tax-rate");
+            if (product.default_tax_rate) {
+                const taxRateStr = `${product.default_tax_rate}%`;
+                for (let i = 0; i < taxRateSelect.options.length; i++) {
+                    if (taxRateSelect.options[i].label.trim() === taxRateStr) {
+                        taxRateSelect.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            // Set SRO fields based on username, not product values
+            setSRODefaults(currentUsername);
+        }
+
+        // Add custom product
+        async function addCustomProduct() {
+            try {
+                const description = document.getElementById("custom-product-input").value.trim();
+                if (!description) {
+                    showNotification("error", "Validation Error", "Please enter product name");
+                    return;
+                }
+
+                const response = await fetch(apiUrl("/api/products"), {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        description: description,
+                        default_tax_rate: 1 // Default tax rate
+                    }),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || "Failed to save product");
+                }
+
+                const result = await response.json();
+                showNotification("success", "Product Saved", "New product has been added");
+
+                // Refresh products list
+                await fetchProducts();
+
+                // Set the new product as selected and hide custom field
+                const selectElement = document.getElementById("product-select");
+                selectElement.value = result.id;
+
+                // Set product description
+                document.getElementById("product-description").value = description;
+
+                // Hide custom field
+                document.getElementById("custom-product-field").classList.add("hidden");
+
+            } catch (error) {
+                console.error("Error saving custom product:", error);
+                showNotification("error", "Error", error.message || "Failed to save product");
+            }
+        }
+
+        // Initialize event handlers
+        function initProductHandlers() {
+            // Product select change
+            document.getElementById("product-select").addEventListener("change", function () {
+                if (this.value) {
+                    selectProduct(this.value);
+                }
+            });
+
+            // Custom product button
+            document.getElementById("custom-product-btn").addEventListener("click", function () {
+                document.getElementById("custom-product-field").classList.toggle("hidden");
+                if (!document.getElementById("custom-product-field").classList.contains("hidden")) {
+                    document.getElementById("custom-product-input").focus();
+                }
+            });
+
+            // Save custom product
+            document.getElementById("save-custom-product-btn").addEventListener("click", addCustomProduct);
+
+            // Allow enter key to save custom product
+            document.getElementById("custom-product-input").addEventListener("keypress", function (e) {
+                if (e.key === "Enter") {
+                    addCustomProduct();
+                }
+            });
+        }
+
+        // Add these calls to your document ready function
+        document.addEventListener("DOMContentLoaded", function () {
+            // Initialize product settings and handlers
+            fetchProductSettings();
+            initProductHandlers();
+        });
+        // Add this to the bottom of the script section in create-invoice.html
+
+        // Function to check for draft ID in URL params and load it
+        function checkAndLoadDraft() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const draftId = urlParams.get('load_draft');
+
+            if (draftId) {
+                loadDraftInvoice(draftId);
+            }
+        }
+
+        // Function to load a draft invoice
+        async function loadDraftInvoice(draftId) {
+            try {
+                // Show loading state
+                document.body.classList.add('cursor-wait');
+
+                const response = await fetch(apiUrl(`/api/draft-invoices/${draftId}`));
+                if (!response.ok) {
+                    throw new Error('Failed to load draft invoice');
+                }
+
+                const draft = await response.json();
+                const invoiceData = typeof draft.invoice_data === 'string'
+                    ? JSON.parse(draft.invoice_data)
+                    : draft.invoice_data;
+
+                // Clear existing form data
+                resetForm();
+
+                // Load seller data
+                if (invoiceData.sellerData) {
+                    state.sellerData = invoiceData.sellerData;
+                    document.getElementById("seller-business-name").value = invoiceData.sellerData.sellerBusinessName || "";
+                    document.getElementById("seller-ntn-cnic").value = invoiceData.sellerData.sellerNTNCNIC || "";
+                    document.getElementById("seller-strn").value = invoiceData.sellerData.sellerSTRN || "";
+                    document.getElementById("seller-province").value = invoiceData.sellerData.sellerProvince || "";
+                    document.getElementById("seller-address").value = invoiceData.sellerData.sellerAddress || "";
+
+                    // Select matching business profile if it exists
+                    if (invoiceData.sellerData.id) {
+                        const select = document.getElementById("business-profile-select");
+                        for (let i = 0; i < select.options.length; i++) {
+                            if (select.options[i].value == invoiceData.sellerData.id) {
+                                select.selectedIndex = i;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // Load invoice details
+                if (invoiceData.invoiceType) {
+                    state.invoiceData = {
+                        invoiceType: invoiceData.invoiceType || "Sale Invoice",
+                        invoiceDate: invoiceData.invoiceDate || "",
+                        invoiceRefNo: invoiceData.invoiceRefNo || "",
+                        poNumber: invoiceData.poNumber || invoiceData.PO || ""
+                    };
+
+                    // Update form fields
+                    document.getElementById("invoice-type-hidden").value = state.invoiceData.invoiceType;
+                    document.getElementById("invoice-date").value = state.invoiceData.invoiceDate;
+                    document.getElementById("invoice-ref-no").value = state.invoiceData.invoiceRefNo;
+                    document.getElementById("po-number").value = state.invoiceData.poNumber;
+
+                    // Set scenario ID if in sandbox
+                    if (ENV === "sandbox" && invoiceData.scenarioId) {
+                        state.invoiceData.scenarioId = invoiceData.scenarioId;
+                        document.getElementById("scenario-id").value = invoiceData.scenarioId;
+                    }
+                }
+
+                // Load buyer data
+                if (invoiceData.buyerData) {
+                    state.buyerData = invoiceData.buyerData;
+                    document.getElementById("buyer-business-name").value = invoiceData.buyerData.buyerBusinessName || "";
+                    document.getElementById("buyer-ntn-cnic").value = invoiceData.buyerData.buyerNTNCNIC || "";
+                    document.getElementById("buyer-strn").value = invoiceData.buyerData.buyerSTRN || "";
+                    document.getElementById("buyer-province").value = invoiceData.buyerData.buyerProvince || "";
+                    document.getElementById("buyer-registration-type").value = invoiceData.buyerData.buyerRegistrationType || "";
+                    document.getElementById("buyer-code").value = invoiceData.buyerData.buyerCode || "";
+                    document.getElementById("buyer-address").value = invoiceData.buyerData.buyerAddress || "";
+
+                    // Select matching buyer if it exists
+                    if (invoiceData.buyerData.id) {
+                        const select = document.getElementById("buyer-select");
+                        for (let i = 0; i < select.options.length; i++) {
+                            if (select.options[i].value == invoiceData.buyerData.id) {
+                                select.selectedIndex = i;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                // Load product items
+                if (invoiceData.items && Array.isArray(invoiceData.items)) {
+                    state.productItems = invoiceData.items;
+                    updateProductTable();
+                }
+
+                // If it's a cross-environment draft (created in sandbox, loaded in production)
+                // Show a notification
+                const currentEnv = ENV;
+                const originalEnv = draft.original_env || draft.env;
+
+                if (currentEnv !== originalEnv) {
+                    showNotification(
+                        "info",
+                        "Cross-Environment Draft",
+                        `This draft was created in ${originalEnv}. You're now working in ${currentEnv}.`
+                    );
+                }
+
+                // Jump to review page (step 5)
+                goToStep(5);
+
+                // Show success message
+                showNotification("success", "Draft Loaded", "Draft invoice loaded successfully");
+
+            } catch (error) {
+                console.error("Error loading draft:", error);
+                showNotification("error", "Error", "Failed to load draft invoice");
+            } finally {
+                document.body.classList.remove('cursor-wait');
+            }
+        }
+
+        // Function to reset form
+        function resetForm() {
+            // Clear state
+            state.sellerData = {};
+            state.buyerData = {};
+            state.invoiceData = {};
+            state.productItems = [];
+
+            // Reset seller form
+            document.getElementById("business-profile-select").selectedIndex = 0;
+            document.getElementById("seller-business-name").value = "";
+            document.getElementById("seller-ntn-cnic").value = "";
+            document.getElementById("seller-strn").value = "";
+            document.getElementById("seller-province").value = "";
+            document.getElementById("seller-address").value = "";
+
+            // Reset invoice details
+            document.getElementById("invoice-type-hidden").value = "Sale Invoice";
+            document.getElementById("invoice-date").value = "";
+            document.getElementById("invoice-ref-no").value = "";
+            document.getElementById("po-number").value = "";
+            if (ENV === "sandbox") {
+                document.getElementById("scenario-id").selectedIndex = 0;
+            }
+
+            // Reset buyer form
+            document.getElementById("buyer-select").selectedIndex = 0;
+            document.getElementById("buyer-business-name").value = "";
+            document.getElementById("buyer-ntn-cnic").value = "";
+            document.getElementById("buyer-strn").value = "";
+            document.getElementById("buyer-province").value = "";
+            document.getElementById("buyer-registration-type").value = "";
+            document.getElementById("buyer-code").value = "";
+            document.getElementById("buyer-address").value = "";
+
+            // Clear product items
+            updateProductTable();
+        }
+
+        // Call this function on page load
+        document.addEventListener("DOMContentLoaded", function () {
+            // Existing initialization code...
+
+            // Check for draft to load
+            checkAndLoadDraft();
+
+            // Add "Draft Invoices" link to navigation menu
+            const navLinks = document.querySelector('nav.flex-1');
+            if (navLinks) {
+                const draftInvoicesLink = document.createElement('a');
+                draftInvoicesLink.href = "/draft-invoices.html";
+                draftInvoicesLink.className = "sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-md text-white";
+                draftInvoicesLink.innerHTML = '<i class="fas fa-file-alt mr-3"></i>Draft Invoices';
+                navLinks.appendChild(draftInvoicesLink);
+            }
+        });
+    </script>
+    <!-- Save Draft Modal -->
+    <div id="save-draft-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
+        <div class="modal-overlay absolute inset-0"></div>
+        <div class="bg-white rounded-lg shadow-xl z-50 w-full max-w-md">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Save Draft Invoice</h3>
+                    <button id="close-save-draft-modal" class="text-gray-400 hover:text-gray-500">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="mb-4">
+                    <label for="draft-invoice-title" class="block text-sm font-medium text-gray-700 mb-1">Draft
+                        Title</label>
+                    <input type="text" id="draft-invoice-title"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        placeholder="Enter a title for your draft invoice">
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button id="cancel-save-draft"
+                        class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button id="confirm-save-draft"
+                        class="px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700">
+                        Save Draft
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
