@@ -506,6 +506,13 @@
                                 class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
                                 placeholder="Enter purchase order number" />
                         </div>
+                        <div id="delivery-challan-container" class="hidden">
+                            <label for="delivery-challan" class="block text-gray-700 font-medium mb-2">Delivery Challan
+                                #</label>
+                            <input type="text" id="delivery-challan"
+                                class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
+                                placeholder="Enter delivery challan number" />
+                        </div>
 
                         <!-- Sandbox Scenario ID (only shown in sandbox) -->
                         <div id="scenario-id-container" class="hidden">
@@ -747,15 +754,13 @@
                                 <label for="product-sro-schedule-no" class="block text-gray-700 text-sm mb-1">SRO
                                     Schedule No</label>
                                 <input type="text" id="product-sro-schedule-no"
-                                    class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm"
-                                    >
+                                    class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm">
                             </div>
                             <div>
                                 <label for="product-sro-item-serial-no" class="block text-gray-700 text-sm mb-1">SRO
                                     Item Serial No</label>
                                 <input type="text" id="product-sro-item-serial-no"
-                                    class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm"
-                                    >
+                                    class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm">
                             </div>
                             <div>
                                 <label for="product-further-tax" class="block text-gray-700 text-sm mb-1">Further
@@ -990,6 +995,10 @@
                                     <p>
                                         <span class="font-semibold">PO#:</span>
                                         <span id="review-po-number"></span>
+                                    </p>
+                                    <p id="review-delivery-challan-container" class="hidden">
+                                        <span class="font-semibold">Delivery Challan #:</span>
+                                        <span id="review-delivery-challan"></span>
                                     </p>
                                     <p id="review-scenario-container" class="hidden">
                                         <span class="font-semibold">Scenario ID:</span>
@@ -1813,6 +1822,18 @@
             document.getElementById("review-po-number").textContent =
                 state.invoiceData.poNumber || "";
 
+            // Add this block for delivery challan review
+            const reviewDeliveryChallanContainer = document.getElementById('review-delivery-challan-container');
+            if (reviewDeliveryChallanContainer) {
+                if (currentUsername === '8974121') {
+                    document.getElementById('review-delivery-challan').textContent =
+                        state.invoiceData.CNIC || "";
+                    reviewDeliveryChallanContainer.classList.remove('hidden');
+                } else {
+                    reviewDeliveryChallanContainer.classList.add('hidden');
+                }
+            }
+
             if (ENV === "sandbox" && state.invoiceData.scenarioId) {
                 document.getElementById("review-scenario-id").textContent =
                     state.invoiceData.scenarioId;
@@ -1863,38 +1884,38 @@
                     row.className = "hover:bg-gray-50 transition-colors";
 
                     row.innerHTML = `
-                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-900">${item.productDescription
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-900">${item.productDescription
                         }</td>
-                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.hsCode
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.hsCode
                         }</td>
-                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.quantity
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.quantity
                         }</td>
-                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.uoM
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.uoM
                         }</td>
-                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.rate.toFixed(
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.rate.toFixed(
                             2
                         )}</td>
-                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.valueSalesExcludingST.toFixed(
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.valueSalesExcludingST.toFixed(
                             2
                         )}</td>
-                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.salesTaxApplicable.toFixed(
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.salesTaxApplicable.toFixed(
                             2
                         )}</td>
-                        <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${(
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${(
                             item.valueSalesExcludingST + item.salesTaxApplicable
                         ).toFixed(2)}</td>
-                    `;
+            `;
 
                     tableBody.appendChild(row);
                 });
             } else {
                 tableBody.innerHTML = `
-                    <tr id="review-no-products-row">
-                        <td colspan="8" class="px-6 py-4 text-center text-gray-500">
-                            No products added yet.
-                        </td>
-                    </tr>
-                `;
+            <tr id="review-no-products-row">
+                <td colspan="8" class="px-6 py-4 text-center text-gray-500">
+                    No products added yet.
+                </td>
+            </tr>
+        `;
             }
         }
 
@@ -1936,7 +1957,6 @@
 
                 case 2:
                     // Validate invoice details
-                    // No need to validate invoice type as it's now locked to "Sale Invoice"
                     const invoiceDate = document.getElementById("invoice-date").value;
 
                     if (!invoiceDate) {
@@ -1955,6 +1975,11 @@
                         invoiceRefNo: document.getElementById("invoice-ref-no").value,
                         poNumber: document.getElementById("po-number").value,
                     };
+
+                    // Add delivery challan for specific user
+                    if (currentUsername === '8974121' && document.getElementById("delivery-challan")) {
+                        state.invoiceData.CNIC = document.getElementById("delivery-challan").value;
+                    }
 
                     // Add scenario ID if in sandbox
                     if (ENV === "sandbox") {
@@ -2257,6 +2282,7 @@
             fetchFormOptions();
             fetchBusinessProfiles();
             fetchBuyers();
+            initUserSpecificFields();
 
             // Mobile menu toggle
             const mobileMenuButton = document.getElementById("mobile-menu-button");
@@ -2842,6 +2868,28 @@
             }
         }
 
+        // Add this function after the fetchFormOptions, fetchBusinessProfiles, etc. functions
+        // but before the DOMContentLoaded event listener
+        function initUserSpecificFields() {
+            // Fetch user-specific settings
+            fetch(apiUrl("/api/user-product-settings"))
+                .then(response => response.json())
+                .then(settings => {
+                    currentUsername = settings.username;
+
+                    // Show/hide delivery challan field based on username
+                    if (currentUsername === '8974121') {
+                        const deliveryChallanContainer = document.getElementById("delivery-challan-container");
+                        if (deliveryChallanContainer) {
+                            deliveryChallanContainer.classList.remove("hidden");
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error("Error fetching user settings:", error);
+                });
+        }
+
         // Initialize event handlers
         function initProductHandlers() {
             // Product select change
@@ -2942,6 +2990,14 @@
                     document.getElementById("invoice-date").value = state.invoiceData.invoiceDate;
                     document.getElementById("invoice-ref-no").value = state.invoiceData.invoiceRefNo;
                     document.getElementById("po-number").value = state.invoiceData.poNumber;
+
+                    // Add this block to handle delivery challan
+                    if (currentUsername === '8974121' && document.getElementById("delivery-challan")) {
+                        // Check both potential sources of the delivery challan number
+                        const challanNumber = invoiceData.CNIC || invoiceData.invoiceData?.CNIC || "";
+                        document.getElementById("delivery-challan").value = challanNumber;
+                        state.invoiceData.CNIC = challanNumber;
+                    }
 
                     // Set scenario ID if in sandbox
                     if (ENV === "sandbox" && invoiceData.scenarioId) {

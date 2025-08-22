@@ -73,7 +73,7 @@ def generate_form_invoice():
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # Get username for the client - we'll need this for template selection
+        # Get username for the client - we'll need this for template selection and special field handling
         cur.execute(
             """
             SELECT u.username 
@@ -140,28 +140,38 @@ def generate_form_invoice():
         data["client_id"] = client_id
 
         # Get client's STRN directly from clients table
-        cur.execute("SELECT strn, logo_url FROM clients WHERE id = %s", (client_id,))
-        client_row = cur.fetchone()
-        if client_row and client_row[0]:
-            data["sellerSTRN"] = client_row[0]
-            print(f"Using STRN from clients table: {data['sellerSTRN']}")
+        # First check if STRN is in the invoice_data directly
+        if "sellerSTRN" in data and data["sellerSTRN"]:
+            print(f"Using STRN from invoice data: {data['sellerSTRN']}")
+        # Next check if it's in the nested sellerData structure (from form)
+        elif "sellerData" in data and "sellerSTRN" in data["sellerData"]:
+            data["sellerSTRN"] = data["sellerData"]["sellerSTRN"]
+            print(f"Using STRN from form input: {data['sellerSTRN']}")
+        # Fall back to client's database record only as a last resort
         else:
-            # If not in clients, try business_profiles as a fallback
             cur.execute(
-                """
-                SELECT strn FROM business_profiles 
-                WHERE client_id = %s AND is_default = true
-                LIMIT 1
-                """,
-                (client_id,),
+                "SELECT strn, logo_url FROM clients WHERE id = %s", (client_id,)
             )
-            bp_row = cur.fetchone()
-            if bp_row and bp_row[0]:
-                data["sellerSTRN"] = bp_row[0]
-                print(f"Using STRN from business_profiles: {data['sellerSTRN']}")
+            client_row = cur.fetchone()
+            if client_row and client_row[0]:
+                data["sellerSTRN"] = client_row[0]
+                print(f"Using STRN from clients table: {data['sellerSTRN']}")
             else:
-                data["sellerSTRN"] = ""  # Default empty string if not found
-                print("No STRN found in database")
+                # Try business_profiles as final fallback
+                cur.execute(
+                    """
+                    SELECT strn FROM business_profiles 
+                    WHERE client_id = %s AND is_default = true
+                    LIMIT 1
+                    """,
+                    (client_id,),
+                )
+                bp_row = cur.fetchone()
+                if bp_row and bp_row[0]:
+                    data["sellerSTRN"] = bp_row[0]
+                    print(f"Using STRN from business_profiles: {data['sellerSTRN']}")
+                else:
+                    data["sellerSTRN"] = ""
 
         client_logo_url = client_row[1] if client_row else None
 
@@ -173,6 +183,27 @@ def generate_form_invoice():
         # Make sure PO# is available
         if "PO" not in data or not data["PO"]:
             data["PO"] = data.get("poNumber", data.get("invoiceRefNo", ""))
+
+        # For client 8974121 (Computer Gold), set the delivery challan number
+        # Make sure the CNIC field is properly set regardless of how it came in
+        if username == "8974121":
+            # If the form was submitted (check if CNIC is in the data)
+            if "CNIC" in data and data["CNIC"]:
+                # It's already set correctly, nothing to do
+                pass
+            # Check if it's nested in invoiceData
+            elif "invoiceData" in data and "CNIC" in data["invoiceData"]:
+                data["CNIC"] = data["invoiceData"]["CNIC"]
+            # Check if it's in sellerData (as it is in the form)
+            elif "sellerData" in data and "CNIC" in data["sellerData"]:
+                data["CNIC"] = data["sellerData"]["CNIC"]
+            # Check if there's a special field for delivery challan in the data
+            elif "deliveryChallan" in data:
+                data["CNIC"] = data["deliveryChallan"]
+        else:
+            # For other clients, ensure CNIC is available (even if empty)
+            if "CNIC" not in data:
+                data["CNIC"] = ""
 
         # Calculate totals
         items = data.get("items", [])

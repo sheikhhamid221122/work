@@ -656,6 +656,24 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         if not data["items"] or len(data["items"]) == 0:
             return jsonify({"error": "At least one item is required"}), 400
 
+        # Get username for the client for special field handling
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT u.username 
+            FROM users u
+            JOIN clients c ON u.id = c.user_id
+            WHERE c.id = %s
+        """,
+            (client_id,),
+        )
+
+        user_row = cur.fetchone()
+        username = user_row[0] if user_row else None
+        cur.close()
+        conn.close()
+
         # Construct invoice JSON
         invoice_json = {
             "invoiceType": data["invoiceType"],
@@ -669,7 +687,12 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             "buyerProvince": buyer["buyerProvince"],
             "buyerAddress": buyer["buyerAddress"],
             "buyerRegistrationType": buyer.get("buyerRegistrationType", "Unregistered"),
+            "buyerSTRN": buyer.get("buyerSTRN", ""),  # Make sure buyer STRN is included
         }
+
+        # For client 8974121 (Computer Gold), include the delivery challan number as CNIC
+        if username == "8974121" and data.get("CNIC"):
+            invoice_json["CNIC"] = data["CNIC"]
 
         # Add optional fields
         if "invoiceRefNo" in data:
@@ -682,6 +705,8 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         # Add scenario ID only to sandbox environment
         if env == "sandbox" and "scenarioId" in data:
             invoice_json["scenarioId"] = data["scenarioId"]
+
+        # Rest of the code...
 
         # Add items with proper format required by FBR
         items_list = []
@@ -787,12 +812,13 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                 return jsonify({"error": f"Error processing item: {str(e)}"}), 400
 
         invoice_json["items"] = items_list
-        
+
         # Add client_id for data isolation
         invoice_json["client_id"] = client_id
 
         # Directly store the JSON in app's global space to avoid import problems
         import app
+
         app.last_json_data[env] = invoice_json
 
         # Store as draft if requested
@@ -802,7 +828,7 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
 
             # Get draft title from request or use a default
             draft_title = data.get("title", "")
-            
+
             # Track the original environment where draft was created
             original_env = data.get("original_env", env)
 
@@ -816,16 +842,14 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                 "scenarioId": data.get("scenarioId", ""),
                 "poNumber": data.get("poNumber", ""),
                 "PO": data.get("poNumber", ""),
-                
                 # Form data structures
                 "sellerData": seller,
                 "buyerData": buyer,
                 "items": data["items"],
-                
                 # Additional metadata
                 "client_id": client_id,
                 "created_env": env,
-                "totalAmount": sum(item["totalValues"] for item in items_list)
+                "totalAmount": sum(item["totalValues"] for item in items_list),
             }
 
             # Check if updating an existing draft or creating a new one
@@ -838,7 +862,7 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                     """,
                     (data["draft_id"], client_id),
                 )
-                
+
                 if cur.fetchone():
                     # Update draft
                     cur.execute(
@@ -923,5 +947,3 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                 "invoice_json": invoice_json,
             }
         )
-
-
