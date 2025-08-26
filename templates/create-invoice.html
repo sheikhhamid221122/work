@@ -2758,6 +2758,7 @@
         function renderProductMenu(filterText = "") {
             const listEl = document.getElementById("product-menu-list");
             if (!listEl) return;
+
             const norm = filterText.trim().toLowerCase();
             listEl.innerHTML = "";
 
@@ -2773,17 +2774,35 @@
                 return;
             }
 
-            filtered.forEach(p => {
+            // Add data-index attributes to help with keyboard navigation
+            filtered.forEach((p, index) => {
                 const li = document.createElement("li");
-                li.className = "flex items-center justify-between px-3 py-1.5 hover:bg-gray-100 cursor-pointer group";
+                li.className = "px-3 py-1.5 hover:bg-gray-100 cursor-pointer group";
+                li.setAttribute("data-index", index);
+                li.setAttribute("tabindex", "0"); // Make it focusable
+                li.setAttribute("role", "option");
+
+                // Improve click area to the entire row
+                li.addEventListener("click", () => {
+                    selectProductRow(p);
+                    closeProductMenu();
+                });
+
+                // Add keyboard support
+                li.addEventListener("keydown", (e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        selectProductRow(p);
+                        closeProductMenu();
+                    }
+                });
+
+                const contentDiv = document.createElement("div");
+                contentDiv.className = "flex items-center justify-between w-full";
 
                 const span = document.createElement("span");
                 span.className = "truncate pr-2";
                 span.textContent = p.description;
-                span.addEventListener("click", () => {
-                    selectProductRow(p);
-                    closeProductMenu();
-                });
 
                 const delBtn = document.createElement("button");
                 delBtn.type = "button";
@@ -2795,8 +2814,9 @@
                     deleteProductInline(p);
                 });
 
-                li.appendChild(span);
-                li.appendChild(delBtn);
+                contentDiv.appendChild(span);
+                contentDiv.appendChild(delBtn);
+                li.appendChild(contentDiv);
                 listEl.appendChild(li);
             });
         }
@@ -2861,9 +2881,12 @@
             const hsInput = document.getElementById("product-hs-code");
             const uomSelect = document.getElementById("product-uom");
             const taxSelect = document.getElementById("product-tax-rate");
+            const rateInput = document.getElementById("product-rate"); // Added this line to get the rate input element
 
             if (descInput) descInput.value = p.description;
             if (hsInput) hsInput.value = p.hs_code || "";
+
+            // Set the UoM if available
             if (p.uom && uomSelect) {
                 for (let i = 0; i < uomSelect.options.length; i++) {
                     if (uomSelect.options[i].value === p.uom) {
@@ -2872,9 +2895,15 @@
                     }
                 }
             }
+
+            // Set the rate value - critical fix for the issue
+            if (rateInput && p.rate !== undefined && p.rate !== null) {
+                rateInput.value = p.rate;
+            }
+
+            // Set the tax rate if available
             if (p.default_tax_rate != null) {
                 const desired = parseFloat(p.default_tax_rate);
-                const taxSelect = document.getElementById("product-tax-rate");
                 if (taxSelect) {
                     for (let i = 0; i < taxSelect.options.length; i++) {
                         const opt = taxSelect.options[i];
@@ -2886,8 +2915,13 @@
                     }
                 }
             }
+
+            // Calculate value and tax after setting all fields
+            calculateValueAndTax();
+
             setSRODefaults(currentUsername);
         }
+
 
         function resetProductSelection() {
             // Reset dropdown label
@@ -2950,20 +2984,96 @@
         function openProductMenu() {
             const menu = document.getElementById("product-menu");
             if (!menu) return;
+
             menu.classList.remove("hidden");
             productMenuOpen = true;
+
             const filter = document.getElementById("product-filter");
-            if (filter) { filter.value = ""; filter.focus(); }
+            if (filter) {
+                filter.value = "";
+                filter.focus();
+            }
+
             renderProductMenu();
+
+            // Add keyboard event listener to the menu
+            menu.addEventListener("keydown", handleMenuKeydown);
         }
+
+        function handleMenuKeydown(e) {
+            if (!productMenuOpen) return;
+
+            const list = document.getElementById("product-menu-list");
+            const items = list.querySelectorAll("li[data-index]");
+
+            if (items.length === 0) return;
+
+            // Find currently focused item
+            let focusedIndex = -1;
+            const focusedItem = document.activeElement;
+
+            if (focusedItem && focusedItem.hasAttribute("data-index")) {
+                focusedIndex = parseInt(focusedItem.getAttribute("data-index"));
+            }
+
+            switch (e.key) {
+                case "ArrowDown":
+                    e.preventDefault();
+                    if (focusedIndex < items.length - 1) {
+                        items[focusedIndex + 1].focus();
+                    } else {
+                        items[0].focus(); // Wrap around to the first item
+                    }
+                    break;
+
+                case "ArrowUp":
+                    e.preventDefault();
+                    if (focusedIndex > 0) {
+                        items[focusedIndex - 1].focus();
+                    } else {
+                        items[items.length - 1].focus(); // Wrap around to the last item
+                    }
+                    break;
+
+                case "Escape":
+                    e.preventDefault();
+                    closeProductMenu();
+                    break;
+
+                case "Enter":
+                    // Let the item's own event handler take care of this
+                    break;
+
+                default:
+                    // Handle letter keys for quick navigation
+                    if (e.key.length === 1 && /[a-z0-9]/i.test(e.key)) {
+                        // Find the first item starting with this letter
+                        const key = e.key.toLowerCase();
+                        for (let i = 0; i < items.length; i++) {
+                            const text = items[i].textContent.toLowerCase();
+                            if (text.startsWith(key)) {
+                                items[i].focus();
+                                break;
+                            }
+                        }
+                    }
+                    break;
+            }
+        }
+
         function closeProductMenu() {
             const menu = document.getElementById("product-menu");
             if (!menu) return;
+
             menu.classList.add("hidden");
             productMenuOpen = false;
-        }
-        function toggleProductMenu() {
-            productMenuOpen ? closeProductMenu() : openProductMenu();
+
+            // Clean up keyboard event listener
+            menu.removeEventListener("keydown", handleMenuKeydown);
+
+            // Return focus to the select button
+            const selectBtn = document.getElementById("product-select-btn");
+            if (selectBtn) selectBtn.focus();
         }
 
         // Show custom product field
@@ -2976,22 +3086,68 @@
             // Initial product fetch & settings
             fetchProductSettings().then(fetchProducts);
 
-            // Button that shows current selection
+            // Button that shows current selection with ARIA attributes for accessibility
             const selectBtn = document.getElementById("product-select-btn");
-            if (selectBtn) selectBtn.addEventListener("click", toggleProductMenu);
+            if (selectBtn) {
+                selectBtn.setAttribute("aria-haspopup", "listbox");
+                selectBtn.setAttribute("aria-expanded", "false");
+
+                selectBtn.addEventListener("click", () => {
+                    const expanded = selectBtn.getAttribute("aria-expanded") === "true";
+                    selectBtn.setAttribute("aria-expanded", (!expanded).toString());
+
+                    if (!expanded) {
+                        openProductMenu();
+                    } else {
+                        closeProductMenu();
+                    }
+                });
+            }
 
             // Close button
             const closeBtn = document.getElementById("close-product-menu");
             if (closeBtn) closeBtn.addEventListener("click", closeProductMenu);
 
-            // Filtering
+            // Filtering with improved handling for typing
             const filterInput = document.getElementById("product-filter");
-            if (filterInput) filterInput.addEventListener("input", e => renderProductMenu(e.target.value));
+            if (filterInput) {
+                // Replace the input element to remove any potential event handlers
+                const newFilterInput = filterInput.cloneNode(true);
+                filterInput.parentNode.replaceChild(newFilterInput, filterInput);
+
+                // Add input event listener with focus preservation
+                newFilterInput.addEventListener("input", function (e) {
+                    // Store current cursor position
+                    const cursorPosition = this.selectionStart;
+
+                    // Filter the list
+                    renderProductMenu(this.value);
+
+                    // Explicitly maintain focus on the search field
+                    this.focus();
+
+                    // Restore cursor position
+                    this.setSelectionRange(cursorPosition, cursorPosition);
+
+                    // Prevent event from bubbling up
+                    e.stopPropagation();
+                });
+
+                // Only move focus to menu items when explicitly pressing arrow down
+                newFilterInput.addEventListener("keydown", function (e) {
+                    if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        const firstItem = document.querySelector("#product-menu-list li[data-index='0']");
+                        if (firstItem) firstItem.focus();
+                    }
+                });
+            }
 
             // Custom product button
             const customBtn = document.getElementById("open-custom-product");
             if (customBtn) customBtn.addEventListener("click", showCustomProductField);
 
+            // Reset button
             const resetBtn = document.getElementById("reset-product-btn");
             if (resetBtn) {
                 resetBtn.addEventListener("click", () => {
@@ -2999,10 +3155,11 @@
                 });
             }
 
-            // Save custom
+            // Save custom product
             const saveCustomBtn = document.getElementById("save-custom-product-btn");
             if (saveCustomBtn) saveCustomBtn.addEventListener("click", addCustomProduct);
 
+            // Custom input enter key handler
             const customInput = document.getElementById("custom-product-input");
             if (customInput) {
                 customInput.addEventListener("keypress", e => {
@@ -3010,20 +3167,317 @@
                 });
             }
 
-            // Outside click & ESC to close
+            // Outside click to close dropdown
             document.addEventListener("click", e => {
                 if (productMenuOpen) {
                     const container = document.getElementById("product-selector");
                     if (container && !container.contains(e.target)) closeProductMenu();
                 }
             });
+
+            // ESC key to close dropdown
             document.addEventListener("keydown", e => {
                 if (e.key === "Escape" && productMenuOpen) closeProductMenu();
             });
 
-            document.getElementById('product-quantity').addEventListener('input', calculateValueAndTax); document.getElementById('product-rate').addEventListener('input', calculateValueAndTax); document.getElementById('product-tax-rate').addEventListener('change', calculateValueAndTax);
+            // Add keyboard event listener to the menu when opened
+            const menu = document.getElementById("product-menu");
+            if (menu) {
+                menu.addEventListener("keydown", handleMenuKeydown);
+            }
 
+            // Ensure proper styling for menu items on hover and focus
+            const style = document.createElement("style");
+            style.textContent = `
+        #product-menu-list li:focus {
+            background-color: #f3f4f6;
+            outline: 2px solid #3b82f6;
+            outline-offset: -1px;
+        }
+        #product-menu-list li:hover {
+            background-color: #f3f4f6;
+        }
+        /* Add styling to keep search input highlighted */
+        #product-filter:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+            outline: none;
+        }
+    `;
+            document.head.appendChild(style);
+
+            // Input event listeners for calculation
+            document.getElementById('product-quantity').addEventListener('input', calculateValueAndTax);
+            document.getElementById('product-rate').addEventListener('input', calculateValueAndTax);
+            document.getElementById('product-tax-rate').addEventListener('change', calculateValueAndTax);
         });
+
+        // Modified openProductMenu function that ensures search input stays focused
+        function openProductMenu() {
+            const menu = document.getElementById("product-menu");
+            if (!menu) return;
+
+            menu.classList.remove("hidden");
+            productMenuOpen = true;
+
+            const filter = document.getElementById("product-filter");
+            if (filter) {
+                filter.value = "";
+
+                // Focus with a slight delay to ensure it takes effect
+                setTimeout(() => {
+                    filter.focus();
+                }, 10);
+            }
+
+            renderProductMenu();
+        }
+
+        // No changes needed to closeProductMenu
+        function closeProductMenu() {
+            const menu = document.getElementById("product-menu");
+            if (!menu) return;
+
+            menu.classList.add("hidden");
+            productMenuOpen = false;
+
+            // Return focus to the select button
+            const selectBtn = document.getElementById("product-select-btn");
+            if (selectBtn) selectBtn.focus();
+        }
+
+        // Modified renderProductMenu that never alters focus
+        function renderProductMenu(filterText = "") {
+            const listEl = document.getElementById("product-menu-list");
+            if (!listEl) return;
+
+            // Store which element currently has focus
+            const activeElement = document.activeElement;
+
+            const norm = filterText?.trim().toLowerCase() || "";
+            listEl.innerHTML = "";
+
+            const filtered = norm
+                ? productList.filter(p => p.description.toLowerCase().includes(norm))
+                : productList;
+
+            if (filtered.length === 0) {
+                const emptyLi = document.createElement("li");
+                emptyLi.className = "px-3 py-2 text-gray-500 text-xs";
+                emptyLi.textContent = "No products found";
+                listEl.appendChild(emptyLi);
+                return;
+            }
+
+            // Add data-index attributes to help with keyboard navigation
+            filtered.forEach((p, index) => {
+                const li = document.createElement("li");
+                li.className = "px-3 py-1.5 hover:bg-gray-100 cursor-pointer group";
+                li.setAttribute("data-index", index);
+                li.setAttribute("tabindex", "0"); // Make it focusable
+                li.setAttribute("role", "option");
+
+                // Improve click area to the entire row
+                li.addEventListener("click", () => {
+                    selectProductRow(p);
+                    closeProductMenu();
+                });
+
+                // Add keyboard support
+                li.addEventListener("keydown", (e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        selectProductRow(p);
+                        closeProductMenu();
+                    }
+                });
+
+                const contentDiv = document.createElement("div");
+                contentDiv.className = "flex items-center justify-between w-full";
+
+                const span = document.createElement("span");
+                span.className = "truncate pr-2";
+                span.textContent = p.description;
+
+                const delBtn = document.createElement("button");
+                delBtn.type = "button";
+                delBtn.className = "opacity-60 group-hover:opacity-100 text-red-600 hover:text-red-700 px-1 py-0.5 rounded";
+                delBtn.innerHTML = '<i class="fas fa-trash text-xs"></i>';
+                delBtn.title = "Delete";
+                delBtn.addEventListener("click", e => {
+                    e.stopPropagation();
+                    deleteProductInline(p);
+                });
+
+                contentDiv.appendChild(span);
+                contentDiv.appendChild(delBtn);
+                li.appendChild(contentDiv);
+                listEl.appendChild(li);
+            });
+
+            // If filter input had focus, ensure it keeps focus
+            if (activeElement && activeElement.id === "product-filter") {
+                activeElement.focus();
+            }
+        }
+
+        // No changes to handleMenuKeydown
+        function handleMenuKeydown(e) {
+            if (!productMenuOpen) return;
+
+            const list = document.getElementById("product-menu-list");
+            const items = list.querySelectorAll("li[data-index]");
+
+            if (items.length === 0) return;
+
+            // Find currently focused item
+            let focusedIndex = -1;
+            const focusedItem = document.activeElement;
+
+            if (focusedItem && focusedItem.hasAttribute("data-index")) {
+                focusedIndex = parseInt(focusedItem.getAttribute("data-index"));
+            }
+
+            switch (e.key) {
+                case "ArrowDown":
+                    e.preventDefault();
+                    if (focusedIndex < items.length - 1) {
+                        items[focusedIndex + 1].focus();
+                    } else {
+                        items[0].focus(); // Wrap around to the first item
+                    }
+                    break;
+
+                case "ArrowUp":
+                    e.preventDefault();
+                    if (focusedIndex > 0) {
+                        items[focusedIndex - 1].focus();
+                    } else {
+                        items[items.length - 1].focus(); // Wrap around to the last item
+                    }
+                    break;
+
+                case "Escape":
+                    e.preventDefault();
+                    closeProductMenu();
+                    break;
+
+                case "Enter":
+                    // Let the item's own event handler take care of this
+                    break;
+
+                default:
+                    // Handle letter keys for quick navigation
+                    if (e.key.length === 1 && /[a-z0-9]/i.test(e.key)) {
+                        // Find the first item starting with this letter
+                        const key = e.key.toLowerCase();
+                        for (let i = 0; i < items.length; i++) {
+                            const text = items[i].textContent.toLowerCase();
+                            if (text.startsWith(key)) {
+                                items[i].focus();
+                                break;
+                            }
+                        }
+                    }
+                    break;
+            }
+        }
+
+        // Update these existing functions to work with the new approach
+        function openProductMenu() {
+            const menu = document.getElementById("product-menu");
+            if (!menu) return;
+
+            menu.classList.remove("hidden");
+            productMenuOpen = true;
+
+            const filter = document.getElementById("product-filter");
+            if (filter) {
+                filter.value = "";
+                filter.focus();
+            }
+
+            renderProductMenu();
+        }
+
+        function closeProductMenu() {
+            const menu = document.getElementById("product-menu");
+            if (!menu) return;
+
+            menu.classList.add("hidden");
+            productMenuOpen = false;
+
+            // Return focus to the select button
+            const selectBtn = document.getElementById("product-select-btn");
+            if (selectBtn) selectBtn.focus();
+        }
+
+        // Replace the renderProductMenu function
+        function renderProductMenu(filterText = "") {
+            const listEl = document.getElementById("product-menu-list");
+            if (!listEl) return;
+
+            const norm = filterText.trim().toLowerCase();
+            listEl.innerHTML = "";
+
+            const filtered = norm
+                ? productList.filter(p => p.description.toLowerCase().includes(norm))
+                : productList;
+
+            if (filtered.length === 0) {
+                const emptyLi = document.createElement("li");
+                emptyLi.className = "px-3 py-2 text-gray-500 text-xs";
+                emptyLi.textContent = "No products found";
+                listEl.appendChild(emptyLi);
+                return;
+            }
+
+            // Add data-index attributes to help with keyboard navigation
+            filtered.forEach((p, index) => {
+                const li = document.createElement("li");
+                li.className = "px-3 py-1.5 hover:bg-gray-100 cursor-pointer group";
+                li.setAttribute("data-index", index);
+                li.setAttribute("tabindex", "0"); // Make it focusable
+                li.setAttribute("role", "option");
+
+                // Improve click area to the entire row
+                li.addEventListener("click", () => {
+                    selectProductRow(p);
+                    closeProductMenu();
+                });
+
+                // Add keyboard support
+                li.addEventListener("keydown", (e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        selectProductRow(p);
+                        closeProductMenu();
+                    }
+                });
+
+                const contentDiv = document.createElement("div");
+                contentDiv.className = "flex items-center justify-between w-full";
+
+                const span = document.createElement("span");
+                span.className = "truncate pr-2";
+                span.textContent = p.description;
+
+                const delBtn = document.createElement("button");
+                delBtn.type = "button";
+                delBtn.className = "opacity-60 group-hover:opacity-100 text-red-600 hover:text-red-700 px-1 py-0.5 rounded";
+                delBtn.innerHTML = '<i class="fas fa-trash text-xs"></i>';
+                delBtn.title = "Delete";
+                delBtn.addEventListener("click", e => {
+                    e.stopPropagation();
+                    deleteProductInline(p);
+                });
+
+                contentDiv.appendChild(span);
+                contentDiv.appendChild(delBtn);
+                li.appendChild(contentDiv);
+                listEl.appendChild(li);
+            });
+        }
 
         // Set SRO field defaults based on username
         function setSRODefaults(username) {
@@ -3045,9 +3499,12 @@
                 if (!response.ok) throw new Error("Failed to fetch products");
 
                 productList = await response.json();
-                populateProductDropdown();
-            } catch (error) {
-                console.error("Error fetching products:", error);
+                console.log("Products fetched:", productList); // Debug log to verify rate is included
+
+                renderProductMenu();
+            } catch (e) {
+                console.error("Error fetching products:", e);
+                showNotification("error", "Error", "Could not load products");
             }
         }
 
