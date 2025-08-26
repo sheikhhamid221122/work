@@ -180,9 +180,31 @@ def generate_form_invoice():
         fbr_row = cur.fetchone()
         fbr_logo_url = fbr_row[0] if fbr_row else None
 
-        # Make sure PO# is available
+                # Make sure PO# is available
+        # Make sure PO# is available - replace the existing code block with this
         if "PO" not in data or not data["PO"]:
-            data["PO"] = data.get("poNumber", data.get("invoiceRefNo", ""))
+            print(f"Debug - Trying to find PO number in data structure")
+            # First check if poNumber exists in the root of the data
+            if "poNumber" in data:
+                print(f"Debug - Found poNumber in root: {data['poNumber']}")
+                data["PO"] = data["poNumber"]
+            # Next check if it's in the invoiceData structure
+            elif "invoiceData" in data and "poNumber" in data["invoiceData"]:
+                print(f"Debug - Found poNumber in invoiceData: {data['invoiceData']['poNumber']}")
+                data["PO"] = data["invoiceData"]["poNumber"]
+            # Check if it's in complete_invoice_data if available
+            elif "complete_invoice_data" in data:
+                invoice_data = data["complete_invoice_data"]
+                if isinstance(invoice_data, str):
+                    try:
+                        invoice_data = json.loads(invoice_data)
+                    except:
+                        invoice_data = {}
+                if "poNumber" in invoice_data:
+                    data["PO"] = invoice_data["poNumber"]
+                    print(f"Debug - Found poNumber in complete_invoice_data: {invoice_data['poNumber']}")
+            
+            print(f"Debug - Final PO value: {data.get('PO', 'Not set')}")
 
         # For client 8974121 (Computer Gold), set the delivery challan number
         # Make sure the CNIC field is properly set regardless of how it came in
@@ -991,6 +1013,8 @@ def generate_invoice_excel():
             template_name = "invoice_template.html"
         elif username == "5207949":
             template_name = "invoice_zeeshanst.html"
+        elif username == "7542425":
+            template_name = "invoice_alraheem.html"
         else:
             template_name = "invoice_template2.html"
 

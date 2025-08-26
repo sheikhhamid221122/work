@@ -6,8 +6,9 @@ import json
 from datetime import datetime
 
 
-# Business Profiles API
+# Business Profiles / Buyers / Products / Invoice APIs
 def add_invoice_form_routes(app, get_db_connection, get_env):
+    # ---------------- Business Profiles ----------------
     @app.route("/api/business-profiles", methods=["GET"])
     def get_business_profiles():
         client_id = session.get("client_id")
@@ -22,24 +23,22 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             FROM business_profiles 
             WHERE client_id = %s 
             ORDER BY is_default DESC, business_name
-        """,
+            """,
             (client_id,),
         )
 
-        profiles = []
-        for row in cur.fetchall():
-            profiles.append(
-                {
-                    "id": row[0],
-                    "business_name": row[1],
-                    "address": row[2],
-                    "province": row[3],
-                    "ntn_cnic": row[4],
-                    "strn": row[5],
-                    "is_default": row[6],
-                }
-            )
-
+        profiles = [
+            {
+                "id": row[0],
+                "business_name": row[1],
+                "address": row[2],
+                "province": row[3],
+                "ntn_cnic": row[4],
+                "strn": row[5],
+                "is_default": row[6],
+            }
+            for row in cur.fetchall()
+        ]
         cur.close()
         conn.close()
         return jsonify(profiles)
@@ -49,10 +48,8 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         client_id = session.get("client_id")
         if not client_id:
             return jsonify({"error": "No client ID in session"}), 401
-
         data = request.get_json()
         required_fields = ["business_name", "address", "province", "ntn_cnic"]
-
         for field in required_fields:
             if field not in data or not data[field]:
                 return jsonify({"error": f"Missing required field: {field}"}), 400
@@ -60,25 +57,19 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # If this is marked as default, unset any existing defaults
         if data.get("is_default", False):
             cur.execute(
-                """
-                UPDATE business_profiles 
-                SET is_default = FALSE 
-                WHERE client_id = %s
-            """,
+                "UPDATE business_profiles SET is_default = FALSE WHERE client_id = %s",
                 (client_id,),
             )
 
-        # Insert new profile
         cur.execute(
             """
             INSERT INTO business_profiles 
-            (client_id, business_name, address, province, ntn_cnic, strn, is_default) 
+              (client_id, business_name, address, province, ntn_cnic, strn, is_default) 
             VALUES (%s, %s, %s, %s, %s, %s, %s)
             RETURNING id
-        """,
+            """,
             (
                 client_id,
                 data["business_name"],
@@ -89,55 +80,36 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                 data.get("is_default", False),
             ),
         )
-
         new_id = cur.fetchone()[0]
         conn.commit()
         cur.close()
         conn.close()
-
-        return jsonify(
-            {"id": new_id, "message": "Business profile created successfully"}
-        )
+        return jsonify({"id": new_id, "message": "Business profile created successfully"})
 
     @app.route("/api/business-profiles/<int:profile_id>", methods=["PUT"])
     def update_business_profile(profile_id):
         client_id = session.get("client_id")
         if not client_id:
             return jsonify({"error": "No client ID in session"}), 401
-
         data = request.get_json()
+
         conn = get_db_connection()
         cur = conn.cursor()
-
-        # Verify ownership
         cur.execute(
-            """
-            SELECT id FROM business_profiles 
-            WHERE id = %s AND client_id = %s
-        """,
+            "SELECT id FROM business_profiles WHERE id = %s AND client_id = %s",
             (profile_id, client_id),
         )
-
         if not cur.fetchone():
             cur.close()
             conn.close()
-            return (
-                jsonify({"error": "Business profile not found or access denied"}),
-                404,
-            )
+            return jsonify({"error": "Business profile not found or access denied"}), 404
 
-        # If this is marked as default, unset any existing defaults
         if data.get("is_default", False):
             cur.execute(
-                """
-                UPDATE business_profiles 
-                SET is_default = FALSE 
-                WHERE client_id = %s
-            """,
+                "UPDATE business_profiles SET is_default = FALSE WHERE client_id = %s",
                 (client_id,),
             )
 
-        # Update profile
         fields = [
             "business_name",
             "address",
@@ -146,32 +118,30 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             "strn",
             "is_default",
         ]
-        updates = [f"{field} = %s" for field in fields if field in data]
-        values = [data[field] for field in fields if field in data]
-
+        updates = [f"{f} = %s" for f in fields if f in data]
         if updates:
-            query = f"""
-                UPDATE business_profiles 
-                SET {', '.join(updates)}, updated_at = NOW() 
+            values = [data[f] for f in fields if f in data]
+            values.extend([profile_id, client_id])
+            cur.execute(
+                f"""
+                UPDATE business_profiles
+                SET {', '.join(updates)}, updated_at = NOW()
                 WHERE id = %s AND client_id = %s
-            """
-            values.append(profile_id)
-            values.append(client_id)
-            cur.execute(query, values)
+                """,
+                values,
+            )
 
         conn.commit()
         cur.close()
         conn.close()
-
         return jsonify({"message": "Business profile updated successfully"})
 
-    # Buyers API
+    # ---------------- Buyers ----------------
     @app.route("/api/buyers", methods=["GET"])
     def get_buyers():
         client_id = session.get("client_id")
         if not client_id:
             return jsonify({"error": "No client ID in session"}), 401
-
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute(
@@ -180,26 +150,23 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             FROM buyers 
             WHERE client_id = %s 
             ORDER BY is_default DESC, business_name
-        """,
+            """,
             (client_id,),
         )
-
-        buyers = []
-        for row in cur.fetchall():
-            buyers.append(
-                {
-                    "id": row[0],
-                    "business_name": row[1],
-                    "address": row[2],
-                    "province": row[3],
-                    "ntn_cnic": row[4],
-                    "strn": row[5],
-                    "registration_type": row[6],
-                    "buyer_code": row[7],
-                    "is_default": row[8],
-                }
-            )
-
+        buyers = [
+            {
+                "id": r[0],
+                "business_name": r[1],
+                "address": r[2],
+                "province": r[3],
+                "ntn_cnic": r[4],
+                "strn": r[5],
+                "registration_type": r[6],
+                "buyer_code": r[7],
+                "is_default": r[8],
+            }
+            for r in cur.fetchall()
+        ]
         cur.close()
         conn.close()
         return jsonify(buyers)
@@ -209,36 +176,27 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         client_id = session.get("client_id")
         if not client_id:
             return jsonify({"error": "No client ID in session"}), 401
-
         data = request.get_json()
         required_fields = ["business_name", "address", "province", "ntn_cnic"]
-
         for field in required_fields:
             if field not in data or not data[field]:
                 return jsonify({"error": f"Missing required field: {field}"}), 400
 
         conn = get_db_connection()
         cur = conn.cursor()
-
-        # If this is marked as default, unset any existing defaults
         if data.get("is_default", False):
             cur.execute(
-                """
-                UPDATE buyers 
-                SET is_default = FALSE 
-                WHERE client_id = %s
-            """,
+                "UPDATE buyers SET is_default = FALSE WHERE client_id = %s",
                 (client_id,),
             )
-
-        # Insert new buyer
         cur.execute(
             """
-            INSERT INTO buyers 
-            (client_id, business_name, address, province, ntn_cnic, strn, registration_type, buyer_code, is_default) 
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO buyers
+              (client_id, business_name, address, province, ntn_cnic, strn,
+               registration_type, buyer_code, is_default)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
             RETURNING id
-        """,
+            """,
             (
                 client_id,
                 data["business_name"],
@@ -251,69 +209,60 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                 data.get("is_default", False),
             ),
         )
-
         new_id = cur.fetchone()[0]
         conn.commit()
         cur.close()
         conn.close()
-
         return jsonify({"id": new_id, "message": "Buyer created successfully"})
 
-    # Products API - Enhanced for client-specific products
+    # ---------------- Products (with soft delete) ----------------
     @app.route("/api/products", methods=["GET"])
     def get_products():
         client_id = session.get("client_id")
         if not client_id:
             return jsonify({"error": "No client ID in session"}), 401
-
         conn = get_db_connection()
         cur = conn.cursor()
-
-        # First get the username for the client
+        # (username fetch retained only if needed later)
         cur.execute(
             """
             SELECT u.username 
             FROM users u
             JOIN clients c ON u.id = c.user_id
             WHERE c.id = %s
-        """,
+            """,
             (client_id,),
         )
-
-        user_row = cur.fetchone()
-        if not user_row:
+        if not cur.fetchone():
             cur.close()
             conn.close()
             return jsonify({"error": "User not found"}), 404
 
-        username = user_row[0]
-
-        # Get products based on client ID
+        # Only active (legacy rows with NULL still show)
         cur.execute(
             """
-            SELECT id, description, hs_code, rate, uom, default_tax_rate, sro_schedule_no, sale_type 
-            FROM products 
-            WHERE client_id = %s 
+            SELECT id, description, hs_code, rate, uom, default_tax_rate,
+                   sro_schedule_no, sale_type
+            FROM products
+            WHERE client_id = %s
+              AND (is_active = TRUE OR is_active IS NULL)
             ORDER BY description
-        """,
+            """,
             (client_id,),
         )
-
-        products = []
-        for row in cur.fetchall():
-            products.append(
-                {
-                    "id": row[0],
-                    "description": row[1],
-                    "hs_code": row[2],
-                    "rate": float(row[3]) if row[3] else 0,
-                    "uom": row[4],
-                    "default_tax_rate": float(row[5]) if row[5] else 0,
-                    "sro_schedule_no": row[6],
-                    "sale_type": row[7],
-                }
-            )
-
+        products = [
+            {
+                "id": r[0],
+                "description": r[1],
+                "hs_code": r[2],
+                "rate": float(r[3]) if r[3] else 0,
+                "uom": r[4],
+                "default_tax_rate": float(r[5]) if r[5] else 0,
+                "sro_schedule_no": r[6],
+                "sale_type": r[7],
+            }
+            for r in cur.fetchall()
+        ]
         cur.close()
         conn.close()
         return jsonify(products)
@@ -324,44 +273,44 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         if not client_id:
             return jsonify({"error": "No client ID in session"}), 401
 
-        data = request.get_json()
-
-        # Validate required fields
-        if "description" not in data or not data["description"]:
+        data = request.get_json() or {}
+        description = (data.get("description") or "").strip()
+        if not description:
             return jsonify({"error": "Product description is required"}), 400
 
         conn = get_db_connection()
         cur = conn.cursor()
-
-        # Check if product with same description already exists to avoid duplicates
+        # Case-insensitive match
         cur.execute(
             """
-            SELECT id FROM products 
-            WHERE client_id = %s AND description = %s
-        """,
-            (client_id, data["description"]),
+            SELECT id, is_active FROM products
+            WHERE client_id = %s AND LOWER(description) = LOWER(%s)
+            """,
+            (client_id, description),
         )
-
         existing = cur.fetchone()
         if existing:
+            if existing[1] is False:  # Reactivate soft-deleted
+                cur.execute(
+                    "UPDATE products SET is_active = TRUE WHERE id = %s",
+                    (existing[0],),
+                )
+                conn.commit()
             cur.close()
             conn.close()
-            return (
-                jsonify({"id": existing[0], "message": "Product already exists"}),
-                200,
-            )
+            return jsonify({"id": existing[0], "message": "Product already exists"}), 200
 
-        # Insert new product
         cur.execute(
             """
-            INSERT INTO products 
-            (client_id, description, hs_code, rate, uom, default_tax_rate, sro_schedule_no, sale_type) 
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO products
+              (client_id, description, hs_code, rate, uom,
+               default_tax_rate, sro_schedule_no, sale_type, is_active)
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s, TRUE)
             RETURNING id
-        """,
+            """,
             (
                 client_id,
-                data["description"],
+                description,
                 data.get("hs_code", ""),
                 data.get("rate", 0),
                 data.get("uom", ""),
@@ -370,58 +319,76 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                 data.get("sale_type", ""),
             ),
         )
-
         new_id = cur.fetchone()[0]
         conn.commit()
         cur.close()
         conn.close()
-
         return jsonify({"id": new_id, "message": "Product created successfully"})
 
-    # New endpoint to get user-specific product settings
-    @app.route("/api/user-product-settings", methods=["GET"])
-    def get_user_product_settings():
+    @app.route("/api/products/<int:product_id>", methods=["DELETE"])
+    def delete_product(product_id):
+        """
+        Soft delete a product: mark is_active = FALSE for this client's product.
+        """
         client_id = session.get("client_id")
         if not client_id:
             return jsonify({"error": "No client ID in session"}), 401
 
         conn = get_db_connection()
         cur = conn.cursor()
+        try:
+            cur.execute(
+                """
+                UPDATE products
+                SET is_active = FALSE
+                WHERE id = %s
+                  AND client_id = %s
+                  AND (is_active = TRUE OR is_active IS NULL)
+                RETURNING id
+                """,
+                (product_id, client_id),
+            )
+            row = cur.fetchone()
+            conn.commit()
+            if not row:
+                return jsonify({"error": "Product not found"}), 404
+            return jsonify({"success": True, "soft_deleted_id": product_id})
+        except Exception as e:
+            conn.rollback()
+            return jsonify({"error": str(e)}), 500
+        finally:
+            cur.close()
+            conn.close()
 
-        # Get username for the client
+    # ---------------- User Product Settings ----------------
+    @app.route("/api/user-product-settings", methods=["GET"])
+    def get_user_product_settings():
+        client_id = session.get("client_id")
+        if not client_id:
+            return jsonify({"error": "No client ID in session"}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
         cur.execute(
             """
             SELECT u.username 
             FROM users u
             JOIN clients c ON u.id = c.user_id
             WHERE c.id = %s
-        """,
+            """,
             (client_id,),
         )
-
-        user_row = cur.fetchone()
-        if not user_row:
+        row = cur.fetchone()
+        if not row:
             cur.close()
             conn.close()
             return jsonify({"error": "User not found"}), 404
-
-        username = user_row[0]
-
-        # Define which usernames should use product dropdown
-        # This can be moved to a database table later for better flexibility
-        product_dropdown_users = ["3075270"]  # Add more usernames as needed
-
-        settings = {
-            "useProductDropdown": username in product_dropdown_users,
-            "username": username,
-        }
-
+        username = row[0]
         cur.close()
         conn.close()
-        return jsonify(settings)
+        # Enabled for all users
+        return jsonify({"useProductDropdown": True, "username": username})
 
-    # Helper endpoint to get form dropdown options
-    # Helper endpoint to get form dropdown options
+    # ---------------- Form Options ----------------
     @app.route("/api/form-options", methods=["GET"])
     def get_form_options():
         return jsonify(
@@ -452,46 +419,16 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                     {"value": "NTN Tax Base", "label": "NTN Tax Base"},
                 ],
                 "uoms": [
-                    {
-                        "value": "Numbers, pieces, units",
-                        "label": "Numbers, pieces, units",
-                    },
+                    {"value": "Numbers, pieces, units", "label": "Numbers, pieces, units"},
                     {"value": "KG", "label": "KG - Kilogram"},
                     {"value": "MT", "label": "MT - Metric Ton"},
                     {"value": "LTR", "label": "LTR - Liter"},
                     {"value": "KWH", "label": "KWH - Kilowatt Hour"},
                     {"value": "MTR", "label": "MTR - Meter"},
-                    # You can keep the rest of the UOMs if needed or remove them
                 ],
                 "scenarioIds": [
-                    {"value": "SN001", "label": "SN001"},
-                    {"value": "SN002", "label": "SN002"},
-                    {"value": "SN003", "label": "SN003"},
-                    {"value": "SN004", "label": "SN004"},
-                    {"value": "SN005", "label": "SN005"},
-                    {"value": "SN006", "label": "SN006"},
-                    {"value": "SN007", "label": "SN007"},
-                    {"value": "SN008", "label": "SN008"},
-                    {"value": "SN009", "label": "SN009"},
-                    {"value": "SN010", "label": "SN010"},
-                    {"value": "SN011", "label": "SN011"},
-                    {"value": "SN012", "label": "SN012"},
-                    {"value": "SN013", "label": "SN013"},
-                    {"value": "SN014", "label": "SN014"},
-                    {"value": "SN015", "label": "SN015"},
-                    {"value": "SN016", "label": "SN016"},
-                    {"value": "SN017", "label": "SN017"},
-                    {"value": "SN018", "label": "SN018"},
-                    {"value": "SN019", "label": "SN019"},
-                    {"value": "SN020", "label": "SN020"},
-                    {"value": "SN021", "label": "SN021"},
-                    {"value": "SN022", "label": "SN022"},
-                    {"value": "SN023", "label": "SN023"},
-                    {"value": "SN024", "label": "SN024"},
-                    {"value": "SN025", "label": "SN025"},
-                    {"value": "SN026", "label": "SN026"},
-                    {"value": "SN027", "label": "SN027"},
-                    {"value": "SN028", "label": "SN028"},
+                    {"value": f"SN{str(i).zfill(3)}", "label": f"SN{str(i).zfill(3)}"}
+                    for i in range(1, 29)
                 ],
                 "taxRates": [
                     {"value": "0", "label": "0%"},
@@ -518,16 +455,12 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             }
         )
 
-    # Batch import endpoint for user-specific products
-    # Batch import endpoint for user-specific products
-
+    # ---------------- Batch Import Products ----------------
     @app.route("/api/products/batch-import", methods=["POST"])
     def batch_import_products():
         client_id = session.get("client_id")
         if not client_id:
             return jsonify({"error": "No client ID in session"}), 401
-
-        # Get username for the client
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute(
@@ -536,64 +469,65 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             FROM users u
             JOIN clients c ON u.id = c.user_id
             WHERE c.id = %s
-        """,
+            """,
             (client_id,),
         )
+        row = cur.fetchone()
+        username = row[0] if row else None
 
-        user_row = cur.fetchone()
-        username = user_row[0] if user_row else None
-
-        data = request.get_json()
+        data = request.get_json() or {}
         product_list = data.get("products", [])
-
         if not product_list:
             return jsonify({"error": "No products provided for import"}), 400
 
         results = {"imported": 0, "skipped": 0}
-
-        # Set SRO values based on username
         sro_schedule_no = "EIGHTH SCHEDULE Table 1" if username == "3075270" else ""
         sro_item_serial_no = "81" if username == "3075270" else ""
 
-        for product_name in product_list:
-            # Check if product already exists
+        for name in product_list:
             cur.execute(
                 """
-                SELECT id FROM products 
-                WHERE client_id = %s AND description = %s
-            """,
-                (client_id, product_name),
+                SELECT id, is_active FROM products
+                WHERE client_id = %s AND LOWER(description) = LOWER(%s)
+                """,
+                (client_id, name),
             )
-
-            if cur.fetchone():
-                results["skipped"] += 1
+            existing = cur.fetchone()
+            if existing:
+                # Reactivate if soft-deleted
+                if existing[1] is False:
+                    cur.execute(
+                        "UPDATE products SET is_active = TRUE WHERE id = %s",
+                        (existing[0],),
+                    )
+                    results["imported"] += 1
+                else:
+                    results["skipped"] += 1
                 continue
 
-            # Insert new product with appropriate SRO values
             cur.execute(
                 """
-                INSERT INTO products 
-                (client_id, description, hs_code, uom, default_tax_rate, sale_type, sro_schedule_no, sro_item_serial_no) 
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-            """,
+                INSERT INTO products
+                  (client_id, description, hs_code, uom, default_tax_rate,
+                   sale_type, sro_schedule_no, sro_item_serial_no, is_active)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s, TRUE)
+                """,
                 (
                     client_id,
-                    product_name,
-                    "",  # hs_code
-                    "Numbers, pieces, units",  # uom
-                    1,  # default_tax_rate (1% instead of 17%)
-                    "Goods at Reduced Rate",  # sale_type
+                    name,
+                    "",
+                    "Numbers, pieces, units",
+                    1,
+                    "Goods at Reduced Rate",
                     sro_schedule_no,
                     sro_item_serial_no,
                 ),
             )
-
             results["imported"] += 1
 
         conn.commit()
         cur.close()
         conn.close()
-
         return jsonify(
             {
                 "message": f'Imported {results["imported"]} products, skipped {results["skipped"]} existing products',
@@ -601,62 +535,33 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             }
         )
 
-    # Invoice Creation API
-    # Invoice Creation API
+    # ---------------- Invoice Creation ----------------
     @app.route("/api/invoice/create", methods=["POST"])
     def create_invoice_from_form():
         client_id = session.get("client_id")
         env = get_env()
-
         if not client_id:
             return jsonify({"error": "No client ID in session"}), 401
+        data = request.get_json() or {}
 
-        data = request.get_json()
+        required_fields = ["invoiceType", "invoiceDate", "sellerData", "buyerData", "items"]
+        for f in required_fields:
+            if f not in data:
+                return jsonify({"error": f"Missing required field: {f}"}), 400
 
-        # Validate core invoice data
-        required_fields = [
-            "invoiceType",
-            "invoiceDate",
-            "sellerData",
-            "buyerData",
-            "items",
-        ]
-        for field in required_fields:
-            if field not in data:
-                return jsonify({"error": f"Missing required field: {field}"}), 400
-
-        # Validate seller data
         seller = data["sellerData"]
-        seller_required_fields = [
-            "sellerBusinessName",
-            "sellerAddress",
-            "sellerProvince",
-            "sellerNTNCNIC",
-        ]
-        for field in seller_required_fields:
-            if field not in seller:
-                return (
-                    jsonify({"error": f"Missing required seller field: {field}"}),
-                    400,
-                )
+        for f in ["sellerBusinessName", "sellerAddress", "sellerProvince", "sellerNTNCNIC"]:
+            if f not in seller:
+                return jsonify({"error": f"Missing required seller field: {f}"}), 400
 
-        # Validate buyer data
         buyer = data["buyerData"]
-        buyer_required_fields = [
-            "buyerBusinessName",
-            "buyerAddress",
-            "buyerProvince",
-            "buyerNTNCNIC",
-        ]
-        for field in buyer_required_fields:
-            if field not in buyer:
-                return jsonify({"error": f"Missing required buyer field: {field}"}), 400
+        for f in ["buyerBusinessName", "buyerAddress", "buyerProvince", "buyerNTNCNIC"]:
+            if f not in buyer:
+                return jsonify({"error": f"Missing required buyer field: {f}"}), 400
 
-        # Validate items
-        if not data["items"] or len(data["items"]) == 0:
+        if not data["items"]:
             return jsonify({"error": "At least one item is required"}), 400
 
-        # Get username for the client for special field handling
         conn = get_db_connection()
         cur = conn.cursor()
         cur.execute(
@@ -665,16 +570,14 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             FROM users u
             JOIN clients c ON u.id = c.user_id
             WHERE c.id = %s
-        """,
+            """,
             (client_id,),
         )
-
-        user_row = cur.fetchone()
-        username = user_row[0] if user_row else None
+        row = cur.fetchone()
+        username = row[0] if row else None
         cur.close()
         conn.close()
 
-        # Construct invoice JSON
         invoice_json = {
             "invoiceType": data["invoiceType"],
             "invoiceDate": data["invoiceDate"],
@@ -687,43 +590,31 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             "buyerProvince": buyer["buyerProvince"],
             "buyerAddress": buyer["buyerAddress"],
             "buyerRegistrationType": buyer.get("buyerRegistrationType", "Unregistered"),
-            "buyerSTRN": buyer.get("buyerSTRN", ""),  # Make sure buyer STRN is included
+            "buyerSTRN": buyer.get("buyerSTRN", ""),
         }
 
-        # For client 8974121 (Computer Gold), include the delivery challan number as CNIC
         if username == "8974121" and data.get("CNIC"):
             invoice_json["CNIC"] = data["CNIC"]
-
-        # Add optional fields
-        if "invoiceRefNo" in data:
+        if data.get("invoiceRefNo"):
             invoice_json["invoiceRefNo"] = data["invoiceRefNo"]
-
-        # Add PO number to invoice_json if it exists
-        if "poNumber" in data and data["poNumber"]:
+        if data.get("poNumber"):
             invoice_json["PO"] = data["poNumber"]
+            invoice_json["poNumber"] = data["poNumber"]
+        if env == "sandbox" and data.get("scenarioId"):
+            invoice_json["scenarioId"] = data.get("scenarioId")
 
-        # Add scenario ID only to sandbox environment
-        if env == "sandbox" and "scenarioId" in data:
-            invoice_json["scenarioId"] = data["scenarioId"]
-
-        # Rest of the code...
-
-        # Add items with proper format required by FBR
+        # Items
         items_list = []
         for item_data in data["items"]:
             try:
-                # Make sure valueSalesExcludingST and salesTaxApplicable are numbers
                 value_excl = round(float(item_data["valueSalesExcludingST"]), 2)
                 sales_tax = round(float(item_data["salesTaxApplicable"]), 2)
-
-                # Calculate totalValues if not provided
                 total_values = item_data.get("totalValues")
-                if total_values is None:
-                    total_values = value_excl + sales_tax
-                else:
-                    total_values = round(float(total_values), 2)
-
-                # Required item fields
+                total_values = (
+                    value_excl + sales_tax
+                    if total_values is None
+                    else round(float(total_values), 2)
+                )
                 item = {
                     "hsCode": item_data.get("hsCode", ""),
                     "productDescription": item_data["productDescription"],
@@ -732,17 +623,10 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                     "totalValues": total_values,
                     "valueSalesExcludingST": value_excl,
                     "salesTaxApplicable": sales_tax,
+                    "rate": item_data.get("taxRate", "0%"),
                 }
-
-                # Make sure to use taxRate as the rate (with percentage symbol)
-                if "taxRate" in item_data:
-                    item["rate"] = item_data["taxRate"]
-                else:
-                    # Default to 0%
-                    item["rate"] = "0%"
-
-                # Add all required FBR fields with defaults if not provided
-                item_fields = {
+                # Defaults
+                defaults = {
                     "fixedNotifiedValueOrRetailPrice": 0,
                     "salesTaxWithheldAtSource": 0,
                     "extraTax": "",
@@ -751,49 +635,49 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                     "fedPayable": 0,
                     "discount": 0,
                     "saleType": "Goods at Reduced Rate",
-                    "sroItemSerialNo": "S1",
+                    "sroItemSerialNo": "",
                 }
-
-                # Override defaults with any provided values
-                for field, default in item_fields.items():
-                    if field in item_data and item_data[field] is not None:
-                        if field in [
+                for f, default in defaults.items():
+                    if f in item_data and item_data[f] is not None:
+                        if f in [
                             "fixedNotifiedValueOrRetailPrice",
                             "salesTaxWithheldAtSource",
                             "furtherTax",
                             "fedPayable",
                             "discount",
                         ]:
-                            item[field] = float(item_data[field])
+                            item[f] = float(item_data[f])
                         else:
-                            item[field] = str(item_data[field])
+                            item[f] = str(item_data[f])
                     else:
-                        item[field] = default
-
+                        item[f] = default
                 items_list.append(item)
 
-                # Automatically save new products when they are used
-                # This helps build the product catalog over time
+                # Persist product if new (reactivate if soft deleted)
                 conn = get_db_connection()
                 cur = conn.cursor()
-
-                # Check if product already exists
                 cur.execute(
                     """
-                    SELECT id FROM products 
-                    WHERE client_id = %s AND description = %s
-                """,
+                    SELECT id, is_active FROM products
+                    WHERE client_id = %s AND LOWER(description) = LOWER(%s)
+                    """,
                     (client_id, item_data["productDescription"]),
                 )
-
-                if not cur.fetchone():
-                    # Insert new product
+                existing = cur.fetchone()
+                if existing:
+                    if existing[1] is False:
+                        cur.execute(
+                            "UPDATE products SET is_active = TRUE WHERE id = %s",
+                            (existing[0],),
+                        )
+                        conn.commit()
+                else:
                     cur.execute(
                         """
-                        INSERT INTO products 
-                        (client_id, description, hs_code, uom, default_tax_rate, sale_type) 
-                        VALUES (%s, %s, %s, %s, %s, %s)
-                    """,
+                        INSERT INTO products
+                          (client_id, description, hs_code, uom, default_tax_rate, sale_type, is_active)
+                        VALUES (%s,%s,%s,%s,%s,%s, TRUE)
+                        """,
                         (
                             client_id,
                             item_data["productDescription"],
@@ -804,74 +688,55 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                         ),
                     )
                     conn.commit()
-
                 cur.close()
                 conn.close()
-
             except Exception as e:
                 return jsonify({"error": f"Error processing item: {str(e)}"}), 400
 
         invoice_json["items"] = items_list
-
-        # Add client_id for data isolation
         invoice_json["client_id"] = client_id
 
-        # Directly store the JSON in app's global space to avoid import problems
-        import app
-
+        # Store into global cache (used by PDF generator)
+        import app  # local import to avoid circular import at module load time
         app.last_json_data[env] = invoice_json
 
-        # Store as draft if requested
-        if data.get("saveDraft", False):
+        # Draft save
+        if data.get("saveDraft"):
             conn = get_db_connection()
             cur = conn.cursor()
-
-            # Get draft title from request or use a default
             draft_title = data.get("title", "")
-
-            # Track the original environment where draft was created
             original_env = data.get("original_env", env)
-
-            # Prepare complete invoice data for storage
-            # This will include all form data needed to reconstruct the entire form
             complete_invoice_data = {
-                # FBR submission data
                 "invoiceType": data["invoiceType"],
                 "invoiceDate": data["invoiceDate"],
                 "invoiceRefNo": data.get("invoiceRefNo", ""),
                 "scenarioId": data.get("scenarioId", ""),
                 "poNumber": data.get("poNumber", ""),
                 "PO": data.get("poNumber", ""),
-                # Form data structures
                 "sellerData": seller,
                 "buyerData": buyer,
                 "items": data["items"],
-                # Additional metadata
                 "client_id": client_id,
                 "created_env": env,
-                "totalAmount": sum(item["totalValues"] for item in items_list),
+                "totalAmount": sum(i["totalValues"] for i in items_list),
             }
 
-            # Check if updating an existing draft or creating a new one
-            if "draft_id" in data and data["draft_id"]:
-                # Update existing draft - verify ownership first
+            if data.get("draft_id"):
                 cur.execute(
                     """
-                    SELECT id FROM invoice_drafts 
+                    SELECT id FROM invoice_drafts
                     WHERE id = %s AND client_id = %s
                     """,
                     (data["draft_id"], client_id),
                 )
-
                 if cur.fetchone():
-                    # Update draft
                     cur.execute(
                         """
                         UPDATE invoice_drafts
-                        SET invoice_data = %s, 
-                            seller_profile_id = %s, 
-                            buyer_id = %s, 
-                            status = 'draft', 
+                        SET invoice_data = %s,
+                            seller_profile_id = %s,
+                            buyer_id = %s,
+                            status = 'draft',
                             updated_at = NOW(),
                             title = %s,
                             last_accessed = NOW(),
@@ -893,15 +758,16 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                     )
                     draft_id = cur.fetchone()[0]
                 else:
+                    cur.close()
+                    conn.close()
                     return jsonify({"error": "Draft not found or access denied"}), 404
             else:
-                # Insert new draft
                 cur.execute(
                     """
                     INSERT INTO invoice_drafts
-                    (client_id, env, original_env, seller_profile_id, buyer_id, 
-                    invoice_data, status, title, last_accessed)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, NOW())
+                      (client_id, env, original_env, seller_profile_id, buyer_id,
+                       invoice_data, status, title, last_accessed)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s, NOW())
                     RETURNING id
                     """,
                     (
@@ -920,7 +786,6 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             conn.commit()
             cur.close()
             conn.close()
-
             return jsonify(
                 {
                     "message": "Invoice saved as draft",
@@ -930,15 +795,9 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                 }
             )
 
-        # If submit is requested, call submit_fbr directly rather than importing
-        if data.get("submit", False):
-            # Use Flask's current_app to avoid circular imports
-            from flask import current_app
-
-            # Call the submit_fbr function but pass along our json data
-            # This works around the circular import issue
-            from app import submit_fbr
-
+        # Submit directly
+        if data.get("submit"):
+            from app import submit_fbr  # local import
             return submit_fbr()
 
         return jsonify(

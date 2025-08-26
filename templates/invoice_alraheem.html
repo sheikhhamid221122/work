@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Sales Tax Invoice</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 13px;
+            margin: 0;
+        }
+        .container{
+            width:100%;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+        }
+        th, td {
+            border: 1px solid #333;
+            padding: 6px;
+            text-align: center;
+        }
+        .no-border td {
+            border: none;
+            padding: 4px 6px;
+        }
+        .section-header {
+            background-color: #a7c7e7;
+            font-weight: bold;
+            text-align: center;
+            padding: 8px;
+            border: 1px solid #333;
+        }
+        .bold { font-weight: bold; }
+        .right { text-align: right; }
+        .left { text-align: left; }
+        .center { text-align: center; }
+        .info-table td {
+            padding: 4px;
+            vertical-align: top;
+        }
+        .summary-table td {
+            border: none;
+            text-align: right;
+            padding: 4px;
+        }
+        .footer-note {
+            font-weight: bold;
+            margin-top: 2px;
+            text-align: left;
+        }
+
+        /* New Professional Invoice Header */
+        .invoice-header {
+            font-family: Arial, sans-serif;
+            border: 1px solid #1f2937;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 15px;
+            margin-bottom: 10px;
+        }
+        .invoice-header__title {
+            background: #cfe2f3;
+            padding: 10px 16px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 16px;
+            letter-spacing: .5px;
+            border-bottom: 1px solid #1f2937;
+        }
+        .invoice-header__body {
+            display: flex;
+            flex-wrap: wrap;
+        }
+        .invoice-header__col {
+            flex: 1 1 50%;
+            min-width: 280px;
+            padding: 14px 18px 16px;
+        }
+        .invoice-header__col--divider {
+            border-right: 1px solid #d1d5db;
+        }
+        .invoice-section-label {
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: .5px;
+            color: #374151;
+            margin: 0 0 6px;
+            text-transform: uppercase;
+        }
+        .buyer-block p {
+            margin: 0 0 4px;
+            line-height: 1.28;
+            font-size: 12.5px;
+            color: #111827;
+        }
+        .buyer-block p:last-child { margin-bottom: 0; }
+        .meta-grid {
+            display: grid;
+            grid-template-columns: 110px 1fr;
+            column-gap: 14px;
+            row-gap: 6px;
+            font-size: 12.5px;
+        }
+        .meta-grid dt {
+            text-align: right;
+            font-weight: 600;
+            color: #4b5563;
+            white-space: nowrap;
+        }
+        .meta-grid dd {
+            margin: 0;
+            font-weight: 500;
+            color: #111827;
+            overflow-wrap: anywhere;
+        }
+        @media print {
+            .invoice-header { border-color: #000; }
+            .invoice-header__title { background: #e2e8f0 !important; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <!-- Header with Logo and Seller Info -->
+    <table class="no-border" style="width: 100%; margin-bottom: 2px;">
+        <tr>
+            <!-- Logo -->
+            <td style="width: 50%; vertical-align: middle; text-align: left;">
+                {% if client_logo_url %}
+                    <img src="{{ client_logo_url }}" alt="Client Logo" style="width: 160px; height: auto;">
+                {% endif %}
+            </td>
+
+            <!-- Seller Info -->
+            <td style="width: 50%; vertical-align: middle; text-align: right;">
+                <div style="line-height: 1.6; display: inline-block; text-align: left;">
+                    <p style="margin: 0;"><strong>{{ data.sellerAddress }}</strong></p>
+                    <p style="margin: 0;"><strong>NTN:</strong><span style="margin-left: 12px;">{{ data.sellerNTNCNIC }}</span></p>
+                    <p style="margin: 0;"><strong>STRN:</strong> {{ data.sellerSTRN }}</p>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- New Professional Invoice Header -->
+    <div class="invoice-header">
+        <div class="invoice-header__title">SALES TAX INVOICE</div>
+        <div class="invoice-header__body">
+            <!-- Buyer Column -->
+            <div class="invoice-header__col invoice-header__col--divider">
+                <div class="invoice-section-label">Buyer</div>
+                <div class="buyer-block">
+                    <p><strong>{{ data.buyerBusinessName }}</strong></p>
+                    {% if data.buyerAddress %}<p>{{ data.buyerAddress }}</p>{% endif %}
+                    {% if data.buyerNTNCNIC %}<p>NTN / CNIC: {{ data.buyerNTNCNIC }}</p>{% endif %}
+                    {% if data.buyerSTRN %}<p>STRN: {{ data.buyerSTRN }}</p>{% endif %}
+                </div>
+            </div>
+            <!-- Invoice Meta Column -->
+            <div class="invoice-header__col">
+                <div class="invoice-section-label">Invoice Details</div>
+                <dl class="meta-grid">
+                    <dt>Date</dt><dd>{{ data.invoiceDate | datetimeformat }}</dd>
+                    <dt>Invoice #</dt><dd>{{ data.invoiceRefNo }}</dd>
+                    {% if data.fbrInvoiceNumber %}<dt>FBR Inv #</dt><dd>{{ data.fbrInvoiceNumber }}</dd>{% endif %}
+                    {% if data.PO %}<dt>P.O # / Date</dt><dd>{{ data.PO }}</dd>{% endif %}
+                </dl>
+            </div>
+        </div>
+    </div>
+    <!-- End New Header -->
+
+    <!-- Detail Section -->
+    <div class="section-header" style="margin-top: 15px;">DETAILS</div>
+
+    <!-- Products Table -->
+    <table style="margin-bottom: 0; border-bottom: none; width: 100%; border-collapse: collapse;">
+        <thead>
+            <tr>
+                <th style="width: 5%;">Sr. No.</th>
+                <th style="width: 25%;">Product Detail</th>
+                <th style="width: 10%;">Quantity</th>
+                <th style="width: 10%;">Rate</th>
+                <th style="width: 12%;">Value Exclusive of ST</th>
+                <th style="width: 10%;">Sales Tax Rate</th>
+                <th style="width: 10%;">Sales Tax</th>
+                <th style="width: 18%;">Value Inclusive of Sales Tax</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in data["items"] %}
+            <tr>
+                <td>{{ loop.index }}</td>
+                <td class="left">{{ item.productDescription }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>{{ item.unitrate | comma_format }}</td>
+                <td>{{ item.valueSalesExcludingST | comma_format }}</td>
+                <td>{{ item.rate }}</td>
+                <td>{{ item.salesTaxApplicable | comma_format }}</td>
+                <td>{{ (item.valueSalesExcludingST + item.salesTaxApplicable) | comma_format }}</td>
+            </tr>
+            {% endfor %}
+
+            {# Add empty rows up to 6 (adjust if you need a fixed height) #}
+            {% set total_rows = data["items"]|length %}
+            {% for i in range(total_rows + 1, 6) %}
+            <tr>
+                <td>{{ i }}</td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Summary Section -->
+    <table class="no-border" style="width: 101.7%; margin-top: -3px; border-top: none;">
+        <tr>
+            <!-- Amount in Words -->
+            <td style="width: 58%; border: none; vertical-align: top;">
+                <table style="width: 100%;">
+                    <tr>
+                        <td colspan="2" style="text-align: left;">
+                            <div style="font-weight: bold;">AMOUNT IN WORDS:</div>
+                            <div><i>{{ data.amountInWords }}</i></div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+
+            <!-- Summary Totals -->
+            <td style="width: 42%; border: none; vertical-align: top;">
+                <div style="margin-left: auto; width: 100%; margin-top: 10px;">
+                    <table style="width: 98%;">
+                        <tr>
+                            <td style="width: 56%; text-align: left; font-weight: bold; border: 1px solid #333; padding-left: 6px;">Value Exclusive of Sales Tax</td>
+                            <td style="width: 44%; text-align: center; font-weight: bold; border: 1px solid #333; padding-right: 6px;">Rs. {{ data.totalExcl | comma_format}}</td>
+                        </tr>
+                        <tr>
+                            <td style="text-align: left; font-weight: bold; border: 1px solid #333; height: 30px; padding-left: 6px;">Value of Sales Tax</td>
+                            <td style="text-align: center; font-weight: bold; border: 1px solid #333; height: 30px; padding-right: 6px;">Rs. {{ data.totalTax | comma_format }}</td>
+                        </tr>
+                        <tr>
+                            <td style="text-align: left; font-weight: bold; border: 1px solid #333; padding-left: 6px;">Value Inclusive of Sales Tax</td>
+                            <td style="text-align: center; font-weight: bold; border: 1px solid #333; padding-right: 6px;">Rs. {{ data.totalInclusive | comma_format }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Footer -->
+    <table class="no-border" style="width: 101%; margin-top: 20px;">
+        <tr>
+            <!-- Authorized Signatory -->
+            <td style="width: 40%; vertical-align: bottom; text-align: left; border: none;">
+                <div class="footer-note">
+                    <hr style="width: 200px; margin-left: 0; border-top: 1px solid #000;">
+                    <p style="margin-top: -5px;">AUTHORISED SIGNATORY</p>
+                </div>
+            </td>
+            <!-- Space -->
+            <td style="width: 20%; border: none;"></td>
+            <!-- FBR Logo -->
+            <td style="width: 20%; text-align: right; vertical-align: middle; border: none;">
+                {% if fbr_logo_url %}
+                    <img src="{{ fbr_logo_url }}" style="width: 100px; height: auto; vertical-align: middle;" alt="FBR Logo">
+                {% endif %}
+            </td>
+            <!-- QR Code -->
+            <td style="width: 20%; text-align: right; vertical-align: middle; border: none;">
+                {% if qr_base64 %}
+                    <img src="data:image/png;base64,{{ qr_base64 }}" style="width: 100px; height: 100px; vertical-align: middle;" alt="QR Code">
+                {% endif %}
+            </td>
+        </tr>
+    </table>
+
+</div>
+</body>
+</html>
