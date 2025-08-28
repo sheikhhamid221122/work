@@ -234,7 +234,7 @@
                     <!-- Environment Badge - Increased Size -->
                     <div class="px-4 py-4 text-center">
                         <span
-                            class="bg-primary-400 text-white text-sm font-bold px-4 py-2 rounded-full shadow-md inline-flex items-center">
+                            class="env-badge bg-primary-400 text-white text-sm font-bold px-4 py-2 rounded-full shadow-md inline-flex items-center">
                             <i class="fas fa-cube mr-2 text-base"></i>{{ session['env'] }}
                         </span>
                     </div>
@@ -3862,6 +3862,17 @@
                 navLinks.appendChild(draftInvoicesLink);
             }
         });
+        document.addEventListener('DOMContentLoaded', function () {
+            const envBadges = document.querySelectorAll('.env-badge');
+            const currentEnv = "{{ session['env'] }}";
+
+            envBadges.forEach(badge => {
+                if (currentEnv === 'production') {
+                    badge.classList.remove('bg-primary-400');
+                    badge.classList.add('bg-red-600');
+                }
+            });
+        });
     </script>
     <!-- Save Draft Modal -->
     <div id="save-draft-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
@@ -3894,6 +3905,7 @@
             </div>
         </div>
     </div>
+
 </body>
 
 </html>
