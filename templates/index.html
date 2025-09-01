@@ -12,14 +12,84 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
 
   <style>
+    body {
+      background-image: url('/static/images/44420737_9019796.jpg');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+      padding: 0;
+    }
+
     .input-focus:focus {
-      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
     }
 
     .login-container {
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15),
-        0 10px 10px -5px rgba(0, 0, 0, 0.08);
-      background-color: #f8fafc;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4),
+        0 10px 10px -5px rgba(0, 0, 0, 0.3);
+      background-color: rgba(15, 23, 42, 0.65); /* Dark blue with transparency */
+      backdrop-filter: blur(8px);
+      border-radius: 1rem;
+      width: 100%;
+      max-width: 24rem;
+      overflow: hidden;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+
+    /* Glowing effect on the container */
+    .login-container::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      border-radius: 1rem;
+      padding: 2px;
+      background: linear-gradient(45deg, rgba(59, 130, 246, 0.5), rgba(147, 51, 234, 0.5));
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
+    }
+
+    /* Change form label and text colors to match the dark theme */
+    .form-label {
+      color: rgba(219, 234, 254, 0.9); /* Light blue text */
+    }
+
+    .form-input {
+      background-color: rgba(30, 41, 59, 0.7);
+      border-color: rgba(71, 85, 105, 0.5);
+      color: white;
+    }
+
+    .form-input::placeholder {
+      color: rgba(148, 163, 184, 0.7);
+    }
+
+    /* Custom select styling */
+    .custom-select {
+      background-color: rgba(30, 41, 59, 0.7);
+      border-color: rgba(71, 85, 105, 0.5);
+      color: white;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2393c5fd' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+      background-position: right 0.75rem center;
+      background-repeat: no-repeat;
+      background-size: 1.25em;
+    }
+
+    .custom-select option {
+      background-color: #1e293b;
+      color: white;
+      padding: 10px;
     }
 
     .logo-container {
@@ -42,10 +112,10 @@
   </style>
 </head>
 
-<body class="bg-gray-300 min-h-screen flex items-center justify-center p-4">
-  <div class="login-container rounded-xl overflow-hidden w-full max-w-md shadow-lg">
+<body class="p-4">
+  <div class="login-container rounded-xl overflow-hidden w-full max-w-md shadow-lg relative">
     <!-- Header with Logo -->
-    <div class="bg-indigo-700 text-white p-3 text-center">
+    <div class="bg-gradient-to-r from-blue-700 to-indigo-800 text-white p-4 text-center">
       <div class="logo-container inline-block mb-2">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24"
           stroke="currentColor">
@@ -54,59 +124,62 @@
         </svg>
       </div>
       <h1 class="text-xl font-bold">TaxLink Pro</h1>
-      <p class="text-indigo-200 text-sm mt-1">Invoice Submission ERP</p>
+      <p class="text-blue-200 text-sm mt-1">Invoice Submission ERP</p>
     </div>
 
     {% if error %}
-  <div class="text-red-500 text-sm font-medium mb-4 text-center">{{ error }}</div>
+    <div class="text-red-400 text-sm font-medium mb-4 text-center mt-4">{{ error }}</div>
     {% endif %}
 
     <!-- Login Form -->
-    <div class="p-4">
+    <div class="p-6">
       <form method="POST" action="/login" class="space-y-6" onsubmit="showSpinner()">
-        <!-- Username Field (Locked) -->
+        <!-- Username Field -->
         <div>
-          <label for="username" class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+          <label for="username" class="block text-sm font-medium form-label mb-1">Username</label>
           <div class="relative">
             <input type="text" name="username" id="username" required
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg input-focus focus:outline-none focus:border-indigo-500"
-            placeholder="Enter your username">
+              class="form-input w-full px-4 py-2 border rounded-lg input-focus focus:outline-none focus:border-blue-500"
+              placeholder="Enter your username">
 
             <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-              <i class="fas fa-lock text-gray-500"></i>
+              <i class="fas fa-lock text-blue-300"></i>
             </div>
           </div>
         </div>
 
         <!-- Password Field -->
         <div>
-          <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+          <label for="password" class="block text-sm font-medium form-label mb-1">Password</label>
           <div class="relative">
-            <input type="password" id="password" name="password" autocomplete="new-password" required placeholder="Enter your password"
-              class="w-full px-4 py-2 border border-gray-300 rounded-lg input-focus focus:outline-none focus:border-indigo-500">
+            <input type="password" id="password" name="password" autocomplete="new-password" required
+              placeholder="Enter your password"
+              class="form-input w-full px-4 py-2 border rounded-lg input-focus focus:outline-none focus:border-blue-500">
             <div class="absolute inset-y-0 right-0 pr-3 flex items-center">
-              <button type="button" class="text-gray-500 hover:text-gray-700 focus:outline-none" id="togglePassword">
+              <button type="button" class="text-blue-300 hover:text-blue-100 focus:outline-none" id="togglePassword">
                 <i class="fas fa-eye" id="eyeIcon"></i>
               </button>
             </div>
           </div>
         </div>
 
-        <!-- Environment Selection -->
+        <!-- Environment Selection - Updated with better styling -->
         <div>
-          <label for="environment" class="block text-sm font-medium text-gray-700 mb-1">Environment</label>
-          <select id="environment" name="environment" required
-            class="w-full px-4 py-2 border border-gray-300 rounded-lg input-focus focus:outline-none focus:border-indigo-500">
-            <option value="" disabled selected>Select environment</option>
-            <option value="sandbox">Sandbox</option>
-            <option value="production">Production</option>
-          </select>
+          <label for="environment" class="block text-sm font-medium form-label mb-1">Environment</label>
+          <div class="relative">
+            <select id="environment" name="environment" required
+              class="custom-select w-full px-4 py-2 border rounded-lg input-focus focus:outline-none focus:border-blue-500">
+              <option value="" disabled selected>Select environment</option>
+              <option value="sandbox">Sandbox</option>
+              <option value="production">Production</option>
+            </select>
+          </div>
         </div>
 
         <!-- Login Button -->
-        <div>
+        <div class="pt-2">
           <button type="submit"
-            class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition duration-150 ease-in-out">
+            class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out">
             <span id="loginText">Login</span>
             <span id="loginSpinner" class="hidden ml-2">
               <i class="fas fa-spinner fa-spin"></i>
@@ -136,9 +209,9 @@
     });
 
     function showSpinner() {
-    document.getElementById('loginText').textContent = 'Authenticating...';
-    document.getElementById('loginSpinner').classList.remove('hidden');
-  }
+      document.getElementById('loginText').textContent = 'Authenticating...';
+      document.getElementById('loginSpinner').classList.remove('hidden');
+    }
   </script>
 </body>
 

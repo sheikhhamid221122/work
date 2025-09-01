@@ -784,6 +784,11 @@ def submit_fbr():
     # Use a separate variable and clear global variable to save memory
     json_data = last_json_data[env].copy()
 
+    if "sellerAddress" in json_data:
+        json_data["sellerAddress"] = json_data["sellerAddress"].strip().replace("\n", " ")
+    if "buyerAddress" in json_data:
+        json_data["buyerAddress"] = json_data["buyerAddress"].strip().replace("\n", " ")
+        
     try:
         client_id = session.get("client_id")
         if not client_id:

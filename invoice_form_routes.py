@@ -577,6 +577,9 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         username = row[0] if row else None
         cur.close()
         conn.close()
+        
+        seller_address = seller["sellerAddress"].strip().replace("\n", " ")
+        buyer_address = buyer["buyerAddress"].strip().replace("\n", " ")
 
         invoice_json = {
             "invoiceType": data["invoiceType"],
@@ -584,11 +587,11 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             "sellerNTNCNIC": seller["sellerNTNCNIC"],
             "sellerBusinessName": seller["sellerBusinessName"],
             "sellerProvince": seller["sellerProvince"],
-            "sellerAddress": seller["sellerAddress"],
+            "sellerAddress": seller_address,
             "buyerNTNCNIC": buyer["buyerNTNCNIC"],
             "buyerBusinessName": buyer["buyerBusinessName"],
             "buyerProvince": buyer["buyerProvince"],
-            "buyerAddress": buyer["buyerAddress"],
+            "buyerAddress": buyer_address,
             "buyerRegistrationType": buyer.get("buyerRegistrationType", "Unregistered"),
             "buyerSTRN": buyer.get("buyerSTRN", ""),
         }
