@@ -1,0 +1,2900 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>Reports & Analytics - TaxLink Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            200: '#bae6fd',
+                            300: '#7dd3fc',
+                            400: '#38bdf8',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                            900: '#0c4a6e',
+                        },
+                        secondary: {
+                            50: '#f5f3ff',
+                            100: '#ede9fe',
+                            200: '#ddd6fe',
+                            300: '#c4b5fd',
+                            400: '#a78bfa',
+                            500: '#8b5cf6',
+                            600: '#7c3aed',
+                            700: '#6d28d9',
+                            800: '#5b21b6',
+                            900: '#4c1d95',
+                        },
+                        accent: {
+                            50: '#f0fdfa',
+                            100: '#ccfbf1',
+                            200: '#99f6e4',
+                            300: '#5eead4',
+                            400: '#2dd4bf',
+                            500: '#14b8a6',
+                            600: '#0d9488',
+                            700: '#0f766e',
+                            800: '#115e59',
+                            900: '#134e4a',
+                        },
+                    },
+                },
+            },
+        };
+    </script>
+    <style>
+        /* Custom CSS for animations and elements not covered by Tailwind */
+        .sidebar-item.active {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left: 4px solid #38bdf8;
+        }
+
+        .sidebar-item:hover:not(.active) {
+            background-color: rgba(255, 255, 255, 0.08);
+            transition: all 0.2s ease;
+        }
+
+        /* Enhanced sidebar styles */
+        .sidebar {
+            background: linear-gradient(to bottom, #075985, #0c4a6e);
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-logo {
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-logo:hover {
+            transform: scale(1.05);
+        }
+
+        /* Tab animations */
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Card hover effects */
+        .stat-card {
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Table styles */
+        .data-table th {
+            position: relative;
+            cursor: pointer;
+        }
+
+        .data-table th:hover {
+            background-color: #f8fafc;
+        }
+
+        .sort-icon {
+            margin-left: 5px;
+            transition: transform 0.2s ease;
+        }
+
+        .sort-asc .sort-icon {
+            transform: rotate(180deg);
+        }
+
+        /* Loading animation */
+        .loading-spinner {
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 3px solid #38bdf8;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Custom date picker styles */
+        input[type="date"] {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.375rem;
+            background-color: #ffffff;
+            color: #374151;
+            font-size: 0.875rem;
+            line-height: 1.25rem;
+            width: 100%;
+        }
+
+        input[type="date"]:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+        }
+
+        /* Notification component */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 50;
+            transition: all 0.3s ease;
+            transform: translateY(-100px);
+            opacity: 0;
+        }
+
+        .notification.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .notification-success {
+            background-color: #10b981;
+            color: white;
+        }
+
+        .notification-error {
+            background-color: #ef4444;
+            color: white;
+        }
+
+        .notification-info {
+            background-color: #3b82f6;
+            color: white;
+        }
+
+        /* Print styles */
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+
+            .print-container {
+                width: 100% !important;
+                max-width: none !important;
+            }
+
+            body {
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            .page-break {
+                page-break-before: always;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 font-sans">
+    <div class="flex h-screen overflow-hidden">
+        <!-- Sidebar -->
+        <div class="hidden md:flex md:flex-shrink-0 no-print">
+            <div class="flex flex-col sidebar" style="width: 200px; min-width: 200px; max-width: 200px">
+                <!-- Logo and User Info Section -->
+                <div class="flex flex-col items-center justify-center pt-5 pb-2">
+                    <!-- Logo -->
+                    <div class="sidebar-logo w-32 mb-4">
+                        <img src="https://clkbskiomtjlqkbbheaj.supabase.co/storage/v1/object/public/taxlinkprologo/ChatGPT_Image_Aug_11__2025__02_40_38_AM-removebg-preview.png"
+                            alt="TaxLink Pro Logo" class="w-full h-auto" />
+                    </div>
+
+                    <!-- Divider -->
+                    <div class="w-full px-6">
+                        <div class="border-b border-blue-400 opacity-50"></div>
+                    </div>
+
+                    <!-- User Info -->
+                    <div class="flex items-center justify-center mt-4 mb-2 px-4">
+                        <div class="flex items-center">
+                            <span class="text-white font-medium">{{ session['name'] }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Navigation Menu -->
+                <div class="flex flex-col flex-grow pt-4 pb-4 overflow-y-auto">
+                    <nav class="flex-1 space-y-2 px-2">
+                        <a href="/dashboard.html"
+                            class="sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
+                            <i class="fas fa-tachometer-alt mr-3"></i>
+                            Dashboard
+                        </a>
+                        <a href="/create-invoice.html"
+                            class="sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
+                            <i class="fas fa-file-invoice mr-3"></i>
+                            Create Invoice
+                        </a>
+                        <a href="/draft-invoices.html"
+                            class="sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
+                            <i class="fas fa-file-alt mr-3"></i>
+                            Draft Invoices
+                        </a>
+                        <a href="/reports.html"
+                            class="sidebar-item active flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
+                            <i class="fas fa-chart-bar mr-3"></i>
+                            Reports & Analytics
+                        </a>
+                    </nav>
+
+                    <!-- Environment Badge - Increased Size -->
+                    <div class="px-4 py-4 text-center">
+                        <span
+                            class="env-badge bg-primary-400 text-white text-sm font-bold px-4 py-2 rounded-full shadow-md inline-flex items-center">
+                            <i class="fas fa-cube mr-2 text-base"></i>{{ session['env'] }}
+                        </span>
+                    </div>
+
+                    <!-- Logout Button - Centered -->
+                    <div class="px-2 mt-auto text-center">
+                        <a href="/logout"
+                            class="sidebar-item flex items-center justify-center px-4 py-3 text-sm font-medium rounded-md text-white">
+                            <i class="fas fa-sign-out-alt mr-3"></i>
+                            Logout
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main content -->
+        <div class="flex flex-col flex-1 overflow-hidden">
+            <!-- Mobile Header -->
+            <div class="md:hidden bg-primary-700 text-white p-4 flex items-center justify-between no-print">
+                <div class="flex items-center">
+                    <img src="https://clkbskiomtjlqkbbheaj.supabase.co/storage/v1/object/public/taxlinkprologo/ChatGPT_Image_Aug_11__2025__02_40_38_AM-removebg-preview.png"
+                        alt="TaxLink Pro Logo" class="h-8 mr-2" />
+                    <span class="font-semibold text-lg">TaxLink Pro</span>
+                </div>
+                <button id="mobile-menu-button" class="focus:outline-none">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Mobile Menu (hidden by default) -->
+            <div id="mobile-menu" class="fixed inset-0 z-40 md:hidden hidden no-print">
+                <div class="absolute inset-0 bg-black opacity-50"></div>
+                <div
+                    class="absolute inset-y-0 left-0 max-w-xs w-full bg-primary-800 text-white shadow-xl flex flex-col">
+                    <div class="flex items-center justify-between p-4 border-b border-primary-700">
+                        <img src="https://clkbskiomtjlqkbbheaj.supabase.co/storage/v1/object/public/taxlinkprologo/ChatGPT_Image_Aug_11__2025__02_40_38_AM-removebg-preview.png"
+                            alt="TaxLink Pro Logo" class="h-8" />
+                        <button id="close-mobile-menu" class="text-white focus:outline-none">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    <div class="p-4 border-b border-primary-700">
+                        <div class="flex items-center">
+                            <div
+                                class="w-8 h-8 bg-blue-300 rounded-full flex items-center justify-center text-primary-800 font-bold mr-2">
+                                {{ session['name'][0] }}
+                            </div>
+                            <span class="text-white font-medium">{{ session['name'] }}</span>
+                        </div>
+                    </div>
+                    <nav class="flex-1 p-4">
+                        <a href="/dashboard.html" class="block py-2 px-4 text-white hover:bg-primary-700 rounded-md">
+                            <i class="fas fa-tachometer-alt mr-3"></i> Dashboard
+                        </a>
+                        <a href="/create-invoice.html"
+                            class="block py-2 px-4 text-white hover:bg-primary-700 rounded-md">
+                            <i class="fas fa-file-invoice mr-3"></i> Create Invoice
+                        </a>
+                        <a href="/draft-invoices.html"
+                            class="block py-2 px-4 text-white hover:bg-primary-700 rounded-md">
+                            <i class="fas fa-file-alt mr-3"></i> Draft Invoices
+                        </a>
+                        <a href="/reports.html" class="block py-2 px-4 text-white bg-primary-700 rounded-md">
+                            <i class="fas fa-chart-bar mr-3"></i> Reports & Analytics
+                        </a>
+                    </nav>
+                    <div class="p-4 border-t border-primary-700">
+                        <span
+                            class="bg-primary-400 text-white text-sm font-bold px-4 py-2 rounded-full shadow-md inline-flex items-center">
+                            <i class="fas fa-cube mr-2 text-base"></i>{{ session['env'] }}
+                        </span>
+                    </div>
+                    <div class="p-4 border-t border-primary-700">
+                        <a href="/logout" class="block py-2 px-4 text-white hover:bg-primary-700 rounded-md">
+                            <i class="fas fa-sign-out-alt mr-3"></i> Logout
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main content area -->
+            <main class="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 bg-gray-50">
+                <div id="reports-content">
+                    <!-- Header -->
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6 no-print">
+                        <h1 class="text-2xl font-bold text-gray-800">
+                            Reports & Analytics
+                        </h1>
+
+                        <!-- Date Filter -->
+                        <div class="mt-4 md:mt-0 flex flex-wrap items-center gap-2">
+                            <select id="date-range-select"
+                                class="px-3 py-2 bg-white border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
+                                <option value="all">All Time</option>
+                                <option value="today">Today</option>
+                                <option value="week">This Week</option>
+                                <option value="month">This Month</option>
+                                <option value="year">This Year</option>
+                                <option value="custom">Custom Range</option>
+                            </select>
+
+                            <div id="custom-date-range" class="hidden flex gap-2 items-center">
+                                <input type="date" id="start-date"
+                                    class="px-3 py-2 border border-gray-300 rounded-md text-sm">
+                                <span>to</span>
+                                <input type="date" id="end-date"
+                                    class="px-3 py-2 border border-gray-300 rounded-md text-sm">
+                                <button id="apply-date-range"
+                                    class="bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-3 rounded-md text-sm">
+                                    Apply
+                                </button>
+                            </div>
+
+                            <button id="print-report"
+                                class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out flex items-center text-sm ml-2">
+                                <i class="fas fa-print mr-2"></i> Print
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tabs Navigation -->
+                    <div class="mb-6 border-b border-gray-200 no-print">
+                        <ul class="flex flex-wrap -mb-px">
+                            <li class="mr-2">
+                                <a href="#"
+                                    class="tab-link inline-block py-2 px-4 font-medium text-center border-b-2 border-transparent hover:text-primary-600 hover:border-primary-300 rounded-t-lg active"
+                                    data-tab="dashboard">
+                                    <i class="fas fa-tachometer-alt mr-2"></i> Dashboard
+                                </a>
+                            </li>
+                            <li class="mr-2">
+                                <a href="#"
+                                    class="tab-link inline-block py-2 px-4 font-medium text-center border-b-2 border-transparent hover:text-primary-600 hover:border-primary-300 rounded-t-lg"
+                                    data-tab="invoices">
+                                    <i class="fas fa-file-invoice mr-2"></i> Invoices
+                                </a>
+                            </li>
+                            <li class="mr-2">
+                                <a href="#"
+                                    class="tab-link inline-block py-2 px-4 font-medium text-center border-b-2 border-transparent hover:text-primary-600 hover:border-primary-300 rounded-t-lg"
+                                    data-tab="products">
+                                    <i class="fas fa-box mr-2"></i> Products
+                                </a>
+                            </li>
+                            <li class="mr-2">
+                                <a href="#"
+                                    class="tab-link inline-block py-2 px-4 font-medium text-center border-b-2 border-transparent hover:text-primary-600 hover:border-primary-300 rounded-t-lg"
+                                    data-tab="buyers">
+                                    <i class="fas fa-users mr-2"></i> Buyers
+                                </a>
+                            </li>
+                            <li>
+                                <a href="#"
+                                    class="tab-link inline-block py-2 px-4 font-medium text-center border-b-2 border-transparent hover:text-primary-600 hover:border-primary-300 rounded-t-lg"
+                                    data-tab="tax">
+                                    <i class="fas fa-percentage mr-2"></i> Tax Analysis
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Loading State -->
+                    <div id="loading-indicator" class="flex flex-col items-center justify-center py-12">
+                        <div class="loading-spinner mb-4"></div>
+                        <p class="text-gray-600">Loading data...</p>
+                    </div>
+
+                    <!-- Dashboard Tab Content -->
+                    <div id="dashboard-tab" class="tab-content active print-container">
+                        <!-- Title for Print -->
+                        <div class="hidden print:block mb-6">
+                            <h1 class="text-3xl font-bold text-center">TaxLink Pro Analytics Dashboard</h1>
+                            <p class="text-center text-gray-600" id="report-date-range">All Time</p>
+                        </div>
+
+                        <!-- Summary Cards -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                            <div class="bg-white p-4 rounded-lg shadow stat-card border-l-4 border-primary-500">
+                                <div class="flex items-center">
+                                    <div class="p-3 rounded-full bg-primary-100 text-primary-600 mr-4">
+                                        <i class="fas fa-file-invoice text-xl"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-gray-500 text-sm">Total Invoices</h3>
+                                        <p class="text-2xl font-semibold" id="total-invoices">0</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="bg-white p-4 rounded-lg shadow stat-card border-l-4 border-green-500">
+                                <div class="flex items-center">
+                                    <div class="p-3 rounded-full bg-green-100 text-green-600 mr-4">
+                                        <i class="fas fa-money-bill-wave text-xl"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-gray-500 text-sm">Total Sales</h3>
+                                        <p class="text-2xl font-semibold" id="total-sales">PKR 0.00</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="bg-white p-4 rounded-lg shadow stat-card border-l-4 border-purple-500">
+                                <div class="flex items-center">
+                                    <div class="p-3 rounded-full bg-purple-100 text-purple-600 mr-4">
+                                        <i class="fas fa-percentage text-xl"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-gray-500 text-sm">Tax Collected</h3>
+                                        <p class="text-2xl font-semibold" id="total-tax">PKR 0.00</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="bg-white p-4 rounded-lg shadow stat-card border-l-4 border-blue-500">
+                                <div class="flex items-center">
+                                    <div class="p-3 rounded-full bg-blue-100 text-blue-600 mr-4">
+                                        <i class="fas fa-users text-xl"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="text-gray-500 text-sm">Unique Buyers</h3>
+                                        <p class="text-2xl font-semibold" id="unique-buyers">0</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Additional Summary Cards -->
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                            <div class="bg-white p-4 rounded-lg shadow stat-card">
+                                <div class="flex flex-col">
+                                    <h3 class="text-gray-500 text-sm mb-1">Revenue (Excl. Tax)</h3>
+                                    <p class="text-xl font-semibold" id="revenue-excl-tax">PKR 0.00</p>
+                                </div>
+                            </div>
+                            <div class="bg-white p-4 rounded-lg shadow stat-card">
+                                <div class="flex flex-col">
+                                    <h3 class="text-gray-500 text-sm mb-1">Average Invoice Value</h3>
+                                    <p class="text-xl font-semibold" id="avg-invoice-value">PKR 0.00</p>
+                                </div>
+                            </div>
+                            <div class="bg-white p-4 rounded-lg shadow stat-card">
+                                <div class="flex flex-col">
+                                    <h3 class="text-gray-500 text-sm mb-1">Unique Products</h3>
+                                    <p class="text-xl font-semibold" id="unique-products">0</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Replaced charts with tables for clarity and professional display -->
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                            <!-- Sales Over Time Table -->
+                            <div class="bg-white p-4 rounded-lg shadow">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="font-medium text-gray-700">Sales Over Time</h3>
+                                    <button class="text-sm text-primary-600 hover:underline" id="open-sales-full">View
+                                        full</button>
+                                </div>
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full divide-y divide-gray-200">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                <th
+                                                    class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                    Period</th>
+                                                <th
+                                                    class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                                    Invoices</th>
+                                                <th
+                                                    class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                                    Sales (PKR)</th>
+                                                <th
+                                                    class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                                    Tax (PKR)</th>
+                                                <th
+                                                    class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                                    Sales Excl. Tax</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="sales-table-body" class="bg-white divide-y divide-gray-200"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Top Products Table -->
+                            <div class="bg-white p-4 rounded-lg shadow">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="font-medium text-gray-700">Top Products by Sales</h3>
+                                    <button class="text-sm text-primary-600 hover:underline"
+                                        id="open-products-full">View full</button>
+                                </div>
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full divide-y divide-gray-200">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                <th
+                                                    class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                    Product</th>
+                                                <th
+                                                    class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                                    Qty</th>
+                                                <th
+                                                    class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                                    Sales (PKR)</th>
+                                                <th
+                                                    class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                                    Tax (PKR)</th>
+                                                <th
+                                                    class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                                    Sales Excl. Tax</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="top-products-body" class="bg-white divide-y divide-gray-200"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                            <!-- Top Buyers Table -->
+                            <div class="bg-white p-4 rounded-lg shadow">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="font-medium text-gray-700">Top Buyers by Purchase</h3>
+                                    <button class="text-sm text-primary-600 hover:underline" id="open-buyers-full">View
+                                        full</button>
+                                </div>
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full divide-y divide-gray-200">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                <th
+                                                    class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                    Buyer</th>
+                                                <th
+                                                    class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                                    Invoices</th>
+                                                <th
+                                                    class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                                    Total Purchase (PKR)</th>
+                                                <th
+                                                    class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                                    Tax (PKR)</th>
+                                                <th
+                                                    class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                                    Avg Purchase</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="top-buyers-body" class="bg-white divide-y divide-gray-200"></tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Tax Breakdown Table -->
+                            <div class="bg-white p-4 rounded-lg shadow">
+                                <div class="flex items-center justify-between mb-4">
+                                    <h3 class="font-medium text-gray-700">Tax Breakdown by Rate</h3>
+                                    <button class="text-sm text-primary-600 hover:underline" id="open-tax-full">View
+                                        full</button>
+                                </div>
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full divide-y divide-gray-200">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                <th
+                                                    class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                                    Tax Rate</th>
+                                                <th
+                                                    class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                                    Tax Amount (PKR)</th>
+                                                <th
+                                                    class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                                    Value Excl. Tax</th>
+                                                <th
+                                                    class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                                    Items</th>
+                                                <th
+                                                    class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
+                                                    Effective Rate</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tax-breakdown-body" class="bg-white divide-y divide-gray-200">
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- No Data Message (initially hidden) -->
+                        <div id="no-data-message" class="hidden bg-white p-8 rounded-lg shadow text-center">
+                            <div
+                                class="mx-auto w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-4">
+                                <i class="fas fa-chart-bar text-gray-500 text-2xl"></i>
+                            </div>
+                            <h3 class="text-lg font-medium text-gray-900 mb-2">No Data Available</h3>
+                            <p class="text-gray-500 mb-6">There are no invoices in the system for the selected date
+                                range. Create some invoices to see reports and analytics.</p>
+                            <a href="/create-invoice.html"
+                                class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700">
+                                <i class="fas fa-plus mr-2"></i> Create New Invoice
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Invoices Tab Content -->
+                    <div id="invoices-tab" class="tab-content">
+                        <!-- Title for Print -->
+                        <div class="hidden print:block mb-6">
+                            <h1 class="text-3xl font-bold text-center">TaxLink Pro Invoice Report</h1>
+                            <p class="text-center text-gray-600" id="invoice-report-date-range">All Time</p>
+                        </div>
+
+                        <!-- Filters for Invoice List -->
+                        <div class="bg-white p-4 rounded-lg shadow mb-6 no-print">
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                    <label for="buyer-filter"
+                                        class="block text-sm font-medium text-gray-700 mb-1">Buyer</label>
+                                    <input type="text" id="buyer-filter" placeholder="Filter by buyer name"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500">
+                                </div>
+                                <div>
+                                    <label for="invoice-ref-filter"
+                                        class="block text-sm font-medium text-gray-700 mb-1">Invoice Reference</label>
+                                    <input type="text" id="invoice-ref-filter" placeholder="Filter by invoice number"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500">
+                                </div>
+                                <div>
+                                    <label for="product-filter"
+                                        class="block text-sm font-medium text-gray-700 mb-1">Product</label>
+                                    <input type="text" id="product-filter" placeholder="Filter by product name"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500">
+                                </div>
+                            </div>
+                            <div class="mt-4 flex justify-end">
+                                <button id="apply-invoice-filters"
+                                    class="bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out">
+                                    Apply Filters
+                                </button>
+                                <button id="reset-invoice-filters"
+                                    class="ml-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out">
+                                    Reset
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Invoices Table -->
+                        <div class="bg-white rounded-lg shadow overflow-hidden">
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200 data-table" id="invoices-table">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th scope="col"
+                                                class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                                                data-sort="invoice_ref">
+                                                Invoice # <i class="fas fa-sort ml-1 sort-icon"></i>
+                                            </th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                                                data-sort="invoice_date">
+                                                Date <i class="fas fa-sort ml-1 sort-icon"></i>
+                                            </th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                                                data-sort="buyer_name">
+                                                Buyer <i class="fas fa-sort ml-1 sort-icon"></i>
+                                            </th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                                                data-sort="total_value_excl">
+                                                Value Excl. Tax <i class="fas fa-sort ml-1 sort-icon"></i>
+                                            </th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                                                data-sort="total_tax">
+                                                Tax <i class="fas fa-sort ml-1 sort-icon"></i>
+                                            </th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                                                data-sort="total_amount">
+                                                Total <i class="fas fa-sort ml-1 sort-icon"></i>
+                                            </th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider no-print">
+                                                Actions
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200" id="invoices-table-body">
+                                        <!-- Invoice data will be loaded here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <!-- Pagination -->
+                            <div class="px-4 py-3 bg-gray-50 border-t border-gray-200 sm:px-6 no-print">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex-1 flex justify-between sm:hidden">
+                                        <button id="prev-page-mobile"
+                                            class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                            Previous
+                                        </button>
+                                        <button id="next-page-mobile"
+                                            class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                            Next
+                                        </button>
+                                    </div>
+                                    <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                                        <div>
+                                            <p class="text-sm text-gray-700">
+                                                Showing <span id="page-start">1</span> to <span id="page-end">10</span>
+                                                of <span id="total-items">0</span> results
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
+                                                aria-label="Pagination" id="pagination-container">
+                                                <!-- Pagination will be generated here -->
+                                            </nav>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Invoice Details Modal (hidden by default) -->
+                        <div id="invoice-details-modal"
+                            class="fixed inset-0 z-50 flex items-center justify-center hidden no-print">
+                            <div class="modal-overlay absolute inset-0"></div>
+                            <div class="bg-white rounded-lg shadow-xl z-50 w-full max-w-4xl max-h-screen overflow-auto">
+                                <div class="p-6">
+                                    <div class="flex justify-between items-center mb-4">
+                                        <h3 class="text-lg font-semibold text-gray-900">Invoice Details</h3>
+                                        <button id="close-invoice-details" class="text-gray-400 hover:text-gray-500">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </div>
+                                    <div id="invoice-details-content">
+                                        <!-- Invoice details will be loaded here -->
+                                    </div>
+                                    <div class="mt-6 flex justify-end">
+                                        <button id="close-invoice-details-btn"
+                                            class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                            Close
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- No Invoices Message (initially hidden) -->
+                        <div id="no-invoices-message" class="hidden bg-white p-8 rounded-lg shadow text-center">
+                            <div
+                                class="mx-auto w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-4">
+                                <i class="fas fa-file-invoice text-gray-500 text-2xl"></i>
+                            </div>
+                            <h3 class="text-lg font-medium text-gray-900 mb-2">No Invoices Found</h3>
+                            <p class="text-gray-500 mb-6">There are no invoices matching your search criteria. Try
+                                adjusting your filters or create a new invoice.</p>
+                            <a href="/create-invoice.html"
+                                class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700">
+                                <i class="fas fa-plus mr-2"></i> Create New Invoice
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Products Tab Content -->
+                    <div id="products-tab" class="tab-content">
+                        <!-- Title for Print -->
+                        <div class="hidden print:block mb-6">
+                            <h1 class="text-3xl font-bold text-center">TaxLink Pro Product Analysis</h1>
+                            <p class="text-center text-gray-600" id="product-report-date-range">All Time</p>
+                        </div>
+
+                        <!-- Product Search -->
+                        <div class="bg-white p-4 rounded-lg shadow mb-6 no-print">
+                            <div class="flex flex-col md:flex-row gap-4">
+                                <div class="md:flex-1">
+                                    <label for="product-search"
+                                        class="block text-sm font-medium text-gray-700 mb-1">Search Products</label>
+                                    <input type="text" id="product-search" placeholder="Type to search products"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500">
+                                </div>
+                                <div class="flex items-end">
+                                    <button id="search-products"
+                                        class="bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out">
+                                        Search
+                                    </button>
+                                    <button id="reset-product-search"
+                                        class="ml-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out">
+                                        Reset
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Product Analytics Charts -->
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                            <!-- Product Sales Distribution -->
+                            <div class="bg-white p-4 rounded-lg shadow">
+                                <h3 class="font-medium text-gray-700 mb-4">Product Sales Distribution</h3>
+                                <div class="h-72">
+                                    <canvas id="product-sales-chart"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- Monthly Trend for Top Products -->
+                            <div class="bg-white p-4 rounded-lg shadow">
+                                <h3 class="font-medium text-gray-700 mb-4">Monthly Sales Trend</h3>
+                                <div class="h-72">
+                                    <canvas id="product-trends-chart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Product Data Table -->
+                        <div class="bg-white rounded-lg shadow overflow-hidden mb-6">
+                            <div class="px-4 py-5 sm:px-6">
+                                <h3 class="text-lg leading-6 font-medium text-gray-900">Product Performance</h3>
+                                <p class="mt-1 max-w-2xl text-sm text-gray-500">Detailed performance metrics for all
+                                    products.</p>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Product Name
+                                            </th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Quantity Sold
+                                            </th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Value Excl. Tax
+                                            </th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Tax Amount
+                                            </th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Total Sales
+                                            </th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Months Active
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="products-table-body" class="bg-white divide-y divide-gray-200">
+                                        <!-- Product data will be loaded here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Buyer Distribution for Selected Product -->
+                        <div class="bg-white p-4 rounded-lg shadow mb-6">
+                            <h3 class="font-medium text-gray-700 mb-4">Top Buyers by Product</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+                                id="product-buyer-distribution">
+                                <!-- Buyer distribution cards will be loaded here -->
+                            </div>
+                        </div>
+
+                        <!-- No Products Message (initially hidden) -->
+                        <div id="no-products-message" class="hidden bg-white p-8 rounded-lg shadow text-center">
+                            <div
+                                class="mx-auto w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-4">
+                                <i class="fas fa-box text-gray-500 text-2xl"></i>
+                            </div>
+                            <h3 class="text-lg font-medium text-gray-900 mb-2">No Products Found</h3>
+                            <p class="text-gray-500 mb-6">There are no products in the system for the selected date
+                                range or search criteria.</p>
+                        </div>
+                    </div>
+
+                    <!-- Buyers Tab Content -->
+                    <div id="buyers-tab" class="tab-content">
+                        <!-- Title for Print -->
+                        <div class="hidden print:block mb-6">
+                            <h1 class="text-3xl font-bold text-center">TaxLink Pro Buyer Analysis</h1>
+                            <p class="text-center text-gray-600" id="buyer-report-date-range">All Time</p>
+                        </div>
+
+                        <!-- Buyer Search -->
+                        <div class="bg-white p-4 rounded-lg shadow mb-6 no-print">
+                            <div class="flex flex-col md:flex-row gap-4">
+                                <div class="md:flex-1">
+                                    <label for="buyer-search"
+                                        class="block text-sm font-medium text-gray-700 mb-1">Search Buyers</label>
+                                    <input type="text" id="buyer-search" placeholder="Type to search buyers"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500">
+                                </div>
+                                <div class="flex items-end">
+                                    <button id="search-buyers"
+                                        class="bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out">
+                                        Search
+                                    </button>
+                                    <button id="reset-buyer-search"
+                                        class="ml-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out">
+                                        Reset
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Buyer Analytics Charts -->
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                            <!-- Buyer Purchase Distribution -->
+                            <div class="bg-white p-4 rounded-lg shadow">
+                                <h3 class="font-medium text-gray-700 mb-4">Buyer Purchase Distribution</h3>
+                                <div class="h-72">
+                                    <canvas id="buyer-distribution-chart"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- Monthly Trend for Top Buyers -->
+                            <div class="bg-white p-4 rounded-lg shadow">
+                                <h3 class="font-medium text-gray-700 mb-4">Monthly Purchase Trend</h3>
+                                <div class="h-72">
+                                    <canvas id="buyer-trends-chart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Buyer Data Table -->
+                        <div class="bg-white rounded-lg shadow overflow-hidden mb-6">
+                            <div class="px-4 py-5 sm:px-6">
+                                <h3 class="text-lg leading-6 font-medium text-gray-900">Buyer Performance</h3>
+                                <p class="mt-1 max-w-2xl text-sm text-gray-500">Detailed metrics for all buyers.</p>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Buyer Name
+                                            </th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Invoice Count
+                                            </th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Value Excl. Tax
+                                            </th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Tax Amount
+                                            </th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Total Purchase
+                                            </th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Average Purchase
+                                            </th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Last Purchase
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="buyers-table-body" class="bg-white divide-y divide-gray-200">
+                                        <!-- Buyer data will be loaded here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Product Distribution for Selected Buyer -->
+                        <div class="bg-white p-4 rounded-lg shadow mb-6">
+                            <h3 class="font-medium text-gray-700 mb-4">Top Products by Buyer</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+                                id="buyer-product-distribution">
+                                <!-- Product distribution cards will be loaded here -->
+                            </div>
+                        </div>
+
+                        <!-- No Buyers Message (initially hidden) -->
+                        <div id="no-buyers-message" class="hidden bg-white p-8 rounded-lg shadow text-center">
+                            <div
+                                class="mx-auto w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-4">
+                                <i class="fas fa-users text-gray-500 text-2xl"></i>
+                            </div>
+                            <h3 class="text-lg font-medium text-gray-900 mb-2">No Buyers Found</h3>
+                            <p class="text-gray-500 mb-6">There are no buyers in the system for the selected date range
+                                or search criteria.</p>
+                        </div>
+                    </div>
+
+                    <!-- Tax Analysis Tab Content -->
+                    <div id="tax-tab" class="tab-content">
+                        <!-- Title for Print -->
+                        <div class="hidden print:block mb-6">
+                            <h1 class="text-3xl font-bold text-center">TaxLink Pro Tax Analysis</h1>
+                            <p class="text-center text-gray-600" id="tax-report-date-range">All Time</p>
+                        </div>
+
+                        <!-- Tax Summary Cards -->
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                            <div class="bg-white p-4 rounded-lg shadow stat-card border-l-4 border-purple-500">
+                                <div class="flex flex-col">
+                                    <h3 class="text-gray-500 text-sm mb-1">Total Tax Collected</h3>
+                                    <p class="text-2xl font-semibold" id="tax-collected">PKR 0.00</p>
+                                </div>
+                            </div>
+                            <div class="bg-white p-4 rounded-lg shadow stat-card border-l-4 border-green-500">
+                                <div class="flex flex-col">
+                                    <h3 class="text-gray-500 text-sm mb-1">Average Tax per Invoice</h3>
+                                    <p class="text-2xl font-semibold" id="avg-tax-per-invoice">PKR 0.00</p>
+                                </div>
+                            </div>
+                            <div class="bg-white p-4 rounded-lg shadow stat-card border-l-4 border-blue-500">
+                                <div class="flex flex-col">
+                                    <h3 class="text-gray-500 text-sm mb-1">Effective Tax Rate</h3>
+                                    <p class="text-2xl font-semibold" id="effective-tax-rate">0.00%</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tax Analytics Charts -->
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                            <!-- Tax by Rate Chart -->
+                            <div class="bg-white p-4 rounded-lg shadow">
+                                <h3 class="font-medium text-gray-700 mb-4">Tax Distribution by Rate</h3>
+                                <div class="h-72">
+                                    <canvas id="tax-rate-chart"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- Monthly Tax Trend -->
+                            <div class="bg-white p-4 rounded-lg shadow">
+                                <h3 class="font-medium text-gray-700 mb-4">Monthly Tax Trend</h3>
+                                <div class="h-72">
+                                    <canvas id="tax-trend-chart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tax Breakdown Table -->
+                        <div class="bg-white rounded-lg shadow overflow-hidden mb-6">
+                            <div class="px-4 py-5 sm:px-6">
+                                <h3 class="text-lg leading-6 font-medium text-gray-900">Tax Breakdown by Rate</h3>
+                                <p class="mt-1 max-w-2xl text-sm text-gray-500">Detailed tax collections by tax rate.
+                                </p>
+                            </div>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Tax Rate
+                                            </th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Total Value (Excl. Tax)
+                                            </th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Tax Amount
+                                            </th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Effective Rate
+                                            </th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Item Count
+                                            </th>
+                                            <th scope="col"
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                % of Total Tax
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tax-table-body" class="bg-white divide-y divide-gray-200">
+                                        <!-- Tax data will be loaded here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Tax Contributors -->
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                            <!-- Top Tax Paying Buyers -->
+                            <div class="bg-white p-4 rounded-lg shadow">
+                                <h3 class="font-medium text-gray-700 mb-4">Top Tax Paying Buyers</h3>
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full divide-y divide-gray-200">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                <th scope="col"
+                                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Buyer Name
+                                                </th>
+                                                <th scope="col"
+                                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Tax Amount
+                                                </th>
+                                                <th scope="col"
+                                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    % of Total Tax
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tax-buyers-body" class="bg-white divide-y divide-gray-200">
+                                            <!-- Top tax paying buyers will be loaded here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Top Tax Generating Products -->
+                            <div class="bg-white p-4 rounded-lg shadow">
+                                <h3 class="font-medium text-gray-700 mb-4">Top Tax Generating Products</h3>
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full divide-y divide-gray-200">
+                                        <thead class="bg-gray-50">
+                                            <tr>
+                                                <th scope="col"
+                                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Product Name
+                                                </th>
+                                                <th scope="col"
+                                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    Tax Amount
+                                                </th>
+                                                <th scope="col"
+                                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                    % of Total Tax
+                                                </th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tax-products-body" class="bg-white divide-y divide-gray-200">
+                                            <!-- Top tax generating products will be loaded here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- No Tax Data Message (initially hidden) -->
+                        <div id="no-tax-message" class="hidden bg-white p-8 rounded-lg shadow text-center">
+                            <div
+                                class="mx-auto w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-4">
+                                <i class="fas fa-percentage text-gray-500 text-2xl"></i>
+                            </div>
+                            <h3 class="text-lg font-medium text-gray-900 mb-2">No Tax Data Available</h3>
+                            <p class="text-gray-500 mb-6">There are no tax records in the system for the selected date
+                                range.</p>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notification" class="notification">
+        <div class="flex items-center">
+            <i id="notification-icon" class="mr-3"></i>
+            <div>
+                <h4 id="notification-title" class="font-medium"></h4>
+                <p id="notification-message" class="text-sm opacity-90"></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ENV = "{{ session['env'] }}";
+        function apiUrl(endpoint) {
+            // Fix: Don't add env if it's already in the URL
+            if (endpoint.includes('?')) {
+                return `${endpoint}&env=${ENV}`;
+            } else {
+                return `${endpoint}?env=${ENV}`;
+            }
+        }
+
+        // Notification system
+        function showNotification(type, title, message, duration = 3000) {
+            const notification = document.getElementById("notification");
+            const notificationIcon = document.getElementById("notification-icon");
+            const notificationTitle = document.getElementById("notification-title");
+            const notificationMessage = document.getElementById("notification-message");
+
+            notification.className = "notification";
+            notification.classList.add(`notification-${type}`);
+
+            // Set icon based on type
+            if (type === "success") {
+                notificationIcon.className = "fas fa-check-circle text-xl";
+            } else if (type === "error") {
+                notificationIcon.className = "fas fa-exclamation-circle text-xl";
+            } else {
+                notificationIcon.className = "fas fa-info-circle text-xl";
+            }
+
+            notificationTitle.textContent = title;
+            notificationMessage.textContent = message;
+
+            // Show notification
+            notification.classList.add("show");
+
+            // Hide after duration
+            setTimeout(() => {
+                notification.classList.remove("show");
+            }, duration);
+        }
+
+        // Format currency
+        function formatCurrency(amount) {
+            return `PKR ${parseFloat(amount).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,')}`;
+        }
+
+        // Format percentage
+        function formatPercentage(value) {
+            return `${parseFloat(value).toFixed(2)}%`;
+        }
+
+        // Format date
+        function formatDate(dateString) {
+            if (!dateString) return '';
+            const date = new Date(dateString);
+            return new Intl.DateTimeFormat('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            }).format(date);
+        }
+
+        // Generate random colors for charts
+        function generateColors(count) {
+            const colors = [
+                'rgba(54, 162, 235, 0.7)',
+                'rgba(255, 99, 132, 0.7)',
+                'rgba(75, 192, 192, 0.7)',
+                'rgba(255, 159, 64, 0.7)',
+                'rgba(153, 102, 255, 0.7)',
+                'rgba(255, 205, 86, 0.7)',
+                'rgba(201, 203, 207, 0.7)',
+                'rgba(255, 99, 132, 0.7)',
+                'rgba(54, 162, 235, 0.7)',
+                'rgba(255, 206, 86, 0.7)'
+            ];
+
+            // If we need more colors than in our predefined list, generate random ones
+            if (count > colors.length) {
+                for (let i = colors.length; i < count; i++) {
+                    const r = Math.floor(Math.random() * 255);
+                    const g = Math.floor(Math.random() * 255);
+                    const b = Math.floor(Math.random() * 255);
+                    colors.push(`rgba(${r}, ${g}, ${b}, 0.7)`);
+                }
+            }
+
+            return colors.slice(0, count);
+        }
+
+        // Global state for filtering and pagination
+        const state = {
+            dateRange: {
+                period: 'all',
+                startDate: null,
+                endDate: null
+            },
+            invoices: {
+                page: 1,
+                perPage: 10,
+                sortField: 'created_at',
+                sortOrder: 'desc',
+                filters: {
+                    buyerName: '',
+                    invoiceRef: '',
+                    productName: ''
+                }
+            },
+            products: {
+                search: ''
+            },
+            buyers: {
+                search: ''
+            },
+            charts: {
+                salesChart: null,
+                productsChart: null,
+                buyersChart: null,
+                taxChart: null,
+                productSalesChart: null,
+                productTrendsChart: null,
+                buyerDistributionChart: null,
+                buyerTrendsChart: null,
+                taxRateChart: null,
+                taxTrendChart: null
+            }
+        };
+
+        // Tab Navigation
+        document.addEventListener('DOMContentLoaded', function () {
+            // Show loading state initially
+            document.getElementById('loading-indicator').classList.remove('hidden');
+
+            // Mobile menu toggle
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const closeMobileMenuButton = document.getElementById('close-mobile-menu');
+            const mobileMenu = document.getElementById('mobile-menu');
+
+            if (mobileMenuButton && closeMobileMenuButton && mobileMenu) {
+                mobileMenuButton.addEventListener('click', function () {
+                    mobileMenu.classList.remove('hidden');
+                });
+
+                closeMobileMenuButton.addEventListener('click', function () {
+                    mobileMenu.classList.add('hidden');
+                });
+            }
+
+            // Environment badge color
+            const envBadges = document.querySelectorAll('.env-badge');
+            const currentEnv = "{{ session['env'] }}";
+
+            envBadges.forEach(badge => {
+                if (currentEnv === 'production') {
+                    badge.classList.remove('bg-primary-400');
+                    badge.classList.add('bg-red-600');
+                }
+            });
+
+            // Tab navigation
+            const tabLinks = document.querySelectorAll('.tab-link');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            tabLinks.forEach(link => {
+                link.addEventListener('click', function (e) {
+                    e.preventDefault();
+
+                    // Hide all tab contents
+                    tabContents.forEach(content => {
+                        content.classList.remove('active');
+                    });
+
+                    // Remove active class from all tab links
+                    tabLinks.forEach(link => {
+                        link.classList.remove('active');
+                        link.classList.remove('text-primary-600');
+                        link.classList.remove('border-primary-500');
+                    });
+
+                    // Add active class to clicked tab link
+                    this.classList.add('active');
+                    this.classList.add('text-primary-600');
+                    this.classList.add('border-primary-500');
+
+                    // Show corresponding tab content
+                    const tabId = this.getAttribute('data-tab');
+                    document.getElementById(`${tabId}-tab`).classList.add('active');
+
+                    // Load data for the selected tab if not loaded already
+                    loadTabData(tabId);
+                });
+            });
+
+            // Date range selector
+            const dateRangeSelect = document.getElementById('date-range-select');
+            const customDateRange = document.getElementById('custom-date-range');
+
+            dateRangeSelect.addEventListener('change', function () {
+                const value = this.value;
+                state.dateRange.period = value;
+
+                if (value === 'custom') {
+                    customDateRange.classList.remove('hidden');
+                    // Don't load data yet, wait for the user to click "Apply"
+                } else {
+                    customDateRange.classList.add('hidden');
+
+                    // Reset custom date range
+                    state.dateRange.startDate = null;
+                    state.dateRange.endDate = null;
+
+                    // Load data for all tabs
+                    refreshAllTabs();
+                }
+            });
+
+            // Apply custom date range
+            document.getElementById('apply-date-range').addEventListener('click', function () {
+                const startDate = document.getElementById('start-date').value;
+                const endDate = document.getElementById('end-date').value;
+
+                if (!startDate || !endDate) {
+                    showNotification('error', 'Validation Error', 'Please select both start and end dates');
+                    return;
+                }
+
+                state.dateRange.startDate = startDate;
+                state.dateRange.endDate = endDate;
+
+                // Load data for all tabs
+                refreshAllTabs();
+            });
+
+            // Print report button
+            document.getElementById('print-report').addEventListener('click', function () {
+                window.print();
+            });
+
+            // Initial data load for dashboard tab
+            loadDashboardData();
+
+            // Invoice filters
+            document.getElementById('apply-invoice-filters').addEventListener('click', function () {
+                state.invoices.filters.buyerName = document.getElementById('buyer-filter').value;
+                state.invoices.filters.invoiceRef = document.getElementById('invoice-ref-filter').value;
+                state.invoices.filters.productName = document.getElementById('product-filter').value;
+                state.invoices.page = 1; // Reset to first page
+                loadInvoiceList();
+            });
+
+            document.getElementById('reset-invoice-filters').addEventListener('click', function () {
+                document.getElementById('buyer-filter').value = '';
+                document.getElementById('invoice-ref-filter').value = '';
+                document.getElementById('product-filter').value = '';
+                state.invoices.filters.buyerName = '';
+                state.invoices.filters.invoiceRef = '';
+                state.invoices.filters.productName = '';
+                state.invoices.page = 1; // Reset to first page
+                loadInvoiceList();
+            });
+
+            // Product search
+            document.getElementById('search-products').addEventListener('click', function () {
+                state.products.search = document.getElementById('product-search').value;
+                loadProductData();
+            });
+
+            document.getElementById('reset-product-search').addEventListener('click', function () {
+                document.getElementById('product-search').value = '';
+                state.products.search = '';
+                loadProductData();
+            });
+
+            // Buyer search
+            document.getElementById('search-buyers').addEventListener('click', function () {
+                state.buyers.search = document.getElementById('buyer-search').value;
+                loadBuyerData();
+            });
+
+            document.getElementById('reset-buyer-search').addEventListener('click', function () {
+                document.getElementById('buyer-search').value = '';
+                state.buyers.search = '';
+                loadBuyerData();
+            });
+
+            // Invoice table sorting
+            document.querySelectorAll('#invoices-table th[data-sort]').forEach(th => {
+                th.addEventListener('click', function () {
+                    const sortField = this.getAttribute('data-sort');
+
+                    // Toggle sort order if clicking on the same field
+                    if (state.invoices.sortField === sortField) {
+                        state.invoices.sortOrder = state.invoices.sortOrder === 'asc' ? 'desc' : 'asc';
+                    } else {
+                        state.invoices.sortField = sortField;
+                        state.invoices.sortOrder = 'asc';
+                    }
+
+                    // Update UI to show sort direction
+                    document.querySelectorAll('#invoices-table th').forEach(header => {
+                        header.classList.remove('sort-asc', 'sort-desc');
+                    });
+
+                    this.classList.add(state.invoices.sortOrder === 'asc' ? 'sort-asc' : 'sort-desc');
+
+                    // Load sorted data
+                    loadInvoiceList();
+                });
+            });
+
+            // Invoice details modal close buttons
+            document.getElementById('close-invoice-details').addEventListener('click', function () {
+                document.getElementById('invoice-details-modal').classList.add('hidden');
+            });
+
+            document.getElementById('close-invoice-details-btn').addEventListener('click', function () {
+                document.getElementById('invoice-details-modal').classList.add('hidden');
+            });
+        });
+
+        // Load tab data based on selected tab
+        function loadTabData(tabId) {
+            switch (tabId) {
+                case 'dashboard':
+                    loadDashboardData();
+                    break;
+                case 'invoices':
+                    loadInvoiceList();
+                    break;
+                case 'products':
+                    loadProductData();
+                    break;
+                case 'buyers':
+                    loadBuyerData();
+                    break;
+                case 'tax':
+                    loadTaxData();
+                    break;
+            }
+        }
+
+        // Refresh all tabs
+        function refreshAllTabs() {
+            // Find the active tab
+            const activeTab = document.querySelector('.tab-link.active').getAttribute('data-tab');
+
+            // Update date range text on print views
+            updateDateRangeText();
+
+            // Load data for all tabs (efficiently - only the active one immediately)
+            loadTabData(activeTab);
+        }
+
+        // Update date range text for print views
+        function updateDateRangeText() {
+            let rangeText = 'All Time';
+
+            if (state.dateRange.period === 'today') {
+                rangeText = 'Today';
+            } else if (state.dateRange.period === 'week') {
+                rangeText = 'This Week';
+            } else if (state.dateRange.period === 'month') {
+                rangeText = 'This Month';
+            } else if (state.dateRange.period === 'year') {
+                rangeText = 'This Year';
+            } else if (state.dateRange.period === 'custom' && state.dateRange.startDate && state.dateRange.endDate) {
+                rangeText = `${formatDate(state.dateRange.startDate)} to ${formatDate(state.dateRange.endDate)}`;
+            }
+
+            document.getElementById('report-date-range').textContent = rangeText;
+            document.getElementById('invoice-report-date-range').textContent = rangeText;
+            document.getElementById('product-report-date-range').textContent = rangeText;
+            document.getElementById('buyer-report-date-range').textContent = rangeText;
+            document.getElementById('tax-report-date-range').textContent = rangeText;
+        }
+
+        // Load Dashboard Data
+        function loadDashboardData() {
+            document.getElementById('loading-indicator').classList.remove('hidden');
+
+            let url = '/api/reports/dashboard';
+            const params = new URLSearchParams();
+
+            params.append('period', state.dateRange.period);
+
+            if (state.dateRange.startDate && state.dateRange.endDate) {
+                params.append('start_date', state.dateRange.startDate);
+                params.append('end_date', state.dateRange.endDate);
+            }
+
+            url = `${url}?${params.toString()}`;
+
+            console.log('Dashboard URL:', url);
+
+            fetch(apiUrl(url))
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    document.getElementById('loading-indicator').classList.add('hidden');
+
+                    // Check if there's data
+                    if (data.summary.total_invoices === 0) {
+                        document.getElementById('no-data-message').classList.remove('hidden');
+                        return;
+                    } else {
+                        document.getElementById('no-data-message').classList.add('hidden');
+                    }
+
+                    // Update summary cards
+                    document.getElementById('total-invoices').textContent = data.summary.total_invoices;
+                    document.getElementById('total-sales').textContent = formatCurrency(data.summary.total_sales);
+                    document.getElementById('total-tax').textContent = formatCurrency(data.summary.total_tax);
+                    document.getElementById('unique-buyers').textContent = data.summary.unique_buyers;
+                    document.getElementById('revenue-excl-tax').textContent = formatCurrency(data.summary.revenue_excluding_tax);
+                    document.getElementById('avg-invoice-value').textContent = formatCurrency(data.summary.average_invoice_value);
+                    document.getElementById('unique-products').textContent = data.summary.unique_products;
+
+                    // Render tables instead of charts
+                    renderSalesTable(data.time_series);
+
+                    // Top products may be empty in the dashboard response for some clients/environments.
+                    // If that happens, fall back to the product analytics API (which powers the Products tab)
+                    // so the dashboard shows product rows similar to the Products section.
+                    const topProductsFromDashboard = data.top_products || [];
+                    if (topProductsFromDashboard.length > 0) {
+                        renderTopProductsTable(topProductsFromDashboard);
+                    } else {
+                        // Build params matching the current date range
+                        let pUrl = '/api/reports/product-analytics';
+                        const pparams = new URLSearchParams();
+                        if (state.dateRange.period !== 'all') {
+                            if (state.dateRange.startDate && state.dateRange.endDate) {
+                                pparams.append('start_date', state.dateRange.startDate);
+                                pparams.append('end_date', state.dateRange.endDate);
+                            }
+                        }
+                        pUrl = `${pUrl}?${pparams.toString()}`;
+
+                        fetch(apiUrl(pUrl))
+                            .then(resp => resp.ok ? resp.json() : Promise.reject('Product analytics failed'))
+                            .then(prodData => {
+                                const products = prodData.products || [];
+                                // map to the same shape expected by renderTopProductsTable and take top 5
+                                const mapped = products.slice(0, 5).map(p => ({
+                                    product_name: p.product_name,
+                                    quantity: p.total_quantity,
+                                    total_sales: p.total_sales,
+                                    total_tax: p.total_tax,
+                                    sales_excluding_tax: p.total_value_excl || (p.total_sales - p.total_tax)
+                                }));
+                                renderTopProductsTable(mapped);
+                            })
+                            .catch(err => {
+                                console.warn('Fallback product analytics failed:', err);
+                                renderTopProductsTable([]);
+                            });
+                    }
+
+                    renderTopBuyersTable(data.top_buyers);
+                    renderTaxBreakdownTable(data.tax_breakdown);
+                })
+                .catch(error => {
+                    document.getElementById('loading-indicator').classList.add('hidden');
+                    console.error('Error loading dashboard data:', error);
+                    showNotification('error', 'Error', 'Failed to load dashboard data');
+                });
+        }
+
+
+        // Render sales table
+        function renderSalesTable(timeSeriesData) {
+            const tbody = document.getElementById('sales-table-body');
+            tbody.innerHTML = '';
+            if (!timeSeriesData || timeSeriesData.length === 0) {
+                tbody.innerHTML = '<tr><td class="px-4 py-4 text-center" colspan="5">No data</td></tr>';
+                return;
+            }
+
+            timeSeriesData.forEach(row => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-50';
+                tr.innerHTML = `
+                    <td class="px-4 py-3 text-sm text-gray-700">${row.period}</td>
+                    <td class="px-4 py-3 text-sm text-right text-gray-900">${row.invoice_count}</td>
+                    <td class="px-4 py-3 text-sm text-right text-gray-900">${formatCurrency(row.total_sales)}</td>
+                    <td class="px-4 py-3 text-sm text-right text-gray-900">${formatCurrency(row.total_tax)}</td>
+                    <td class="px-4 py-3 text-sm text-right text-gray-900">${formatCurrency(row.sales_excluding_tax)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Render top products table
+        function renderTopProductsTable(products) {
+            const tbody = document.getElementById('top-products-body');
+            tbody.innerHTML = '';
+            if (!products || products.length === 0) {
+                tbody.innerHTML = '<tr><td class="px-4 py-4 text-center" colspan="5">No data</td></tr>';
+                return;
+            }
+
+            products.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-50 cursor-pointer';
+                tr.innerHTML = `
+                    <td class="px-4 py-3 text-sm text-gray-700">${p.product_name}</td>
+                    <td class="px-4 py-3 text-sm text-right text-gray-900">${p.quantity}</td>
+                    <td class="px-4 py-3 text-sm text-right text-gray-900">${formatCurrency(p.total_sales)}</td>
+                    <td class="px-4 py-3 text-sm text-right text-gray-900">${formatCurrency(p.total_tax)}</td>
+                    <td class="px-4 py-3 text-sm text-right text-gray-900">${formatCurrency(p.sales_excluding_tax)}</td>
+                `;
+                tr.addEventListener('click', () => {
+                    // Open products tab and prefill search
+                    document.querySelector('.tab-link[data-tab="products"]').click();
+                    // set product search and load
+                    document.getElementById('product-search').value = p.product_name;
+                    state.products.search = p.product_name;
+                    loadProductData();
+                });
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Render top buyers table
+        function renderTopBuyersTable(buyers) {
+            const tbody = document.getElementById('top-buyers-body');
+            tbody.innerHTML = '';
+            if (!buyers || buyers.length === 0) {
+                tbody.innerHTML = '<tr><td class="px-4 py-4 text-center" colspan="5">No data</td></tr>';
+                return;
+            }
+
+            buyers.forEach(b => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-50 cursor-pointer';
+                tr.innerHTML = `
+                    <td class="px-4 py-3 text-sm text-gray-700">${b.buyer_name}</td>
+                    <td class="px-4 py-3 text-sm text-right text-gray-900">${b.invoice_count}</td>
+                    <td class="px-4 py-3 text-sm text-right text-gray-900">${formatCurrency(b.total_purchase)}</td>
+                    <td class="px-4 py-3 text-sm text-right text-gray-900">${formatCurrency(b.total_tax)}</td>
+                    <td class="px-4 py-3 text-sm text-right text-gray-900">${formatCurrency(b.average_purchase)}</td>
+                `;
+                tr.addEventListener('click', () => {
+                    // Open buyers tab and prefill search
+                    document.querySelector('.tab-link[data-tab="buyers"]').click();
+                    document.getElementById('buyer-search').value = b.buyer_name;
+                    state.buyers.search = b.buyer_name;
+                    loadBuyerData();
+                });
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Render tax breakdown table
+        function renderTaxBreakdownTable(breakdown) {
+            const tbody = document.getElementById('tax-breakdown-body');
+            tbody.innerHTML = '';
+            if (!breakdown || breakdown.length === 0) {
+                tbody.innerHTML = '<tr><td class="px-4 py-4 text-center" colspan="5">No data</td></tr>';
+                return;
+            }
+
+            breakdown.forEach(t => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-50';
+                tr.innerHTML = `
+                    <td class="px-4 py-3 text-sm text-gray-700">${t.tax_rate}</td>
+                    <td class="px-4 py-3 text-sm text-right text-gray-900">${formatCurrency(t.total_tax)}</td>
+                    <td class="px-4 py-3 text-sm text-right text-gray-900">${formatCurrency(t.total_value_excl || 0)}</td>
+                    <td class="px-4 py-3 text-sm text-right text-gray-900">${t.item_count || 0}</td>
+                    <td class="px-4 py-3 text-sm text-right text-gray-900">${t.effective_rate || 0}%</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Wire up "View full" buttons to open the corresponding tabs
+        document.addEventListener('DOMContentLoaded', () => {
+            const salesBtn = document.getElementById('open-sales-full');
+            const productsBtn = document.getElementById('open-products-full');
+            const buyersBtn = document.getElementById('open-buyers-full');
+            const taxBtn = document.getElementById('open-tax-full');
+
+            if (salesBtn) {
+                salesBtn.addEventListener('click', () => {
+                    // open invoices tab which contains full invoice listings
+                    document.querySelector('.tab-link[data-tab="invoices"]').click();
+                });
+            }
+
+            if (productsBtn) {
+                productsBtn.addEventListener('click', () => {
+                    document.querySelector('.tab-link[data-tab="products"]').click();
+                    // Ensure products tab loads its data immediately
+                    // slight timeout to allow DOM/tab classes to update
+                    setTimeout(() => {
+                        // focus search input for convenience
+                        const inp = document.getElementById('product-search');
+                        if (inp) inp.focus();
+                        loadProductData();
+                    }, 50);
+                });
+            }
+
+            if (buyersBtn) {
+                buyersBtn.addEventListener('click', () => {
+                    document.querySelector('.tab-link[data-tab="buyers"]').click();
+                });
+            }
+
+            if (taxBtn) {
+                taxBtn.addEventListener('click', () => {
+                    document.querySelector('.tab-link[data-tab="tax"]').click();
+                });
+            }
+        });
+
+        // Load Invoice List
+        function loadInvoiceList() {
+            document.getElementById('loading-indicator').classList.remove('hidden');
+
+            let url = '/api/reports/invoices';
+            const params = new URLSearchParams();
+
+            // Pagination
+            params.append('page', state.invoices.page);
+            params.append('per_page', state.invoices.perPage);
+
+            // Sorting
+            params.append('sort_field', state.invoices.sortField);
+            params.append('sort_order', state.invoices.sortOrder);
+
+            // Filters
+            if (state.invoices.filters.buyerName) {
+                params.append('buyer_name', state.invoices.filters.buyerName);
+            }
+
+            if (state.invoices.filters.invoiceRef) {
+                params.append('invoice_ref', state.invoices.filters.invoiceRef);
+            }
+
+            if (state.invoices.filters.productName) {
+                params.append('product_name', state.invoices.filters.productName);
+            }
+
+            // Date range
+            if (state.dateRange.period !== 'all') {
+                if (state.dateRange.startDate && state.dateRange.endDate) {
+                    params.append('start_date', state.dateRange.startDate);
+                    params.append('end_date', state.dateRange.endDate);
+                }
+            }
+
+            url = `${url}?${params.toString()}`;
+
+            fetch(apiUrl(url))
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    document.getElementById('loading-indicator').classList.add('hidden');
+
+                    // Check if there's data
+                    if (data.invoices.length === 0) {
+                        document.getElementById('no-invoices-message').classList.remove('hidden');
+                        document.getElementById('invoices-table').classList.add('hidden');
+                        return;
+                    } else {
+                        document.getElementById('no-invoices-message').classList.add('hidden');
+                        document.getElementById('invoices-table').classList.remove('hidden');
+                    }
+
+                    // Populate invoices table
+                    const tableBody = document.getElementById('invoices-table-body');
+                    tableBody.innerHTML = '';
+
+                    data.invoices.forEach(invoice => {
+                        const row = document.createElement('tr');
+                        row.className = 'hover:bg-gray-50';
+
+                        row.innerHTML = `
+                            <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-primary-600">${invoice.invoice_ref}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(invoice.invoice_date)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${invoice.buyer_name}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(invoice.total_value_excl)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(invoice.total_tax)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${formatCurrency(invoice.total_amount)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium no-print">
+                                <button class="view-invoice-btn text-primary-600 hover:text-primary-900" data-invoice-id="${invoice.id}">
+                                    <i class="fas fa-eye mr-1"></i> View
+                                </button>
+                            </td>
+                        `;
+
+                        tableBody.appendChild(row);
+                    });
+
+                    // Add event listeners for view buttons
+                    document.querySelectorAll('.view-invoice-btn').forEach(btn => {
+                        btn.addEventListener('click', function () {
+                            const invoiceId = this.getAttribute('data-invoice-id');
+                            viewInvoiceDetails(invoiceId);
+                        });
+                    });
+
+                    // Update pagination
+                    updatePagination(data.pagination);
+                })
+                .catch(error => {
+                    document.getElementById('loading-indicator').classList.add('hidden');
+                    console.error('Error loading invoice list:', error);
+                    showNotification('error', 'Error', 'Failed to load invoice list');
+                });
+        }
+
+        // Update pagination UI
+        function updatePagination(pagination) {
+            const container = document.getElementById('pagination-container');
+            const start = (pagination.current_page - 1) * pagination.per_page + 1;
+            const end = Math.min(pagination.current_page * pagination.per_page, pagination.total_items);
+
+            // Update pagination text
+            document.getElementById('page-start').textContent = start;
+            document.getElementById('page-end').textContent = end;
+            document.getElementById('total-items').textContent = pagination.total_items;
+
+            // Clear existing pagination
+            container.innerHTML = '';
+
+            // Previous page button
+            const prevButton = document.createElement('button');
+            prevButton.className = `relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 ${pagination.current_page === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`;
+            prevButton.innerHTML = '<span class="sr-only">Previous</span><i class="fas fa-chevron-left"></i>';
+
+            if (pagination.current_page > 1) {
+                prevButton.addEventListener('click', () => {
+                    state.invoices.page = pagination.current_page - 1;
+                    loadInvoiceList();
+                });
+            }
+
+            container.appendChild(prevButton);
+
+            // Page numbers
+            const totalPages = pagination.total_pages;
+            const currentPage = pagination.current_page;
+
+            // Determine which page numbers to show
+            let startPage = Math.max(1, currentPage - 2);
+            let endPage = Math.min(totalPages, startPage + 4);
+
+            // Adjust startPage if endPage is too small
+            if (endPage - startPage < 4) {
+                startPage = Math.max(1, endPage - 4);
+            }
+
+            // First page button if not in range
+            if (startPage > 1) {
+                const firstPageButton = document.createElement('button');
+                firstPageButton.className = 'relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50';
+                firstPageButton.textContent = '1';
+
+                firstPageButton.addEventListener('click', () => {
+                    state.invoices.page = 1;
+                    loadInvoiceList();
+                });
+
+                container.appendChild(firstPageButton);
+
+                // Ellipsis if needed
+                if (startPage > 2) {
+                    const ellipsis = document.createElement('span');
+                    ellipsis.className = 'relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700';
+                    ellipsis.textContent = '...';
+                    container.appendChild(ellipsis);
+                }
+            }
+
+            // Page number buttons
+            for (let i = startPage; i <= endPage; i++) {
+                const pageButton = document.createElement('button');
+
+                if (i === currentPage) {
+                    pageButton.className = 'relative inline-flex items-center px-4 py-2 border border-primary-500 bg-primary-50 text-sm font-medium text-primary-600 hover:bg-primary-100';
+                } else {
+                    pageButton.className = 'relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50';
+                }
+
+                pageButton.textContent = i;
+
+                pageButton.addEventListener('click', () => {
+                    state.invoices.page = i;
+                    loadInvoiceList();
+                });
+
+                container.appendChild(pageButton);
+            }
+
+            // Ellipsis and last page if needed
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    const ellipsis = document.createElement('span');
+                    ellipsis.className = 'relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700';
+                    ellipsis.textContent = '...';
+                    container.appendChild(ellipsis);
+                }
+
+                const lastPageButton = document.createElement('button');
+                lastPageButton.className = 'relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50';
+                lastPageButton.textContent = totalPages;
+
+                lastPageButton.addEventListener('click', () => {
+                    state.invoices.page = totalPages;
+                    loadInvoiceList();
+                });
+
+                container.appendChild(lastPageButton);
+            }
+
+            // Next page button
+            const nextButton = document.createElement('button');
+            nextButton.className = `relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 ${pagination.current_page === pagination.total_pages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'}`;
+            nextButton.innerHTML = '<span class="sr-only">Next</span><i class="fas fa-chevron-right"></i>';
+
+            if (pagination.current_page < pagination.total_pages) {
+                nextButton.addEventListener('click', () => {
+                    state.invoices.page = pagination.current_page + 1;
+                    loadInvoiceList();
+                });
+            }
+
+            container.appendChild(nextButton);
+
+            // Mobile pagination
+            document.getElementById('prev-page-mobile').disabled = pagination.current_page === 1;
+            document.getElementById('next-page-mobile').disabled = pagination.current_page === pagination.total_pages;
+
+            document.getElementById('prev-page-mobile').addEventListener('click', function () {
+                if (pagination.current_page > 1) {
+                    state.invoices.page = pagination.current_page - 1;
+                    loadInvoiceList();
+                }
+            });
+
+            document.getElementById('next-page-mobile').addEventListener('click', function () {
+                if (pagination.current_page < pagination.total_pages) {
+                    state.invoices.page = pagination.current_page + 1;
+                    loadInvoiceList();
+                }
+            });
+        }
+
+        // View invoice details
+        // Find the viewInvoiceDetails function in reports.html and replace it with this implementation
+        function viewInvoiceDetails(invoiceId) {
+            document.getElementById('loading-indicator').classList.remove('hidden');
+
+            // Get the current environment from the URL or session
+            const env = new URLSearchParams(window.location.search).get('env') || 'production';
+
+            // Ensure the env parameter is included in the API call
+            fetch(apiUrl(`/api/reports/invoice/${invoiceId}?env=${env}`))
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    document.getElementById('loading-indicator').classList.add('hidden');
+
+                    // Populate invoice details modal with compact important fields only
+                    const contentDiv = document.getElementById('invoice-details-content');
+
+                    const invoiceRef = data.invoice_details.invoice_ref || 'N/A';
+                    const buyerName = data.buyer_info && data.buyer_info.name ? data.buyer_info.name : 'Unknown Buyer';
+                    const items = data.items || [];
+
+                    let html = `
+                <div class="mb-4">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="text-sm text-gray-500">Invoice</h3>
+                            <div class="text-lg font-semibold">${invoiceRef}</div>
+                            <div class="text-sm text-gray-600">Buyer: <span class="font-medium">${buyerName}</span></div>
+                            <div class="text-sm text-gray-500">Ref #: ${data.invoice_details.invoice_ref_no || 'N/A'}</div>
+                            <div class="text-sm text-gray-500">Date: ${data.invoice_details.invoice_date || 'N/A'}</div>
+                        </div>
+                        <div class="text-right text-sm text-gray-600">
+                            <div>Value Excl: ${formatCurrency(data.totals.total_value_excl)}</div>
+                            <div>Tax: ${formatCurrency(data.totals.total_tax)}</div>
+                            <div class="font-medium">Total: ${formatCurrency(data.totals.total_amount)}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
+                                <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Qty</th>
+                                <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Value Excl.</th>
+                                <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Tax</th>
+                                <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            ${items.map(item => `
+                                <tr>
+                                    <td class="px-4 py-2 text-sm text-gray-700">${item.description || ''}</td>
+                                    <td class="px-4 py-2 text-sm text-right text-gray-900">${item.quantity || 0}</td>
+                                    <td class="px-4 py-2 text-sm text-right text-gray-900">${formatCurrency(item.value_excl || 0)}</td>
+                                    <td class="px-4 py-2 text-sm text-right text-gray-900">${formatCurrency(item.tax || 0)}</td>
+                                    <td class="px-4 py-2 text-sm text-right font-medium text-gray-900">${formatCurrency(item.total || 0)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+                    contentDiv.innerHTML = html;
+
+                    // Show the modal
+                    document.getElementById('invoice-details-modal').classList.remove('hidden');
+                })
+                .catch(error => {
+                    document.getElementById('loading-indicator').classList.add('hidden');
+                    console.error('Error loading invoice details:', error);
+                    showNotification('error', 'Error', 'Failed to load invoice details');
+                });
+        }
+
+        // Load Product Data
+        function loadProductData() {
+            document.getElementById('loading-indicator').classList.remove('hidden');
+
+            let url = '/api/reports/product-analytics';
+            const params = new URLSearchParams();
+
+            // Search filter
+            if (state.products.search) {
+                params.append('product_name', state.products.search);
+            }
+
+            // Date range
+            if (state.dateRange.period !== 'all') {
+                if (state.dateRange.startDate && state.dateRange.endDate) {
+                    params.append('start_date', state.dateRange.startDate);
+                    params.append('end_date', state.dateRange.endDate);
+                }
+            }
+
+            url = `${url}?${params.toString()}`;
+
+            fetch(apiUrl(url))
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    document.getElementById('loading-indicator').classList.add('hidden');
+
+                    // Check if there's data
+                    if (data.products.length === 0) {
+                        document.getElementById('no-products-message').classList.remove('hidden');
+                        return;
+                    } else {
+                        document.getElementById('no-products-message').classList.add('hidden');
+                    }
+
+                    // Create/update charts
+                    createProductSalesChart(data.products);
+                    createProductTrendsChart(data.monthly_trends, data.top_products);
+
+                    // Populate products table
+                    const tableBody = document.getElementById('products-table-body');
+                    tableBody.innerHTML = '';
+
+                    data.products.forEach(product => {
+                        const row = document.createElement('tr');
+                        row.className = 'hover:bg-gray-50';
+
+                        row.innerHTML = `
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary-600">${product.product_name}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.total_quantity.toFixed(2)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(product.total_value_excl)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(product.total_tax)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${formatCurrency(product.total_sales)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.months_active}</td>
+                        `;
+
+                        tableBody.appendChild(row);
+                    });
+
+                    // Populate buyer distribution
+                    const buyerDistContainer = document.getElementById('product-buyer-distribution');
+                    buyerDistContainer.innerHTML = '';
+
+                    // Check if there's buyer distribution data
+                    if (Object.keys(data.buyer_distribution).length === 0) {
+                        buyerDistContainer.innerHTML = `
+                            <div class="col-span-3 text-center py-8 text-gray-500">
+                                No buyer distribution data available for the selected products.
+                            </div>
+                        `;
+                    } else {
+                        // Loop through top products and their buyers
+                        Object.entries(data.buyer_distribution).forEach(([product, buyers]) => {
+                            const card = document.createElement('div');
+                            card.className = 'bg-gray-50 p-4 rounded-md';
+
+                            let buyersHtml = '';
+                            buyers.forEach(buyer => {
+                                buyersHtml += `
+                                    <div class="flex justify-between py-2 border-b border-gray-200 text-sm">
+                                        <span class="text-gray-700">${buyer.buyer_name}</span>
+                                        <span class="font-medium">${formatCurrency(buyer.total_sales)}</span>
+                                    </div>
+                                `;
+                            });
+
+                            card.innerHTML = `
+                                <h4 class="font-medium text-gray-700 mb-3">${product}</h4>
+                                <div class="space-y-1">
+                                    ${buyersHtml}
+                                </div>
+                            `;
+
+                            buyerDistContainer.appendChild(card);
+                        });
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('loading-indicator').classList.add('hidden');
+                    console.error('Error loading product data:', error);
+                    showNotification('error', 'Error', 'Failed to load product data');
+                });
+        }
+
+        // Create product sales distribution chart
+        function createProductSalesChart(products) {
+            const ctx = document.getElementById('product-sales-chart').getContext('2d');
+
+            // Destroy existing chart if it exists
+            if (state.charts.productSalesChart) {
+                state.charts.productSalesChart.destroy();
+            }
+
+            // Only use top 10 products for the chart
+            const topProducts = products.slice(0, 10);
+
+            const labels = topProducts.map(product => product.product_name);
+            const salesData = topProducts.map(product => product.total_sales);
+            const colors = generateColors(labels.length);
+
+            state.charts.productSalesChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            data: salesData,
+                            backgroundColor: colors,
+                            borderColor: colors.map(color => color.replace('0.7', '1')),
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    const label = context.label || '';
+                                    const value = context.raw || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = Math.round((value / total) * 100);
+                                    return `${label}: ${formatCurrency(value)} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Create product trends chart
+        function createProductTrendsChart(monthlyTrends, topProducts) {
+            const ctx = document.getElementById('product-trends-chart').getContext('2d');
+
+            // Destroy existing chart if it exists
+            if (state.charts.productTrendsChart) {
+                state.charts.productTrendsChart.destroy();
+            }
+
+            // Extract all months for labels
+            const months = monthlyTrends.map(item => item.month);
+
+            // Create datasets for each product
+            const datasets = [];
+            const colors = generateColors(topProducts.length);
+
+            topProducts.forEach((product, index) => {
+                const data = months.map(month => {
+                    const monthData = monthlyTrends.find(m => m.month === month);
+                    return monthData ? (monthData[`${product}_sales`] || 0) : 0;
+                });
+
+                datasets.push({
+                    label: product,
+                    data: data,
+                    borderColor: colors[index].replace('0.7', '1'),
+                    backgroundColor: colors[index],
+                    borderWidth: 2,
+                    tension: 0.1
+                });
+            });
+
+            state.charts.productTrendsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: months,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    scales: {
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Sales Amount (PKR)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Load Buyer Data
+        function loadBuyerData() {
+            document.getElementById('loading-indicator').classList.remove('hidden');
+
+            let url = '/api/reports/buyer-analytics';
+            const params = new URLSearchParams();
+
+            // Search filter
+            if (state.buyers.search) {
+                params.append('buyer_name', state.buyers.search);
+            }
+
+            // Date range
+            if (state.dateRange.period !== 'all') {
+                if (state.dateRange.startDate && state.dateRange.endDate) {
+                    params.append('start_date', state.dateRange.startDate);
+                    params.append('end_date', state.dateRange.endDate);
+                }
+            }
+
+            url = `${url}?${params.toString()}`;
+
+            fetch(apiUrl(url))
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    document.getElementById('loading-indicator').classList.add('hidden');
+
+                    // Check if there's data
+                    if (data.buyers.length === 0) {
+                        document.getElementById('no-buyers-message').classList.remove('hidden');
+                        return;
+                    } else {
+                        document.getElementById('no-buyers-message').classList.add('hidden');
+                    }
+
+                    // Create/update charts
+                    createBuyerDistributionChart(data.buyers);
+                    createBuyerTrendsChart(data.monthly_trends, data.top_buyers);
+
+                    // Populate buyers table
+                    const tableBody = document.getElementById('buyers-table-body');
+                    tableBody.innerHTML = '';
+
+                    data.buyers.forEach(buyer => {
+                        const row = document.createElement('tr');
+                        row.className = 'hover:bg-gray-50';
+
+                        row.innerHTML = `
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary-600">${buyer.buyer_name}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${buyer.invoice_count}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(buyer.total_value_excl)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(buyer.total_tax)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${formatCurrency(buyer.total_purchase)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(buyer.average_purchase)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                ${formatDate(buyer.last_purchase)}
+                                <span class="text-xs text-gray-400 ml-1">(${buyer.days_since_last_purchase} days ago)</span>
+                            </td>
+                        `;
+
+                        tableBody.appendChild(row);
+                    });
+
+                    // Populate product distribution
+                    const productDistContainer = document.getElementById('buyer-product-distribution');
+                    productDistContainer.innerHTML = '';
+
+                    // Check if there's product distribution data
+                    if (Object.keys(data.product_distribution).length === 0) {
+                        productDistContainer.innerHTML = `
+                            <div class="col-span-3 text-center py-8 text-gray-500">
+                                No product distribution data available for the selected buyers.
+                            </div>
+                        `;
+                    } else {
+                        // Loop through top buyers and their products
+                        Object.entries(data.product_distribution).forEach(([buyer, products]) => {
+                            const card = document.createElement('div');
+                            card.className = 'bg-gray-50 p-4 rounded-md';
+
+                            let productsHtml = '';
+                            products.forEach(product => {
+                                productsHtml += `
+                                    <div class="flex justify-between py-2 border-b border-gray-200 text-sm">
+                                        <span class="text-gray-700">${product.product_name}</span>
+                                        <span class="font-medium">${formatCurrency(product.total_sales)}</span>
+                                    </div>
+                                `;
+                            });
+
+                            card.innerHTML = `
+                                <h4 class="font-medium text-gray-700 mb-3">${buyer}</h4>
+                                <div class="space-y-1">
+                                    ${productsHtml}
+                                </div>
+                            `;
+
+                            productDistContainer.appendChild(card);
+                        });
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('loading-indicator').classList.add('hidden');
+                    console.error('Error loading buyer data:', error);
+                    showNotification('error', 'Error', 'Failed to load buyer data');
+                });
+        }
+
+        // Create buyer distribution chart
+        function createBuyerDistributionChart(buyers) {
+            const ctx = document.getElementById('buyer-distribution-chart').getContext('2d');
+
+            // Destroy existing chart if it exists
+            if (state.charts.buyerDistributionChart) {
+                state.charts.buyerDistributionChart.destroy();
+            }
+
+            // Only use top 10 buyers for the chart
+            const topBuyers = buyers.slice(0, 10);
+
+            const labels = topBuyers.map(buyer => buyer.buyer_name);
+            const purchaseData = topBuyers.map(buyer => buyer.total_purchase);
+            const colors = generateColors(labels.length);
+
+            state.charts.buyerDistributionChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            data: purchaseData,
+                            backgroundColor: colors,
+                            borderColor: colors.map(color => color.replace('0.7', '1')),
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    const label = context.label || '';
+                                    const value = context.raw || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = Math.round((value / total) * 100);
+                                    return `${label}: ${formatCurrency(value)} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Create buyer trends chart
+        function createBuyerTrendsChart(monthlyTrends, topBuyers) {
+            const ctx = document.getElementById('buyer-trends-chart').getContext('2d');
+
+            // Destroy existing chart if it exists
+            if (state.charts.buyerTrendsChart) {
+                state.charts.buyerTrendsChart.destroy();
+            }
+
+            // Extract all months for labels
+            const months = monthlyTrends.map(item => item.month);
+
+            // Create datasets for each buyer
+            const datasets = [];
+            const colors = generateColors(topBuyers.length);
+
+            topBuyers.forEach((buyer, index) => {
+                const data = months.map(month => {
+                    const monthData = monthlyTrends.find(m => m.month === month);
+                    return monthData ? (monthData[`${buyer}_total`] || 0) : 0;
+                });
+
+                datasets.push({
+                    label: buyer,
+                    data: data,
+                    borderColor: colors[index].replace('0.7', '1'),
+                    backgroundColor: colors[index],
+                    borderWidth: 2,
+                    tension: 0.1
+                });
+            });
+
+            state.charts.buyerTrendsChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: months,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    scales: {
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Purchase Amount (PKR)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Load Tax Data
+        function loadTaxData() {
+            document.getElementById('loading-indicator').classList.remove('hidden');
+
+            let url = '/api/reports/tax-analytics';
+            const params = new URLSearchParams();
+
+            // Date range
+            if (state.dateRange.period !== 'all') {
+                if (state.dateRange.startDate && state.dateRange.endDate) {
+                    params.append('start_date', state.dateRange.startDate);
+                    params.append('end_date', state.dateRange.endDate);
+                }
+            }
+
+            url = `${url}?${params.toString()}`;
+
+            fetch(apiUrl(url))
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    document.getElementById('loading-indicator').classList.add('hidden');
+
+                    // Check if there's data
+                    if (data.tax_by_rate.length === 0) {
+                        document.getElementById('no-tax-message').classList.remove('hidden');
+                        return;
+                    } else {
+                        document.getElementById('no-tax-message').classList.add('hidden');
+                    }
+
+                    // Calculate total tax for percentage calculations
+                    const totalTax = data.tax_by_rate.reduce((sum, item) => sum + item.total_tax, 0);
+
+                    // Update summary cards
+                    document.getElementById('tax-collected').textContent = formatCurrency(totalTax);
+
+                    // Calculate average tax per invoice
+                    const totalInvoices = data.monthly_tax.reduce((sum, month) => sum + month.invoice_count, 0);
+                    const avgTaxPerInvoice = totalInvoices > 0 ? totalTax / totalInvoices : 0;
+                    document.getElementById('avg-tax-per-invoice').textContent = formatCurrency(avgTaxPerInvoice);
+
+                    // Calculate overall effective tax rate
+                    const totalValueExcl = data.tax_by_rate.reduce((sum, item) => sum + item.total_value_excl, 0);
+                    const effectiveRate = totalValueExcl > 0 ? (totalTax / totalValueExcl) * 100 : 0;
+                    document.getElementById('effective-tax-rate').textContent = formatPercentage(effectiveRate);
+
+                    // Create/update charts
+                    createTaxRateChart(data.tax_by_rate, totalTax);
+                    createTaxTrendChart(data.monthly_tax);
+
+                    // Populate tax breakdown table
+                    const taxTableBody = document.getElementById('tax-table-body');
+                    taxTableBody.innerHTML = '';
+
+                    data.tax_by_rate.forEach(item => {
+                        const row = document.createElement('tr');
+                        row.className = 'hover:bg-gray-50';
+
+                        const taxPercentage = (item.total_tax / totalTax) * 100;
+
+                        row.innerHTML = `
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary-600">${item.tax_rate}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(item.total_value_excl)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${formatCurrency(item.total_tax)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatPercentage(item.effective_rate)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.item_count}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatPercentage(taxPercentage)}</td>
+                        `;
+
+                        taxTableBody.appendChild(row);
+                    });
+
+                    // Populate top tax paying buyers
+                    const taxBuyersBody = document.getElementById('tax-buyers-body');
+                    taxBuyersBody.innerHTML = '';
+
+                    data.top_tax_buyers.forEach(buyer => {
+                        const row = document.createElement('tr');
+                        row.className = 'hover:bg-gray-50';
+
+                        const taxPercentage = (buyer.total_tax / totalTax) * 100;
+
+                        row.innerHTML = `
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary-600">${buyer.buyer_name}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${formatCurrency(buyer.total_tax)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatPercentage(taxPercentage)}</td>
+                        `;
+
+                        taxBuyersBody.appendChild(row);
+                    });
+
+                    // Populate top tax generating products
+                    const taxProductsBody = document.getElementById('tax-products-body');
+                    taxProductsBody.innerHTML = '';
+
+                    data.top_tax_products.forEach(product => {
+                        const row = document.createElement('tr');
+                        row.className = 'hover:bg-gray-50';
+
+                        const taxPercentage = (product.total_tax / totalTax) * 100;
+
+                        row.innerHTML = `
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary-600">${product.product_name}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${formatCurrency(product.total_tax)}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatPercentage(taxPercentage)}</td>
+                        `;
+
+                        taxProductsBody.appendChild(row);
+                    });
+                })
+                .catch(error => {
+                    document.getElementById('loading-indicator').classList.add('hidden');
+                    console.error('Error loading tax data:', error);
+                    showNotification('error', 'Error', 'Failed to load tax data');
+                });
+        }
+
+        // Create tax rate chart
+        function createTaxRateChart(taxByRate, totalTax) {
+            const ctx = document.getElementById('tax-rate-chart').getContext('2d');
+
+            // Destroy existing chart if it exists
+            if (state.charts.taxRateChart) {
+                state.charts.taxRateChart.destroy();
+            }
+
+            const labels = taxByRate.map(item => item.tax_rate);
+            const taxData = taxByRate.map(item => item.total_tax);
+            const colors = generateColors(labels.length);
+
+            state.charts.taxRateChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            data: taxData,
+                            backgroundColor: colors,
+                            borderColor: colors.map(color => color.replace('0.7', '1')),
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    const label = context.label || '';
+                                    const value = context.raw || 0;
+                                    const percentage = Math.round((value / totalTax) * 100);
+                                    return `${label}: ${formatCurrency(value)} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Create tax trend chart
+        function createTaxTrendChart(monthlyTax) {
+            const ctx = document.getElementById('tax-trend-chart').getContext('2d');
+
+            // Destroy existing chart if it exists
+            if (state.charts.taxTrendChart) {
+                state.charts.taxTrendChart.destroy();
+            }
+
+            const months = monthlyTax.map(item => item.month);
+            const taxData = monthlyTax.map(item => item.total_tax);
+            const valueExclData = monthlyTax.map(item => item.total_value_excl);
+            const effectiveRateData = monthlyTax.map(item => item.effective_rate);
+
+            state.charts.taxTrendChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: months,
+                    datasets: [
+                        {
+                            label: 'Value Excl. Tax',
+                            data: valueExclData,
+                            backgroundColor: 'rgba(54, 162, 235, 0.7)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Tax Amount',
+                            data: taxData,
+                            backgroundColor: 'rgba(153, 102, 255, 0.7)',
+                            borderColor: 'rgba(153, 102, 255, 1)',
+                            borderWidth: 1,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Effective Rate (%)',
+                            data: effectiveRateData,
+                            type: 'line',
+                            borderColor: 'rgba(255, 99, 132, 1)',
+                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                            borderWidth: 2,
+                            yAxisID: 'y1',
+                            tension: 0.1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Amount (PKR)'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                            title: {
+                                display: true,
+                                text: 'Rate (%)'
+                            },
+                            min: 0,
+                            max: Math.max(...effectiveRateData) * 1.2
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>

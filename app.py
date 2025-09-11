@@ -1,3 +1,4 @@
+from reports_routes import add_reports_routes
 from invoice_form_routes import add_invoice_form_routes
 from draft_invoice_routes import add_draft_invoice_routes
 from flask import Flask, render_template, request, jsonify, send_file
@@ -409,6 +410,7 @@ def get_env():
 
 add_invoice_form_routes(app, get_db_connection, get_env)
 add_draft_invoice_routes(app, get_db_connection, get_env)
+add_reports_routes(app, get_db_connection, get_env)
 
 # Store last uploaded file and last JSON per environment
 last_uploaded_file = {}
@@ -862,6 +864,39 @@ def submit_fbr():
                 cur.close()
             if conn:
                 conn.close()
+
+        # If this submission originated from a saved draft, mark that draft as submitted
+        try:
+            # Prefer draft_id from the request body, fallback to in-memory cache
+            req_body = request.get_json(silent=True) or {}
+            draft_id = req_body.get("draft_id")
+            if not draft_id and env in last_json_data:
+                # last_json_data may contain a draft reference if the frontend set it
+                draft_id = last_json_data[env].get("draft_id")
+
+            if draft_id:
+                try:
+                    conn2 = get_db_connection()
+                    cur2 = conn2.cursor()
+                    cur2.execute(
+                        """
+                        UPDATE invoice_drafts
+                        SET status = %s,
+                            is_submitted = TRUE,
+                            updated_at = NOW()
+                        WHERE id = %s AND client_id = %s
+                        """,
+                        ("submitted", draft_id, client_id),
+                    )
+                    conn2.commit()
+                    cur2.close()
+                    conn2.close()
+                    print(f"Marked draft {draft_id} as submitted for client {client_id} (env={env})")
+                except Exception as e:
+                    print(f"Warning: Failed to mark draft {draft_id} as submitted: {e}")
+        except Exception as e:
+            # Non-fatal: do not block a successful submission if marking draft fails
+            print(f"Error checking draft_id after submission: {e}")
 
         # Return response
         return jsonify({"status": status, "invoiceNumber": invoice_no, "date": date})

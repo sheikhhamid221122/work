@@ -229,6 +229,7 @@
                             <i class="fas fa-file-invoice mr-3"></i>
                             Create Invoice
                         </a>
+
                     </nav>
 
                     <!-- Environment Badge - Increased Size -->
@@ -2081,6 +2082,11 @@
                     submit: !saveDraft,
                 };
 
+                // Include draft_id if this invoice was loaded from a draft
+                if (state.draft_id) {
+                    invoiceData.draft_id = state.draft_id;
+                }
+
                 if (ENV === "sandbox" && state.invoiceData.scenarioId) {
                     invoiceData.scenarioId = state.invoiceData.scenarioId;
                 }
@@ -3795,6 +3801,9 @@
                 // Jump to review page (step 5)
                 goToStep(5);
 
+                // Remember that we're working with this draft so submit can mark it
+                state.draft_id = draftId;
+
                 // Show success message
                 showNotification("success", "Draft Loaded", "Draft invoice loaded successfully");
 
@@ -3861,6 +3870,7 @@
                 draftInvoicesLink.innerHTML = '<i class="fas fa-file-alt mr-3"></i>Draft Invoices';
                 navLinks.appendChild(draftInvoicesLink);
             }
+            
         });
         document.addEventListener('DOMContentLoaded', function () {
             const envBadges = document.querySelectorAll('.env-badge');

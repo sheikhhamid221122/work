@@ -194,6 +194,11 @@
                             <i class="fas fa-file-alt mr-3"></i>
                             Draft Invoices
                         </a>
+                        <a href="/reports.html" id="reports-tab"
+                            class="sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
+                            <i class="fas fa-chart-bar mr-3"></i>
+                            Reports & Analytics
+                        </a>
                     </nav>
 
                     <!-- Environment Badge - Increased Size -->
@@ -297,13 +302,13 @@
                     <div class="bg-white p-4 rounded-lg shadow mb-6">
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
-                                <label for="filter-env"
-                                    class="block text-sm font-medium text-gray-700 mb-1">Environment</label>
-                                <select id="filter-env"
+                                <label for="filter-submitted"
+                                    class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                                <select id="filter-submitted"
                                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500">
-                                    <option value="all">All Environments</option>
-                                    <option value="sandbox">Sandbox</option>
-                                    <option value="production">Production</option>
+                                    <option value="all">All</option>
+                                    <option value="not_submitted">Not Submitted</option>
+                                    <option value="submitted">Submitted</option>
                                 </select>
                             </div>
                             <div>
@@ -433,6 +438,11 @@
             return `${endpoint}?env=${ENV}`;
         }
 
+        // Global variables to store filter states
+        let currentFilterSubmitted = "all";
+        let currentFilterDate = "all";
+        let currentSearchQuery = "";
+
         // Notification system
         function showNotification(type, title, message, duration = 3000) {
             const notification = document.getElementById("notification");
@@ -465,7 +475,6 @@
         }
 
         // Draft invoice card template
-        // Draft invoice card template
         function createDraftCard(draft) {
             const formattedDate = new Date(draft.created_at).toLocaleString();
             const envClass = draft.original_env === 'sandbox' ? 'badge-sandbox' : 'badge-production';
@@ -497,9 +506,12 @@
             }
 
             return `
-        <div class="bg-white rounded-lg shadow-md p-4 draft-card relative" data-draft-id="${draft.id}" data-env="${draft.env}" data-original-env="${draft.original_env}">
-            <div class="absolute top-4 right-4">
-                <span class="px-2 py-1 text-xs font-bold rounded-full text-white ${envClass}">${envLabel}</span>
+        <div class="bg-white rounded-lg shadow-md p-4 draft-card relative" data-draft-id="${draft.id}" data-env="${draft.env}" data-original-env="${draft.original_env}" data-is-submitted="${draft.is_submitted}">
+            <div class="absolute top-4 right-4 text-right space-y-1">
+                <div>
+                    <span class="px-2 py-1 text-xs font-bold rounded-full text-white ${envClass}">${envLabel}</span>
+                </div>
+                ${draft.is_submitted ? `<div><span class="px-2 py-1 text-xs font-semibold rounded-full text-white bg-gray-500">Submitted</span></div>` : ''}
             </div>
             <div class="mb-2">
                 <h3 class="text-lg font-semibold text-gray-800 draft-title" title="${draft.title || 'Untitled Draft'}">${draft.title || 'Untitled Draft'}</h3>
@@ -513,8 +525,8 @@
                 <button class="edit-title-btn bg-gray-200 hover:bg-gray-300 text-gray-700 text-xs px-2 py-1 rounded">
                     <i class="fas fa-pencil-alt mr-1"></i> Rename
                 </button>
-                <button class="load-draft-btn bg-primary-600 hover:bg-primary-700 text-white text-xs px-2 py-1 rounded">
-                    <i class="fas fa-edit mr-1"></i> Edit/Submit
+                <button class="load-draft-btn ${draft.is_submitted ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-primary-600 hover:bg-primary-700 text-white'} text-xs px-2 py-1 rounded" ${draft.is_submitted ? 'disabled' : ''}>
+                    <i class="fas fa-edit mr-1"></i> ${draft.is_submitted ? 'Submitted' : 'Edit/Submit'}
                 </button>
                 <button class="delete-draft-btn bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1 rounded">
                     <i class="fas fa-trash-alt mr-1"></i> Delete
@@ -525,32 +537,68 @@
         }
 
         // Load draft invoices
+        let _latestDraftsRequestId = 0; // guard to ignore stale responses
         async function loadDraftInvoices() {
+            const requestId = ++_latestDraftsRequestId;
+            // Get references to DOM elements first, with null checks
+            const gridContainer = document.getElementById('draft-invoices-grid');
+            const loadingPlaceholder = document.getElementById('loading-placeholder');
+            const emptyState = document.getElementById('empty-state');
+
+            // Ensure our main containers exist
+            if (!gridContainer || !loadingPlaceholder || !emptyState) {
+                console.error('Required DOM elements are missing');
+                return;
+            }
+
+            // Show loading state
+            loadingPlaceholder.classList.remove('hidden');
+            emptyState.classList.add('hidden');
+
             try {
-                const filterEnv = document.getElementById('filter-env').value;
-                const filterDate = document.getElementById('filter-date').value;
-                const searchQuery = document.getElementById('filter-search').value;
+                // Build query parameters
+                const queryParams = new URLSearchParams();
+                queryParams.append("filter_submitted", currentFilterSubmitted);
+                queryParams.append("filter_date", currentFilterDate);
+                queryParams.append("search", currentSearchQuery);
+                queryParams.append("env", ENV);
 
-                const queryParams = new URLSearchParams({
-                    env: ENV,
-                    filter_env: filterEnv,
-                    filter_date: filterDate,
-                    search: searchQuery
-                });
+                console.log("Filter submitted value:", currentFilterSubmitted); // Debug log
 
-                const response = await fetch(`/api/draft-invoices?${queryParams}`);
-                if (!response.ok) throw new Error('Failed to load draft invoices');
+                // Build the API URL
+                let url = `/api/draft-invoices?${queryParams.toString()}`;
+                console.log("API URL:", url); // Debug log
+
+                // Fetch data from the API
+                const response = await fetch(url);
+
+                if (!response.ok) {
+                    let errorMessage = 'Failed to load draft invoices';
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.error || errorMessage;
+                    } catch (e) {
+                        // If JSON parsing fails, use the status text
+                        errorMessage = response.statusText || errorMessage;
+                    }
+                    throw new Error(errorMessage);
+                }
 
                 const drafts = await response.json();
-                const gridContainer = document.getElementById('draft-invoices-grid');
-                const loadingPlaceholder = document.getElementById('loading-placeholder');
-                const emptyState = document.getElementById('empty-state');
+
+                // If a newer request was started after this one, ignore this response
+                if (requestId !== _latestDraftsRequestId) {
+                    console.debug('Ignoring stale drafts response', requestId);
+                    return;
+                }
 
                 // Hide loading placeholder
-                loadingPlaceholder.classList.add('hidden');
+                if (loadingPlaceholder) {
+                    loadingPlaceholder.classList.add('hidden');
+                }
 
                 // Show empty state if no drafts
-                if (drafts.length === 0) {
+                if (!drafts || drafts.length === 0) {
                     gridContainer.innerHTML = '';
                     emptyState.classList.remove('hidden');
                     return;
@@ -571,9 +619,37 @@
 
             } catch (error) {
                 console.error('Error loading draft invoices:', error);
-                showNotification('error', 'Error', 'Failed to load draft invoices');
-                document.getElementById('loading-placeholder').classList.add('hidden');
-                document.getElementById('empty-state').classList.remove('hidden');
+
+                // Make sure loading is hidden
+                if (loadingPlaceholder) {
+                    loadingPlaceholder.classList.add('hidden');
+                }
+
+                // Show error state
+                if (emptyState) {
+                    emptyState.classList.remove('hidden');
+                    emptyState.innerHTML = `
+                <div class="bg-white rounded-lg shadow p-8 text-center">
+                    <div class="mx-auto w-16 h-16 bg-red-200 rounded-full flex items-center justify-center mb-4">
+                        <i class="fas fa-exclamation-triangle text-red-500 text-2xl"></i>
+                    </div>
+                    <h3 class="text-lg font-medium text-gray-900 mb-2">Error Loading Invoices</h3>
+                    <p class="text-gray-500 mb-6">${error.message || 'Unknown error occurred'}</p>
+                    <button id="retry-load-btn" class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700">
+                        <i class="fas fa-sync-alt mr-2"></i> Try Again
+                    </button>
+                </div>
+            `;
+
+                    // Add event listener to retry button
+                    const retryButton = document.getElementById('retry-load-btn');
+                    if (retryButton) {
+                        retryButton.addEventListener('click', loadDraftInvoices);
+                    }
+                }
+
+                // Show notification if function exists
+                showNotification('error', 'Error', error.message || 'Failed to load draft invoices');
             }
         }
 
@@ -614,6 +690,216 @@
                 });
             });
         }
+
+        // Handle filter changes
+        function handleFilterChange() {
+            // Update global filter state variables from DOM
+            const filterSubmittedElement = document.getElementById('filter-submitted');
+            if (filterSubmittedElement) {
+                currentFilterSubmitted = filterSubmittedElement.value;
+                console.log("Filter submitted changed to:", currentFilterSubmitted);
+            }
+
+            const filterDateElement = document.getElementById('filter-date');
+            if (filterDateElement) {
+                currentFilterDate = filterDateElement.value;
+            }
+
+            const filterSearchElement = document.getElementById('filter-search');
+            if (filterSearchElement) {
+                currentSearchQuery = filterSearchElement.value;
+            }
+
+            // Reload data with new filters
+            loadDraftInvoices();
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            // Initialize filter values based on URL parameters or default to "all"
+            const urlParams = new URLSearchParams(window.location.search);
+            currentFilterSubmitted = urlParams.get('filter_submitted') || 'all';
+            currentFilterDate = urlParams.get('filter_date') || 'all';
+            currentSearchQuery = urlParams.get('search') || '';
+
+            // Set the filter dropdown values based on URL parameters
+            const filterSubmittedElement = document.getElementById('filter-submitted');
+            if (filterSubmittedElement) {
+                filterSubmittedElement.value = currentFilterSubmitted;
+
+                // Set up event listener for the filter
+                filterSubmittedElement.addEventListener('change', function () {
+                    console.log("Filter changed to:", this.value);
+                    currentFilterSubmitted = this.value;
+
+                    // Create URL with all current filters
+                    const url = new URL(window.location);
+                    url.searchParams.set('filter_submitted', currentFilterSubmitted);
+
+                    // Redirect to the new URL (which will reload the page)
+                    window.location.href = url.toString();
+                });
+            }
+
+            // Set up filter for date range
+            const filterDateElement = document.getElementById('filter-date');
+            if (filterDateElement) {
+                filterDateElement.value = currentFilterDate;
+
+                filterDateElement.addEventListener('change', function () {
+                    currentFilterDate = this.value;
+
+                    // Create URL with all current filters
+                    const url = new URL(window.location);
+                    url.searchParams.set('filter_date', currentFilterDate);
+
+                    // Redirect to the new URL (which will reload the page)
+                    window.location.href = url.toString();
+                });
+            }
+
+            // Search with debounce for typing, but reload on Enter key
+            let searchTimeout;
+            const filterSearchElement = document.getElementById('filter-search');
+            if (filterSearchElement) {
+                filterSearchElement.value = currentSearchQuery;
+
+                // Add event listener for Enter key
+                filterSearchElement.addEventListener('keypress', function (e) {
+                    if (e.key === 'Enter') {
+                        // Cancel any pending debounce
+                        clearTimeout(searchTimeout);
+
+                        // Create URL with the search term
+                        const url = new URL(window.location);
+                        url.searchParams.set('search', this.value);
+
+                        // Redirect to the new URL (which will reload the page)
+                        window.location.href = url.toString();
+                    }
+                });
+
+                // Add event listener for search button if present
+                const searchButton = document.getElementById('search-button');
+                if (searchButton) {
+                    searchButton.addEventListener('click', function () {
+                        // Cancel any pending debounce
+                        clearTimeout(searchTimeout);
+
+                        // Create URL with the search term
+                        const url = new URL(window.location);
+                        url.searchParams.set('search', filterSearchElement.value);
+
+                        // Redirect to the new URL (which will reload the page)
+                        window.location.href = url.toString();
+                    });
+                }
+            }
+
+            // Load draft invoices on page load - keep this for the initial load
+            loadDraftInvoices();
+        });
+
+        // Search with debounce
+        let searchTimeout;
+        const filterSearchElement = document.getElementById('filter-search');
+        if (filterSearchElement) {
+            filterSearchElement.value = currentSearchQuery;
+
+            filterSearchElement.addEventListener('input', function () {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(function () {
+                    currentSearchQuery = filterSearchElement.value;
+
+                    // Update URL without reloading the page
+                    const url = new URL(window.location);
+                    url.searchParams.set('search', currentSearchQuery);
+                    window.history.pushState({}, '', url);
+
+                    // Reload the data
+                    loadDraftInvoices();
+                }, 300);
+            });
+        }
+
+        // Mobile menu toggle
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const closeMobileMenuButton = document.getElementById('close-mobile-menu');
+        const mobileMenu = document.getElementById('mobile-menu');
+        if (mobileMenuButton && closeMobileMenuButton && mobileMenu) {
+            mobileMenuButton.addEventListener('click', function () {
+                mobileMenu.classList.remove('hidden');
+            });
+
+            closeMobileMenuButton.addEventListener('click', function () {
+                mobileMenu.classList.add('hidden');
+            });
+        }
+
+        // Edit title modal buttons
+        const closeEditBtn = document.getElementById('close-edit-title-modal');
+        if (closeEditBtn) {
+            closeEditBtn.addEventListener('click', function () {
+                document.getElementById('edit-title-modal').classList.add('hidden');
+            });
+        }
+
+        const cancelEditBtn = document.getElementById('cancel-edit-title');
+        if (cancelEditBtn) {
+            cancelEditBtn.addEventListener('click', function () {
+                document.getElementById('edit-title-modal').classList.add('hidden');
+            });
+        }
+
+        const saveEditBtn = document.getElementById('save-edit-title');
+        if (saveEditBtn) {
+            saveEditBtn.addEventListener('click', async function () {
+                const draftId = document.getElementById('draft-id').value;
+                const newTitle = document.getElementById('draft-title').value.trim();
+
+                if (!newTitle) {
+                    showNotification('error', 'Error', 'Title cannot be empty');
+                    return;
+                }
+
+                const success = await updateDraftTitle(draftId, newTitle);
+                if (success) {
+                    document.getElementById('edit-title-modal').classList.add('hidden');
+                    showNotification('success', 'Success', 'Draft title updated successfully');
+                }
+            });
+        }
+
+        // Delete modal buttons
+        const cancelDeleteBtn = document.getElementById('cancel-delete-draft');
+        if (cancelDeleteBtn) {
+            cancelDeleteBtn.addEventListener('click', function () {
+                document.getElementById('delete-draft-modal').classList.add('hidden');
+            });
+        }
+
+        const confirmDeleteBtn = document.getElementById('confirm-delete-draft');
+        if (confirmDeleteBtn) {
+            confirmDeleteBtn.addEventListener('click', async function () {
+                const draftId = this.dataset.draftId;
+                const success = await deleteDraft(draftId);
+
+                if (success) {
+                    document.getElementById('delete-draft-modal').classList.add('hidden');
+                    showNotification('success', 'Success', 'Draft deleted successfully');
+                }
+            });
+        }
+
+        // Set environment badge color
+        const envBadges = document.querySelectorAll('.env-badge');
+        const currentEnv = "{{ session['env'] }}";
+        envBadges.forEach(badge => {
+            if (currentEnv === 'production') {
+                badge.classList.remove('bg-primary-400');
+                badge.classList.add('bg-red-600');
+            }
+        });
+
 
         // Load and edit draft invoice
         function loadAndEditDraft(draftId) {
@@ -702,91 +988,6 @@
                 return false;
             }
         }
-
-        // Event listeners for modals
-        document.addEventListener('DOMContentLoaded', function () {
-            // Mobile menu toggle
-            const mobileMenuButton = document.getElementById('mobile-menu-button');
-            const closeMobileMenuButton = document.getElementById('close-mobile-menu');
-            const mobileMenu = document.getElementById('mobile-menu');
-
-            if (mobileMenuButton && closeMobileMenuButton && mobileMenu) {
-                mobileMenuButton.addEventListener('click', function () {
-                    mobileMenu.classList.remove('hidden');
-                });
-
-                closeMobileMenuButton.addEventListener('click', function () {
-                    mobileMenu.classList.add('hidden');
-                });
-            }
-
-            // Close edit title modal
-            document.getElementById('close-edit-title-modal').addEventListener('click', function () {
-                document.getElementById('edit-title-modal').classList.add('hidden');
-            });
-
-            document.getElementById('cancel-edit-title').addEventListener('click', function () {
-                document.getElementById('edit-title-modal').classList.add('hidden');
-            });
-
-            // Save edited title
-            document.getElementById('save-edit-title').addEventListener('click', async function () {
-                const draftId = document.getElementById('draft-id').value;
-                const newTitle = document.getElementById('draft-title').value.trim();
-
-                if (!newTitle) {
-                    showNotification('error', 'Error', 'Title cannot be empty');
-                    return;
-                }
-
-                const success = await updateDraftTitle(draftId, newTitle);
-                if (success) {
-                    document.getElementById('edit-title-modal').classList.add('hidden');
-                    showNotification('success', 'Success', 'Draft title updated successfully');
-                }
-            });
-
-            // Close delete modal
-            document.getElementById('cancel-delete-draft').addEventListener('click', function () {
-                document.getElementById('delete-draft-modal').classList.add('hidden');
-            });
-
-            // Confirm delete
-            document.getElementById('confirm-delete-draft').addEventListener('click', async function () {
-                const draftId = this.dataset.draftId;
-                const success = await deleteDraft(draftId);
-
-                if (success) {
-                    document.getElementById('delete-draft-modal').classList.add('hidden');
-                    showNotification('success', 'Success', 'Draft deleted successfully');
-                }
-            });
-
-            // Filter event listeners
-            document.getElementById('filter-env').addEventListener('change', loadDraftInvoices);
-            document.getElementById('filter-date').addEventListener('change', loadDraftInvoices);
-
-            // Search with debounce
-            let searchTimeout;
-            document.getElementById('filter-search').addEventListener('input', function () {
-                clearTimeout(searchTimeout);
-                searchTimeout = setTimeout(loadDraftInvoices, 300);
-            });
-
-            // Load draft invoices on page load
-            loadDraftInvoices();
-        });
-        document.addEventListener('DOMContentLoaded', function () {
-            const envBadges = document.querySelectorAll('.env-badge');
-            const currentEnv = "{{ session['env'] }}";
-
-            envBadges.forEach(badge => {
-                if (currentEnv === 'production') {
-                    badge.classList.remove('bg-primary-400');
-                    badge.classList.add('bg-red-600');
-                }
-            });
-        });
     </script>
 </body>
 
