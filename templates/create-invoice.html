@@ -229,6 +229,16 @@
                             <i class="fas fa-file-invoice mr-3"></i>
                             Create Invoice
                         </a>
+                        <a href="/draft-invoices.html" id="draft-invoices-tab"
+                            class="sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
+                            <i class="fas fa-file-alt mr-3"></i>
+                            Draft Invoices
+                        </a>
+                        <a href="/reports.html" id="reports-tab"
+                            class="sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
+                            <i class="fas fa-chart-bar mr-3"></i>
+                            Reports & Analytics
+                        </a>
 
                     </nav>
 
@@ -3862,15 +3872,15 @@
             checkAndLoadDraft();
 
             // Add "Draft Invoices" link to navigation menu
-            const navLinks = document.querySelector('nav.flex-1');
-            if (navLinks) {
-                const draftInvoicesLink = document.createElement('a');
-                draftInvoicesLink.href = "/draft-invoices.html";
-                draftInvoicesLink.className = "sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-md text-white";
-                draftInvoicesLink.innerHTML = '<i class="fas fa-file-alt mr-3"></i>Draft Invoices';
-                navLinks.appendChild(draftInvoicesLink);
-            }
-            
+            // const navLinks = document.querySelector('nav.flex-1');
+            // if (navLinks) {
+            //     const draftInvoicesLink = document.createElement('a');
+            //     draftInvoicesLink.href = "/draft-invoices.html";
+            //     draftInvoicesLink.className = "sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-md text-white";
+            //     draftInvoicesLink.innerHTML = '<i class="fas fa-file-alt mr-3"></i>Draft Invoices';
+            //     navLinks.appendChild(draftInvoicesLink);
+            // }
+
         });
         document.addEventListener('DOMContentLoaded', function () {
             const envBadges = document.querySelectorAll('.env-badge');

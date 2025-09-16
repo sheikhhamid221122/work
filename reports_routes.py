@@ -665,14 +665,14 @@ def add_reports_routes(app, get_db_connection, get_env):
             search_term = f"%{buyer_name}%"
             params.extend([search_term, search_term])
 
-        # Add invoice reference filter if provided
+        # Add invoice reference filter if provided - prefer invoiceRefNo, fall back to fbr_response.invoiceNumber
         if invoice_ref:
             where_conditions.append(
                 """
                 (
                     (jsonb_typeof(invoice_data::jsonb) = 'object' AND
-                     invoice_data::jsonb ? 'fbrInvoiceNumber' AND
-                     LOWER(invoice_data::jsonb->>'fbrInvoiceNumber') LIKE LOWER(%s))
+                     invoice_data::jsonb ? 'invoiceRefNo' AND
+                     LOWER(invoice_data::jsonb->>'invoiceRefNo') LIKE LOWER(%s))
                     OR
                     (jsonb_typeof(fbr_response::jsonb) = 'object' AND
                      fbr_response::jsonb ? 'invoiceNumber' AND
@@ -714,10 +714,10 @@ def add_reports_routes(app, get_db_connection, get_env):
         elif sort_field == "invoice_ref":
             order_by = f"""
                 COALESCE(
-                    CASE WHEN jsonb_typeof(invoice_data::jsonb) = 'object' AND invoice_data::jsonb ? 'fbrInvoiceNumber'
-                         THEN invoice_data::jsonb->>'fbrInvoiceNumber'
-                         ELSE NULL
-                    END,
+                CASE WHEN jsonb_typeof(invoice_data::jsonb) = 'object' AND invoice_data::jsonb ? 'invoiceRefNo'
+                    THEN invoice_data::jsonb->>'invoiceRefNo'
+                    ELSE NULL
+                END,
                     CASE WHEN jsonb_typeof(fbr_response::jsonb) = 'object' AND fbr_response::jsonb ? 'invoiceNumber'
                          THEN fbr_response::jsonb->>'invoiceNumber'
                          ELSE NULL
@@ -806,9 +806,10 @@ def add_reports_routes(app, get_db_connection, get_env):
             except Exception:
                 fbr_response = {}
 
-            # Extract invoice reference number
+            # Extract invoice reference number - prefer invoiceRefNo
             invoice_ref = (
-                invoice_data.get("fbrInvoiceNumber")
+                invoice_data.get("invoiceRefNo")
+                or invoice_data.get("fbrInvoiceNumber")
                 or fbr_response.get("invoiceNumber")
                 or "N/A"
             )
@@ -971,9 +972,10 @@ def add_reports_routes(app, get_db_connection, get_env):
         except Exception:
             fbr_response = {}
 
-        # Extract all available invoice details
+        # Extract all available invoice details - prefer invoiceRefNo, fall back to fbrInvoiceNumber then fbr response
         invoice_ref = (
-            invoice_data.get("fbrInvoiceNumber")
+            invoice_data.get("invoiceRefNo")
+            or invoice_data.get("fbrInvoiceNumber")
             or fbr_response.get("invoiceNumber")
             or "N/A"
         )
@@ -2136,3 +2138,135 @@ def add_reports_routes(app, get_db_connection, get_env):
                 "top_tax_products": top_tax_products,
             }
         )
+
+    @app.route('/api/reports/summarize', methods=['POST'])
+    def summarize_invoices():
+        """Summarize selected invoices. Accepts JSON: { invoice_ids: [id1, id2, ...], env?: 'production'|'sandbox' }
+        Returns aggregated per-product totals, per-buyer totals, invoice metadata and overall totals.
+        """
+        client_id = session.get('client_id')
+        if not client_id:
+            return jsonify({'error': 'No client ID in session'}), 401
+
+        payload = request.get_json() or {}
+        invoice_ids = payload.get('invoice_ids')
+        env = payload.get('env') or 'production'
+
+        if not invoice_ids or not isinstance(invoice_ids, list):
+            return jsonify({'error': 'invoice_ids must be a non-empty list'}), 400
+
+        # Sanitize: limit to reasonable number to avoid extremely large payloads
+        if len(invoice_ids) > 200:
+            return jsonify({'error': 'Too many invoices requested (max 200)'}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Build placeholders and params
+        placeholders = ','.join(['%s'] * len(invoice_ids))
+        params = [client_id, env] + invoice_ids
+
+        try:
+            # Fetch invoices and their JSON payloads
+            cur.execute(
+                f"""
+                SELECT id, invoice_data, fbr_response, created_at
+                FROM invoices
+                WHERE client_id = %s AND env = %s AND id IN ({placeholders}) AND status = 'Success'
+                ORDER BY created_at
+                """,
+                params,
+            )
+
+            rows = cur.fetchall()
+
+            invoices = []
+            overall = {'total_value_excl': 0.0, 'total_tax': 0.0, 'total_amount': 0.0}
+            product_map = {}
+            buyer_map = {}
+
+            for row in rows:
+                inv_id, invoice_data_raw, fbr_raw, created_at = row
+                try:
+                    invoice_data = json.loads(invoice_data_raw) if isinstance(invoice_data_raw, str) else invoice_data_raw
+                except Exception:
+                    invoice_data = {}
+
+                try:
+                    fbr_response = json.loads(fbr_raw) if isinstance(fbr_raw, str) else fbr_raw
+                except Exception:
+                    fbr_response = {}
+
+                invoice_ref = (
+                    invoice_data.get('invoiceRefNo') or invoice_data.get('fbrInvoiceNumber') or fbr_response.get('invoiceNumber') or 'N/A'
+                )
+
+                buyer_name = 'Unknown Buyer'
+                if 'buyerBusinessName' in invoice_data:
+                    buyer_name = invoice_data.get('buyerBusinessName')
+                elif 'buyerData' in invoice_data and isinstance(invoice_data.get('buyerData'), dict) and invoice_data['buyerData'].get('buyerBusinessName'):
+                    buyer_name = invoice_data['buyerData'].get('buyerBusinessName')
+
+                items = invoice_data.get('items', []) if isinstance(invoice_data, dict) else []
+
+                inv_total_excl = 0.0
+                inv_total_tax = 0.0
+
+                simple_items = []
+                for it in items:
+                    qty = safe_float(it.get('quantity', 0))
+                    val_excl = safe_float(it.get('valueSalesExcludingST', 0))
+                    tax = safe_float(it.get('salesTaxApplicable', 0))
+                    total = safe_float(it.get('totalValues', 0))
+                    desc = it.get('productDescription') or it.get('description') or it.get('productName') or it.get('name') or ''
+
+                    inv_total_excl += val_excl
+                    inv_total_tax += tax
+
+                    # Accumulate per-product
+                    key = desc.strip()
+                    if not key:
+                        continue
+                    if key not in product_map:
+                        product_map[key] = {'product_name': key, 'quantity': 0.0, 'total_value_excl': 0.0, 'total_tax': 0.0, 'total_sales': 0.0}
+                    product_map[key]['quantity'] += qty
+                    product_map[key]['total_value_excl'] += val_excl
+                    product_map[key]['total_tax'] += tax
+                    product_map[key]['total_sales'] += total
+
+                    simple_items.append({'description': key, 'quantity': qty, 'value_excl': val_excl, 'tax': tax, 'total': total})
+
+                inv_total_amount = inv_total_excl + inv_total_tax
+
+                # Accumulate per-buyer
+                buyer = buyer_name or 'Unknown Buyer'
+                if buyer not in buyer_map:
+                    buyer_map[buyer] = {'buyer_name': buyer, 'invoice_count': 0, 'total_value_excl': 0.0, 'total_tax': 0.0, 'total_amount': 0.0}
+                buyer_map[buyer]['invoice_count'] += 1
+                buyer_map[buyer]['total_value_excl'] += inv_total_excl
+                buyer_map[buyer]['total_tax'] += inv_total_tax
+                buyer_map[buyer]['total_amount'] += inv_total_amount
+
+                overall['total_value_excl'] += inv_total_excl
+                overall['total_tax'] += inv_total_tax
+                overall['total_amount'] += inv_total_amount
+
+                invoices.append({'id': inv_id, 'invoice_ref': invoice_ref, 'buyer_name': buyer, 'created_at': created_at.isoformat(), 'total_value_excl': round(inv_total_excl,2), 'total_tax': round(inv_total_tax,2), 'total_amount': round(inv_total_amount,2), 'items': simple_items})
+
+            # Convert maps to lists
+            products = list(product_map.values())
+            buyers = list(buyer_map.values())
+
+            # Sort products by sales desc
+            products.sort(key=lambda x: x['total_sales'], reverse=True)
+
+            cur.close()
+            conn.close()
+
+            return jsonify({'invoices': invoices, 'products': products, 'buyers': buyers, 'overall': {'total_value_excl': round(overall['total_value_excl'],2), 'total_tax': round(overall['total_tax'],2), 'total_amount': round(overall['total_amount'],2)}})
+
+        except Exception as e:
+            print(f"Error in summarize_invoices: {e}")
+            cur.close()
+            conn.close()
+            return jsonify({'error': 'Internal server error'}), 500

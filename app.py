@@ -811,7 +811,7 @@ def submit_fbr():
         print(f"Submitting data to FBR, env: {env}")
 
         # Send request to FBR with timeout to prevent worker hanging
-        response = requests.post(api_url, headers=headers, json=json_data, timeout=15)
+        response = requests.post(api_url, headers=headers, json=json_data, timeout=30)
         print(f"FBR API Response status: {response.status_code}")
 
         # Parse response
