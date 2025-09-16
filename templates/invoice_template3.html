@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 13px;
+            margin: 0px;
+        }
+        .container{
+            width:100%;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+        }
+        th, td {
+            border: 1px solid #333;
+            padding: 6px;
+            text-align: center;
+        }
+        .no-border td {
+            border: none;
+            padding: 4px 6px;
+        }
+        .section-header {
+            background-color: #a7c7e7;
+            font-weight: bold;
+            text-align: center;
+            padding: 8px;
+            border: 1px solid #333;
+        }
+        .bold {
+            font-weight: bold;
+        }
+        .right {
+            text-align: right;
+        }
+        .left {
+            text-align: left;
+        }
+        .center {
+            text-align: center;
+        }
+        .info-table td {
+            padding: 4px;
+            vertical-align: top;
+        }
+        .summary-table td {
+            border: none;
+            text-align: right;
+            padding: 4px;
+        }
+        .footer-note {
+            font-weight: bold;
+            margin-top: 2px;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+    <!-- Header with Logo and Seller Info -->
+<table class="no-border" style="width: 100%; margin-bottom: 2px;">
+    <tr>
+        <!-- Logo -->
+        <td style="width: 50%; vertical-align: middle; text-align: left;">
+            {% if client_logo_url %}
+                <img src="{{ client_logo_url }}" alt="Client Logo" style="width: 160px; height: auto;">
+            {% endif %}
+        </td>
+
+        <!-- Seller Text Aligned Vertically Center and Right -->
+        <td style="width: 50%; vertical-align: middle; text-align: right;">
+            <div style="line-height: 1.6; display: inline-block; text-align: left;">
+                <p style="margin: 0;"><strong>{{ data.sellerAddress }}</strong></p>
+                <p style="margin: 0;"><strong>NTN:</strong><span style="margin-left: 12px;">{{ data.sellerNTNCNIC }}</span></p>
+                <p style="margin: 0;"><strong>STRN:</strong> {{ data.sellerSTRN }}</p>
+                <p style="margin: 0;"><strong>FBR INVOICE #:</strong> {{ data.fbrInvoiceNumber or "" }}</p>
+            </div>
+        </td>
+    </tr>
+</table>
+
+
+    <!-- Invoice Title -->
+    <div class="section-header" style="margin-top: 15px;">SALES TAX INVOICE</div>
+
+    <!-- Buyer and Invoice Info -->
+    {% if username == '3075270' %}
+    <!-- Customized layout for username 3075270: remove BUYER STRN row and show STATUS instead of P.O#/DATE -->
+    <table style="width: 100%; border: 1px solid #333;">
+        <tr>
+            <td style="width: 20%; font-weight: bold; border: 1px solid #333;" class="left">BUYER NAME</td>
+            <td style="width: 45%; border: 1px solid #333;" class="left">{{ data.buyerBusinessName }}</td>
+            <td style="width: 15%; font-weight: bold; border: 1px solid #333;" class="left">DATE</td>
+            <td style="width: 20%; border: 1px solid #333;" class="left">{{ data.invoiceDate | datetimeformat }}</td>
+        </tr>
+        <tr>
+            <td style="font-weight: bold;" class="left">BUYER ADDRESS</td>
+            <td class="left">{{ data.buyerAddress }}</td>
+            <td style="font-weight: bold;" class="left">INVOICE #</td>
+            <td class="left">{{ data.invoiceRefNo }}</td>
+        </tr>
+        <tr>
+            <td style="font-weight: bold; border: 1px solid #333;" class="left">BUYER NTN/CNIC</td>
+            <td style="border: 1px solid #333;" class="left">{{ data.buyerNTNCNIC }}</td>
+            <td style="font-weight: bold; border: 1px solid #333;" class="left">STATUS</td>
+            <td style="border: 1px solid #333;" class="left">{% if data.buyerRegistrationType and (data.buyerRegistrationType|string).lower() in ['registered','r','yes','1'] %}Registered{% else %}Unregistered{% endif %}</td>
+        </tr>
+    </table>
+    {% else %}
+    <!-- Default layout for all other users -->
+    <table style="width: 100%; border: 1px solid #333;">
+        <tr>
+            <td style="width: 20%; font-weight: bold; border: 1px solid #333;" class="left">BUYER NAME</td>
+            <td style="width: 45%; border: 1px solid #333;" class="left">{{ data.buyerBusinessName }}</td>
+            <td style="width: 15%; font-weight: bold; border: 1px solid #333;" class="left">DATE</td>
+            <td style="width: 20%; border: 1px solid #333;" class="left">{{ data.invoiceDate | datetimeformat }}</td>
+        </tr>
+        <tr>
+            <td style="font-weight: bold;" class="left" rowspan="2">BUYER ADDRESS</td>
+            <td rowspan="2" class="left">{{ data.buyerAddress }}</td>
+            <td style="font-weight: bold;" class="left">INVOICE #</td>
+            <td class="left">{{ data.invoiceRefNo }}</td>
+        </tr>
+        <tr>
+            <td style="font-weight: bold;" class="left">FBR INVOICE #</td>
+            <td class="left">{{ data.fbrInvoiceNumber or "" }}</td>
+        </tr>
+        <tr>
+            <td style="font-weight: bold; border: 1px solid #333;" class="left">BUYER NTN/CNIC</td>
+            <td style="border: 1px solid #333;" class="left">{{ data.buyerNTNCNIC }}</td>
+            <td style="font-weight: bold; border: 1px solid #333;" class="left" rowspan="2">P.O # / DATE</td>
+            <td style="border: 1px solid #333;" class="left" rowspan="2">{{ data.PO }}</td>
+        </tr>
+        <tr>
+            <td style="font-weight: bold; border: 1px solid #333;" class="left">BUYER STRN</td>
+            <td style="border: 1px solid #333;" class="left">{{ data.buyerSTRN }}</td>
+        </tr>
+    </table>
+    {% endif %}
+
+
+<!-- Detail Section -->
+<div class="section-header" style="margin-top: 15px;">DETAILS</div>
+
+<!-- Products Table -->
+<table style="margin-bottom: 0; border-bottom: none; width: 100%; border-collapse: collapse;">
+    <thead>
+        <tr>
+            <th style="width: 5%;">Sr. No.</th>
+            <th style="width: 25%;">Product Detail</th>
+            <th style="width: 10%;">Quantity</th>
+            <th style="width: 10%;">Rate</th>
+            <th style="width: 12%;">Value Exclusive of ST</th>
+            <th style="width: 10%;">Sales Tax Rate</th>
+            <th style="width: 10%;">Sales Tax</th>
+            <th style="width: 18%;">Value Inclusive of Sales Tax</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in data["items"] %}
+        <tr>
+            <td>{{ loop.index }}</td>
+            <td class="left">{{ item.productDescription }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>{{ item.unitrate | comma_format }}</td>
+            <td>{{ item.valueSalesExcludingST | comma_format }}</td>
+            <td>{{ item.rate }}</td>
+            <td>{{ item.salesTaxApplicable | comma_format }}</td>
+            <td>{{ (item.valueSalesExcludingST + item.salesTaxApplicable) | comma_format }}</td>
+        </tr>
+        {% endfor %}
+
+        {# Add empty rows to make total rows = 7 #}
+        {% set total_rows = data["items"]|length %}
+        {% for i in range(total_rows + 1, 6) %}
+        <tr>
+            <td>{{ i }}</td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+            <td></td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- Summary Section -->
+<table class="no-border" style="width: 101.7%; margin-top: -3px; border-top: none;">
+    <tr>
+        <!-- Left: Centered Amount in Words -->
+        <td style="width: 58%; border: none; vertical-align: top;">
+            <table style="width: 100%;">
+                <tr>
+                    <td colspan="2" style="text-align: left;">
+                        <div style="font-weight: bold;">AMOUNT IN WORDS:</div>
+                        <div><i>{{ data.amountInWords }}</i></div>
+                    </td>
+                </tr>
+            </table>
+        </td>
+
+        <!-- Right: Aligned Summary Table -->
+        <td style="width: 42%; border: none; vertical-align: top;">
+            <div style="margin-left: auto; width: 100%; margin-top: 10px;">
+                <table style="width: 98%;">
+                    <tr>
+                        <td style="width: 56%; text-align: left; font-weight: bold; border: 1px solid #333; padding-left: 6px;">Value Exclusive of Sales Tax</td>
+                        <td style="width: 44%; text-align: center; font-weight: bold; border: 1px solid #333; padding-right: 6px;">Rs. {{ data.totalExcl | comma_format}}</td>
+                    </tr>
+                    <tr>
+                        <td style="text-align: left; font-weight: bold; border: 1px solid #333; height: 30px; padding-left: 6px;">Value of Sales Tax</td>
+                        <td style="text-align: center; font-weight: bold; border: 1px solid #333; height: 30px; padding-right: 6px;">Rs. {{ data.totalTax | comma_format }}</td>
+                    </tr>
+                    <tr>
+                        <td style="text-align: left; font-weight: bold; border: 1px solid #333; padding-left: 6px;">Value Inclusive of Sales Tax</td>
+                        <td style="text-align: center; font-weight: bold; border: 1px solid #333; padding-right: 6px;">Rs. {{ data.totalInclusive | comma_format }}</td>
+                    </tr>
+                </table>
+            </div>
+        </td>
+    </tr>
+</table>
+
+<!-- Footer with Signature, FBR Logo and QR Code on the same line -->
+<table class="no-border" style="width: 101%; margin-top: 50px;">
+    <tr>
+        <!-- Left: Authorized Signatory -->
+        <td style="width: 40%; vertical-align: bottom; text-align: left; border: none;">
+            <div class="footer-note">
+                <hr style="width: 200px; margin-left: 0; border-top: 1px solid #000;">
+                <p style="margin-top: -5px;">AUTHORISED SIGNATORY</p>
+            </div>
+        </td>
+        
+        <!-- Middle Space -->
+        <td style="width: 20%; border: none;"></td>
+
+        <!-- FBR Logo -->
+        <td style="width: 20%; text-align: right; vertical-align: middle; border: none;">
+            {% if fbr_logo_url %}
+                <img src="{{ fbr_logo_url }}" style="width: 100px; height: auto; vertical-align: middle;" alt="FBR Logo">
+            {% endif %}
+        </td>
+
+        <!-- QR Code -->
+        <td style="width: 20%; text-align: right; vertical-align: middle; border: none;">
+            {% if qr_base64 %}
+                <img src="data:image/png;base64,{{ qr_base64 }}" style="width: 100px; height: 100px; vertical-align: middle;" alt="QR Code">
+            {% endif %}
+        </td>
+    </tr>
+</table>
+
+</div>
+</body>
+</html>

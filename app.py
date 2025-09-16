@@ -288,7 +288,7 @@ def generate_form_invoice():
             template_name = "invoice_zeeshanst.html"
             print(f"Selected template: {template_name} for Zeeshan ST")
         elif username == "3075270":
-            template_name = "invoice_template2.html"  # Use appropriate template for Care Pharmaceuticals
+            template_name = "invoice_template3.html"  # Use appropriate template for Care Pharmaceuticals
             print(f"Selected template: {template_name} for Care Pharmaceuticals")
         else:
             template_name = "invoice_template2.html"
@@ -310,6 +310,7 @@ def generate_form_invoice():
             qr_base64=qr_base64,
             client_logo_url=client_logo_url,
             fbr_logo_url=fbr_logo_url,
+            username=username,
         )
 
         # Generate PDF directly to a stream
@@ -1055,8 +1056,10 @@ def generate_invoice_excel():
             template_name = "invoice_zeeshanst.html"
         elif username == "7542425":
             template_name = "invoice_alraheem.html"
+        elif username == "3075270":
+            template_name = "invoice_template3.html"  # Use appropriate template for Care Pharmaceuticals
         else:
-            template_name = "invoice_template2.html"
+            template_name = "invoice_template3.html"
 
         # --- Render HTML invoice with the selected template ---
         rendered_html = render_template(
