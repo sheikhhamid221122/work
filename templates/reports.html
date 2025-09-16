@@ -731,9 +731,9 @@
                                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500">
                                 </div>
                                 <div>
-                                    <label for="product-filter"
-                                        class="block text-sm font-medium text-gray-700 mb-1">Product</label>
-                                    <input type="text" id="product-filter" placeholder="Filter by product name"
+                                    <label for="invoice-date-filter"
+                                        class="block text-sm font-medium text-gray-700 mb-1">Invoice Date</label>
+                                    <input type="date" id="invoice-date-filter" placeholder="Select invoice date"
                                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500">
                                 </div>
                             </div>
@@ -816,11 +816,21 @@
                                         </button>
                                     </div>
                                     <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                                        <div>
+                                        <div class="flex items-center gap-4">
                                             <p class="text-sm text-gray-700">
                                                 Showing <span id="page-start">1</span> to <span id="page-end">10</span>
                                                 of <span id="total-items">0</span> results
                                             </p>
+                                            <div class="flex items-center text-sm text-gray-600">
+                                                <label for="rows-per-page-select" class="mr-2">Rows per page</label>
+                                                <select id="rows-per-page-select" class="px-2 py-1 border border-gray-300 rounded-md bg-white">
+                                                    <option value="5">5</option>
+                                                    <option value="10" selected>10</option>
+                                                    <option value="25">25</option>
+                                                    <option value="50">50</option>
+                                                    <option value="100">100</option>
+                                                </select>
+                                            </div>
                                         </div>
                                         <div>
                                             <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
@@ -1439,7 +1449,7 @@
                 filters: {
                     buyerName: '',
                     invoiceRef: '',
-                    productName: ''
+                    invoiceDate: ''
                 }
             },
             products: {
@@ -1579,7 +1589,7 @@
             document.getElementById('apply-invoice-filters').addEventListener('click', function () {
                 state.invoices.filters.buyerName = document.getElementById('buyer-filter').value;
                 state.invoices.filters.invoiceRef = document.getElementById('invoice-ref-filter').value;
-                state.invoices.filters.productName = document.getElementById('product-filter').value;
+                state.invoices.filters.invoiceDate = document.getElementById('invoice-date-filter').value;
                 state.invoices.page = 1; // Reset to first page
                 loadInvoiceList();
             });
@@ -1587,10 +1597,10 @@
             document.getElementById('reset-invoice-filters').addEventListener('click', function () {
                 document.getElementById('buyer-filter').value = '';
                 document.getElementById('invoice-ref-filter').value = '';
-                document.getElementById('product-filter').value = '';
+                document.getElementById('invoice-date-filter').value = '';
                 state.invoices.filters.buyerName = '';
                 state.invoices.filters.invoiceRef = '';
-                state.invoices.filters.productName = '';
+                state.invoices.filters.invoiceDate = '';
                 state.invoices.page = 1; // Reset to first page
                 loadInvoiceList();
             });
@@ -1643,6 +1653,20 @@
                     loadInvoiceList();
                 });
             });
+
+            // Rows per page selector wiring
+            const rowsPerPageSelect = document.getElementById('rows-per-page-select');
+            if (rowsPerPageSelect) {
+                // Initialize from state
+                rowsPerPageSelect.value = String(state.invoices.perPage || 10);
+
+                rowsPerPageSelect.addEventListener('change', function () {
+                    const newVal = parseInt(this.value, 10) || 10;
+                    state.invoices.perPage = newVal;
+                    state.invoices.page = 1; // reset to first page
+                    loadInvoiceList();
+                });
+            }
 
             // Invoice details modal close buttons
             document.getElementById('close-invoice-details').addEventListener('click', function () {
@@ -1979,15 +2003,18 @@
                 params.append('invoice_ref', state.invoices.filters.invoiceRef);
             }
 
-            if (state.invoices.filters.productName) {
-                params.append('product_name', state.invoices.filters.productName);
-            }
-
-            // Date range
-            if (state.dateRange.period !== 'all') {
-                if (state.dateRange.startDate && state.dateRange.endDate) {
-                    params.append('start_date', state.dateRange.startDate);
-                    params.append('end_date', state.dateRange.endDate);
+            // If an exact invoice date filter is provided, use it (exact match)
+            if (state.invoices.filters.invoiceDate) {
+                // send as start_date and end_date so backend filters invoices for that exact day
+                params.append('start_date', state.invoices.filters.invoiceDate);
+                params.append('end_date', state.invoices.filters.invoiceDate);
+            } else {
+                // Date range (when not using exact invoice date)
+                if (state.dateRange.period !== 'all') {
+                    if (state.dateRange.startDate && state.dateRange.endDate) {
+                        params.append('start_date', state.dateRange.startDate);
+                        params.append('end_date', state.dateRange.endDate);
+                    }
                 }
             }
 
