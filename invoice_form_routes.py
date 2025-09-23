@@ -136,6 +136,84 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         conn.close()
         return jsonify({"message": "Business profile updated successfully"})
 
+    # NEW: Delete business profile
+    @app.route("/api/business-profiles/<int:profile_id>", methods=["DELETE"])
+    def delete_business_profile(profile_id):
+        client_id = session.get("client_id")
+        if not client_id:
+            return jsonify({"error": "No client ID in session"}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        try:
+            # Pre-check: block deletion if referenced by any draft invoices
+            cur.execute(
+                """
+                SELECT 1 FROM invoice_drafts
+                WHERE seller_profile_id = %s AND client_id = %s LIMIT 1
+                """,
+                (profile_id, client_id),
+            )
+            if cur.fetchone():
+                cur.close(); conn.close()
+                return (
+                    jsonify({
+                        "error": "in-use",
+                        "message": "This business profile is used in existing draft invoices and cannot be deleted. Remove or modify those drafts first.",
+                    }),
+                    409,
+                )
+
+            cur.execute(
+                """
+                DELETE FROM business_profiles
+                WHERE id = %s AND client_id = %s
+                RETURNING id
+                """,
+                (profile_id, client_id),
+            )
+            row = cur.fetchone()
+            conn.commit()
+            if not row:
+                return jsonify({"error": "Business profile not found"}), 404
+            return jsonify({"success": True, "deleted_id": profile_id})
+        except Exception as e:
+            conn.rollback()
+            return jsonify({"error": str(e)}), 500
+        finally:
+            cur.close(); conn.close()
+    # NEW: Set business profile default
+    @app.route("/api/business-profiles/<int:profile_id>/default", methods=["POST"])
+    def set_business_profile_default(profile_id):
+        client_id = session.get("client_id")
+        if not client_id:
+            return jsonify({"error": "No client ID in session"}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        try:
+            # Ensure ownership
+            cur.execute(
+                "SELECT id FROM business_profiles WHERE id = %s AND client_id = %s",
+                (profile_id, client_id),
+            )
+            if not cur.fetchone():
+                cur.close(); conn.close()
+                return jsonify({"error": "Business profile not found"}), 404
+            # Clear existing defaults then set new
+            cur.execute(
+                "UPDATE business_profiles SET is_default = FALSE WHERE client_id = %s",
+                (client_id,),
+            )
+            cur.execute(
+                "UPDATE business_profiles SET is_default = TRUE WHERE id = %s AND client_id = %s",
+                (profile_id, client_id),
+            )
+            conn.commit()
+            return jsonify({"success": True, "default_id": profile_id})
+        except Exception as e:
+            conn.rollback()
+            return jsonify({"error": str(e)}), 500
+        finally:
+            cur.close(); conn.close()
     # ---------------- Buyers ----------------
     @app.route("/api/buyers", methods=["GET"])
     def get_buyers():
@@ -215,6 +293,33 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         conn.close()
         return jsonify({"id": new_id, "message": "Buyer created successfully"})
 
+    # NEW: Delete buyer
+    @app.route("/api/buyers/<int:buyer_id>", methods=["DELETE"])
+    def delete_buyer(buyer_id):
+        client_id = session.get("client_id")
+        if not client_id:
+            return jsonify({"error": "No client ID in session"}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                """
+                DELETE FROM buyers
+                WHERE id = %s AND client_id = %s
+                RETURNING id
+                """,
+                (buyer_id, client_id),
+            )
+            row = cur.fetchone()
+            conn.commit()
+            if not row:
+                return jsonify({"error": "Buyer not found"}), 404
+            return jsonify({"success": True, "deleted_id": buyer_id})
+        except Exception as e:
+            conn.rollback()
+            return jsonify({"error": str(e)}), 500
+        finally:
+            cur.close(); conn.close()
     # ---------------- Products (with soft delete) ----------------
     @app.route("/api/products", methods=["GET"])
     def get_products():

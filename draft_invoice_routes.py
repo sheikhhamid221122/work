@@ -18,13 +18,54 @@ def add_draft_invoice_routes(app, get_db_connection, get_env):
         env = get_env()
         filter_env = request.args.get("filter_env", "all")
         # New: support filtering by submission status: all | submitted | not_submitted
-        filter_submitted = request.args.get("filter_submitted", "all")
+        # Default to 'not_submitted' to reduce confusion on initial load
+        filter_submitted = request.args.get("filter_submitted", "not_submitted")
         filter_date = request.args.get("filter_date", "all")
+        # New date range support (YYYY-MM-DD)
+        start_date = request.args.get("start_date")
+        end_date = request.args.get("end_date")
         search = request.args.get("search", "").strip().lower()
 
         try:
             conn = get_db_connection()
             cur = conn.cursor()
+
+            # Auto-purge: delete submitted drafts older than 1 day to save storage
+            try:
+                cur.execute(
+                    """
+                    SELECT COUNT(*)
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public' AND table_name = 'invoice_drafts' AND column_name = 'is_submitted'
+                    """
+                )
+                _has_is_submitted = cur.fetchone()[0] > 0
+
+                if _has_is_submitted:
+                    cur.execute(
+                        """
+                        DELETE FROM invoice_drafts
+                        WHERE client_id = %s
+                          AND is_submitted = TRUE
+                          AND updated_at < NOW() - INTERVAL '40 day'
+                        """,
+                        (client_id,),
+                    )
+                else:
+                    # Fallback for older schemas: rely on status submitted
+                    cur.execute(
+                        """
+                        DELETE FROM invoice_drafts
+                        WHERE client_id = %s
+                          AND status = 'submitted'
+                          AND updated_at < NOW() - INTERVAL '40 day'
+                        """,
+                        (client_id,),
+                    )
+                conn.commit()
+            except Exception:
+                # Purge best-effort; ignore failures to not block listing
+                conn.rollback()
 
             # Build query conditions based on filters
             conditions = ["client_id = %s"]
@@ -35,14 +76,23 @@ def add_draft_invoice_routes(app, get_db_connection, get_env):
                 conditions.append("original_env = %s")
                 params.append(filter_env)
 
-            # Date filter
-            if filter_date != "all":
-                if filter_date == "today":
-                    conditions.append("DATE(created_at) = CURRENT_DATE")
-                elif filter_date == "week":
-                    conditions.append("created_at >= CURRENT_DATE - INTERVAL '7 days'")
-                elif filter_date == "month":
-                    conditions.append("created_at >= CURRENT_DATE - INTERVAL '30 days'")
+            # Date filter - prefer explicit range if provided
+            if start_date or end_date:
+                # If only one bound is provided, use it for both to allow single-date filtering
+                if start_date and not end_date:
+                    end_date = start_date
+                if end_date and not start_date:
+                    start_date = end_date
+                conditions.append("DATE(created_at) BETWEEN %s AND %s")
+                params.extend([start_date, end_date])
+            else:
+                if filter_date != "all":
+                    if filter_date == "today":
+                        conditions.append("DATE(created_at) = CURRENT_DATE")
+                    elif filter_date == "week":
+                        conditions.append("created_at >= CURRENT_DATE - INTERVAL '7 days'")
+                    elif filter_date == "month":
+                        conditions.append("created_at >= CURRENT_DATE - INTERVAL '30 days'")
 
             # Detect whether `is_submitted` column exists to remain backwards-compatible
             try:
@@ -295,7 +345,10 @@ def add_draft_invoice_routes(app, get_db_connection, get_env):
 
     @app.route("/api/draft-invoices/mark-submitted", methods=["POST"])
     def mark_draft_submitted():
-        """Mark a draft as submitted/used in production so UI can hide or label it.
+        """Mark a draft as submitted/used.
+
+        Note: Only production submissions set is_submitted=True (drives the UI "Submitted" tag).
+        Sandbox submissions will NOT set is_submitted, preserving the tag's meaning.
 
         Body: { draft_id: int, action: 'mark'|'delete' }
         """
@@ -335,16 +388,98 @@ def add_draft_invoice_routes(app, get_db_connection, get_env):
 
         # Default: mark as submitted
         try:
+            # Determine environment to control submission semantics
+            env = get_env()
+
+            if env == "production":
+                # Only in production we flag as submitted
+                cur.execute(
+                    """
+                    UPDATE invoice_drafts
+                    SET status = %s, is_submitted = TRUE, updated_at = NOW()
+                    WHERE id = %s AND client_id = %s
+                    """,
+                    ("submitted", draft_id, client_id),
+                )
+                message = "Draft marked as submitted (production)"
+            else:
+                # In sandbox, do not set is_submitted so the UI tag won't appear
+                # Optionally record a neutral status for traceability
+                cur.execute(
+                    """
+                    UPDATE invoice_drafts
+                    SET status = %s, updated_at = NOW()
+                    WHERE id = %s AND client_id = %s
+                    """,
+                    ("sandbox_submitted", draft_id, client_id),
+                )
+                message = "Draft processed in sandbox (not marked as submitted)"
+
+            conn.commit()
+            return jsonify({"success": True, "message": message})
+        except Exception as e:
+            conn.rollback()
+            return jsonify({"error": str(e)}), 500
+        finally:
+            cur.close()
+            conn.close()
+
+    @app.route("/api/draft-invoices/unsubmit", methods=["POST"])
+    def unsubmit_draft():
+        """Revert a draft's submitted state so it appears as not submitted in the UI.
+
+        Body: { draft_id: int }
+        """
+        client_id = session.get("client_id")
+        if not client_id:
+            return jsonify({"error": "No client ID in session"}), 401
+
+        data = request.get_json() or {}
+        draft_id = data.get("draft_id")
+        if not draft_id:
+            return jsonify({"error": "Missing draft_id"}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        try:
+            # Verify ownership
+            cur.execute(
+                "SELECT id FROM invoice_drafts WHERE id = %s AND client_id = %s",
+                (draft_id, client_id),
+            )
+            if not cur.fetchone():
+                return jsonify({"error": "Draft not found or access denied"}), 404
+
+            # Detect is_submitted column
             cur.execute(
                 """
-                UPDATE invoice_drafts
-                SET status = %s, is_submitted = TRUE, updated_at = NOW()
-                WHERE id = %s AND client_id = %s
-                """,
-                ("submitted", draft_id, client_id),
+                SELECT COUNT(*)
+                FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = 'invoice_drafts' AND column_name = 'is_submitted'
+                """
             )
+            _has_is_submitted = cur.fetchone()[0] > 0
+
+            if _has_is_submitted:
+                cur.execute(
+                    """
+                    UPDATE invoice_drafts
+                    SET is_submitted = FALSE, status = %s, updated_at = NOW()
+                    WHERE id = %s AND client_id = %s
+                    """,
+                    ("not_submitted", draft_id, client_id),
+                )
+            else:
+                cur.execute(
+                    """
+                    UPDATE invoice_drafts
+                    SET status = %s, updated_at = NOW()
+                    WHERE id = %s AND client_id = %s
+                    """,
+                    ("not_submitted", draft_id, client_id),
+                )
             conn.commit()
-            return jsonify({"success": True, "message": "Draft marked as submitted"})
+            return jsonify({"success": True, "message": "Draft marked as not submitted"})
         except Exception as e:
             conn.rollback()
             return jsonify({"error": str(e)}), 500

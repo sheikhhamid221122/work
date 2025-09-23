@@ -102,7 +102,6 @@ def add_reports_routes(app, get_db_connection, get_env):
         time_series_data = []
         top_products = []
         top_buyers = []
-        tax_breakdown = []
 
         try:
             # Get total successful invoices - count invoices
@@ -245,9 +244,6 @@ def add_reports_routes(app, get_db_connection, get_env):
             # Get top 5 buyers by sales
             top_buyers = get_top_buyers(cur, client_id, env, start_date, end_date)
 
-            # Get tax breakdown
-            tax_breakdown = get_tax_breakdown(cur, client_id, env, start_date, end_date)
-
         except Exception as e:
             print(f"Error in dashboard data: {str(e)}")
             # Keep defaults and return partial data instead of crashing
@@ -260,7 +256,6 @@ def add_reports_routes(app, get_db_connection, get_env):
                 "summary": {
                     "total_invoices": total_invoices,
                     "total_sales": round(total_sales, 2),
-                    "total_tax": round(total_tax, 2),
                     "unique_buyers": unique_buyers,
                     "unique_products": unique_products,
                     "revenue_excluding_tax": round(total_sales - total_tax, 2),
@@ -271,7 +266,6 @@ def add_reports_routes(app, get_db_connection, get_env):
                 "time_series": time_series_data,
                 "top_products": top_products,
                 "top_buyers": top_buyers,
-                "tax_breakdown": tax_breakdown,
             }
         )
 
@@ -549,56 +543,6 @@ def add_reports_routes(app, get_db_connection, get_env):
             )
 
         return top_buyers
-
-    def get_tax_breakdown(cur, client_id, env, start_date, end_date):
-        """Get tax breakdown by tax rate"""
-        # Common date filter condition
-        date_condition = ""
-        params = [client_id, env]
-
-        if start_date and end_date:
-            date_condition = "AND DATE(created_at) BETWEEN %s AND %s"
-            params.extend([start_date, end_date])
-
-        cur.execute(
-            f"""
-            WITH tax_items AS (
-                SELECT 
-                    COALESCE(i.rate, '0%%') as tax_rate,
-                    i.salesTaxApplicable::numeric as tax_amount
-                FROM invoices, 
-                jsonb_to_recordset(
-                    CASE 
-                        WHEN jsonb_typeof(invoice_data::jsonb) = 'object' AND
-                             invoice_data::jsonb ? 'items' AND
-                             jsonb_typeof(invoice_data::jsonb->'items') = 'array' 
-                        THEN invoice_data::jsonb->'items'
-                        ELSE '[]'::jsonb
-                    END
-                ) AS i(rate text, salesTaxApplicable text)
-                WHERE client_id = %s 
-                AND env = %s 
-                AND status = 'Success'
-                {date_condition}
-            )
-            SELECT 
-                tax_rate,
-                SUM(tax_amount) as total_tax
-            FROM tax_items
-            GROUP BY tax_rate
-            ORDER BY total_tax DESC
-            """,
-            params,
-        )
-
-        print(f"Tax breakdown params: {params}")
-
-        tax_breakdown = []
-        for row in cur.fetchall():
-            tax_rate, total_tax = row
-            tax_breakdown.append({"tax_rate": tax_rate, "total_tax": safe_float(total_tax)})
-
-        return tax_breakdown
 
     @app.route("/api/reports/invoices", methods=["GET"])
     def get_invoice_list():
@@ -1824,321 +1768,6 @@ def add_reports_routes(app, get_db_connection, get_env):
             }
         )
 
-    @app.route("/api/reports/tax-analytics", methods=["GET"])
-    def get_tax_analytics():
-        """Get tax-specific analytics"""
-        client_id = session.get("client_id")
-        if not client_id:
-            return jsonify({"error": "No client ID in session"}), 401
-
-        # Use current session environment (fall back to server environment)
-        env = "production"
-
-        # Filtering parameters
-        start_date = request.args.get("start_date")
-        end_date = request.args.get("end_date")
-
-        conn = get_db_connection()
-        cur = conn.cursor()
-
-        # Build WHERE clause and parameters
-        where_conditions = ["client_id = %s", "env = %s", "status = 'Success'"]
-        params = [client_id, env]
-
-        if start_date and end_date:
-            where_conditions.append("DATE(created_at) BETWEEN %s AND %s")
-            params.extend([start_date, end_date])
-
-        # Get tax breakdown by rate - FIXED: Use jsonb_array_elements_text for proper JSON array handling
-        cur.execute(
-            f"""
-            WITH tax_items AS (
-                SELECT 
-                    COALESCE(i.rate, '0%%') as tax_rate,
-                    i.salesTaxApplicable::numeric as tax_amount,
-                    i.valueSalesExcludingST::numeric as value_excl,
-                    i.totalValues::numeric as total_value
-                FROM invoices, 
-                jsonb_to_recordset(
-                    CASE 
-                        WHEN jsonb_typeof(invoice_data::jsonb) = 'object' AND
-                            invoice_data::jsonb ? 'items' AND
-                            jsonb_typeof(invoice_data::jsonb->'items') = 'array' 
-                        THEN invoice_data::jsonb->'items'
-                        ELSE '[]'::jsonb
-                    END
-                ) AS i(rate text, salesTaxApplicable text, valueSalesExcludingST text, totalValues text)
-                WHERE {" AND ".join(where_conditions)}
-            )
-            SELECT 
-                tax_rate,
-                SUM(tax_amount) as total_tax,
-                SUM(value_excl) as total_value_excl,
-                SUM(total_value) as total_value,
-                COUNT(*) as item_count
-            FROM tax_items
-            GROUP BY tax_rate
-            ORDER BY total_tax DESC
-            """,
-            params,
-        )
-
-        tax_by_rate = []
-        for row in cur.fetchall():
-            tax_rate, total_tax, total_value_excl, total_value, item_count = row
-
-            # Safely coalesce NULL/None values to avoid float(None) errors
-            total_tax = total_tax or 0
-            total_value_excl = total_value_excl or 0
-            total_value = total_value or 0
-            item_count = item_count or 0
-
-            # Extract numeric rate for calculations (e.g., "17%" -> 17)
-            numeric_rate = 0
-            try:
-                    numeric_rate = safe_float(str(tax_rate).replace("%", ""))
-            except Exception:
-                numeric_rate = 0
-
-            # Compute effective rate safely
-            try:
-                tv_excl = safe_float(total_value_excl)
-                tt_val = safe_float(total_tax)
-                effective_rate = (
-                    round(tt_val * 100 / tv_excl, 2) if tv_excl > 0 else 0
-                )
-            except Exception:
-                effective_rate = 0
-
-            tax_by_rate.append(
-                {
-                    "tax_rate": tax_rate,
-                    "numeric_rate": numeric_rate,
-                    "total_tax": safe_float(total_tax),
-                    "total_value_excl": safe_float(total_value_excl),
-                    "total_value": safe_float(total_value),
-                    "item_count": int(item_count),
-                    "effective_rate": effective_rate,
-                }
-            )
-
-        # Get monthly tax data - FIXED: Use jsonb_array_elements_text instead of UNNEST
-        cur.execute(
-            f"""
-            WITH invoice_months AS (
-                SELECT 
-                    TO_CHAR(created_at, 'YYYY-MM') as month,
-                    invoice_data,
-                    id
-                FROM invoices
-                WHERE {" AND ".join(where_conditions)}
-            ),
-            tax_sums AS (
-                SELECT 
-                    month,
-                    SUM(val) as total_tax
-                FROM (
-                    SELECT 
-                        month,
-                        jsonb_array_elements_text(
-                            CASE 
-                                WHEN jsonb_typeof(invoice_data::jsonb) = 'object' THEN 
-                                    CASE 
-                                        WHEN invoice_data::jsonb ? 'items' THEN 
-                                            jsonb_path_query_array(invoice_data::jsonb->'items', '$[*].salesTaxApplicable')
-                                        ELSE 
-                                            '[]'::jsonb 
-                                    END
-                                ELSE 
-                                    '[]'::jsonb 
-                            END
-                        )::numeric AS val
-                    FROM invoice_months
-                ) as tax_values
-                GROUP BY month
-            ),
-            value_sums AS (
-                SELECT 
-                    month,
-                    SUM(val) as total_value_excl
-                FROM (
-                    SELECT 
-                        month,
-                        jsonb_array_elements_text(
-                            CASE 
-                                WHEN jsonb_typeof(invoice_data::jsonb) = 'object' THEN 
-                                    CASE 
-                                        WHEN invoice_data::jsonb ? 'items' THEN 
-                                            jsonb_path_query_array(invoice_data::jsonb->'items', '$[*].valueSalesExcludingST')
-                                        ELSE 
-                                            '[]'::jsonb 
-                                    END
-                                ELSE 
-                                    '[]'::jsonb 
-                            END
-                        )::numeric AS val
-                    FROM invoice_months
-                ) as value_values
-                GROUP BY month
-            ),
-            invoice_counts AS (
-                SELECT 
-                    month,
-                    COUNT(*) as invoice_count
-                FROM invoice_months
-                GROUP BY month
-            )
-            SELECT 
-                ic.month,
-                COALESCE(ts.total_tax, 0) as total_tax,
-                COALESCE(vs.total_value_excl, 0) as total_value_excl,
-                ic.invoice_count
-            FROM invoice_counts ic
-            LEFT JOIN tax_sums ts ON ic.month = ts.month
-            LEFT JOIN value_sums vs ON ic.month = vs.month
-            ORDER BY ic.month
-            """,
-            params,
-        )
-
-        monthly_tax = []
-        for row in cur.fetchall():
-            month, total_tax, total_value_excl, invoice_count = row
-            # Safely coerce numeric fields
-            mt_total_tax = safe_float(total_tax)
-            mt_total_value_excl = safe_float(total_value_excl)
-            monthly_tax.append(
-                {
-                    "month": month,
-                    "total_tax": mt_total_tax,
-                    "total_value_excl": mt_total_value_excl,
-                    "invoice_count": invoice_count,
-                    "effective_rate": round(mt_total_tax * 100 / mt_total_value_excl, 2)
-                    if mt_total_value_excl > 0
-                    else 0,
-                }
-            )
-
-        # Get buyer tax contributions - FIXED
-
-        try:
-            cur.execute(
-                f"""
-                WITH buyers AS (
-                    SELECT 
-                        CASE 
-                            WHEN jsonb_typeof(invoice_data::jsonb) = 'object' THEN 
-                                CASE 
-                                    WHEN invoice_data::jsonb ? 'buyerBusinessName' THEN 
-                                        invoice_data::jsonb->>'buyerBusinessName'
-                                    WHEN invoice_data::jsonb ? 'buyerData' AND 
-                                        jsonb_typeof(invoice_data::jsonb->'buyerData') = 'object' AND
-                                        invoice_data::jsonb->'buyerData' ? 'buyerBusinessName' THEN
-                                        invoice_data::jsonb->'buyerData'->>'buyerBusinessName'
-                                    ELSE 'Unknown Buyer'
-                                END
-                            ELSE 'Unknown Buyer'
-                        END as buyer_name,
-                        invoice_data
-                    FROM invoices
-                    WHERE {" AND ".join(where_conditions)}
-                ),
-                buyer_tax AS (
-                    SELECT
-                        buyer_name,
-                        SUM(val) as total_tax
-                    FROM (
-                        SELECT 
-                            buyer_name,
-                            jsonb_array_elements_text(
-                                CASE 
-                                    WHEN jsonb_typeof(invoice_data::jsonb) = 'object' THEN 
-                                        CASE 
-                                            WHEN invoice_data::jsonb ? 'items' THEN 
-                                                jsonb_path_query_array(invoice_data::jsonb->'items', '$[*].salesTaxApplicable')
-                                            ELSE 
-                                                '[]'::jsonb 
-                                        END
-                                    ELSE 
-                                        '[]'::jsonb 
-                                END
-                            )::numeric AS val
-                        FROM buyers
-                    ) as tax_values
-                    GROUP BY buyer_name
-                )
-                SELECT 
-                    buyer_name,
-                    total_tax
-                FROM buyer_tax
-                WHERE buyer_name != 'Unknown Buyer'
-                ORDER BY total_tax DESC
-                LIMIT 10
-                """,
-                params,
-            )
-
-            top_tax_buyers = []
-            for row in cur.fetchall():
-                buyer_name, total_tax = row
-                top_tax_buyers.append(
-                    {"buyer_name": buyer_name, "total_tax": safe_float(total_tax)}
-                )
-        except Exception as e:
-            print(f"Error in tax buyers query: {e}")
-            top_tax_buyers = []
-
-        # Get product tax contributions
-        try:
-            cur.execute(
-                f"""
-                WITH product_tax AS (
-                    SELECT 
-                        COALESCE(i.productDescription, i.description, i.productName, i.name) as productDescription,
-                        SUM(i.salesTaxApplicable::numeric) as total_tax
-                    FROM invoices, 
-                    jsonb_to_recordset(
-                        CASE 
-                            WHEN jsonb_typeof(invoice_data::jsonb) = 'object' AND
-                                invoice_data::jsonb ? 'items' AND
-                                jsonb_typeof(invoice_data::jsonb->'items') = 'array' 
-                            THEN invoice_data::jsonb->'items'
-                            ELSE '[]'::jsonb
-                        END
-                    ) AS i(productDescription text, description text, productName text, name text, salesTaxApplicable text)
-                    WHERE {" AND ".join(where_conditions)}
-                    AND COALESCE(i.productDescription, i.description, i.productName, i.name) IS NOT NULL
-                    GROUP BY COALESCE(i.productDescription, i.description, i.productName, i.name)
-                    ORDER BY total_tax DESC
-                    LIMIT 10
-                )
-                SELECT * FROM product_tax
-                """,
-                params,
-            )
-
-            top_tax_products = []
-            for row in cur.fetchall():
-                product_name, total_tax = row
-                top_tax_products.append(
-                    {"product_name": product_name, "total_tax": safe_float(total_tax)}
-                )
-        except Exception as e:
-            print(f"Error in tax products query: {e}")
-            top_tax_products = []
-
-        cur.close()
-        conn.close()
-
-        return jsonify(
-            {
-                "tax_by_rate": tax_by_rate,
-                "monthly_tax": monthly_tax,
-                "top_tax_buyers": top_tax_buyers,
-                "top_tax_products": top_tax_products,
-            }
-        )
-
     @app.route('/api/reports/summarize', methods=['POST'])
     def summarize_invoices():
         """Summarize selected invoices. Accepts JSON: { invoice_ids: [id1, id2, ...], env?: 'production'|'sandbox' }
@@ -2251,7 +1880,28 @@ def add_reports_routes(app, get_db_connection, get_env):
                 overall['total_tax'] += inv_total_tax
                 overall['total_amount'] += inv_total_amount
 
-                invoices.append({'id': inv_id, 'invoice_ref': invoice_ref, 'buyer_name': buyer, 'created_at': created_at.isoformat(), 'total_value_excl': round(inv_total_excl,2), 'total_tax': round(inv_total_tax,2), 'total_amount': round(inv_total_amount,2), 'items': simple_items})
+                # Extract invoice date if available in the invoice_data
+                invoice_date = None
+                if isinstance(invoice_data, dict) and 'invoiceDate' in invoice_data:
+                    invoice_date = invoice_data.get('invoiceDate')
+                
+                # Extract seller business name if available
+                seller_business_name = None
+                if isinstance(invoice_data, dict) and 'sellerBusinessName' in invoice_data:
+                    seller_business_name = invoice_data.get('sellerBusinessName')
+                
+                invoices.append({
+                    'id': inv_id, 
+                    'invoice_ref': invoice_ref, 
+                    'buyer_name': buyer, 
+                    'created_at': created_at.isoformat(),
+                    'invoice_date': invoice_date,
+                    'sellerBusinessName': seller_business_name,
+                    'total_value_excl': round(inv_total_excl,2), 
+                    'total_tax': round(inv_total_tax,2), 
+                    'total_amount': round(inv_total_amount,2), 
+                    'items': simple_items
+                })
 
             # Convert maps to lists
             products = list(product_map.values())

@@ -231,6 +231,32 @@
             .page-break {
                 page-break-before: always;
             }
+            
+            #daily-sales-table th, 
+            #daily-sales-table td, 
+            #summary-products-table th, 
+            #summary-products-table td {
+                border: 1px solid #000;
+                padding: 5px;
+            }
+            
+            #summary-company-name {
+                font-size: 20pt;
+                margin-bottom: 5px;
+            }
+            
+            #toggle-products-btn {
+                display: none !important;
+            }
+            
+            #daily-sales-table {
+                margin-bottom: 20px;
+            }
+            
+            table {
+                width: 100%;
+                border-collapse: collapse;
+            }
         }
     </style>
 </head>
@@ -399,17 +425,7 @@
 
                         <!-- Date Filter -->
                         <div class="mt-4 md:mt-0 flex flex-wrap items-center gap-2">
-                            <select id="date-range-select"
-                                class="px-3 py-2 bg-white border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500">
-                                <option value="all">All Time</option>
-                                <option value="today">Today</option>
-                                <option value="week">This Week</option>
-                                <option value="month">This Month</option>
-                                <option value="year">This Year</option>
-                                <option value="custom">Custom Range</option>
-                            </select>
-
-                            <div id="custom-date-range" class="hidden flex gap-2 items-center">
+                            <div class="flex gap-2 items-center">
                                 <input type="date" id="start-date"
                                     class="px-3 py-2 border border-gray-300 rounded-md text-sm">
                                 <span>to</span>
@@ -419,12 +435,11 @@
                                     class="bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-3 rounded-md text-sm">
                                     Apply
                                 </button>
+                                <button id="reset-date-range"
+                                    class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-3 rounded-md text-sm">
+                                    Reset
+                                </button>
                             </div>
-
-                            <button id="print-report"
-                                class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out flex items-center text-sm ml-2">
-                                <i class="fas fa-print mr-2"></i> Print
-                            </button>
                         </div>
                     </div>
 
@@ -452,18 +467,11 @@
                                     <i class="fas fa-box mr-2"></i> Products
                                 </a>
                             </li>
-                            <li class="mr-2">
+                            <li>
                                 <a href="#"
                                     class="tab-link inline-block py-2 px-4 font-medium text-center border-b-2 border-transparent hover:text-primary-600 hover:border-primary-300 rounded-t-lg"
                                     data-tab="buyers">
                                     <i class="fas fa-users mr-2"></i> Buyers
-                                </a>
-                            </li>
-                            <li>
-                                <a href="#"
-                                    class="tab-link inline-block py-2 px-4 font-medium text-center border-b-2 border-transparent hover:text-primary-600 hover:border-primary-300 rounded-t-lg"
-                                    data-tab="tax">
-                                    <i class="fas fa-percentage mr-2"></i> Tax Analysis
                                 </a>
                             </li>
                         </ul>
@@ -507,17 +515,7 @@
                                     </div>
                                 </div>
                             </div>
-                            <div class="bg-white p-4 rounded-lg shadow stat-card border-l-4 border-purple-500">
-                                <div class="flex items-center">
-                                    <div class="p-3 rounded-full bg-purple-100 text-purple-600 mr-4">
-                                        <i class="fas fa-percentage text-xl"></i>
-                                    </div>
-                                    <div>
-                                        <h3 class="text-gray-500 text-sm">Tax Collected</h3>
-                                        <p class="text-2xl font-semibold" id="total-tax">PKR 0.00</p>
-                                    </div>
-                                </div>
-                            </div>
+
                             <div class="bg-white p-4 rounded-lg shadow stat-card border-l-4 border-blue-500">
                                 <div class="flex items-center">
                                     <div class="p-3 rounded-full bg-blue-100 text-blue-600 mr-4">
@@ -656,39 +654,7 @@
                                 </div>
                             </div>
 
-                            <!-- Tax Breakdown Table -->
-                            <div class="bg-white p-4 rounded-lg shadow">
-                                <div class="flex items-center justify-between mb-4">
-                                    <h3 class="font-medium text-gray-700">Tax Breakdown by Rate</h3>
-                                    <button class="text-sm text-primary-600 hover:underline" id="open-tax-full">View
-                                        full</button>
-                                </div>
-                                <div class="overflow-x-auto">
-                                    <table class="min-w-full divide-y divide-gray-200">
-                                        <thead class="bg-gray-50">
-                                            <tr>
-                                                <th
-                                                    class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                                                    Tax Rate</th>
-                                                <th
-                                                    class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                                    Tax Amount (PKR)</th>
-                                                <th
-                                                    class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                                    Value Excl. Tax</th>
-                                                <th
-                                                    class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                                    Items</th>
-                                                <th
-                                                    class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                                    Effective Rate</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="tax-breakdown-body" class="bg-white divide-y divide-gray-200">
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
+
                         </div>
 
                         <!-- No Data Message (initially hidden) -->
@@ -871,42 +837,33 @@
                         <!-- Summary Modal -->
                         <div id="summary-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden no-print">
                             <div class="modal-overlay absolute inset-0"></div>
-                            <div class="bg-white rounded-lg shadow-xl z-50 w-full max-w-5xl max-h-screen overflow-auto">
+                            <div class="bg-white rounded-lg shadow-xl z-50 w-full max-w-6xl max-h-[90vh] my-[5vh] overflow-auto">
                                 <div class="p-6">
                                     <div class="flex justify-between items-center mb-4">
-                                        <h3 class="text-lg font-semibold text-gray-900">Selected Invoices Summary</h3>
+                                        <h3 class="text-lg font-semibold text-gray-900" id="report-title">Sales Report</h3>
                                         <button id="close-summary-modal" class="text-gray-400 hover:text-gray-500">
                                             <i class="fas fa-times"></i>
                                         </button>
                                     </div>
 
                                     <div id="summary-content">
-                                        <div class="mb-4">
-                                            <div class="text-sm text-gray-600">Overview</div>
+                                        <!-- Company Info Header -->
+                                        <div class="text-center mb-4">
+                                            <h2 class="text-xl font-bold text-gray-800" id="summary-company-name">CARE PHARMACEUTICALS</h2>
+                                            <p class="text-md font-semibold" id="report-subtitle">Sales Report</p>
+                                        </div>
+                                        
+                                        <!-- Overview Stats -->
+                                        <div class="mb-6 bg-gray-50 p-4 rounded border">
                                             <div class="text-lg font-medium mt-2" id="summary-overview"></div>
                                         </div>
 
-                                        <div class="mb-4">
-                                            <h4 class="font-medium text-gray-700 mb-2">Products</h4>
-                                            <div class="overflow-x-auto">
-                                                <table class="min-w-full divide-y divide-gray-200" id="summary-products-table">
-                                                    <thead class="bg-gray-50">
-                                                        <tr>
-                                                            <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
-                                                            <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Qty</th>
-                                                            <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Value Excl.</th>
-                                                            <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Tax</th>
-                                                            <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Total</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody class="bg-white divide-y divide-gray-200" id="summary-products-body"></tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-
-                                        <div class="mb-4">
-                                            <h4 class="font-medium text-gray-700 mb-2">Invoices Included</h4>
-                                            <div id="summary-invoices-list" class="space-y-2"></div>
+                                        <!-- Detailed Sales Table with Products -->
+                                        <div class="mb-6 overflow-x-auto">
+                                            <table class="min-w-full border border-gray-200" id="daily-sales-table">
+                                                <!-- Table content will be dynamically generated -->
+                                                <tbody class="bg-white divide-y divide-gray-200" id="daily-sales-body"></tbody>
+                                            </table>
                                         </div>
                                     </div>
 
@@ -1163,170 +1120,6 @@
                                 or search criteria.</p>
                         </div>
                     </div>
-
-                    <!-- Tax Analysis Tab Content -->
-                    <div id="tax-tab" class="tab-content">
-                        <!-- Title for Print -->
-                        <div class="hidden print:block mb-6">
-                            <h1 class="text-3xl font-bold text-center">TaxLink Pro Tax Analysis</h1>
-                            <p class="text-center text-gray-600" id="tax-report-date-range">All Time</p>
-                        </div>
-
-                        <!-- Tax Summary Cards -->
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                            <div class="bg-white p-4 rounded-lg shadow stat-card border-l-4 border-purple-500">
-                                <div class="flex flex-col">
-                                    <h3 class="text-gray-500 text-sm mb-1">Total Tax Collected</h3>
-                                    <p class="text-2xl font-semibold" id="tax-collected">PKR 0.00</p>
-                                </div>
-                            </div>
-                            <div class="bg-white p-4 rounded-lg shadow stat-card border-l-4 border-green-500">
-                                <div class="flex flex-col">
-                                    <h3 class="text-gray-500 text-sm mb-1">Average Tax per Invoice</h3>
-                                    <p class="text-2xl font-semibold" id="avg-tax-per-invoice">PKR 0.00</p>
-                                </div>
-                            </div>
-                            <div class="bg-white p-4 rounded-lg shadow stat-card border-l-4 border-blue-500">
-                                <div class="flex flex-col">
-                                    <h3 class="text-gray-500 text-sm mb-1">Effective Tax Rate</h3>
-                                    <p class="text-2xl font-semibold" id="effective-tax-rate">0.00%</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Tax Analytics Charts -->
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                            <!-- Tax by Rate Chart -->
-                            <div class="bg-white p-4 rounded-lg shadow">
-                                <h3 class="font-medium text-gray-700 mb-4">Tax Distribution by Rate</h3>
-                                <div class="h-72">
-                                    <canvas id="tax-rate-chart"></canvas>
-                                </div>
-                            </div>
-
-                            <!-- Monthly Tax Trend -->
-                            <div class="bg-white p-4 rounded-lg shadow">
-                                <h3 class="font-medium text-gray-700 mb-4">Monthly Tax Trend</h3>
-                                <div class="h-72">
-                                    <canvas id="tax-trend-chart"></canvas>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Tax Breakdown Table -->
-                        <div class="bg-white rounded-lg shadow overflow-hidden mb-6">
-                            <div class="px-4 py-5 sm:px-6">
-                                <h3 class="text-lg leading-6 font-medium text-gray-900">Tax Breakdown by Rate</h3>
-                                <p class="mt-1 max-w-2xl text-sm text-gray-500">Detailed tax collections by tax rate.
-                                </p>
-                            </div>
-                            <div class="overflow-x-auto">
-                                <table class="min-w-full divide-y divide-gray-200">
-                                    <thead class="bg-gray-50">
-                                        <tr>
-                                            <th scope="col"
-                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Tax Rate
-                                            </th>
-                                            <th scope="col"
-                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Total Value (Excl. Tax)
-                                            </th>
-                                            <th scope="col"
-                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Tax Amount
-                                            </th>
-                                            <th scope="col"
-                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Effective Rate
-                                            </th>
-                                            <th scope="col"
-                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                Item Count
-                                            </th>
-                                            <th scope="col"
-                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                % of Total Tax
-                                            </th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="tax-table-body" class="bg-white divide-y divide-gray-200">
-                                        <!-- Tax data will be loaded here -->
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <!-- Tax Contributors -->
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-                            <!-- Top Tax Paying Buyers -->
-                            <div class="bg-white p-4 rounded-lg shadow">
-                                <h3 class="font-medium text-gray-700 mb-4">Top Tax Paying Buyers</h3>
-                                <div class="overflow-x-auto">
-                                    <table class="min-w-full divide-y divide-gray-200">
-                                        <thead class="bg-gray-50">
-                                            <tr>
-                                                <th scope="col"
-                                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                    Buyer Name
-                                                </th>
-                                                <th scope="col"
-                                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                    Tax Amount
-                                                </th>
-                                                <th scope="col"
-                                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                    % of Total Tax
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="tax-buyers-body" class="bg-white divide-y divide-gray-200">
-                                            <!-- Top tax paying buyers will be loaded here -->
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-
-                            <!-- Top Tax Generating Products -->
-                            <div class="bg-white p-4 rounded-lg shadow">
-                                <h3 class="font-medium text-gray-700 mb-4">Top Tax Generating Products</h3>
-                                <div class="overflow-x-auto">
-                                    <table class="min-w-full divide-y divide-gray-200">
-                                        <thead class="bg-gray-50">
-                                            <tr>
-                                                <th scope="col"
-                                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                    Product Name
-                                                </th>
-                                                <th scope="col"
-                                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                    Tax Amount
-                                                </th>
-                                                <th scope="col"
-                                                    class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                                    % of Total Tax
-                                                </th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="tax-products-body" class="bg-white divide-y divide-gray-200">
-                                            <!-- Top tax generating products will be loaded here -->
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- No Tax Data Message (initially hidden) -->
-                        <div id="no-tax-message" class="hidden bg-white p-8 rounded-lg shadow text-center">
-                            <div
-                                class="mx-auto w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-4">
-                                <i class="fas fa-percentage text-gray-500 text-2xl"></i>
-                            </div>
-                            <h3 class="text-lg font-medium text-gray-900 mb-2">No Tax Data Available</h3>
-                            <p class="text-gray-500 mb-6">There are no tax records in the system for the selected date
-                                range.</p>
-                        </div>
-                    </div>
                 </div>
             </main>
         </div>
@@ -1537,49 +1330,53 @@
                 });
             });
 
-            // Date range selector
-            const dateRangeSelect = document.getElementById('date-range-select');
-            const customDateRange = document.getElementById('custom-date-range');
-
-            dateRangeSelect.addEventListener('change', function () {
-                const value = this.value;
-                state.dateRange.period = value;
-
-                if (value === 'custom') {
-                    customDateRange.classList.remove('hidden');
-                    // Don't load data yet, wait for the user to click "Apply"
-                } else {
-                    customDateRange.classList.add('hidden');
-
-                    // Reset custom date range
-                    state.dateRange.startDate = null;
-                    state.dateRange.endDate = null;
-
-                    // Load data for all tabs
-                    refreshAllTabs();
-                }
-            });
-
-            // Apply custom date range
+            // Initialize date pickers without default values
+            const startDateInput = document.getElementById('start-date');
+            const endDateInput = document.getElementById('end-date');
+            
+            // Clear the dates
+            startDateInput.value = '';
+            endDateInput.value = '';
+            
+            // Set initial state with no dates to show all data by default
+            state.dateRange.startDate = null;
+            state.dateRange.endDate = null;
+            
+            // Apply date range
             document.getElementById('apply-date-range').addEventListener('click', function () {
-                const startDate = document.getElementById('start-date').value;
-                const endDate = document.getElementById('end-date').value;
+                const startDate = startDateInput.value;
+                const endDate = endDateInput.value;
 
                 if (!startDate || !endDate) {
                     showNotification('error', 'Validation Error', 'Please select both start and end dates');
                     return;
                 }
 
+                // Set the date range in state
+                state.dateRange.period = 'custom';
                 state.dateRange.startDate = startDate;
                 state.dateRange.endDate = endDate;
 
                 // Load data for all tabs
                 refreshAllTabs();
             });
-
-            // Print report button
-            document.getElementById('print-report').addEventListener('click', function () {
-                window.print();
+            
+            // Reset date range
+            document.getElementById('reset-date-range').addEventListener('click', function () {
+                // Clear the date inputs
+                startDateInput.value = '';
+                endDateInput.value = '';
+                
+                // Reset the date range state
+                state.dateRange.period = 'all';
+                state.dateRange.startDate = null;
+                state.dateRange.endDate = null;
+                
+                // Load data for all tabs
+                refreshAllTabs();
+                
+                // Show notification
+                showNotification('info', 'Date Range Reset', 'Showing data for all time');
             });
 
             // Initial data load for dashboard tab
@@ -1693,9 +1490,6 @@
                 case 'buyers':
                     loadBuyerData();
                     break;
-                case 'tax':
-                    loadTaxData();
-                    break;
             }
         }
 
@@ -1715,15 +1509,7 @@
         function updateDateRangeText() {
             let rangeText = 'All Time';
 
-            if (state.dateRange.period === 'today') {
-                rangeText = 'Today';
-            } else if (state.dateRange.period === 'week') {
-                rangeText = 'This Week';
-            } else if (state.dateRange.period === 'month') {
-                rangeText = 'This Month';
-            } else if (state.dateRange.period === 'year') {
-                rangeText = 'This Year';
-            } else if (state.dateRange.period === 'custom' && state.dateRange.startDate && state.dateRange.endDate) {
+            if (state.dateRange.startDate && state.dateRange.endDate) {
                 rangeText = `${formatDate(state.dateRange.startDate)} to ${formatDate(state.dateRange.endDate)}`;
             }
 
@@ -1731,7 +1517,6 @@
             document.getElementById('invoice-report-date-range').textContent = rangeText;
             document.getElementById('product-report-date-range').textContent = rangeText;
             document.getElementById('buyer-report-date-range').textContent = rangeText;
-            document.getElementById('tax-report-date-range').textContent = rangeText;
         }
 
         // Load Dashboard Data
@@ -1741,11 +1526,12 @@
             let url = '/api/reports/dashboard';
             const params = new URLSearchParams();
 
-            params.append('period', state.dateRange.period);
-
             if (state.dateRange.startDate && state.dateRange.endDate) {
                 params.append('start_date', state.dateRange.startDate);
                 params.append('end_date', state.dateRange.endDate);
+                params.append('period', 'custom');
+            } else {
+                params.append('period', 'all');
             }
 
             url = `${url}?${params.toString()}`;
@@ -1773,7 +1559,6 @@
                     // Update summary cards
                     document.getElementById('total-invoices').textContent = data.summary.total_invoices;
                     document.getElementById('total-sales').textContent = formatCurrency(data.summary.total_sales);
-                    document.getElementById('total-tax').textContent = formatCurrency(data.summary.total_tax);
                     document.getElementById('unique-buyers').textContent = data.summary.unique_buyers;
                     document.getElementById('revenue-excl-tax').textContent = formatCurrency(data.summary.revenue_excluding_tax);
                     document.getElementById('avg-invoice-value').textContent = formatCurrency(data.summary.average_invoice_value);
@@ -1792,11 +1577,9 @@
                         // Build params matching the current date range
                         let pUrl = '/api/reports/product-analytics';
                         const pparams = new URLSearchParams();
-                        if (state.dateRange.period !== 'all') {
-                            if (state.dateRange.startDate && state.dateRange.endDate) {
-                                pparams.append('start_date', state.dateRange.startDate);
-                                pparams.append('end_date', state.dateRange.endDate);
-                            }
+                        if (state.dateRange.startDate && state.dateRange.endDate) {
+                            pparams.append('start_date', state.dateRange.startDate);
+                            pparams.append('end_date', state.dateRange.endDate);
                         }
                         pUrl = `${pUrl}?${pparams.toString()}`;
 
@@ -1821,7 +1604,6 @@
                     }
 
                     renderTopBuyersTable(data.top_buyers);
-                    renderTaxBreakdownTable(data.tax_breakdown);
                 })
                 .catch(error => {
                     document.getElementById('loading-indicator').classList.add('hidden');
@@ -1915,35 +1697,13 @@
             });
         }
 
-        // Render tax breakdown table
-        function renderTaxBreakdownTable(breakdown) {
-            const tbody = document.getElementById('tax-breakdown-body');
-            tbody.innerHTML = '';
-            if (!breakdown || breakdown.length === 0) {
-                tbody.innerHTML = '<tr><td class="px-4 py-4 text-center" colspan="5">No data</td></tr>';
-                return;
-            }
 
-            breakdown.forEach(t => {
-                const tr = document.createElement('tr');
-                tr.className = 'hover:bg-gray-50';
-                tr.innerHTML = `
-                    <td class="px-4 py-3 text-sm text-gray-700">${t.tax_rate}</td>
-                    <td class="px-4 py-3 text-sm text-right text-gray-900">${formatCurrency(t.total_tax)}</td>
-                    <td class="px-4 py-3 text-sm text-right text-gray-900">${formatCurrency(t.total_value_excl || 0)}</td>
-                    <td class="px-4 py-3 text-sm text-right text-gray-900">${t.item_count || 0}</td>
-                    <td class="px-4 py-3 text-sm text-right text-gray-900">${t.effective_rate || 0}%</td>
-                `;
-                tbody.appendChild(tr);
-            });
-        }
 
         // Wire up "View full" buttons to open the corresponding tabs
         document.addEventListener('DOMContentLoaded', () => {
             const salesBtn = document.getElementById('open-sales-full');
             const productsBtn = document.getElementById('open-products-full');
             const buyersBtn = document.getElementById('open-buyers-full');
-            const taxBtn = document.getElementById('open-tax-full');
 
             if (salesBtn) {
                 salesBtn.addEventListener('click', () => {
@@ -1972,11 +1732,7 @@
                 });
             }
 
-            if (taxBtn) {
-                taxBtn.addEventListener('click', () => {
-                    document.querySelector('.tab-link[data-tab="tax"]').click();
-                });
-            }
+
         });
 
         // Load Invoice List
@@ -2010,11 +1766,9 @@
                 params.append('end_date', state.invoices.filters.invoiceDate);
             } else {
                 // Date range (when not using exact invoice date)
-                if (state.dateRange.period !== 'all') {
-                    if (state.dateRange.startDate && state.dateRange.endDate) {
-                        params.append('start_date', state.dateRange.startDate);
-                        params.append('end_date', state.dateRange.endDate);
-                    }
+                if (state.dateRange.startDate && state.dateRange.endDate) {
+                    params.append('start_date', state.dateRange.startDate);
+                    params.append('end_date', state.dateRange.endDate);
                 }
             }
 
@@ -2346,11 +2100,9 @@
             }
 
             // Date range
-            if (state.dateRange.period !== 'all') {
-                if (state.dateRange.startDate && state.dateRange.endDate) {
-                    params.append('start_date', state.dateRange.startDate);
-                    params.append('end_date', state.dateRange.endDate);
-                }
+            if (state.dateRange.startDate && state.dateRange.endDate) {
+                params.append('start_date', state.dateRange.startDate);
+                params.append('end_date', state.dateRange.endDate);
             }
 
             url = `${url}?${params.toString()}`;
@@ -2564,11 +2316,9 @@
             }
 
             // Date range
-            if (state.dateRange.period !== 'all') {
-                if (state.dateRange.startDate && state.dateRange.endDate) {
-                    params.append('start_date', state.dateRange.startDate);
-                    params.append('end_date', state.dateRange.endDate);
-                }
+            if (state.dateRange.startDate && state.dateRange.endDate) {
+                params.append('start_date', state.dateRange.startDate);
+                params.append('end_date', state.dateRange.endDate);
             }
 
             url = `${url}?${params.toString()}`;
@@ -2774,258 +2524,6 @@
         }
 
         // Load Tax Data
-        function loadTaxData() {
-            document.getElementById('loading-indicator').classList.remove('hidden');
-
-            let url = '/api/reports/tax-analytics';
-            const params = new URLSearchParams();
-
-            // Date range
-            if (state.dateRange.period !== 'all') {
-                if (state.dateRange.startDate && state.dateRange.endDate) {
-                    params.append('start_date', state.dateRange.startDate);
-                    params.append('end_date', state.dateRange.endDate);
-                }
-            }
-
-            url = `${url}?${params.toString()}`;
-
-            fetch(apiUrl(url))
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    document.getElementById('loading-indicator').classList.add('hidden');
-
-                    // Check if there's data
-                    if (data.tax_by_rate.length === 0) {
-                        document.getElementById('no-tax-message').classList.remove('hidden');
-                        return;
-                    } else {
-                        document.getElementById('no-tax-message').classList.add('hidden');
-                    }
-
-                    // Calculate total tax for percentage calculations
-                    const totalTax = data.tax_by_rate.reduce((sum, item) => sum + item.total_tax, 0);
-
-                    // Update summary cards
-                    document.getElementById('tax-collected').textContent = formatCurrency(totalTax);
-
-                    // Calculate average tax per invoice
-                    const totalInvoices = data.monthly_tax.reduce((sum, month) => sum + month.invoice_count, 0);
-                    const avgTaxPerInvoice = totalInvoices > 0 ? totalTax / totalInvoices : 0;
-                    document.getElementById('avg-tax-per-invoice').textContent = formatCurrency(avgTaxPerInvoice);
-
-                    // Calculate overall effective tax rate
-                    const totalValueExcl = data.tax_by_rate.reduce((sum, item) => sum + item.total_value_excl, 0);
-                    const effectiveRate = totalValueExcl > 0 ? (totalTax / totalValueExcl) * 100 : 0;
-                    document.getElementById('effective-tax-rate').textContent = formatPercentage(effectiveRate);
-
-                    // Create/update charts
-                    createTaxRateChart(data.tax_by_rate, totalTax);
-                    createTaxTrendChart(data.monthly_tax);
-
-                    // Populate tax breakdown table
-                    const taxTableBody = document.getElementById('tax-table-body');
-                    taxTableBody.innerHTML = '';
-
-                    data.tax_by_rate.forEach(item => {
-                        const row = document.createElement('tr');
-                        row.className = 'hover:bg-gray-50';
-
-                        const taxPercentage = (item.total_tax / totalTax) * 100;
-
-                        row.innerHTML = `
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary-600">${item.tax_rate}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(item.total_value_excl)}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${formatCurrency(item.total_tax)}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatPercentage(item.effective_rate)}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.item_count}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatPercentage(taxPercentage)}</td>
-                        `;
-
-                        taxTableBody.appendChild(row);
-                    });
-
-                    // Populate top tax paying buyers
-                    const taxBuyersBody = document.getElementById('tax-buyers-body');
-                    taxBuyersBody.innerHTML = '';
-
-                    data.top_tax_buyers.forEach(buyer => {
-                        const row = document.createElement('tr');
-                        row.className = 'hover:bg-gray-50';
-
-                        const taxPercentage = (buyer.total_tax / totalTax) * 100;
-
-                        row.innerHTML = `
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary-600">${buyer.buyer_name}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${formatCurrency(buyer.total_tax)}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatPercentage(taxPercentage)}</td>
-                        `;
-
-                        taxBuyersBody.appendChild(row);
-                    });
-
-                    // Populate top tax generating products
-                    const taxProductsBody = document.getElementById('tax-products-body');
-                    taxProductsBody.innerHTML = '';
-
-                    data.top_tax_products.forEach(product => {
-                        const row = document.createElement('tr');
-                        row.className = 'hover:bg-gray-50';
-
-                        const taxPercentage = (product.total_tax / totalTax) * 100;
-
-                        row.innerHTML = `
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary-600">${product.product_name}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${formatCurrency(product.total_tax)}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatPercentage(taxPercentage)}</td>
-                        `;
-
-                        taxProductsBody.appendChild(row);
-                    });
-                })
-                .catch(error => {
-                    document.getElementById('loading-indicator').classList.add('hidden');
-                    console.error('Error loading tax data:', error);
-                    showNotification('error', 'Error', 'Failed to load tax data');
-                });
-        }
-
-        // Create tax rate chart
-        function createTaxRateChart(taxByRate, totalTax) {
-            const ctx = document.getElementById('tax-rate-chart').getContext('2d');
-
-            // Destroy existing chart if it exists
-            if (state.charts.taxRateChart) {
-                state.charts.taxRateChart.destroy();
-            }
-
-            const labels = taxByRate.map(item => item.tax_rate);
-            const taxData = taxByRate.map(item => item.total_tax);
-            const colors = generateColors(labels.length);
-
-            state.charts.taxRateChart = new Chart(ctx, {
-                type: 'pie',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        {
-                            data: taxData,
-                            backgroundColor: colors,
-                            borderColor: colors.map(color => color.replace('0.7', '1')),
-                            borderWidth: 1
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'right',
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function (context) {
-                                    const label = context.label || '';
-                                    const value = context.raw || 0;
-                                    const percentage = Math.round((value / totalTax) * 100);
-                                    return `${label}: ${formatCurrency(value)} (${percentage}%)`;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        // Create tax trend chart
-        function createTaxTrendChart(monthlyTax) {
-            const ctx = document.getElementById('tax-trend-chart').getContext('2d');
-
-            // Destroy existing chart if it exists
-            if (state.charts.taxTrendChart) {
-                state.charts.taxTrendChart.destroy();
-            }
-
-            const months = monthlyTax.map(item => item.month);
-            const taxData = monthlyTax.map(item => item.total_tax);
-            const valueExclData = monthlyTax.map(item => item.total_value_excl);
-            const effectiveRateData = monthlyTax.map(item => item.effective_rate);
-
-            state.charts.taxTrendChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: months,
-                    datasets: [
-                        {
-                            label: 'Value Excl. Tax',
-                            data: valueExclData,
-                            backgroundColor: 'rgba(54, 162, 235, 0.7)',
-                            borderColor: 'rgba(54, 162, 235, 1)',
-                            borderWidth: 1,
-                            yAxisID: 'y'
-                        },
-                        {
-                            label: 'Tax Amount',
-                            data: taxData,
-                            backgroundColor: 'rgba(153, 102, 255, 0.7)',
-                            borderColor: 'rgba(153, 102, 255, 1)',
-                            borderWidth: 1,
-                            yAxisID: 'y'
-                        },
-                        {
-                            label: 'Effective Rate (%)',
-                            data: effectiveRateData,
-                            type: 'line',
-                            borderColor: 'rgba(255, 99, 132, 1)',
-                            backgroundColor: 'rgba(255, 99, 132, 0.2)',
-                            borderWidth: 2,
-                            yAxisID: 'y1',
-                            tension: 0.1
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: {
-                        mode: 'index',
-                        intersect: false,
-                    },
-                    scales: {
-                        y: {
-                            type: 'linear',
-                            display: true,
-                            position: 'left',
-                            title: {
-                                display: true,
-                                text: 'Amount (PKR)'
-                            }
-                        },
-                        y1: {
-                            type: 'linear',
-                            display: true,
-                            position: 'right',
-                            grid: {
-                                drawOnChartArea: false,
-                            },
-                            title: {
-                                display: true,
-                                text: 'Rate (%)'
-                            },
-                            min: 0,
-                            max: Math.max(...effectiveRateData) * 1.2
-                        }
-                    }
-                }
-            });
-        }
-
         // --- Invoice selection and summary generation ---
         // Keep track of selected invoice IDs across pagination. Checkboxes are added
         // directly when invoice rows are rendered in loadInvoiceList().
@@ -3067,6 +2565,15 @@
         function renderSummaryModal(data) {
             const overview = document.getElementById('summary-overview');
 
+            // Set company name if available from first invoice
+            const sellerName = data.invoices && data.invoices.length > 0 && data.invoices[0].sellerBusinessName
+                ? data.invoices[0].sellerBusinessName
+                : 'CARE PHARMACEUTICALS'; // Default name if not found in invoices
+                
+            document.getElementById('summary-company-name').textContent = sellerName;
+            // Rename from "Daily Sale Report" to "Sales Report"
+            document.getElementById('report-title').textContent = "Sales Report";
+
             // Build a richer overview with totals, counts and buyers
             const totalInvoices = data.invoices.length || 0;
             const totalProducts = data.products ? data.products.length : 0;
@@ -3075,90 +2582,226 @@
             const totalInclusive = data.overall && data.overall.total_amount ? data.overall.total_amount : 0;
             const buyersList = (data.buyers || []).map(b => b.buyer_name).filter(Boolean);
             const buyersCount = buyersList.length;
+            
+            // Format buyer names for display (limit to avoid very long text)
+            const displayBuyers = buyersList.length > 0 
+                ? buyersList.slice(0, 5).join(", ") + (buyersList.length > 5 ? "..." : "")
+                : "None";
+
+            // Format date range
+            const dateRange = getDateRangeFromInvoices(data.invoices);
 
             overview.innerHTML = `
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <div class="text-sm text-gray-500">Invoices</div>
-                        <div class="text-lg font-semibold">${totalInvoices}</div>
+                        <div class="text-sm text-gray-500">Date Range</div>
+                        <div class="text-md font-semibold">${dateRange}</div>
                     </div>
                     <div>
-                        <div class="text-sm text-gray-500">Products</div>
-                        <div class="text-lg font-semibold">${totalProducts}</div>
+                        <div class="text-sm text-gray-500">Total Invoices</div>
+                        <div class="text-md font-semibold">${totalInvoices}</div>
                     </div>
                     <div>
-                        <div class="text-sm text-gray-500">Buyers</div>
-                        <div class="text-lg font-semibold">${buyersCount}</div>
-                    </div>
-                </div>
-                <div class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <div class="text-sm text-gray-500">Value Excl. Tax</div>
-                        <div class="text-lg font-medium">${formatCurrency(totalValueExcl)}</div>
+                        <div class="text-sm text-gray-500">Total Products</div>
+                        <div class="text-md font-semibold">${totalProducts}</div>
                     </div>
                     <div>
-                        <div class="text-sm text-gray-500">Tax Amount</div>
-                        <div class="text-lg font-medium">${formatCurrency(totalTax)}</div>
-                    </div>
-                    <div>
-                        <div class="text-sm text-gray-500">Total (Incl. Tax)</div>
-                        <div class="text-lg font-medium">${formatCurrency(totalInclusive)}</div>
+                        <div class="text-sm text-gray-500">Buyers (${buyersCount})</div>
+                        <div class="text-md font-semibold text-sm">${displayBuyers}</div>
                     </div>
                 </div>
-                <div class="mt-3 text-sm text-gray-600">Buyers included: ${buyersList.slice(0,5).join(', ')}${buyersList.length>5? ' and more...' : ''}</div>
             `;
 
-            // Products table (no remove button)
-            const prodBody = document.getElementById('summary-products-body');
-            prodBody.innerHTML = '';
-            (data.products || []).forEach((p) => {
-                const tr = document.createElement('tr');
-                tr.className = 'hover:bg-gray-50 cursor-pointer';
-                tr.dataset.product = p.product_name;
-                tr.innerHTML = `
-                    <td class="px-4 py-2 text-sm text-gray-700">${p.product_name}</td>
-                    <td class="px-4 py-2 text-sm text-right text-gray-900">${(p.quantity||0).toFixed ? p.quantity.toFixed(2) : p.quantity}</td>
-                    <td class="px-4 py-2 text-sm text-right text-gray-900">${formatCurrency(p.total_value_excl || 0)}</td>
-                    <td class="px-4 py-2 text-sm text-right text-gray-900">${formatCurrency(p.total_tax || 0)}</td>
-                    <td class="px-4 py-2 text-sm text-right font-medium text-gray-900">${formatCurrency(p.total_sales || 0)}</td>
+            // Group products by buyer/customer
+            const productsByBuyer = {};
+            let totalGrandTotal = 0;
+            let totalTaxAmount = 0;
+            let totalNetTotal = 0;
+
+            // Process all invoices and group by buyer
+            const sortedInvoices = [...data.invoices].sort((a, b) => {
+                const buyerNameA = a.buyer_name || 'Unknown';
+                const buyerNameB = b.buyer_name || 'Unknown';
+                return buyerNameA.localeCompare(buyerNameB);
+            });
+            
+            // Group invoices by buyer
+            sortedInvoices.forEach(inv => {
+                const buyerName = inv.buyer_name || 'Unknown';
+                
+                if (!productsByBuyer[buyerName]) {
+                    productsByBuyer[buyerName] = {
+                        invoices: [],
+                        items: [],
+                        total_value_excl: 0,
+                        total_tax: 0,
+                        total_amount: 0
+                    };
+                }
+                
+                productsByBuyer[buyerName].invoices.push(inv);
+                
+                // Add all items from this invoice to the buyer's items list
+                if (inv.items && inv.items.length > 0) {
+                    inv.items.forEach(item => {
+                        const valueExcl = safe_float(item.value_excl || 0);
+                        const tax = safe_float(item.tax || 0);
+                        const total = safe_float(item.total || (valueExcl + tax));
+                        
+                        productsByBuyer[buyerName].items.push({
+                            description: item.description || '',
+                            quantity: safe_float(item.quantity || 0),
+                            unit: item.unit || '',
+                            rate: safe_float(item.rate || 0),
+                            value_excl: valueExcl,
+                            tax: tax,
+                            total: total,
+                            invoice_ref: inv.invoice_ref || 'N/A',
+                            invoice_date: inv.invoice_date || formatDate(new Date(inv.created_at))
+                        });
+                        
+                        // Accumulate totals for this buyer
+                        productsByBuyer[buyerName].total_value_excl += valueExcl;
+                        productsByBuyer[buyerName].total_tax += tax;
+                        productsByBuyer[buyerName].total_amount += total;
+                    });
+                }
+                
+                // Accumulate grand totals
+                totalGrandTotal += safe_float(inv.total_value_excl || 0);
+                totalTaxAmount += safe_float(inv.total_tax || 0);
+                totalNetTotal += safe_float(inv.total_amount || 0);
+            });
+            
+            // Build the detailed product-wise sales table grouped by customer
+            const salesBody = document.getElementById('daily-sales-body');
+            salesBody.innerHTML = '';
+            
+            // Helper function for safe float conversion
+            function safe_float(val) {
+                return parseFloat(val || 0) || 0;
+            }
+            
+            // Sort buyers alphabetically
+            const buyerNames = Object.keys(productsByBuyer).sort();
+            
+            buyerNames.forEach(buyerName => {
+                const buyerData = productsByBuyer[buyerName];
+                
+                // Add buyer header row
+                const buyerHeaderRow = document.createElement('tr');
+                buyerHeaderRow.className = 'bg-gray-100 font-medium';
+                buyerHeaderRow.innerHTML = `
+                    <td colspan="7" class="border px-4 py-3 text-sm text-gray-800">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold">${buyerName}</span>
+                        </div>
+                    </td>
                 `;
-
-                // highlight toggle on click
-                tr.addEventListener('click', function (e) {
-                    tr.classList.toggle('bg-yellow-50');
-                });
-
-                prodBody.appendChild(tr);
-            });
-
-            // Invoices list with working preview buttons
-            const invList = document.getElementById('summary-invoices-list');
-            invList.innerHTML = '';
-            (data.invoices || []).forEach(inv => {
-                const div = document.createElement('div');
-                div.className = 'flex justify-between items-center border p-2 rounded';
-                div.innerHTML = `
-                    <div>
-                        <div class="font-medium">${inv.invoice_ref}</div>
-                        <div class="text-sm text-gray-600">${inv.buyer_name} — ${formatCurrency(inv.total_amount)}</div>
-                    </div>
-                    <div>
-                        <button class="view-in-summary text-primary-600" data-invoice-id="${inv.id}">View</button>
-                    </div>
+                salesBody.appendChild(buyerHeaderRow);
+                
+                // Add product column headers
+                const headerRow = document.createElement('tr');
+                headerRow.className = 'bg-gray-50';
+                headerRow.innerHTML = `
+                    <td class="border px-4 py-2 text-xs font-medium text-gray-600">Product Name</td>
+                    <td class="border px-4 py-2 text-xs font-medium text-gray-600">Invoice #</td>
+                    <td class="border px-4 py-2 text-xs font-medium text-gray-600 text-right">Quantity</td>
+                    <td class="border px-4 py-2 text-xs font-medium text-gray-600 text-right">Rate</td>
+                    <td class="border px-4 py-2 text-xs font-medium text-gray-600 text-right">Total (before tax)</td>
+                    <td class="border px-4 py-2 text-xs font-medium text-gray-600 text-right">GST Tax</td>
+                    <td class="border px-4 py-2 text-xs font-medium text-gray-600 text-right">Net Total</td>
                 `;
-                invList.appendChild(div);
-            });
-
-            // Wire preview buttons
-            document.querySelectorAll('.view-in-summary').forEach(btn => {
-                btn.addEventListener('click', function () {
-                    const invoiceId = this.getAttribute('data-invoice-id');
-                    if (invoiceId) viewInvoicePreview(invoiceId);
+                salesBody.appendChild(headerRow);
+                
+                // Add rows for each product
+                buyerData.items.forEach(item => {
+                    // Calculate rate properly as total before tax / quantity
+                    const quantity = safe_float(item.quantity || 0);
+                    const valueExcl = safe_float(item.value_excl || 0); 
+                    // Calculate rate (avoid division by zero)
+                    const calculatedRate = quantity > 0 ? valueExcl / quantity : 0;
+                    
+                    const productRow = document.createElement('tr');
+                    productRow.className = 'hover:bg-gray-50';
+                    productRow.innerHTML = `
+                        <td class="border px-4 py-2 text-sm">${item.description}</td>
+                        <td class="border px-4 py-2 text-sm">${item.invoice_ref}</td>
+                        <td class="border px-4 py-2 text-sm text-right">${quantity.toFixed(2)}</td>
+                        <td class="border px-4 py-2 text-sm text-right">${formatCurrency(calculatedRate)}</td>
+                        <td class="border px-4 py-2 text-sm text-right">${formatCurrency(valueExcl)}</td>
+                        <td class="border px-4 py-2 text-sm text-right">${formatCurrency(item.tax)}</td>
+                        <td class="border px-4 py-2 text-sm text-right">${formatCurrency(item.total)}</td>
+                    `;
+                    salesBody.appendChild(productRow);
                 });
+                
+                // Add subtotal row for this buyer
+                const subtotalRow = document.createElement('tr');
+                subtotalRow.className = 'bg-gray-50 font-medium';
+                subtotalRow.innerHTML = `
+                    <td colspan="4" class="border px-4 py-2 text-sm text-gray-800 text-right">Subtotal for ${buyerName}:</td>
+                    <td class="border px-4 py-2 text-sm text-right">${formatCurrency(buyerData.total_value_excl)}</td>
+                    <td class="border px-4 py-2 text-sm text-right">${formatCurrency(buyerData.total_tax)}</td>
+                    <td class="border px-4 py-2 text-sm text-right">${formatCurrency(buyerData.total_amount)}</td>
+                `;
+                salesBody.appendChild(subtotalRow);
+                
+                // Add a spacer row
+                const spacerRow = document.createElement('tr');
+                spacerRow.innerHTML = '<td colspan="7" class="h-4"></td>';
+                salesBody.appendChild(spacerRow);
             });
+            
+            // Add grand total row
+            const grandTotalRow = document.createElement('tr');
+            grandTotalRow.className = 'bg-gray-200 font-bold';
+            grandTotalRow.innerHTML = `
+                <td colspan="4" class="border px-4 py-3 text-gray-900 text-right">GRAND TOTAL:</td>
+                <td class="border px-4 py-3 text-right">${formatCurrency(totalGrandTotal)}</td>
+                <td class="border px-4 py-3 text-right">${formatCurrency(totalTaxAmount)}</td>
+                <td class="border px-4 py-3 text-right">${formatCurrency(totalNetTotal)}</td>
+            `;
+            salesBody.appendChild(grandTotalRow);
 
-            // Show modal
+            // Show modal but don't add a separate products section - it's now integrated
             document.getElementById('summary-modal').classList.remove('hidden');
+        }
+        
+        // Helper function to get date range from invoices
+        function getDateRangeFromInvoices(invoices) {
+            if (!invoices || invoices.length === 0) {
+                return "N/A";
+            }
+            
+            // Extract dates from invoices
+            const dates = invoices.map(inv => {
+                const dateStr = inv.invoice_date || (inv.created_at ? new Date(inv.created_at).toISOString().split('T')[0] : null);
+                return dateStr ? new Date(dateStr) : null;
+            }).filter(d => d !== null);
+            
+            if (dates.length === 0) return "N/A";
+            
+            // Find min and max dates
+            const minDate = new Date(Math.min(...dates));
+            const maxDate = new Date(Math.max(...dates));
+            
+            // Format dates
+            const formatDateForRange = (date) => {
+                return date.toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                });
+            };
+            
+            // If min and max are the same, return single date
+            if (minDate.getTime() === maxDate.getTime()) {
+                return formatDateForRange(minDate);
+            }
+            
+            // Otherwise return range
+            return `${formatDateForRange(minDate)} - ${formatDateForRange(maxDate)}`;
         }
 
         // Invoice preview modal: fetch and render a specific invoice inside a smaller modal that sits above the summary modal
@@ -3245,6 +2888,8 @@
             if (closePreview) closePreview.addEventListener('click', () => document.getElementById('invoice-preview-modal').classList.add('hidden'));
             const closePreviewBtn = document.getElementById('close-invoice-preview-btn');
             if (closePreviewBtn) closePreviewBtn.addEventListener('click', () => document.getElementById('invoice-preview-modal').classList.add('hidden'));
+            
+            // No print functionality needed here
         });
     </script>
 </body>

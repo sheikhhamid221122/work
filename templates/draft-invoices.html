@@ -300,7 +300,7 @@
 
                     <!-- Filter and Search -->
                     <div class="bg-white p-4 rounded-lg shadow mb-6">
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div>
                                 <label for="filter-submitted"
                                     class="block text-sm font-medium text-gray-700 mb-1">Status</label>
@@ -312,15 +312,14 @@
                                 </select>
                             </div>
                             <div>
-                                <label for="filter-date" class="block text-sm font-medium text-gray-700 mb-1">Date
-                                    Range</label>
-                                <select id="filter-date"
-                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500">
-                                    <option value="all">All Time</option>
-                                    <option value="today">Today</option>
-                                    <option value="week">This Week</option>
-                                    <option value="month">This Month</option>
-                                </select>
+                                <label for="start-date" class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                                <input type="date" id="start-date" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                                <p class="text-xs text-gray-500 mt-1">Pick only Start Date for a single day</p>
+                            </div>
+                            <div>
+                                <label for="end-date" class="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                                <input type="date" id="end-date" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500" />
+                                <p class="text-xs text-gray-500 mt-1">Leave empty to use only Start Date</p>
                             </div>
                             <div>
                                 <label for="filter-search"
@@ -438,10 +437,12 @@
             return `${endpoint}?env=${ENV}`;
         }
 
-        // Global variables to store filter states
-        let currentFilterSubmitted = "all";
-        let currentFilterDate = "all";
-        let currentSearchQuery = "";
+    // Global variables to store filter states
+    let currentFilterSubmitted = "not_submitted";
+    let currentFilterDate = "all";
+    let currentSearchQuery = "";
+    let currentStartDate = "";
+    let currentEndDate = "";
 
         // Notification system
         function showNotification(type, title, message, duration = 3000) {
@@ -528,6 +529,7 @@
                 <button class="load-draft-btn ${draft.is_submitted ? 'bg-gray-300 text-gray-600 cursor-not-allowed' : 'bg-primary-600 hover:bg-primary-700 text-white'} text-xs px-2 py-1 rounded" ${draft.is_submitted ? 'disabled' : ''}>
                     <i class="fas fa-edit mr-1"></i> ${draft.is_submitted ? 'Submitted' : 'Edit/Submit'}
                 </button>
+                ${draft.is_submitted ? `<button class="unsubmit-draft-btn bg-yellow-500 hover:bg-yellow-600 text-white text-xs px-2 py-1 rounded"><i class="fas fa-undo mr-1"></i> Unsubmit</button>` : ''}
                 <button class="delete-draft-btn bg-red-500 hover:bg-red-600 text-white text-xs px-2 py-1 rounded">
                     <i class="fas fa-trash-alt mr-1"></i> Delete
                 </button>
@@ -562,6 +564,8 @@
                 queryParams.append("filter_date", currentFilterDate);
                 queryParams.append("search", currentSearchQuery);
                 queryParams.append("env", ENV);
+                if (currentStartDate) queryParams.append("start_date", currentStartDate);
+                if (currentEndDate) queryParams.append("end_date", currentEndDate);
 
                 console.log("Filter submitted value:", currentFilterSubmitted); // Debug log
 
@@ -689,6 +693,32 @@
                     document.getElementById('delete-draft-modal').classList.remove('hidden');
                 });
             });
+
+            // Unsubmit draft buttons
+            document.querySelectorAll('.unsubmit-draft-btn').forEach(btn => {
+                btn.addEventListener('click', async function () {
+                    const draftCard = this.closest('.draft-card');
+                    const draftId = draftCard?.dataset?.draftId;
+                    if (!draftId) return;
+                    try {
+                        const res = await fetch('/api/draft-invoices/unsubmit', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ draft_id: draftId, env: ENV })
+                        });
+                        if (!res.ok) {
+                            let msg = 'Failed to unsubmit draft';
+                            try { const er = await res.json(); msg = er.error || msg; } catch {}
+                            throw new Error(msg);
+                        }
+                        showNotification('success', 'Unsubmitted', 'Draft marked as not submitted');
+                        loadDraftInvoices();
+                    } catch (e) {
+                        console.error(e);
+                        showNotification('error', 'Error', e.message || 'Failed to unsubmit draft');
+                    }
+                });
+            });
         }
 
         // Handle filter changes
@@ -715,11 +745,13 @@
         }
 
         document.addEventListener('DOMContentLoaded', function () {
-            // Initialize filter values based on URL parameters or default to "all"
+            // Initialize filter values based on URL parameters or default
             const urlParams = new URLSearchParams(window.location.search);
-            currentFilterSubmitted = urlParams.get('filter_submitted') || 'all';
+            currentFilterSubmitted = urlParams.get('filter_submitted') || 'not_submitted';
             currentFilterDate = urlParams.get('filter_date') || 'all';
             currentSearchQuery = urlParams.get('search') || '';
+            currentStartDate = urlParams.get('start_date') || '';
+            currentEndDate = urlParams.get('end_date') || '';
 
             // Set the filter dropdown values based on URL parameters
             const filterSubmittedElement = document.getElementById('filter-submitted');
@@ -740,22 +772,27 @@
                 });
             }
 
-            // Set up filter for date range
-            const filterDateElement = document.getElementById('filter-date');
-            if (filterDateElement) {
-                filterDateElement.value = currentFilterDate;
-
-                filterDateElement.addEventListener('change', function () {
-                    currentFilterDate = this.value;
-
-                    // Create URL with all current filters
-                    const url = new URL(window.location);
-                    url.searchParams.set('filter_date', currentFilterDate);
-
-                    // Redirect to the new URL (which will reload the page)
-                    window.location.href = url.toString();
-                });
+            // Initialize date inputs and wire changes
+            const startDateInput = document.getElementById('start-date');
+            const endDateInput = document.getElementById('end-date');
+            if (startDateInput) startDateInput.value = currentStartDate;
+            if (endDateInput) endDateInput.value = currentEndDate;
+            function pushDateParamsAndReload() {
+                const url = new URL(window.location);
+                if (startDateInput && startDateInput.value) {
+                    url.searchParams.set('start_date', startDateInput.value);
+                } else {
+                    url.searchParams.delete('start_date');
+                }
+                if (endDateInput && endDateInput.value) {
+                    url.searchParams.set('end_date', endDateInput.value);
+                } else {
+                    url.searchParams.delete('end_date');
+                }
+                window.location.href = url.toString();
             }
+            if (startDateInput) startDateInput.addEventListener('change', pushDateParamsAndReload);
+            if (endDateInput) endDateInput.addEventListener('change', pushDateParamsAndReload);
 
             // Search with debounce for typing, but reload on Enter key
             let searchTimeout;
