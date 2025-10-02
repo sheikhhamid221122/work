@@ -723,6 +723,12 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                     if total_values is None
                     else round(float(total_values), 2)
                 )
+                # Handle taxRate consistently
+                tax_rate = item_data.get("taxRate", "0%")
+                # Ensure it ends with % if it's a numeric string without %
+                if isinstance(tax_rate, str) and not tax_rate.endswith('%') and tax_rate.replace('.', '', 1).isdigit():
+                    tax_rate = f"{tax_rate}%"
+                
                 item = {
                     "hsCode": item_data.get("hsCode", ""),
                     "productDescription": item_data["productDescription"],
@@ -731,7 +737,7 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                     "totalValues": total_values,
                     "valueSalesExcludingST": value_excl,
                     "salesTaxApplicable": sales_tax,
-                    "rate": item_data.get("taxRate", "0%"),
+                    "rate": tax_rate,
                 }
                 # Defaults
                 defaults = {
@@ -780,6 +786,15 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                         )
                         conn.commit()
                 else:
+                    # Process tax rate before executing query
+                    tax_rate_str = item_data.get("taxRate", "17%")
+                    tax_rate_num = tax_rate_str.replace("%", "") if isinstance(tax_rate_str, str) else tax_rate_str
+                    # Try to convert to float, fallback to 17 if it fails
+                    try:
+                        float(tax_rate_num)
+                    except (ValueError, TypeError):
+                        tax_rate_num = "17"
+                        
                     cur.execute(
                         """
                         INSERT INTO products
@@ -791,7 +806,7 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                             item_data["productDescription"],
                             item_data.get("hsCode", ""),
                             item_data.get("uoM", "Numbers, pieces, units"),
-                            item_data.get("taxRate", "17%").replace("%", ""),
+                            tax_rate_num,
                             item_data.get("saleType", "Goods at Reduced Rate"),
                         ),
                     )

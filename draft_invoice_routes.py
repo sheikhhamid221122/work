@@ -1,6 +1,21 @@
 from flask import request, jsonify, session, redirect, url_for, render_template
 import json
 from datetime import datetime, timedelta
+from decimal import Decimal
+
+
+def _normalize_json(value):
+    """Recursively convert database types (e.g., Decimal) into JSON-friendly primitives."""
+    if isinstance(value, Decimal):
+        # Convert to float while preserving numeric meaning; fallback to 0.0 if NaN
+        return float(value)
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {key: _normalize_json(val) for key, val in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_normalize_json(item) for item in value]
+    return value
 
 
 def add_draft_invoice_routes(app, get_db_connection, get_env):
@@ -15,179 +30,152 @@ def add_draft_invoice_routes(app, get_db_connection, get_env):
         client_id = session.get("client_id")
         if not client_id:
             return jsonify({"error": "No client ID in session"}), 401
-        env = get_env()
+
         filter_env = request.args.get("filter_env", "all")
-        # New: support filtering by submission status: all | submitted | not_submitted
-        # Default to 'not_submitted' to reduce confusion on initial load
         filter_submitted = request.args.get("filter_submitted", "not_submitted")
         filter_date = request.args.get("filter_date", "all")
-        # New date range support (YYYY-MM-DD)
         start_date = request.args.get("start_date")
         end_date = request.args.get("end_date")
         search = request.args.get("search", "").strip().lower()
 
+        conn = get_db_connection()
+        cur = conn.cursor()
         try:
-            conn = get_db_connection()
-            cur = conn.cursor()
+            # Discover available columns for compatibility
+            cur.execute(
+                """
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = 'invoice_drafts'
+                """
+            )
+            available_columns = {row[0] for row in cur.fetchall()}
+            has_original_env = "original_env" in available_columns
+            has_is_submitted = "is_submitted" in available_columns
+            has_seller_profile_id = "seller_profile_id" in available_columns
+            has_buyer_id = "buyer_id" in available_columns
+            has_last_accessed = "last_accessed" in available_columns
 
-            # Auto-purge: delete submitted drafts older than 1 day to save storage
-            try:
-                cur.execute(
-                    """
-                    SELECT COUNT(*)
-                    FROM information_schema.columns
-                    WHERE table_schema = 'public' AND table_name = 'invoice_drafts' AND column_name = 'is_submitted'
-                    """
-                )
-                _has_is_submitted = cur.fetchone()[0] > 0
-
-                if _has_is_submitted:
-                    cur.execute(
-                        """
-                        DELETE FROM invoice_drafts
-                        WHERE client_id = %s
-                          AND is_submitted = TRUE
-                          AND updated_at < NOW() - INTERVAL '40 day'
-                        """,
-                        (client_id,),
-                    )
-                else:
-                    # Fallback for older schemas: rely on status submitted
-                    cur.execute(
-                        """
-                        DELETE FROM invoice_drafts
-                        WHERE client_id = %s
-                          AND status = 'submitted'
-                          AND updated_at < NOW() - INTERVAL '40 day'
-                        """,
-                        (client_id,),
-                    )
-                conn.commit()
-            except Exception:
-                # Purge best-effort; ignore failures to not block listing
-                conn.rollback()
-
-            # Build query conditions based on filters
+            # Build robust SQL conditions (client/date/env only)
             conditions = ["client_id = %s"]
             params = [client_id]
 
-            # Environment filter
             if filter_env != "all":
-                conditions.append("original_env = %s")
+                env_col = "original_env" if has_original_env else "env"
+                conditions.append(f"{env_col} = %s")
                 params.append(filter_env)
 
-            # Date filter - prefer explicit range if provided
             if start_date or end_date:
-                # If only one bound is provided, use it for both to allow single-date filtering
                 if start_date and not end_date:
                     end_date = start_date
                 if end_date and not start_date:
                     start_date = end_date
                 conditions.append("DATE(created_at) BETWEEN %s AND %s")
                 params.extend([start_date, end_date])
+            elif filter_date != "all":
+                if filter_date == "today":
+                    conditions.append("DATE(created_at) = CURRENT_DATE")
+                elif filter_date == "week":
+                    conditions.append("created_at >= CURRENT_DATE - INTERVAL '7 days'")
+                elif filter_date == "month":
+                    conditions.append("created_at >= CURRENT_DATE - INTERVAL '30 days'")
+
+            select_exprs = [
+                "id",
+                "client_id",
+                "env",
+                "invoice_data",
+                "status",
+                "created_at",
+                "updated_at",
+                "title",
+            ]
+
+            # Fallback/aliases for optional columns
+            if has_original_env:
+                select_exprs.append("original_env")
             else:
-                if filter_date != "all":
-                    if filter_date == "today":
-                        conditions.append("DATE(created_at) = CURRENT_DATE")
-                    elif filter_date == "week":
-                        conditions.append("created_at >= CURRENT_DATE - INTERVAL '7 days'")
-                    elif filter_date == "month":
-                        conditions.append("created_at >= CURRENT_DATE - INTERVAL '30 days'")
+                select_exprs.append("env AS original_env")
 
-            # Detect whether `is_submitted` column exists to remain backwards-compatible
-            try:
-                cur.execute(
-                    """
-                    SELECT COUNT(*)
-                    FROM information_schema.columns
-                    WHERE table_schema = 'public' AND table_name = 'invoice_drafts' AND column_name = 'is_submitted'
-                    """
-                )
-                has_is_submitted = cur.fetchone()[0] > 0
-            except Exception:
-                # If information_schema is not accessible for any reason, assume column missing
-                has_is_submitted = False
+            if has_seller_profile_id:
+                select_exprs.append("seller_profile_id")
+            else:
+                select_exprs.append("NULL::INTEGER AS seller_profile_id")
 
-            # Add is_submitted filter to SQL conditions if the column exists and filter is set
-            if filter_submitted != "all":
-                if has_is_submitted:
-                    # Use the boolean column when available
-                    is_submitted_value = filter_submitted == "submitted"
-                    conditions.append("is_submitted = %s")
-                    params.append(is_submitted_value)
-                else:
-                    # Fallback for older schemas: filter by status field
-                    # Treat status == 'submitted' as submitted; everything else as not submitted
-                    if filter_submitted == "submitted":
-                        conditions.append("status = %s")
-                        params.append("submitted")
-                    else:
-                        # not_submitted: include rows where status is NULL or not 'submitted'
-                        conditions.append("(status IS NULL OR status != %s)")
-                        params.append("submitted")
+            if has_buyer_id:
+                select_exprs.append("buyer_id")
+            else:
+                select_exprs.append("NULL::INTEGER AS buyer_id")
 
-            # Build the query with or without is_submitted
-            select_cols = (
-                "id, client_id, env, original_env, seller_profile_id, buyer_id, invoice_data, status, is_submitted, created_at, updated_at, title, last_accessed"
-                if has_is_submitted
-                else "id, client_id, env, original_env, seller_profile_id, buyer_id, invoice_data, status, created_at, updated_at, title, last_accessed"
-            )
+            if has_is_submitted:
+                select_exprs.append("COALESCE(is_submitted, FALSE) AS is_submitted")
+            else:
+                select_exprs.append("FALSE AS is_submitted")
 
-            # Build the query
+            if has_last_accessed:
+                select_exprs.append("last_accessed")
+            else:
+                select_exprs.append("updated_at AS last_accessed")
+
             query = f"""
-                SELECT {select_cols}
+                SELECT {', '.join(select_exprs)}
                 FROM invoice_drafts
-                WHERE {" AND ".join(conditions)}
+                WHERE {' AND '.join(conditions)}
                 ORDER BY updated_at DESC
             """
 
             cur.execute(query, params)
 
-            # Convert to list of dictionaries
             columns = [desc[0] for desc in cur.description]
             drafts = []
 
             for row in cur.fetchall():
                 draft = dict(zip(columns, row))
 
-                # Normalize is_submitted key: some older DBs won't have the column
-                # so treat missing/None as False.
-                if "is_submitted" not in draft or draft.get("is_submitted") is None:
-                    draft["is_submitted"] = False
-
-                # Parse invoice_data JSON safely for searching and display
-                invoice_data = draft.get("invoice_data") or {}
-                if isinstance(invoice_data, str):
+                # Parse invoice_data if string
+                inv = draft.get("invoice_data")
+                if isinstance(inv, str):
                     try:
-                        invoice_data = json.loads(invoice_data)
+                        inv = json.loads(inv)
                     except Exception:
-                        invoice_data = {}
+                        inv = {}
+                draft["invoice_data"] = inv or {}
 
-                # Filter by search query if provided
+                # Apply search filter (title or buyer name)
                 if search:
                     title = (draft.get("title") or "").lower()
                     buyer_name = (
-                        (invoice_data.get("buyerData", {}) or {}).get("buyerBusinessName", "")
-                        or invoice_data.get("buyerBusinessName", "")
+                        (draft["invoice_data"].get("buyerData", {}) or {}).get("buyerBusinessName", "")
+                        or draft["invoice_data"].get("buyerBusinessName", "")
                     ).lower()
-
                     if search not in title and search not in buyer_name:
                         continue
 
-                # Convert datetime objects to ISO strings for JSON
-                for key, value in draft.items():
-                    if isinstance(value, datetime):
-                        draft[key] = value.isoformat()
+                # Apply submitted filter in Python for robustness
+                if filter_submitted != "all":
+                    is_sub = bool(draft.get("is_submitted") or False)
+                    status = (draft.get("status") or "").lower()
+                    if filter_submitted == "submitted":
+                        if not (is_sub or status == "submitted"):
+                            continue
+                    else:  # not_submitted
+                        if (is_sub or status == "submitted"):
+                            continue
+
+                # Normalize datetime fields
+                for k in ("created_at", "updated_at", "last_accessed"):
+                    if isinstance(draft.get(k), datetime):
+                        draft[k] = draft[k].isoformat()
 
                 drafts.append(draft)
 
-            cur.close()
-            conn.close()
-
             return jsonify(drafts)
         except Exception as e:
-            # Return proper error response with the exception details
+            conn.rollback()
             return jsonify({"error": f"Failed to load Draft invoices: {str(e)}"}), 500
+        finally:
+            cur.close()
+            conn.close()
 
     @app.route("/api/draft-invoices/update-title", methods=["POST"])
     def update_draft_title():
@@ -275,73 +263,124 @@ def add_draft_invoice_routes(app, get_db_connection, get_env):
         if not client_id:
             return jsonify({"error": "No client ID in session"}), 401
 
-        env = get_env()
-        filter_env = request.args.get("filter_env", "all")
-        filter_submitted = request.args.get("filter_submitted", "all")
-        filter_date = request.args.get("filter_date", "all")
-        search = request.args.get("search", "").strip().lower()
-        
-        print(f"API request received - filter_submitted: {filter_submitted}")
-
-        conn = get_db_connection()
-        cur = conn.cursor()
-
-        # Get the draft with client verification
-        cur.execute(
-            """
-            SELECT id, client_id, env, original_env, seller_profile_id, buyer_id, 
-                   invoice_data, status, created_at, updated_at, title
-            FROM invoice_drafts
-            WHERE id = %s AND client_id = %s
-            """,
-            (draft_id, client_id),
-        )
-
-        row = cur.fetchone()
-
-        if not row:
-            cur.close()
-            conn.close()
-            return jsonify({"error": "Draft not found or access denied"}), 404
-
-        # Convert to dictionary
-        columns = [desc[0] for desc in cur.description]
-        draft = dict(zip(columns, row))
-
-        # Try to fetch is_submitted if present in table (backwards-compatible)
+        conn = None
+        cur = None
         try:
+            conn = get_db_connection()
+            cur = conn.cursor()
+
             cur.execute(
-                "SELECT is_submitted FROM invoice_drafts WHERE id = %s",
-                (draft_id,),
+                """
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = 'invoice_drafts'
+                """
             )
-            srow = cur.fetchone()
-            if srow:
-                draft["is_submitted"] = srow[0]
+            available_columns = {row[0] for row in cur.fetchall()}
+
+            has_original_env = "original_env" in available_columns
+            has_seller_profile_id = "seller_profile_id" in available_columns
+            has_buyer_id = "buyer_id" in available_columns
+            has_is_submitted = "is_submitted" in available_columns
+            has_last_accessed = "last_accessed" in available_columns
+
+            select_exprs = [
+                "id",
+                "client_id",
+                "env",
+                "invoice_data",
+                "status",
+                "created_at",
+                "updated_at",
+                "title",
+            ]
+
+            if has_original_env:
+                select_exprs.append("original_env")
             else:
-                draft["is_submitted"] = False
-        except Exception:
-            draft["is_submitted"] = False
+                select_exprs.append("env AS original_env")
 
-        # Update last_accessed timestamp
-        cur.execute(
+            if has_seller_profile_id:
+                select_exprs.append("seller_profile_id")
+            else:
+                select_exprs.append("NULL::INTEGER AS seller_profile_id")
+
+            if has_buyer_id:
+                select_exprs.append("buyer_id")
+            else:
+                select_exprs.append("NULL::INTEGER AS buyer_id")
+
+            if has_is_submitted:
+                select_exprs.append("COALESCE(is_submitted, FALSE) AS is_submitted")
+            else:
+                select_exprs.append("FALSE AS is_submitted")
+
+            if has_last_accessed:
+                select_exprs.append("last_accessed")
+
+            query = f"""
+                SELECT {', '.join(select_exprs)}
+                FROM invoice_drafts
+                WHERE id = %s AND client_id = %s
             """
-            UPDATE invoice_drafts
-            SET last_accessed = NOW()
-            WHERE id = %s
-            """,
-            (draft_id,),
-        )
 
-        conn.commit()
-        cur.close()
-        conn.close()
+            cur.execute(query, (draft_id, client_id))
+            row = cur.fetchone()
 
-        # Convert datetime objects to strings
-        for key, value in draft.items():
-            if isinstance(value, datetime):
-                draft[key] = value.isoformat()
+            if not row:
+                return jsonify({"error": "Draft not found or access denied"}), 404
 
-        return jsonify(draft)
+            columns = [desc[0] for desc in cur.description]
+            draft = dict(zip(columns, row))
+
+            invoice_data = draft.get("invoice_data") or {}
+            if isinstance(invoice_data, str):
+                try:
+                    invoice_data = json.loads(invoice_data)
+                except Exception:
+                    invoice_data = {}
+
+            invoice_data = _normalize_json(invoice_data)
+
+            draft["invoice_data"] = invoice_data
+            draft["original_env"] = draft.get("original_env") or draft.get("env")
+            draft["is_submitted"] = bool(draft.get("is_submitted", False))
+
+            for key, value in list(draft.items()):
+                if isinstance(value, datetime):
+                    draft[key] = value.isoformat()
+                elif isinstance(value, Decimal):
+                    draft[key] = float(value)
+                elif isinstance(value, (dict, list, tuple, set)):
+                    draft[key] = _normalize_json(value)
+
+            if has_last_accessed:
+                try:
+                    cur.execute(
+                        """
+                        UPDATE invoice_drafts
+                        SET last_accessed = NOW()
+                        WHERE id = %s
+                        """,
+                        (draft_id,),
+                    )
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
+
+            return jsonify(draft)
+        except Exception as e:
+            if conn:
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
+            return jsonify({"error": f"Failed to load draft invoice: {str(e)}"}), 500
+        finally:
+            if cur:
+                cur.close()
+            if conn:
+                conn.close()
 
     @app.route("/api/draft-invoices/mark-submitted", methods=["POST"])
     def mark_draft_submitted():

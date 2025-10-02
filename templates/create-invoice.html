@@ -641,7 +641,7 @@
                                     </button>
 
                                     <div id="product-menu"
-                                        class="hidden absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg">
+                                        class="hidden absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-xl">
                                         <div class="p-2 border-b border-gray-100">
                                             <input id="product-filter" type="text" placeholder="Search..."
                                                 class="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:border-primary-500">
@@ -1247,9 +1247,15 @@
         </div>
     </div>
     <script>
-        const ENV = "{{ session['env'] }}";
+        // Get environment from session variable, if available, otherwise default to URL param or 'production'
+        const ENV = "{{ session.get('env', '') }}" || new URLSearchParams(window.location.search).get('env') || 'production';
+        console.log('Current environment:', ENV);
+        
         function apiUrl(endpoint) {
-            return `${endpoint}?env=${ENV}`;
+            // Always use URL parameter first, then fall back to ENV constant
+            const env = getUrlParameter('env') || ENV;
+            console.log(`API URL: ${endpoint}?env=${env}`);
+            return `${endpoint}?env=${env}`;
         }
 
         // State to store form data
@@ -1260,7 +1266,16 @@
             buyerData: {},
             invoiceData: {},
             productItems: [],
+            draft_id: null, // Store draft ID if loaded from a draft
         };
+
+        // Function to get URL parameters
+        function getUrlParameter(name) {
+            name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+            var regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+            var results = regex.exec(location.search);
+            return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+        }
 
         const scenarioToSaleType = {
             'SN001': 'Goods at standard rate (default)',
@@ -1329,6 +1344,183 @@
         }
 
         // Fetch form options from API
+        // Function to load draft data
+        async function loadDraftInvoice(draftId) {
+            try {
+                const apiEndpoint = apiUrl(`/api/draft-invoices/${draftId}`);
+                console.log(`Loading draft with ID: ${draftId} from endpoint: ${apiEndpoint}`);
+                
+                const response = await fetch(apiEndpoint);
+                console.log(`Draft API response status: ${response.status}`);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Error response:', errorText);
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        throw new Error(errorJson.error || 'Failed to load draft invoice');
+                    } catch (jsonError) {
+                        throw new Error(`Failed to load draft invoice: Status ${response.status}`);
+                    }
+                }
+                
+                const draft = await response.json();
+                console.log('Draft data received:', draft);
+                
+                if (!draft || !draft.id) {
+                    throw new Error('Invalid draft data received from server');
+                }
+                
+                // Store draft_id in state
+                state.draft_id = draft.id;
+                
+                // Parse invoice data robustly
+                let invoiceData = {};
+                try {
+                    if (typeof draft.invoice_data === 'string') {
+                        try {
+                            invoiceData = JSON.parse(draft.invoice_data);
+                        } catch (e1) {
+                            try {
+                                invoiceData = JSON.parse(draft.invoice_data.replace(/'/g, '"'));
+                            } catch (e2) {
+                                console.warn('Failed to parse draft.invoice_data string, using empty object');
+                                invoiceData = {};
+                            }
+                        }
+                    } else if (draft.invoice_data && typeof draft.invoice_data === 'object') {
+                        invoiceData = draft.invoice_data;
+                    }
+                } catch (e) {
+                    console.error('Error parsing invoice_data:', e);
+                    invoiceData = {};
+                }
+                
+                console.log('Loading draft invoice data:', invoiceData);
+                
+                // Set up top-level invoice data
+                state.invoiceData = {
+                    invoiceType: invoiceData.invoiceType || 'Sale Invoice',
+                    invoiceDate: invoiceData.invoiceDate || '',
+                    invoiceRefNo: invoiceData.invoiceRefNo || invoiceData.invoice_ref_no || '',
+                    poNumber: invoiceData.poNumber || invoiceData.PO || '',
+                    scenarioId: invoiceData.scenarioId || '',
+                };
+                
+                // Populate seller data
+                if (invoiceData.sellerData) {
+                    state.sellerData = invoiceData.sellerData;
+                    document.getElementById('seller-business-name').value = invoiceData.sellerData.sellerBusinessName || '';
+                    document.getElementById('seller-ntn-cnic').value = invoiceData.sellerData.sellerNTNCNIC || '';
+                    document.getElementById('seller-strn').value = invoiceData.sellerData.sellerSTRN || '';
+                    document.getElementById('seller-province').value = invoiceData.sellerData.sellerProvince || '';
+                    document.getElementById('seller-address').value = invoiceData.sellerData.sellerAddress || '';
+                }
+                
+                // Populate invoice data fields
+                // Keep invoice type in sync (visible and hidden)
+                const invType = invoiceData.invoiceType || 'Sale Invoice';
+                const invTypeEl = document.getElementById('invoice-type');
+                const invTypeHiddenEl = document.getElementById('invoice-type-hidden');
+                if (invTypeEl) invTypeEl.value = invType;
+                if (invTypeHiddenEl) invTypeHiddenEl.value = invType;
+                document.getElementById('invoice-date').value = invoiceData.invoiceDate || '';
+                // Correct field id for reference number
+                const invoiceRefEl = document.getElementById('invoice-ref-no');
+                if (invoiceRefEl) invoiceRefEl.value = invoiceData.invoiceRefNo || invoiceData.invoice_ref_no || '';
+                document.getElementById('po-number').value = invoiceData.poNumber || invoiceData.PO || '';
+                
+                // Only set scenario if available and in sandbox environment
+                if (ENV === 'sandbox' && invoiceData.scenarioId) {
+                    const scenarioEl = document.getElementById('scenario-id');
+                    if (scenarioEl) scenarioEl.value = invoiceData.scenarioId;
+                }
+                
+                // Populate buyer data
+                if (invoiceData.buyerData) {
+                    state.buyerData = invoiceData.buyerData;
+                    document.getElementById('buyer-business-name').value = invoiceData.buyerData.buyerBusinessName || '';
+                    document.getElementById('buyer-ntn-cnic').value = invoiceData.buyerData.buyerNTNCNIC || '';
+                    document.getElementById('buyer-strn').value = invoiceData.buyerData.buyerSTRN || '';
+                    document.getElementById('buyer-province').value = invoiceData.buyerData.buyerProvince || '';
+                    document.getElementById('buyer-address').value = invoiceData.buyerData.buyerAddress || '';
+                    document.getElementById('buyer-registration-type').value = invoiceData.buyerData.buyerRegistrationType || '';
+                    document.getElementById('buyer-code').value = invoiceData.buyerData.buyerCode || '';
+                }
+                
+                // Populate product items with correct field mapping
+                state.productItems = []; // Clear existing items
+
+                const normalizeDraftItem = (item = {}) => {
+                    const quantity = parseFloat(item.quantity ?? item.qty ?? 0) || 0;
+                    const unitRate = parseFloat(item.rate ?? item.unitPrice ?? 0) || 0;
+                    const valueExcl = parseFloat(
+                        item.valueSalesExcludingST ??
+                        item.valueSalesExcludingSt ??
+                        item.valueExclTax ??
+                        0
+                    ) || 0;
+                    const salesTax = parseFloat(
+                        item.salesTaxApplicable ??
+                        item.salesTax ??
+                        item.salesTaxCharged ??
+                        0
+                    ) || 0;
+                    const totalValues = parseFloat(item.totalValues ?? item.total ?? valueExcl + salesTax) || 0;
+
+                    return {
+                        productDescription: item.productDescription || item.description || '',
+                        hsCode: item.hsCode || item.hsCodeNo || '',
+                        quantity,
+                        uoM: item.uoM || item.uom || item.unit || '',
+                        rate: unitRate,
+                        valueSalesExcludingST: valueExcl,
+                        salesTaxApplicable: salesTax,
+                        totalValues,
+                        total: parseFloat(item.total ?? totalValues) || totalValues,
+                        taxRate: item.taxRate || item.tax_rate || '',
+                        saleType:
+                            item.saleType ||
+                            (invoiceData.scenarioId ? scenarioToSaleType[invoiceData.scenarioId] : '') ||
+                            '',
+                        sroScheduleNo: item.sroScheduleNo || '',
+                        sroItemSerialNo: item.sroItemSerialNo || '',
+                        furtherTax: parseFloat(item.furtherTax ?? 0) || 0,
+                        extraTax: item.extraTax ?? '',
+                        salesTaxWithheldAtSource: parseFloat(item.salesTaxWithheldAtSource ?? 0) || 0,
+                        fedPayable: parseFloat(item.fedPayable ?? 0) || 0,
+                        discount: parseFloat(item.discount ?? 0) || 0,
+                        fixedNotifiedValueOrRetailPrice: parseFloat(
+                            item.fixedNotifiedValueOrRetailPrice ?? item.fixedNotifiedValue ?? 0
+                        ) || 0
+                    };
+                };
+
+                // Process items based on different possible structures
+                if (invoiceData.items && Array.isArray(invoiceData.items)) {
+                    state.productItems = invoiceData.items.map(normalizeDraftItem);
+                } else if (invoiceData.productItems && Array.isArray(invoiceData.productItems)) {
+                    state.productItems = invoiceData.productItems.map(normalizeDraftItem);
+                }
+                
+                // Render the product items in the product table
+                renderProductItems();
+                
+                // Update the review section with the loaded data
+                updateReviewSection();
+                
+                // Skip to review step and mark draft loaded
+                goToStep(5);
+                state.currentStep = 5;
+                
+                return true;
+            } catch (error) {
+                console.error('Error loading draft invoice:', error);
+                showNotification('error', 'Error', 'Failed to load draft invoice');
+                return false;
+            }
+        }
+        
         async function fetchFormOptions() {
             try {
                 const response = await fetch(apiUrl("/api/form-options"));
@@ -1375,8 +1567,8 @@
                     option.dataset.profile = JSON.stringify(profile);
                     select.appendChild(option);
 
-                    // If this is the default profile, select it
-                    if (profile.is_default) {
+                    // If this is the default profile, select it only when not loading from draft
+                    if (profile.is_default && !state.draft_id) {
                         select.value = profile.id;
                         populateSellerForm(profile);
                     }
@@ -1574,6 +1766,12 @@
             // Calculate total
             const total = valueExcl + taxAmount;
 
+            // Get tax rate as displayed in the UI (with % symbol)
+            let formattedTaxRate = taxRate;
+            if (taxRate && document.getElementById("product-tax-rate").selectedIndex > 0) {
+                formattedTaxRate = document.getElementById("product-tax-rate").options[document.getElementById("product-tax-rate").selectedIndex].textContent.trim();
+            }
+            
             // Create item object with all FBR fields
             const item = {
                 productDescription: description,
@@ -1586,7 +1784,7 @@
                 totalValues: total,
                 total: total, // Make sure this is set correctly
                 saleType: saleType,
-                taxRate: taxRate,
+                taxRate: formattedTaxRate, // Use the formatted tax rate with % symbol
                 sroScheduleNo: sroScheduleNo,
                 sroItemSerialNo: sroItemSerialNo,
                 furtherTax: parseFloat(document.getElementById('product-further-tax')?.value || 0),
@@ -1629,12 +1827,20 @@
 
             console.log("Form cleared");
         }
-        // Update product table
-        // Update product table
+        // Alias for updateProductTable for clearer function naming when loading drafts
+        function renderProductItems() {
+            updateProductTable();
+        }
+        
         // Update product table
         function updateProductTable() {
             const tableBody = document.getElementById("product-items-table");
             const noProductsRow = document.getElementById("no-products-row");
+
+            // Ensure state.productItems exists
+            if (!state.productItems) {
+                state.productItems = [];
+            }
 
             if (state.productItems.length > 0) {
                 // Hide "no products" row
@@ -1654,16 +1860,26 @@
                 state.productItems.forEach((item, index) => {
                     const row = document.createElement("tr");
                     row.className = "hover:bg-gray-50 transition-colors";
+                    
+                    // Safely access properties with fallbacks for missing values
+                    const productDesc = item.productDescription || '';
+                    const hsCode = item.hsCode || '';
+                    const quantity = parseFloat(item.quantity) || 0;
+                    const uoM = item.uoM || '';
+                    const rate = parseFloat(item.rate) || 0;
+                    const valueExcl = parseFloat(item.valueSalesExcludingST) || 0;
+                    const salesTax = parseFloat(item.salesTaxApplicable) || 0;
+                    const totalValue = valueExcl + salesTax;
 
                     row.innerHTML = `
-                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-900">${item.productDescription}</td>
-                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.hsCode}</td>
-                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.quantity}</td>
-                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.uoM}</td>
-                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.rate.toFixed(2)}</td>
-                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.valueSalesExcludingST.toFixed(2)}</td>
-                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.salesTaxApplicable.toFixed(2)}</td>
-                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${(item.valueSalesExcludingST + item.salesTaxApplicable).toFixed(2)}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-900">${productDesc}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${hsCode}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${quantity}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${uoM}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${rate.toFixed(2)}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${valueExcl.toFixed(2)}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${salesTax.toFixed(2)}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${totalValue.toFixed(2)}</td>
                 <td class="px-3 py-4 whitespace-nowrap text-right text-sm">
                     <button class="delete-product-btn text-red-600 hover:text-red-900" data-index="${index}">
                         <i class="fas fa-trash"></i>
@@ -1677,10 +1893,16 @@
                 // Add event listeners to delete buttons
                 document.querySelectorAll(".delete-product-btn").forEach((btn) => {
                     btn.addEventListener("click", function () {
-                        const index = parseInt(this.getAttribute("data-index"));
-                        state.productItems.splice(index, 1);
-                        updateProductTable();
-                        updateTotals();
+                        try {
+                            const index = parseInt(this.getAttribute("data-index"));
+                            if (state.productItems && index >= 0 && index < state.productItems.length) {
+                                state.productItems.splice(index, 1);
+                                updateProductTable();
+                                updateTotals();
+                            }
+                        } catch (error) {
+                            console.error("Error deleting product:", error);
+                        }
                     });
                 });
             } else {
@@ -1700,22 +1922,31 @@
 
         // Update totals
         function updateTotals() {
-            const totalValueExcl = state.productItems.reduce(
-                (sum, item) => sum + item.valueSalesExcludingST,
-                0
-            );
-            const totalTaxAmount = state.productItems.reduce(
-                (sum, item) => sum + item.salesTaxApplicable,
-                0
-            );
-            const grandTotal = totalValueExcl + totalTaxAmount;
+            try {
+                // Ensure state.productItems exists
+                if (!state.productItems) {
+                    state.productItems = [];
+                }
+                
+                const totalValueExcl = state.productItems.reduce(
+                    (sum, item) => sum + (parseFloat(item.valueSalesExcludingST) || 0),
+                    0
+                );
+                const totalTaxAmount = state.productItems.reduce(
+                    (sum, item) => sum + (parseFloat(item.salesTaxApplicable) || 0),
+                    0
+                );
+                const grandTotal = totalValueExcl + totalTaxAmount;
 
-            document.getElementById("total-value-excl").textContent =
-                totalValueExcl.toFixed(2);
-            document.getElementById("total-tax-amount").textContent =
-                totalTaxAmount.toFixed(2);
-            document.getElementById("grand-total").textContent =
-                grandTotal.toFixed(2);
+                document.getElementById("total-value-excl").textContent =
+                    totalValueExcl.toFixed(2);
+                document.getElementById("total-tax-amount").textContent =
+                    totalTaxAmount.toFixed(2);
+                document.getElementById("grand-total").textContent =
+                    grandTotal.toFixed(2);
+            } catch (error) {
+                console.error("Error updating totals:", error);
+            }
         }
 
         // Navigation and step management
@@ -1763,40 +1994,70 @@
 
         // Update review section
         function updateReviewSection() {
-            // Seller information
-            document.getElementById("review-seller-name").textContent =
-                state.sellerData.sellerBusinessName || "";
-            document.getElementById("review-seller-ntn").textContent =
-                state.sellerData.sellerNTNCNIC || "";
-            document.getElementById("review-seller-strn").textContent =
-                state.sellerData.sellerSTRN || "";
-            document.getElementById("review-seller-address").textContent =
-                state.sellerData.sellerAddress || "";
-            document.getElementById("review-seller-province").textContent =
-                state.sellerData.sellerProvince || "";
+            try {
+                console.log("Updating review section with state:", state);
+                
+                // Seller information
+                if (state.sellerData) {
+                    document.getElementById("review-seller-name").textContent =
+                        state.sellerData.sellerBusinessName || "";
+                    document.getElementById("review-seller-ntn").textContent =
+                        state.sellerData.sellerNTNCNIC || "";
+                    document.getElementById("review-seller-strn").textContent =
+                        state.sellerData.sellerSTRN || "";
+                    document.getElementById("review-seller-address").textContent =
+                        state.sellerData.sellerAddress || "";
+                    document.getElementById("review-seller-province").textContent =
+                        state.sellerData.sellerProvince || "";
+                }
 
-            // Buyer information
-            document.getElementById("review-buyer-name").textContent =
-                state.buyerData.buyerBusinessName || "";
-            document.getElementById("review-buyer-ntn").textContent =
-                state.buyerData.buyerNTNCNIC || "";
-            document.getElementById("review-buyer-strn").textContent =
-                state.buyerData.buyerSTRN || "";
-            document.getElementById("review-buyer-address").textContent =
-                state.buyerData.buyerAddress || "";
-            document.getElementById("review-buyer-province").textContent =
-                state.buyerData.buyerProvince || "";
-            document.getElementById("review-buyer-registration").textContent =
-                state.buyerData.buyerRegistrationType || "";
+                // Buyer information
+                if (state.buyerData) {
+                    document.getElementById("review-buyer-name").textContent =
+                        state.buyerData.buyerBusinessName || "";
+                    document.getElementById("review-buyer-ntn").textContent =
+                        state.buyerData.buyerNTNCNIC || "";
+                    document.getElementById("review-buyer-strn").textContent =
+                        state.buyerData.buyerSTRN || "";
+                    document.getElementById("review-buyer-address").textContent =
+                        state.buyerData.buyerAddress || "";
+                    document.getElementById("review-buyer-province").textContent =
+                        state.buyerData.buyerProvince || "";
+                    document.getElementById("review-buyer-registration").textContent =
+                        state.buyerData.buyerRegistrationType || "";
+                }
 
-            // Invoice details
-            document.getElementById("review-invoice-type").textContent = "Sale Invoice"; // Hardcoded value
-            document.getElementById("review-invoice-date").textContent =
-                state.invoiceData.invoiceDate || "";
-            document.getElementById("review-invoice-ref").textContent =
-                state.invoiceData.invoiceRefNo || "";
-            document.getElementById("review-po-number").textContent =
-                state.invoiceData.poNumber || "";
+                // Invoice details
+                if (state.invoiceData) {
+                    document.getElementById("review-invoice-type").textContent = 
+                        state.invoiceData.invoiceType || "Sale Invoice"; 
+                    document.getElementById("review-invoice-date").textContent =
+                        state.invoiceData.invoiceDate || "";
+                    document.getElementById("review-invoice-ref").textContent =
+                        state.invoiceData.invoiceRefNo || "";
+                    document.getElementById("review-po-number").textContent =
+                        state.invoiceData.poNumber || state.invoiceData.PO || "";
+                }
+                
+                // Validate product items to ensure they have required properties
+                if (!state.productItems) {
+                    state.productItems = [];
+                } else {
+                    // Normalize numeric fields but PRESERVE all existing properties (e.g., SRO fields)
+                    state.productItems = state.productItems.map(item => ({
+                        ...item,
+                        productDescription: item.productDescription || '',
+                        hsCode: item.hsCode || '',
+                        uoM: item.uoM || '',
+                        quantity: parseFloat(item.quantity) || 0,
+                        rate: parseFloat(item.rate) || 0,
+                        valueSalesExcludingST: parseFloat(item.valueSalesExcludingST) || 0,
+                        salesTaxApplicable: parseFloat(item.salesTaxApplicable) || 0
+                    }));
+                }
+            } catch (error) {
+                console.error("Error updating review section:", error);
+            }
 
             // Add this block for delivery challan review
             const reviewDeliveryChallanContainer = document.getElementById('review-delivery-challan-container');
@@ -1824,16 +2085,18 @@
 
             // Totals
             document.getElementById("review-items-count").textContent =
-                state.productItems.length;
+                state.productItems ? state.productItems.length : 0;
 
-            const totalValueExcl = state.productItems.reduce(
-                (sum, item) => sum + item.valueSalesExcludingST,
+            const totalValueExcl = state.productItems ? state.productItems.reduce(
+                (sum, item) => sum + (parseFloat(item.valueSalesExcludingST) || 0),
                 0
-            );
-            const totalTaxAmount = state.productItems.reduce(
-                (sum, item) => sum + item.salesTaxApplicable,
+            ) : 0;
+            
+            const totalTaxAmount = state.productItems ? state.productItems.reduce(
+                (sum, item) => sum + (parseFloat(item.salesTaxApplicable) || 0),
                 0
-            );
+            ) : 0;
+            
             const grandTotal = totalValueExcl + totalTaxAmount;
 
             document.getElementById("review-value-excl").textContent =
@@ -1847,7 +2110,7 @@
             const tableBody = document.getElementById("review-items-table");
             const noProductsRow = document.getElementById("review-no-products-row");
 
-            if (state.productItems.length > 0) {
+            if (state.productItems && state.productItems.length > 0) {
                 // Hide "no products" row
                 if (noProductsRow) noProductsRow.classList.add("hidden");
 
@@ -1858,28 +2121,26 @@
                 state.productItems.forEach((item) => {
                     const row = document.createElement("tr");
                     row.className = "hover:bg-gray-50 transition-colors";
+                    
+                    // Safely access properties with fallbacks for missing values
+                    const productDesc = item.productDescription || '';
+                    const hsCode = item.hsCode || '';
+                    const quantity = parseFloat(item.quantity) || 0;
+                    const uoM = item.uoM || '';
+                    const rate = parseFloat(item.rate) || 0;
+                    const valueExcl = parseFloat(item.valueSalesExcludingST) || 0;
+                    const salesTax = parseFloat(item.salesTaxApplicable) || 0;
+                    const totalValue = valueExcl + salesTax;
 
                     row.innerHTML = `
-                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-900">${item.productDescription
-                        }</td>
-                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.hsCode
-                        }</td>
-                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.quantity
-                        }</td>
-                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.uoM
-                        }</td>
-                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.rate.toFixed(
-                            2
-                        )}</td>
-                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.valueSalesExcludingST.toFixed(
-                            2
-                        )}</td>
-                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${item.salesTaxApplicable.toFixed(
-                            2
-                        )}</td>
-                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${(
-                            item.valueSalesExcludingST + item.salesTaxApplicable
-                        ).toFixed(2)}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-900">${productDesc}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${hsCode}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${quantity}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${uoM}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${rate.toFixed(2)}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${valueExcl.toFixed(2)}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${salesTax.toFixed(2)}</td>
+                <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${totalValue.toFixed(2)}</td>
             `;
 
                     tableBody.appendChild(row);
@@ -2168,32 +2429,77 @@
             }
 
             // Format items array exactly as FBR expects
-            invoiceData.items = state.productItems.map((item) => ({
-                "hsCode": item.hsCode || "0000.0000",
-                "productDescription": item.productDescription || "",
-                "rate": item.taxRate || "0%",
-                "uoM": item.uoM || "",
-                "quantity": item.quantity || 0,
-                "totalValues": item.totalValues || 0,
-                "valueSalesExcludingST": item.valueSalesExcludingST || 0,
-                "fixedNotifiedValueOrRetailPrice": item.fixedNotifiedValueOrRetailPrice || 0,
-                "salesTaxApplicable": item.salesTaxApplicable || 0,
-                "salesTaxWithheldAtSource": item.salesTaxWithheldAtSource || 0,
-                "extraTax": item.extraTax || "",
-                "furtherTax": item.furtherTax || 0,
-                "sroScheduleNo": item.sroScheduleNo || "",
-                "fedPayable": item.fedPayable || 0,
-                "discount": item.discount || 0,
-                "saleType": item.saleType || "Goods at Reduced Rate",
-                "sroItemSerialNo": item.sroItemSerialNo || ""
-            }));
+            invoiceData.items = state.productItems.map((item) => {
+                // Resolve tax rate from the item or derive from values to avoid incorrect 0%
+                let taxRateStr = '';
+                let raw = item.taxRate ?? item.tax_rate ?? item.rateTax ?? '';
+                if (raw !== undefined && raw !== null && String(raw).toString().trim() !== '') {
+                    // Normalize to a string with % and two decimals
+                    if (typeof raw === 'number') {
+                        taxRateStr = `${raw.toFixed(2)}%`;
+                    } else {
+                        let s = String(raw).trim();
+                        if (s.endsWith('%')) {
+                            const num = parseFloat(s.replace('%',''));
+                            taxRateStr = isNaN(num) ? s : `${num.toFixed(2)}%`;
+                        } else {
+                            const num = parseFloat(s);
+                            taxRateStr = isNaN(num) ? s : `${num.toFixed(2)}%`;
+                        }
+                    }
+                } else {
+                    // Derive from salesTaxApplicable and valueSalesExcludingST when explicit rate isn't stored
+                    const base = parseFloat(item.valueSalesExcludingST) || 0;
+                    const tax = parseFloat(item.salesTaxApplicable) || 0;
+                    if (base > 0 && tax >= 0) {
+                        const pct = (tax / base) * 100;
+                        taxRateStr = `${pct.toFixed(2)}%`;
+                    } else {
+                        taxRateStr = '0%';
+                    }
+                }
+
+                // Ensure numeric fields are numbers and compute totalValues here
+                const qty = parseFloat(item.quantity) || 0;
+                const valueExcl = parseFloat(item.valueSalesExcludingST) || 0;
+                const salesTax = parseFloat(item.salesTaxApplicable) || 0;
+                const totalValues = valueExcl + salesTax;
+
+                return {
+                    "hsCode": item.hsCode || "0000.0000",
+                    "productDescription": item.productDescription || "",
+                    "rate": taxRateStr,
+                    "uoM": item.uoM || "",
+                    "quantity": qty,
+                    "totalValues": totalValues,
+                    "valueSalesExcludingST": valueExcl,
+                    "fixedNotifiedValueOrRetailPrice": item.fixedNotifiedValueOrRetailPrice || 0,
+                    "salesTaxApplicable": salesTax,
+                    "salesTaxWithheldAtSource": item.salesTaxWithheldAtSource || 0,
+                    "extraTax": item.extraTax || "",
+                    "furtherTax": item.furtherTax || 0,
+                    "sroScheduleNo": item.sroScheduleNo || "",
+                    "fedPayable": item.fedPayable || 0,
+                    "discount": item.discount || 0,
+                    "saleType": item.saleType || "Goods at Reduced Rate",
+                    "sroItemSerialNo": item.sroItemSerialNo || ""
+                };
+            });
 
             // If there are no items, add a default empty one
             if (invoiceData.items.length === 0) {
+                // Get the current default tax rate from the dropdown
+                let defaultRate = "0%";
+                const taxRateSelect = document.getElementById('product-tax-rate');
+                if (taxRateSelect && taxRateSelect.selectedIndex > 0) {
+                    defaultRate = taxRateSelect.options[taxRateSelect.selectedIndex].textContent.trim();
+                }
+
+                // Provide a safe default item shape (no undefined references)
                 invoiceData.items = [{
                     "hsCode": "0000.0000",
                     "productDescription": "",
-                    "rate": "0%",
+                    "rate": defaultRate,
                     "uoM": "",
                     "quantity": 0,
                     "totalValues": 0,
@@ -2253,12 +2559,45 @@
 
         // Event Listeners
         document.addEventListener("DOMContentLoaded", function () {
+            // Debug logging for URL parameters and environment
+            console.log('URL parameters:', window.location.search);
+            console.log('Environment from constant:', ENV);
+            console.log('Environment from URL:', getUrlParameter('env'));
+            
+            // Check if we should load a draft
+            const draftIdFromUrl = getUrlParameter('load_draft');
+            console.log('Draft ID from URL:', draftIdFromUrl);
+            
             // Fetch data
             fetchUsername();
             fetchFormOptions();
             fetchBusinessProfiles();
             fetchBuyers();
             initUserSpecificFields();
+            
+            // If draft ID is present, load the draft after other initializations are done
+            if (draftIdFromUrl) {
+                console.log(`Draft ID detected in URL: ${draftIdFromUrl}`);
+                // Use setTimeout to ensure all other initializations are complete
+                setTimeout(() => {
+                    loadDraftInvoice(draftIdFromUrl)
+                        .then(success => {
+                            if (success) {
+                                showNotification("success", "Draft Loaded", "Draft invoice loaded successfully and ready for review");
+                                // Fallback guard: ensure we remain on Review step even if other code resets steps
+                                setTimeout(() => {
+                                    if (state && state.draft_id) {
+                                        goToStep(5);
+                                    }
+                                }, 400);
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error loading draft:', error);
+                            showNotification("error", "Loading Error", error.message || "Failed to load draft invoice");
+                        });
+                }, 1000); // Increased timeout to ensure all initializations complete
+            }
 
             // Mobile menu toggle
             const mobileMenuButton = document.getElementById("mobile-menu-button");
@@ -2704,9 +3043,36 @@
         }
 
         // Product dropdown (legacy style) handlers restored & integrated
-        function openProductMenu(){ const menu=document.getElementById('product-menu'); if(!menu) return; menu.classList.remove('hidden'); productMenuOpen=true; if(productList.length===0){ fetchProducts(); } else { renderProductMenu(document.getElementById('product-filter').value||''); } }
-        function closeProductMenu(){ const menu=document.getElementById('product-menu'); if(!menu) return; menu.classList.add('hidden'); productMenuOpen=false; }
-        function toggleProductMenu(){ if(productMenuOpen) closeProductMenu(); else openProductMenu(); }
+        function openProductMenu(){ 
+            console.log('Opening product menu'); 
+            const menu=document.getElementById('product-menu'); 
+            if(!menu) { 
+                console.error('Product menu element not found'); 
+                return; 
+            } 
+            menu.classList.remove('hidden'); 
+            productMenuOpen=true; 
+            if(productList.length===0){ 
+                console.log('No products loaded, fetching now'); 
+                fetchProducts(); 
+            } else { 
+                console.log('Rendering product menu with', productList.length, 'items'); 
+                renderProductMenu(document.getElementById('product-filter')?.value||''); 
+            } 
+        }
+        
+        function closeProductMenu(){ 
+            const menu=document.getElementById('product-menu'); 
+            if(!menu) return; 
+            menu.classList.add('hidden'); 
+            productMenuOpen=false; 
+        }
+        
+        function toggleProductMenu(){ 
+            console.log('Toggling product menu, current state:', productMenuOpen ? 'open' : 'closed'); 
+            if(productMenuOpen) closeProductMenu(); 
+            else openProductMenu(); 
+        }
         function selectProductRow(p){ if(!p) return; document.getElementById('product-selected-label').textContent=p.description||'-- Select Product --'; // populate main form
             document.getElementById('product-description').value=p.description||'';
             document.getElementById('product-hs-code').value=p.hs_code||'';
@@ -3136,6 +3502,43 @@ async function saveBusinessProfileFromModal(){
 }
 // Event wiring (defer until DOM ready)
 document.addEventListener('DOMContentLoaded',()=>{
+  // Check again for draft loading (for reliability)
+  const draftIdFromSecondHandler = getUrlParameter('load_draft');
+  if (draftIdFromSecondHandler) {
+    setTimeout(() => {
+      try {
+        loadDraftInvoice(draftIdFromSecondHandler);
+      } catch (e) {
+        console.error('Error loading draft from second handler:', e);
+      }
+    }, 800); // Wait a bit longer than the first handler
+  }
+  // Initialize form
+  // Define setupForm function if not already defined
+  function setupForm() {
+    console.log('Setting up form components');
+    // Ensure product dropdown functionality is ready
+    const productSelectBtn = document.getElementById('product-select-btn');
+    if (productSelectBtn) {
+      console.log('Found product select button, setting up event listener');
+      // Remove any existing listeners to prevent duplicates
+      productSelectBtn.removeEventListener('click', toggleProductMenuHandler);
+      // Add the event listener again
+      productSelectBtn.addEventListener('click', toggleProductMenuHandler);
+    } else {
+      console.error('Product select button not found during setup');
+    }
+  }
+  
+  // Define handler function to avoid anonymous functions
+  function toggleProductMenuHandler(e) {
+    e.preventDefault();
+    console.log('Product select button clicked');
+    toggleProductMenu();
+  }
+  
+  setupForm();
+  
   const sellerSection = document.getElementById('step-1');
   if(sellerSection){
     // Add manage button at bottom of seller section if not exists
@@ -3166,8 +3569,14 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('save-product-form')?.addEventListener('click',saveProductFromModal);
     // Wire Step 4 plus/reset button to open product modal instead of just clearing fields
     document.getElementById('reset-product-btn')?.addEventListener('click',function(e){ e.preventDefault(); openProductModal(); });
-    // Product dropdown events
-    document.getElementById('product-select-btn')?.addEventListener('click',function(e){ e.preventDefault(); toggleProductMenu(); });
+    // Product dropdown events - ensure we grab the button directly
+    const productSelectBtn = document.getElementById('product-select-btn');
+    if(productSelectBtn) {
+        console.log('Attaching product select button click handler from DOM ready event');
+        productSelectBtn.addEventListener('click', toggleProductMenuHandler);
+    } else {
+        console.error('Product select button not found in DOM ready event');
+    }
     document.getElementById('close-product-menu')?.addEventListener('click',function(e){ e.preventDefault(); closeProductMenu(); });
     document.getElementById('product-filter')?.addEventListener('input',function(){ renderProductMenu(this.value); });
     // Close menu when clicking outside

@@ -481,10 +481,26 @@
             const envClass = draft.original_env === 'sandbox' ? 'badge-sandbox' : 'badge-production';
             const envLabel = draft.original_env === 'sandbox' ? 'Sandbox' : 'Production';
 
-            // Parse the invoice data if it's a string
-            const invoiceData = typeof draft.invoice_data === 'string'
-                ? JSON.parse(draft.invoice_data)
-                : draft.invoice_data;
+            // Parse the invoice data robustly (avoid crashing the entire list)
+            let invoiceData = {};
+            try {
+                if (typeof draft.invoice_data === 'string') {
+                    try {
+                        invoiceData = JSON.parse(draft.invoice_data);
+                    } catch (e1) {
+                        // Fallback: try naive single-quote to double-quote replacement
+                        try {
+                            invoiceData = JSON.parse(draft.invoice_data.replace(/'/g, '"'));
+                        } catch (e2) {
+                            invoiceData = {};
+                        }
+                    }
+                } else if (draft.invoice_data && typeof draft.invoice_data === 'object') {
+                    invoiceData = draft.invoice_data;
+                }
+            } catch (e) {
+                invoiceData = {};
+            }
 
             // Get buyer name - First try the nested structure, then the flat structure
             let buyerName = 'Unknown Buyer';
@@ -496,12 +512,13 @@
 
             // Get total amount - First try the calculated total, then sum up from items
             let totalAmount = 0;
-            if (invoiceData?.totalAmount) {
-                totalAmount = parseFloat(invoiceData.totalAmount);
+            if (invoiceData && typeof invoiceData.totalAmount !== 'undefined') {
+                const ta = parseFloat(invoiceData.totalAmount);
+                totalAmount = isNaN(ta) ? 0 : ta;
             } else if (invoiceData?.items && Array.isArray(invoiceData.items)) {
                 // Sum all item total values
                 totalAmount = invoiceData.items.reduce((sum, item) => {
-                    const itemTotal = parseFloat(item.totalValues || 0);
+                    const itemTotal = parseFloat(item?.totalValues ?? item?.total ?? 0);
                     return sum + (isNaN(itemTotal) ? 0 : itemTotal);
                 }, 0);
             }
@@ -946,9 +963,13 @@
             const originalText = loadBtn.innerHTML;
             loadBtn.innerHTML = `<i class="fas fa-circle-notch fa-spin mr-1"></i> Loading...`;
             loadBtn.disabled = true;
-
-            // Redirect to review page with draft ID
-            window.location.href = `/create-invoice.html?load_draft=${draftId}&env=${ENV}`;
+            
+            // Get environment from session or URL parameter or default to production
+            const currentEnv = ENV || new URLSearchParams(window.location.search).get('env') || 'production';
+            console.log(`Loading draft ${draftId} with environment: ${currentEnv}`);
+            
+            // Redirect to review page with draft ID and environment parameter
+            window.location.href = `/create-invoice.html?load_draft=${draftId}&env=${currentEnv}`;
         }
 
         // Update draft title
