@@ -290,6 +290,9 @@ def generate_form_invoice():
         elif username == "3075270":
             template_name = "invoice_template3.html"  # Use appropriate template for Care Pharmaceuticals
             print(f"Selected template: {template_name} for Care Pharmaceuticals")
+        elif username == "0946915":
+            template_name = "invoice_template3.html"  # Use appropriate template for Fongs
+            print(f"Selected template: {template_name} for Fongs")
         else:
             template_name = "invoice_template2.html"
             print(
