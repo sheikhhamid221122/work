@@ -1,12 +1,14 @@
 """
 Routes for reports and analytics functionality
 """
-from flask import request, jsonify, session, render_template, url_for, redirect
+from flask import request, jsonify, session, render_template, url_for, redirect, send_file
 import json
 from datetime import datetime, timedelta
 import calendar
 from dateutil.relativedelta import relativedelta
 import pandas as pd  # Add this import
+from io import BytesIO
+import zipfile
 
 
 def add_reports_routes(app, get_db_connection, get_env):
@@ -1766,6 +1768,227 @@ def add_reports_routes(app, get_db_connection, get_env):
                 "product_distribution": product_distribution,
                 "top_buyers": top_buyers,
             }
+        )
+
+    @app.route("/api/reports/downloadable-invoices", methods=["GET"])
+    def get_downloadable_invoices():
+        """Get list of invoices with stored PDFs"""
+        client_id = session.get("client_id")
+        if not client_id:
+            return jsonify({"error": "Unauthorized"}), 401
+
+        # Get filter parameters
+        env_filter = request.args.get("env", "all")  # all, sandbox, production
+        start_date = request.args.get("start_date")
+        end_date = request.args.get("end_date")
+        search = request.args.get("search", "").strip().lower()
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Build query
+        where_conditions = ["client_id = %s", "pdf_data IS NOT NULL", "status = 'Success'"]
+        params = [client_id]
+
+        # Environment filter
+        if env_filter != "all":
+            where_conditions.append("env = %s")
+            params.append(env_filter)
+
+        # Date filter
+        if start_date and end_date:
+            where_conditions.append("DATE(created_at) BETWEEN %s AND %s")
+            params.extend([start_date, end_date])
+
+        where_clause = " AND ".join(where_conditions)
+
+        # Get invoices with PDFs
+        cur.execute(
+            f"""
+            SELECT 
+                id,
+                created_at,
+                invoice_data,
+                env,
+                LENGTH(pdf_data) as pdf_size
+            FROM invoices
+            WHERE {where_clause}
+            ORDER BY created_at DESC
+            """,
+            params,
+        )
+
+        invoices = []
+        for row in cur.fetchall():
+            invoice_id, created_at, invoice_data_raw, env, pdf_size = row
+
+            try:
+                invoice_data = (
+                    json.loads(invoice_data_raw)
+                    if isinstance(invoice_data_raw, str)
+                    else invoice_data_raw
+                )
+            except:
+                invoice_data = {}
+
+            # Extract key fields
+            invoice_ref = (
+                invoice_data.get("invoiceRefNo")
+                or invoice_data.get("fbrInvoiceNumber")
+                or "N/A"
+            )
+            buyer_name = invoice_data.get("buyerBusinessName", "Unknown")
+            invoice_date = invoice_data.get("invoiceDate", "")
+
+            # Calculate total
+            items = invoice_data.get("items", [])
+            total_amount = sum(
+                float(item.get("totalValues", 0) or 0) for item in items
+            )
+
+            # Search filter
+            if search:
+                search_text = f"{invoice_ref} {buyer_name} {invoice_date}".lower()
+                if search not in search_text:
+                    continue
+
+            invoices.append(
+                {
+                    "id": str(invoice_id),
+                    "invoice_ref": invoice_ref,
+                    "buyer_name": buyer_name,
+                    "invoice_date": invoice_date,
+                    "total_amount": round(total_amount, 2),
+                    "env": env,
+                    "created_at": created_at.isoformat(),
+                    "pdf_size_kb": round(pdf_size / 1024, 2) if pdf_size else 0,
+                }
+            )
+
+        cur.close()
+        conn.close()
+
+        return jsonify({"invoices": invoices, "total": len(invoices)})
+
+    @app.route("/api/reports/download-invoice/<invoice_id>", methods=["GET"])
+    def download_single_invoice(invoice_id):
+        """Download a single invoice PDF"""
+        client_id = session.get("client_id")
+        if not client_id:
+            return jsonify({"error": "Unauthorized"}), 401
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        cur.execute(
+            """
+            SELECT pdf_data, invoice_data 
+            FROM invoices 
+            WHERE id = %s AND client_id = %s AND pdf_data IS NOT NULL
+            """,
+            (invoice_id, client_id),
+        )
+
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        if not row:
+            return jsonify({"error": "Invoice PDF not found"}), 404
+
+        pdf_data, invoice_data_raw = row
+
+        # Get invoice reference for filename
+        try:
+            invoice_data = (
+                json.loads(invoice_data_raw)
+                if isinstance(invoice_data_raw, str)
+                else invoice_data_raw
+            )
+            invoice_ref = (
+                invoice_data.get("invoiceRefNo")
+                or invoice_data.get("fbrInvoiceNumber")
+                or "invoice"
+            )
+        except:
+            invoice_ref = "invoice"
+
+        # Send PDF
+        pdf_stream = BytesIO(pdf_data)
+        pdf_stream.seek(0)
+
+        return send_file(
+            pdf_stream,
+            mimetype="application/pdf",
+            as_attachment=True,
+            download_name=f"{invoice_ref}.pdf",
+        )
+
+    @app.route("/api/reports/download-invoices-bulk", methods=["POST"])
+    def download_bulk_invoices():
+        """Download multiple invoices as a ZIP file"""
+        client_id = session.get("client_id")
+        if not client_id:
+            return jsonify({"error": "Unauthorized"}), 401
+
+        data = request.get_json()
+        invoice_ids = data.get("invoice_ids", [])
+
+        if not invoice_ids:
+            return jsonify({"error": "No invoices selected"}), 400
+
+        import zipfile
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Create ZIP in memory
+        zip_buffer = BytesIO()
+        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+            for invoice_id in invoice_ids:
+                cur.execute(
+                    """
+                    SELECT pdf_data, invoice_data 
+                    FROM invoices 
+                    WHERE id = %s AND client_id = %s AND pdf_data IS NOT NULL
+                    """,
+                    (invoice_id, client_id),
+                )
+
+                row = cur.fetchone()
+                if not row:
+                    continue
+
+                pdf_data, invoice_data_raw = row
+
+                # Get invoice reference for filename
+                try:
+                    invoice_data = (
+                        json.loads(invoice_data_raw)
+                        if isinstance(invoice_data_raw, str)
+                        else invoice_data_raw
+                    )
+                    invoice_ref = (
+                        invoice_data.get("invoiceRefNo")
+                        or invoice_data.get("fbrInvoiceNumber")
+                        or f"invoice_{invoice_id}"
+                    )
+                except:
+                    invoice_ref = f"invoice_{invoice_id}"
+
+                # Add PDF to ZIP
+                zip_file.writestr(f"{invoice_ref}.pdf", pdf_data)
+
+        cur.close()
+        conn.close()
+
+        zip_buffer.seek(0)
+
+        return send_file(
+            zip_buffer,
+            mimetype="application/zip",
+            as_attachment=True,
+            download_name=f"invoices_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip",
         )
 
     @app.route('/api/reports/summarize', methods=['POST'])

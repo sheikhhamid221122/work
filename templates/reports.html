@@ -474,6 +474,13 @@
                                     <i class="fas fa-users mr-2"></i> Buyers
                                 </a>
                             </li>
+                            <li>
+                                <a href="#"
+                                    class="tab-link inline-block py-2 px-4 font-medium text-center border-b-2 border-transparent hover:text-primary-600 hover:border-primary-300 rounded-t-lg"
+                                    data-tab="downloads">
+                                    <i class="fas fa-download mr-2"></i> Download Invoices
+                                </a>
+                            </li>
                         </ul>
                     </div>
 
@@ -1120,6 +1127,97 @@
                                 or search criteria.</p>
                         </div>
                     </div>
+
+                    <!-- Download Invoices Tab Content -->
+                    <div id="downloads-tab" class="tab-content">
+                        <!-- Header -->
+                        <div class="bg-white p-4 rounded-lg shadow mb-6">
+                            <h2 class="text-xl font-semibold text-gray-900 mb-2">
+                                <i class="fas fa-download mr-2 text-primary-600"></i>Download Invoices
+                            </h2>
+                            <p class="text-sm text-gray-600">Download previously submitted invoice PDFs individually or in bulk</p>
+                        </div>
+
+                        <!-- Filters -->
+                        <div class="bg-white p-4 rounded-lg shadow mb-6">
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Environment</label>
+                                    <select id="download-env-filter" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500">
+                                        <option value="all">All</option>
+                                        <option value="sandbox">Sandbox</option>
+                                        <option value="production">Production</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                                    <input type="date" id="download-start-date" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                                    <input type="date" id="download-end-date" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Search</label>
+                                    <input type="text" id="download-search" placeholder="Invoice ref, buyer..." class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500">
+                                </div>
+                            </div>
+                            <div class="flex gap-2 mt-4">
+                                <button id="apply-download-filters" class="bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-md transition">
+                                    <i class="fas fa-filter mr-2"></i>Apply Filters
+                                </button>
+                                <button id="reset-download-filters" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-2 px-4 rounded-md transition">
+                                    <i class="fas fa-redo mr-2"></i>Reset
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Bulk Actions -->
+                        <div class="bg-white p-4 rounded-lg shadow mb-6">
+                            <div class="flex items-center justify-between">
+                                <div class="text-sm text-gray-600">
+                                    <span id="selected-count">0</span> invoice(s) selected
+                                </div>
+                                <button id="download-selected-btn" disabled class="bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-md transition disabled:bg-gray-300 disabled:cursor-not-allowed">
+                                    <i class="fas fa-download mr-2"></i>Download Selected (ZIP)
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Invoices Table -->
+                        <div class="bg-white rounded-lg shadow overflow-hidden">
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200">
+                                    <thead class="bg-gray-50">
+                                        <tr>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                                <input type="checkbox" id="select-all-downloads" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500">
+                                            </th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Invoice Ref</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Buyer Name</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Invoice Date</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total Amount</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Environment</th>
+                                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created At</th>
+                                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="downloadable-invoices-body" class="bg-white divide-y divide-gray-200">
+                                        <!-- Invoice rows will be loaded here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- No Invoices Message -->
+                        <div id="no-downloads-message" class="hidden bg-white p-8 rounded-lg shadow text-center mt-6">
+                            <div class="mx-auto w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-4">
+                                <i class="fas fa-file-pdf text-gray-500 text-2xl"></i>
+                            </div>
+                            <h3 class="text-lg font-medium text-gray-900 mb-2">No Invoices Available</h3>
+                            <p class="text-gray-500">No downloadable invoices found. PDFs are only available for invoices submitted after this feature was enabled.</p>
+                        </div>
+                    </div>
                 </div>
             </main>
         </div>
@@ -1489,6 +1587,9 @@
                     break;
                 case 'buyers':
                     loadBuyerData();
+                    break;
+                case 'downloads':
+                    loadDownloadableInvoices();
                     break;
             }
         }
@@ -2890,6 +2991,169 @@
             if (closePreviewBtn) closePreviewBtn.addEventListener('click', () => document.getElementById('invoice-preview-modal').classList.add('hidden'));
             
             // No print functionality needed here
+        });
+        // Load Downloadable Invoices
+        let selectedDownloads = new Set();
+
+        function loadDownloadableInvoices() {
+            document.getElementById('loading-indicator').classList.remove('hidden');
+
+            const env = document.getElementById('download-env-filter').value;
+            const startDate = document.getElementById('download-start-date').value;
+            const endDate = document.getElementById('download-end-date').value;
+            const search = document.getElementById('download-search').value;
+
+            let url = '/api/reports/downloadable-invoices';
+            const params = new URLSearchParams();
+
+            if (env !== 'all') params.append('env', env);
+            if (startDate) params.append('start_date', startDate);
+            if (endDate) params.append('end_date', endDate);
+            if (search) params.append('search', search);
+
+            if (params.toString()) url += `?${params.toString()}`;
+
+            fetch(apiUrl(url))
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('loading-indicator').classList.add('hidden');
+                    renderDownloadableInvoices(data.invoices);
+                })
+                .catch(error => {
+                    document.getElementById('loading-indicator').classList.add('hidden');
+                    showNotification('error', 'Error', 'Failed to load downloadable invoices');
+                });
+        }
+
+        function renderDownloadableInvoices(invoices) {
+            const tbody = document.getElementById('downloadable-invoices-body');
+            const noDataMsg = document.getElementById('no-downloads-message');
+
+            tbody.innerHTML = '';
+
+            if (!invoices || invoices.length === 0) {
+                noDataMsg.classList.remove('hidden');
+                return;
+            }
+
+            noDataMsg.classList.add('hidden');
+
+            invoices.forEach(invoice => {
+                const row = document.createElement('tr');
+                row.className = 'hover:bg-gray-50';
+
+                // Environment badge
+                const envBadge = invoice.env === 'production'
+                    ? '<span class="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">Production</span>'
+                    : '<span class="px-2 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800">Sandbox</span>';
+
+                row.innerHTML = `
+                    <td class="px-6 py-4">
+                        <input type="checkbox" class="download-checkbox rounded border-gray-300 text-primary-600 focus:ring-primary-500" data-invoice-id="${invoice.id}">
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${invoice.invoice_ref}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${invoice.buyer_name}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(invoice.invoice_date)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${formatCurrency(invoice.total_amount)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm">${envBadge}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(invoice.created_at)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center text-sm">
+                        <button onclick="downloadSingleInvoice('${invoice.id}')" class="bg-primary-600 hover:bg-primary-700 text-white font-medium py-1 px-3 rounded transition">
+                            <i class="fas fa-download mr-1"></i>Download
+                        </button>
+                    </td>
+                `;
+
+                tbody.appendChild(row);
+            });
+
+            // Add event listeners to checkboxes
+            document.querySelectorAll('.download-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', updateSelectedCount);
+            });
+        }
+
+        function updateSelectedCount() {
+            selectedDownloads.clear();
+            document.querySelectorAll('.download-checkbox:checked').forEach(checkbox => {
+                selectedDownloads.add(checkbox.getAttribute('data-invoice-id'));
+            });
+
+            document.getElementById('selected-count').textContent = selectedDownloads.size;
+            document.getElementById('download-selected-btn').disabled = selectedDownloads.size === 0;
+        }
+
+        function downloadSingleInvoice(invoiceId) {
+            window.location.href = apiUrl(`/api/reports/download-invoice/${invoiceId}`);
+            showNotification('success', 'Downloading', 'Your invoice PDF is being downloaded');
+        }
+
+        async function downloadSelectedInvoices() {
+            if (selectedDownloads.size === 0) {
+                showNotification('error', 'No Selection', 'Please select at least one invoice');
+                return;
+            }
+
+            const invoiceIds = Array.from(selectedDownloads);
+
+            try {
+                const response = await fetch(apiUrl('/api/reports/download-invoices-bulk'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ invoice_ids: invoiceIds })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to download invoices');
+                }
+
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `invoices_${new Date().getTime()}.zip`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                a.remove();
+
+                showNotification('success', 'Downloaded', `${invoiceIds.length} invoice(s) downloaded as ZIP`);
+            } catch (error) {
+                showNotification('error', 'Download Failed', error.message);
+            }
+        }
+
+        // Event listeners for download tab (add to DOMContentLoaded)
+        document.addEventListener('DOMContentLoaded', function () {
+            // Apply download filters
+            document.getElementById('apply-download-filters').addEventListener('click', function () {
+                loadDownloadableInvoices();
+            });
+
+            // Reset download filters
+            document.getElementById('reset-download-filters').addEventListener('click', function () {
+                document.getElementById('download-env-filter').value = 'all';
+                document.getElementById('download-start-date').value = '';
+                document.getElementById('download-end-date').value = '';
+                document.getElementById('download-search').value = '';
+                loadDownloadableInvoices();
+            });
+
+            // Select all checkboxes
+            document.getElementById('select-all-downloads').addEventListener('change', function () {
+                const checkboxes = document.querySelectorAll('.download-checkbox');
+                checkboxes.forEach(checkbox => {
+                    checkbox.checked = this.checked;
+                });
+                updateSelectedCount();
+            });
+
+            // Download selected button
+            document.getElementById('download-selected-btn').addEventListener('click', function () {
+                downloadSelectedInvoices();
+            });
         });
     </script>
 </body>

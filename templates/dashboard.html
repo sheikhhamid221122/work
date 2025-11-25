@@ -462,9 +462,9 @@
                                             id="sort-number">
                                             Invoice Number <i class="fas fa-sort ml-1"></i></th>
                                         <th scope="col"
-                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                                            id="sort-type">
-                                            Invoice Type <i class="fas fa-sort ml-1"></i></th>
+                                            class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                            id="sort-refno">
+                                            Invoice Reference Number <i class="fas fa-sort ml-1"></i></th>
                                         <th scope="col"
                                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                                             id="sort-date">
@@ -828,7 +828,7 @@
                 row.innerHTML = `
                     <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">${startSr + idx}</td>
                     <td class="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${record.invoiceReference}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${record.invoiceType}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">${record.invoiceRefNo || 'N/A'}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${record.invoiceDate ? record.invoiceDate : ''}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${record.buyerName}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${record.sellerName}</td>
@@ -1176,7 +1176,7 @@
                 switch (sortField) {
                     case 'sr': field = 'sr'; break;
                     case 'number': field = 'invoiceReference'; break;
-                    case 'type': field = 'invoiceType'; break;
+                    case 'refno': field = 'invoiceRefNo'; break;
                     case 'date': field = 'invoiceDate'; break;
                     case 'buyer': field = 'buyerName'; break;
                     case 'seller': field = 'sellerName'; break;

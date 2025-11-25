@@ -319,7 +319,30 @@ def generate_form_invoice():
         # Generate PDF directly to a stream
         pdf_stream = BytesIO()
         HTML(string=rendered_html).write_pdf(pdf_stream)
+        pdf_binary = pdf_stream.getvalue()
         pdf_stream.seek(0)
+
+        # Store PDF in database if this invoice was successfully submitted
+        try:
+            # Find the most recent invoice for this client/env to update with PDF
+            cur.execute(
+                """UPDATE invoices 
+                   SET pdf_data = %s 
+                   WHERE id = (
+                       SELECT id FROM invoices
+                       WHERE client_id = %s AND env = %s AND status = 'Success' 
+                       AND pdf_data IS NULL
+                       ORDER BY created_at DESC 
+                       LIMIT 1
+                   )""",
+                (pdf_binary, client_id, env)
+            )
+            conn.commit()
+        except Exception as update_error:
+            print(f"Error updating PDF data: {update_error}")
+            import traceback
+            traceback.print_exc()
+            # Continue even if PDF storage fails
 
         cur.close()
         conn.close()
@@ -545,6 +568,7 @@ def get_records():
                     or fbr_response.get("invoiceNumber")
                     or "N/A"
                 ),
+                "invoiceRefNo": invoicedata.get("invoiceRefNo", ""),
                 "invoiceType": invoicedata.get("invoiceType", ""),
                 "invoiceDate": invoicedata.get("invoiceDate", ""),
                 "buyerName": invoicedata.get("buyerBusinessName", ""),
@@ -815,7 +839,7 @@ def submit_fbr():
         print(f"Submitting data to FBR, env: {env}")
 
         # Send request to FBR with timeout to prevent worker hanging
-        response = requests.post(api_url, headers=headers, json=json_data, timeout=30)
+        response = requests.post(api_url, headers=headers, json=json_data, timeout=120)
         print(f"FBR API Response status: {response.status_code}")
 
         # Parse response
@@ -849,6 +873,117 @@ def submit_fbr():
         status = "Success"
         date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+        # Generate PDF and store it (only for new invoices from now on)
+        pdf_binary = None
+        try:
+            # Generate PDF using same logic as generate-invoice-excel
+            data = json_data.copy()
+            items = data["items"]
+
+            # Transform form data structure to flat structure for template compatibility
+            # If data came from form (has nested sellerData/buyerData), flatten it
+            if "sellerData" in data:
+                seller_data = data["sellerData"]
+                data["sellerBusinessName"] = seller_data.get("sellerBusinessName", "")
+                data["sellerAddress"] = seller_data.get("sellerAddress", "")
+                data["sellerProvince"] = seller_data.get("sellerProvince", "")
+                data["sellerNTNCNIC"] = seller_data.get("sellerNTNCNIC", "")
+                data["sellerSTRN"] = seller_data.get("sellerSTRN", "")
+            
+            if "buyerData" in data:
+                buyer_data = data["buyerData"]
+                data["buyerBusinessName"] = buyer_data.get("buyerBusinessName", "")
+                data["buyerAddress"] = buyer_data.get("buyerAddress", "")
+                data["buyerProvince"] = buyer_data.get("buyerProvince", "")
+                data["buyerNTNCNIC"] = buyer_data.get("buyerNTNCNIC", "")
+                data["buyerSTRN"] = buyer_data.get("buyerSTRN", "")
+                data["buyerRegistrationType"] = buyer_data.get("buyerRegistrationType", "")
+
+            # Calculate totals and add unit rate for each item
+            total_excl = 0
+            total_tax = 0
+            for item in items:
+                excl = float(item.get("valueSalesExcludingST", 0))
+                tax = float(item.get("salesTaxApplicable", 0))
+                qty = float(item.get("quantity", 1))
+                
+                total_excl += excl
+                total_tax += tax
+                
+                # Calculate unit rate if not present
+                if "unitrate" not in item:
+                    item["unitrate"] = round(excl / qty, 2) if qty > 0 else 0
+            
+            data["totalExcl"] = round(total_excl, 2)
+            data["totalTax"] = round(total_tax, 2)
+            data["totalInclusive"] = round(total_excl + total_tax, 2)
+
+            # Convert to words
+            from num2words import num2words
+            total = round(data["totalInclusive"], 2)
+            amount_in_words = num2words(total, to="currency", lang="en", currency="USD")
+            amount_in_words = amount_in_words.replace("dollars", "rupees").replace("cents", "paisa") + " only"
+            data["amountInWords"] = amount_in_words
+
+            # Generate QR Code
+            import qrcode
+            import base64
+            fbr_invoice = data.get("fbrInvoiceNumber", "")
+            qr_base64 = ""
+            if fbr_invoice:
+                qr = qrcode.QRCode(version=1, box_size=10, border=2)
+                qr.add_data(fbr_invoice)
+                qr.make(fit=True)
+                img = qr.make_image(fill="black", back_color="white")
+                buffer = BytesIO()
+                img.save(buffer, format="PNG")
+                qr_base64 = base64.b64encode(buffer.getvalue()).decode()
+
+            # Get client logo and username for template selection
+            conn_temp = get_db_connection()
+            cur_temp = conn_temp.cursor()
+            cur_temp.execute("SELECT logo_url FROM clients WHERE id = %s", (client_id,))
+            client_row = cur_temp.fetchone()
+            client_logo_url = client_row[0] if client_row else None
+            
+            cur_temp.execute("SELECT u.username FROM users u JOIN clients c ON u.id = c.user_id WHERE c.id = %s", (client_id,))
+            user_row = cur_temp.fetchone()
+            username = user_row[0] if user_row else None
+            
+            cur_temp.execute("SELECT fbr_logo FROM fbr LIMIT 1")
+            fbr_row = cur_temp.fetchone()
+            fbr_logo_url = fbr_row[0] if fbr_row else None
+            cur_temp.close()
+            conn_temp.close()
+
+            # Select template
+            if username == "8974121":
+                template_name = "invoice_template.html"
+            elif username == "5207949":
+                template_name = "invoice_zeeshanst.html"
+            elif username in ["3075270", "0946915"]:
+                template_name = "invoice_template3.html"
+            else:
+                template_name = "invoice_template2.html"
+
+            # Render and generate PDF
+            rendered_html = render_template(
+                template_name,
+                data=data,
+                qr_base64=qr_base64,
+                client_logo_url=client_logo_url,
+                fbr_logo_url=fbr_logo_url,
+                username=username
+            )
+            pdf_stream = BytesIO()
+            HTML(string=rendered_html).write_pdf(pdf_stream)
+            pdf_binary = pdf_stream.getvalue()
+        except Exception as pdf_error:
+            print(f"Error generating PDF for storage: {pdf_error}")
+            import traceback
+            traceback.print_exc()
+            # Continue without PDF if generation fails
+
         # Insert into invoices table - use try/finally to ensure connection is closed
         conn = None
         cur = None
@@ -857,10 +992,10 @@ def submit_fbr():
             cur = conn.cursor()
             cur.execute(
                 """
-                INSERT INTO invoices (client_id, env, invoice_data, fbr_response, status, created_at)
-                VALUES (%s, %s, %s, %s, %s, NOW())
+                INSERT INTO invoices (client_id, env, invoice_data, fbr_response, status, created_at, pdf_data)
+                VALUES (%s, %s, %s, %s, %s, NOW(), %s)
             """,
-                (client_id, env, json.dumps(json_data), json.dumps(res_json), status),
+                (client_id, env, json.dumps(json_data), json.dumps(res_json), status, pdf_binary),
             )
             conn.commit()
         finally:
