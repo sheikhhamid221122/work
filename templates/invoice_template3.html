@@ -88,7 +88,7 @@
     <div class="section-header" style="margin-top: 15px;">SALES TAX INVOICE</div>
 
     <!-- Buyer and Invoice Info -->
-    {% if username in ['3075270', '0946915'] %}
+    {% if username in ['3075270', '0946915', '2853653', '7542425'] %}
     <!-- Customized layout for username 3075270: remove BUYER STRN row and show STATUS instead of P.O#/DATE -->
     <table style="width: 100%; border: 1px solid #333;">
         <tr>
@@ -146,22 +146,27 @@
 <!-- Detail Section -->
 <div class="section-header" style="margin-top: 15px;">DETAILS</div>
 
+{% set buyer_unregistered = (data.buyerRegistrationType or '')|lower == 'unregistered' %}
+{% set show_further_tax = username == '0946915' and buyer_unregistered and data.showFurtherTax %}
+
 <!-- Products Table -->
 <table style="margin-bottom: 0; border-bottom: none; width: 100%; border-collapse: collapse;">
     <thead>
         <tr>
             <th style="width: 5%;">Sr. No.</th>
-            <th style="width: 25%;">Product Detail</th>
-            <th style="width: 10%;">Quantity</th>
-            <th style="width: 10%;">Rate</th>
+            <th style="width: 23%;">Product Detail</th>
+            <th style="width: 9%;">Quantity</th>
+            <th style="width: 9%;">Rate</th>
             <th style="width: 12%;">Value Exclusive of ST</th>
             <th style="width: 10%;">Sales Tax Rate</th>
-            <th style="width: 10%;">Sales Tax</th>
-            <th style="width: 18%;">Value Inclusive of Sales Tax</th>
+            <th style="width: 9%;">Sales Tax</th>
+            {% if show_further_tax %}<th style="width: 9%;">Further Tax</th>{% endif %}
+            <th style="width: 14%;">Value Inclusive of Sales Tax</th>
         </tr>
     </thead>
     <tbody>
         {% for item in data["items"] %}
+        {% set further_tax_amount = item.furtherTaxAmount or 0 %}
         <tr>
             <td>{{ loop.index }}</td>
             <td class="left">{{ item.productDescription }}</td>
@@ -170,7 +175,8 @@
             <td>{{ item.valueSalesExcludingST | comma_format }}</td>
             <td>{{ item.rate }}</td>
             <td>{{ item.salesTaxApplicable | comma_format }}</td>
-            <td>{{ (item.valueSalesExcludingST + item.salesTaxApplicable) | comma_format }}</td>
+            {% if show_further_tax %}<td>{{ further_tax_amount | comma_format }}</td>{% endif %}
+            <td>{{ (item.valueSalesExcludingST + item.salesTaxApplicable + (show_further_tax and further_tax_amount or 0)) | comma_format }}</td>
         </tr>
         {% endfor %}
 
@@ -185,6 +191,7 @@
             <td></td>
             <td></td>
             <td></td>
+            {% if show_further_tax %}<td></td>{% endif %}
             <td></td>
         </tr>
         {% endfor %}

@@ -4,6 +4,7 @@ API routes to support the form-based invoice creation
 from flask import request, jsonify, session
 import json
 from datetime import datetime
+from decimal import Decimal, ROUND_HALF_UP
 
 
 # Business Profiles / Buyers / Products / Invoice APIs
@@ -713,15 +714,21 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
 
         # Items
         items_list = []
+
+        # Helper to quantize monetary values to 2 decimals with half-up rounding
+        def q2(val):
+            return float(Decimal(str(val)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+
         for item_data in data["items"]:
             try:
-                value_excl = round(float(item_data["valueSalesExcludingST"]), 2)
-                sales_tax = round(float(item_data["salesTaxApplicable"]), 2)
+                value_excl = q2(item_data["valueSalesExcludingST"])
+                sales_tax = q2(item_data["salesTaxApplicable"])
                 total_values = item_data.get("totalValues")
+                # Ensure the computed sum is also rounded to 2 decimals to avoid float precision artifacts
                 total_values = (
-                    value_excl + sales_tax
+                    q2(value_excl + sales_tax)
                     if total_values is None
-                    else round(float(total_values), 2)
+                    else q2(total_values)
                 )
                 # Handle taxRate consistently
                 tax_rate = item_data.get("taxRate", "0%")

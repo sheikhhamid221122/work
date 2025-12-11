@@ -86,7 +86,7 @@ def generate_form_invoice():
         )
 
         user_row = cur.fetchone()
-        username = user_row[0] if user_row else None
+        username = str(user_row[0]).strip() if user_row and user_row[0] is not None else None
 
         print(f"Current username: {username}, client_id: {client_id}")  # Debugging log
 
@@ -232,6 +232,19 @@ def generate_form_invoice():
         items = data.get("items", [])
         total_excl = 0
         total_tax = 0
+        total_further_tax = 0
+
+        buyer_reg = (
+            str(
+                data.get("buyerRegistrationType")
+                or (data.get("buyerData") or {}).get("buyerRegistrationType")
+                or (data.get("buyerData") or {}).get("registration_type")
+                or ""
+            )
+            .strip()
+            .lower()
+        )
+        apply_further_tax = username == "0946915" and buyer_reg == "unregistered"
 
         # Add unit rate for each item if not present
         for item in items:
@@ -243,6 +256,32 @@ def generate_form_invoice():
                 total_excl += excl
                 total_tax += tax
 
+                further_tax_amount = 0
+                if apply_further_tax:
+                    raw_ft_amount = item.get("furtherTaxAmount")
+                    raw_ft_pct = item.get("furtherTaxPercent")
+                    raw_ft = item.get("furtherTax", 0)
+
+                    if raw_ft_amount is not None:
+                        try:
+                            further_tax_amount = float(str(raw_ft_amount).replace(",", ""))
+                        except Exception:
+                            further_tax_amount = 0
+                    else:
+                        try:
+                            pct_source = raw_ft_pct if raw_ft_pct is not None else raw_ft
+                            further_pct = float(str(pct_source).replace("%", ""))
+                        except Exception:
+                            further_pct = 0
+
+                        if further_pct > 0 and excl > 0:
+                            further_tax_amount = round((excl * further_pct) / 100, 2)
+
+                    item["furtherTaxAmount"] = further_tax_amount
+                    total_further_tax += further_tax_amount
+                else:
+                    item["furtherTaxAmount"] = 0
+
                 # Calculate unit rate if not present
                 if "unitrate" not in item and qty > 0:
                     item["unitrate"] = excl / qty
@@ -252,8 +291,16 @@ def generate_form_invoice():
 
         # Add totals to data
         data["totalExcl"] = round(total_excl, 2)
-        data["totalTax"] = round(total_tax, 2)
-        data["totalInclusive"] = round(total_excl + total_tax, 2)
+        if apply_further_tax:
+            data["totalFurtherTax"] = round(total_further_tax, 2)
+            data["totalTax"] = round(total_tax + total_further_tax, 2)
+            data["totalInclusive"] = round(total_excl + total_tax + total_further_tax, 2)
+            data["showFurtherTax"] = data["totalFurtherTax"] > 0
+        else:
+            data["totalFurtherTax"] = 0
+            data["totalTax"] = round(total_tax, 2)
+            data["totalInclusive"] = round(total_excl + total_tax, 2)
+            data["showFurtherTax"] = False
 
         # Convert to words with PKR style
         from num2words import num2words
@@ -284,15 +331,12 @@ def generate_form_invoice():
         if username == "8974121":
             template_name = "invoice_template.html"
             print(f"Selected template: {template_name} for Computer Gold")
-        elif username == "5207949":
-            template_name = "invoice_zeeshanst.html"
-            print(f"Selected template: {template_name} for Zeeshan ST")
-        elif username == "3075270":
-            template_name = "invoice_template3.html"  # Use appropriate template for Care Pharmaceuticals
-            print(f"Selected template: {template_name} for Care Pharmaceuticals")
-        elif username == "0946915":
-            template_name = "invoice_template3.html"  # Use appropriate template for Fongs
-            print(f"Selected template: {template_name} for Fongs")
+        elif username == "7542425":
+            template_name = "invoice_template3.html"
+            print(f"Selected template: {template_name} for username 7542425")
+        elif username in ["3075270", "0946915", "7542425", "2853653"]:
+            template_name = "invoice_template3.html"  # Shared template for these users
+            print(f"Selected template: {template_name} for username: {username}")
         else:
             template_name = "invoice_template2.html"
             print(
@@ -300,7 +344,13 @@ def generate_form_invoice():
             )
 
         # Store the current data in last_json_data with client_id for future reference
-        last_json_data[env] = data
+        clean_payload = json.loads(json.dumps(data))
+        for item in clean_payload.get("items", []):
+            item.pop("furtherTaxAmount", None)
+            item.pop("furtherTaxPercent", None)
+        clean_payload.pop("totalFurtherTax", None)
+        clean_payload.pop("showFurtherTax", None)
+        last_json_data[env] = clean_payload
 
         print(
             f"Final template: {template_name}, Client: {client_id}, STRN: {data.get('sellerSTRN', 'Not set')}"
@@ -839,7 +889,7 @@ def submit_fbr():
         print(f"Submitting data to FBR, env: {env}")
 
         # Send request to FBR with timeout to prevent worker hanging
-        response = requests.post(api_url, headers=headers, json=json_data, timeout=120)
+        response = requests.post(api_url, headers=headers, json=json_data, timeout=180)
         print(f"FBR API Response status: {response.status_code}")
 
         # Parse response
@@ -948,7 +998,7 @@ def submit_fbr():
             
             cur_temp.execute("SELECT u.username FROM users u JOIN clients c ON u.id = c.user_id WHERE c.id = %s", (client_id,))
             user_row = cur_temp.fetchone()
-            username = user_row[0] if user_row else None
+            username = str(user_row[0]).strip() if user_row and user_row[0] is not None else None
             
             cur_temp.execute("SELECT fbr_logo FROM fbr LIMIT 1")
             fbr_row = cur_temp.fetchone()
@@ -961,7 +1011,9 @@ def submit_fbr():
                 template_name = "invoice_template.html"
             elif username == "5207949":
                 template_name = "invoice_zeeshanst.html"
-            elif username in ["3075270", "0946915"]:
+            elif username == "7542425":
+                template_name = "invoice_template3.html"
+            elif username in ["3075270", "0946915", "2853653"]:
                 template_name = "invoice_template3.html"
             else:
                 template_name = "invoice_template2.html"
@@ -1169,7 +1221,7 @@ def generate_invoice_excel():
             # Get username in one query
             cur.execute("SELECT username FROM users WHERE id = %s", (user_id,))
             user_row = cur.fetchone()
-            username = user_row[0] if user_row else None
+            username = str(user_row[0]).strip() if user_row and user_row[0] is not None else None
 
             # Get client logo in another query - removed strn column from the query
             if client_id:
@@ -1193,7 +1245,7 @@ def generate_invoice_excel():
         elif username == "5207949":
             template_name = "invoice_zeeshanst.html"
         elif username == "7542425":
-            template_name = "invoice_alraheem.html"
+            template_name = "invoice_template3.html"
         elif username == "3075270":
             template_name = "invoice_template3.html"  # Use appropriate template for Care Pharmaceuticals
         else:

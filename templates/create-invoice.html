@@ -747,9 +747,13 @@
                             <div>
                                 <label for="product-further-tax" class="block text-gray-700 text-sm mb-1">Further
                                     Tax</label>
-                                <input type="number" id="product-further-tax"
-                                    class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm"
-                                    placeholder="0" value="0" min="0" step="0.01">
+                                <div class="relative">
+                                    <input type="number" id="product-further-tax"
+                                        class="form-input w-full pr-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm"
+                                        placeholder="0" value="0" min="0" step="0.01"
+                                        title="Enter percentage only. The value will be treated as % of the amount excluding sales tax.">
+                                    <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-500 text-sm">%</span>
+                                </div>
                             </div>
                         </div>
 
@@ -1310,6 +1314,73 @@
 
         let currentUsername = null;
 
+        const FURTHER_TAX_CLIENT = '0946915';
+
+        function isFurtherTaxClient() {
+            return currentUsername === FURTHER_TAX_CLIENT;
+        }
+
+        function isUnregisteredBuyer() {
+            const regType = ((state && state.buyerData && state.buyerData.buyerRegistrationType) || '').toString().toLowerCase();
+            return regType === 'unregistered';
+        }
+
+        function shouldApplyFurtherTax() {
+            return isFurtherTaxClient() && isUnregisteredBuyer();
+        }
+
+        function getFurtherTaxPercent(item) {
+            if (!item) return 0;
+            const pctSource = item.furtherTaxPercent !== undefined ? item.furtherTaxPercent : item.furtherTax;
+            const pct = parseFloat(pctSource);
+            return Number.isFinite(pct) ? pct : 0;
+        }
+
+        function computeFurtherTaxAmount(item) {
+            if (!shouldApplyFurtherTax()) return 0;
+            const base = parseFloat(item && item.valueSalesExcludingST) || 0;
+            const pct = getFurtherTaxPercent(item);
+            if (base > 0 && pct > 0) {
+                return (base * pct) / 100;
+            }
+            const amt = item && item.furtherTaxAmount;
+            return Number.isFinite(parseFloat(amt)) ? parseFloat(amt) : 0;
+        }
+
+        function syncFurtherTaxDefaults() {
+            const furtherTaxInput = document.getElementById('product-further-tax');
+            if (shouldApplyFurtherTax() && furtherTaxInput) {
+                const inputVal = parseFloat(furtherTaxInput.value);
+                if (!Number.isFinite(inputVal) || inputVal <= 0) {
+                    furtherTaxInput.value = '4';
+                }
+                furtherTaxInput.placeholder = '4';
+            }
+
+            if (!shouldApplyFurtherTax()) {
+                return;
+            }
+
+            if (!state.productItems || state.productItems.length === 0) {
+                return;
+            }
+
+            let changed = false;
+            state.productItems = state.productItems.map((item) => {
+                const pct = getFurtherTaxPercent(item);
+                if (pct <= 0) {
+                    changed = true;
+                    return { ...item, furtherTax: 4 };
+                }
+                return item;
+            });
+
+            if (changed) {
+                updateTotals();
+                updateReviewSection();
+            }
+        }
+
         // Notification system
         function showNotification(type, title, message, duration = 3000) {
             const notification = document.getElementById("notification");
@@ -1466,7 +1537,13 @@
                         item.salesTaxCharged ??
                         0
                     ) || 0;
-                    const totalValues = parseFloat(item.totalValues ?? item.total ?? valueExcl + salesTax) || 0;
+                    const totalValuesRaw = item.totalValues ?? item.total ?? valueExcl + salesTax;
+                    const totalValues = Number((Number(totalValuesRaw) || 0).toFixed(2));
+
+                    const furtherTaxPercent = parseFloat(item.furtherTax ?? 0) || 0;
+                    const furtherTaxAmount = shouldApplyFurtherTax()
+                        ? ((valueExcl * furtherTaxPercent) / 100)
+                        : (parseFloat(item.furtherTax) || 0);
 
                     return {
                         productDescription: item.productDescription || item.description || '',
@@ -1485,7 +1562,9 @@
                             '',
                         sroScheduleNo: item.sroScheduleNo || '',
                         sroItemSerialNo: item.sroItemSerialNo || '',
-                        furtherTax: parseFloat(item.furtherTax ?? 0) || 0,
+                        furtherTax: furtherTaxAmount,
+                        furtherTaxPercent: furtherTaxPercent,
+                        furtherTaxAmount: shouldApplyFurtherTax() ? furtherTaxAmount : undefined,
                         extraTax: item.extraTax ?? '',
                         salesTaxWithheldAtSource: parseFloat(item.salesTaxWithheldAtSource ?? 0) || 0,
                         fedPayable: parseFloat(item.fedPayable ?? 0) || 0,
@@ -1689,7 +1768,7 @@
                 sellerAddress: profile.address,
             };
         }
-
+                    syncFurtherTaxDefaults();
         // Populate buyer form with selected buyer
         function populateBuyerForm(buyer) {
             document.getElementById("buyer-business-name").value =
@@ -1713,6 +1792,8 @@
                 buyerRegistrationType: buyer.registration_type,
                 buyerCode: buyer.buyer_code,
             };
+
+            syncFurtherTaxDefaults();
         }
 
         // (Removed legacy saveBusinessProfile function; modal handles persistence)
@@ -1772,6 +1853,19 @@
                 formattedTaxRate = document.getElementById("product-tax-rate").options[document.getElementById("product-tax-rate").selectedIndex].textContent.trim();
             }
             
+            let furtherTaxPercent = parseFloat(document.getElementById('product-further-tax')?.value || 0);
+            if (shouldApplyFurtherTax() && (!Number.isFinite(furtherTaxPercent) || furtherTaxPercent <= 0)) {
+                furtherTaxPercent = 4;
+                const furtherTaxInput = document.getElementById('product-further-tax');
+                if (furtherTaxInput) {
+                    furtherTaxInput.value = '4';
+                }
+            }
+
+            const furtherTaxAmount = shouldApplyFurtherTax()
+                ? ((parseFloat(valueExcl) || 0) * (furtherTaxPercent || 0)) / 100
+                : 0;
+
             // Create item object with all FBR fields
             const item = {
                 productDescription: description,
@@ -1787,7 +1881,9 @@
                 taxRate: formattedTaxRate, // Use the formatted tax rate with % symbol
                 sroScheduleNo: sroScheduleNo,
                 sroItemSerialNo: sroItemSerialNo,
-                furtherTax: parseFloat(document.getElementById('product-further-tax')?.value || 0),
+                furtherTax: furtherTaxAmount,
+                furtherTaxPercent: furtherTaxPercent,
+                furtherTaxAmount: furtherTaxAmount,
                 extraTax: document.getElementById('product-extra-tax')?.value || '',
                 salesTaxWithheldAtSource: parseFloat(document.getElementById('product-st-withheld')?.value || 0),
                 fedPayable: parseFloat(document.getElementById('product-fed-payable')?.value || 0),
@@ -1869,7 +1965,8 @@
                     const rate = parseFloat(item.rate) || 0;
                     const valueExcl = parseFloat(item.valueSalesExcludingST) || 0;
                     const salesTax = parseFloat(item.salesTaxApplicable) || 0;
-                    const totalValue = valueExcl + salesTax;
+                    const furtherTax = computeFurtherTaxAmount(item);
+                    const totalValue = valueExcl + salesTax + furtherTax;
 
                     row.innerHTML = `
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-900">${productDesc}</td>
@@ -1932,10 +2029,19 @@
                     (sum, item) => sum + (parseFloat(item.valueSalesExcludingST) || 0),
                     0
                 );
-                const totalTaxAmount = state.productItems.reduce(
+                const totalSalesTax = state.productItems.reduce(
                     (sum, item) => sum + (parseFloat(item.salesTaxApplicable) || 0),
                     0
                 );
+
+                const totalFurtherTax = shouldApplyFurtherTax()
+                    ? state.productItems.reduce(
+                        (sum, item) => sum + (item.furtherTaxAmount !== undefined ? parseFloat(item.furtherTaxAmount) || 0 : computeFurtherTaxAmount(item)),
+                        0
+                    )
+                    : 0;
+
+                const totalTaxAmount = totalSalesTax + totalFurtherTax;
                 const grandTotal = totalValueExcl + totalTaxAmount;
 
                 document.getElementById("total-value-excl").textContent =
@@ -2092,11 +2198,17 @@
                 0
             ) : 0;
             
-            const totalTaxAmount = state.productItems ? state.productItems.reduce(
+            const totalSalesTax = state.productItems ? state.productItems.reduce(
                 (sum, item) => sum + (parseFloat(item.salesTaxApplicable) || 0),
                 0
             ) : 0;
+
+            const totalFurtherTax = shouldApplyFurtherTax() && state.productItems ? state.productItems.reduce(
+                (sum, item) => sum + (item.furtherTaxAmount !== undefined ? parseFloat(item.furtherTaxAmount) || 0 : computeFurtherTaxAmount(item)),
+                0
+            ) : 0;
             
+            const totalTaxAmount = totalSalesTax + totalFurtherTax;
             const grandTotal = totalValueExcl + totalTaxAmount;
 
             document.getElementById("review-value-excl").textContent =
@@ -2130,7 +2242,8 @@
                     const rate = parseFloat(item.rate) || 0;
                     const valueExcl = parseFloat(item.valueSalesExcludingST) || 0;
                     const salesTax = parseFloat(item.salesTaxApplicable) || 0;
-                    const totalValue = valueExcl + salesTax;
+                    const furtherTax = computeFurtherTaxAmount(item);
+                    const totalValue = valueExcl + salesTax + furtherTax;
 
                     row.innerHTML = `
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-900">${productDesc}</td>
@@ -2259,6 +2372,8 @@
                         buyerRegistrationType: buyerRegType,
                         buyerCode: document.getElementById("buyer-code").value,
                     };
+
+                    syncFurtherTaxDefaults();
 
                     return true;
 
@@ -2461,9 +2576,12 @@
 
                 // Ensure numeric fields are numbers and compute totalValues here
                 const qty = parseFloat(item.quantity) || 0;
-                const valueExcl = parseFloat(item.valueSalesExcludingST) || 0;
-                const salesTax = parseFloat(item.salesTaxApplicable) || 0;
-                const totalValues = valueExcl + salesTax;
+                const valueExcl = Number((parseFloat(item.valueSalesExcludingST) || 0).toFixed(2));
+                const salesTax = Number((parseFloat(item.salesTaxApplicable) || 0).toFixed(2));
+                const totalValues = Number((valueExcl + salesTax).toFixed(2));
+                const furtherTaxAmount = shouldApplyFurtherTax()
+                    ? ((item.furtherTaxAmount !== undefined ? parseFloat(item.furtherTaxAmount) : computeFurtherTaxAmount(item)) || 0)
+                    : (parseFloat(item.furtherTax) || 0);
 
                 return {
                     "hsCode": item.hsCode || "0000.0000",
@@ -2477,7 +2595,7 @@
                     "salesTaxApplicable": salesTax,
                     "salesTaxWithheldAtSource": item.salesTaxWithheldAtSource || 0,
                     "extraTax": item.extraTax || "",
-                    "furtherTax": item.furtherTax || 0,
+                    "furtherTax": Number(furtherTaxAmount.toFixed(2)),
                     "sroScheduleNo": item.sroScheduleNo || "",
                     "fedPayable": item.fedPayable || 0,
                     "discount": item.discount || 0,
@@ -2652,6 +2770,15 @@
                         populateBuyerForm(buyerData);
                     }
                 });
+
+            const buyerRegSelect = document.getElementById("buyer-registration-type");
+            if (buyerRegSelect) {
+                buyerRegSelect.addEventListener("change", function () {
+                    state.buyerData = state.buyerData || {};
+                    state.buyerData.buyerRegistrationType = this.value;
+                    syncFurtherTaxDefaults();
+                });
+            }
 
             // Buyer plus button now opens buyer management modal
             document.getElementById("add-buyer-btn")?.addEventListener("click", function(){ openBuyerModal(); });
@@ -3016,6 +3143,7 @@
                     const settings = await response.json();
                     currentUsername = settings.username;
                     setSRODefaults(currentUsername);
+                    syncFurtherTaxDefaults();
                 } catch (error) {
                     console.error("Error fetching username:", error);
                 }
@@ -3094,6 +3222,7 @@
                 const settings = await resp.json();
                 currentUsername = settings.username;
                 setSRODefaults(currentUsername);
+                syncFurtherTaxDefaults();
             } catch (e) {
                 console.error("Error fetching product settings:", e);
             }
