@@ -260,22 +260,30 @@ def generate_form_invoice():
                 if apply_further_tax:
                     raw_ft_amount = item.get("furtherTaxAmount")
                     raw_ft_pct = item.get("furtherTaxPercent")
-                    raw_ft = item.get("furtherTax", 0)
+                    raw_ft = item.get("furtherTax")
 
+                    # Priority 1: explicit amount field
                     if raw_ft_amount is not None:
                         try:
                             further_tax_amount = float(str(raw_ft_amount).replace(",", ""))
                         except Exception:
                             further_tax_amount = 0
                     else:
-                        try:
-                            pct_source = raw_ft_pct if raw_ft_pct is not None else raw_ft
-                            further_pct = float(str(pct_source).replace("%", ""))
-                        except Exception:
-                            further_pct = 0
-
-                        if further_pct > 0 and excl > 0:
-                            further_tax_amount = round((excl * further_pct) / 100, 2)
+                        # Priority 2: percent field -> compute from excl
+                        if raw_ft_pct is not None:
+                            try:
+                                further_pct = float(str(raw_ft_pct).replace("%", ""))
+                            except Exception:
+                                further_pct = 0
+                            if further_pct > 0 and excl > 0:
+                                further_tax_amount = round((excl * further_pct) / 100, 2)
+                        else:
+                            # Priority 3: raw furtherTax treated as AMOUNT (not percent)
+                            # Frontend sends furtherTax as amount in JSON; honor that here
+                            try:
+                                further_tax_amount = float(str(raw_ft).replace(",", "")) if raw_ft is not None else 0
+                            except Exception:
+                                further_tax_amount = 0
 
                     item["furtherTaxAmount"] = further_tax_amount
                     total_further_tax += further_tax_amount
@@ -334,7 +342,7 @@ def generate_form_invoice():
         elif username == "7542425":
             template_name = "invoice_template3.html"
             print(f"Selected template: {template_name} for username 7542425")
-        elif username in ["3075270", "0946915", "7542425", "2853653"]:
+        elif username in ["3075270", "0946915", "7542425", "2853653", "H075895"]:
             template_name = "invoice_template3.html"  # Shared template for these users
             print(f"Selected template: {template_name} for username: {username}")
         else:
@@ -1013,7 +1021,7 @@ def submit_fbr():
                 template_name = "invoice_zeeshanst.html"
             elif username == "7542425":
                 template_name = "invoice_template3.html"
-            elif username in ["3075270", "0946915", "2853653"]:
+            elif username in ["3075270", "0946915", "2853653", "H075895"]:
                 template_name = "invoice_template3.html"
             else:
                 template_name = "invoice_template2.html"

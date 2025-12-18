@@ -850,6 +850,10 @@
                                         class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                                         Tax Amount
                                     </th>
+                                    <th scope="col" id="product-further-tax-header"
+                                        class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase hidden">
+                                        Further Tax
+                                    </th>
                                     <th scope="col"
                                         class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                                         Total
@@ -863,7 +867,7 @@
                             <tbody id="product-items-table" class="bg-white divide-y divide-gray-200">
                                 <!-- No products message -->
                                 <tr id="no-products-row">
-                                    <td colspan="9" class="px-6 py-4 text-center text-gray-500">
+                                    <td colspan="10" class="px-6 py-4 text-center text-gray-500">
                                         No products added yet. Add products using the form
                                         above.
                                     </td>
@@ -872,7 +876,7 @@
                             <!-- Totals row -->
                             <tfoot class="bg-gray-50">
                                 <tr>
-                                    <td colspan="5" class="px-6 py-3 text-right font-medium">
+                                    <td colspan="6" class="px-6 py-3 text-right font-medium">
                                         Totals:
                                     </td>
                                     <td class="px-3 py-3 font-medium" id="total-value-excl">
@@ -1023,6 +1027,10 @@
                                         <span class="font-semibold">Sales Tax:</span> PKR
                                         <span id="review-tax-amount">0.00</span>
                                     </p>
+                                    <p id="review-further-tax-row" class="hidden">
+                                        <span class="font-semibold">Further Tax:</span> PKR
+                                        <span id="review-further-tax">0.00</span>
+                                    </p>
                                     <p class="text-base font-bold mt-2 text-primary-700">
                                         <span>Total Amount:</span> PKR
                                         <span id="review-grand-total">0.00</span>
@@ -1067,6 +1075,10 @@
                                             class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                                             Tax Amount
                                         </th>
+                                        <th scope="col" id="review-further-tax-header"
+                                            class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase hidden">
+                                            Further Tax
+                                        </th>
                                         <th scope="col"
                                             class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                                             Total
@@ -1076,7 +1088,7 @@
                                 <tbody id="review-items-table" class="bg-white divide-y divide-gray-200">
                                     <!-- Product items will be populated here -->
                                     <tr id="review-no-products-row">
-                                        <td colspan="8" class="px-6 py-4 text-center text-gray-500">
+                                        <td colspan="9" class="px-6 py-4 text-center text-gray-500">
                                             No products added yet.
                                         </td>
                                     </tr>
@@ -1953,6 +1965,13 @@
                 tableBody.appendChild(noProductsRow);
 
                 // Add product rows
+                const showFT = shouldApplyFurtherTax();
+                // Toggle header visibility based on applicability
+                const ftHeader = document.getElementById("product-further-tax-header");
+                if (ftHeader) {
+                    if (showFT) ftHeader.classList.remove("hidden"); else ftHeader.classList.add("hidden");
+                }
+
                 state.productItems.forEach((item, index) => {
                     const row = document.createElement("tr");
                     row.className = "hover:bg-gray-50 transition-colors";
@@ -1976,6 +1995,7 @@
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${rate.toFixed(2)}</td>
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${valueExcl.toFixed(2)}</td>
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${salesTax.toFixed(2)}</td>
+                ${showFT ? `<td class=\"px-3 py-4 whitespace-nowrap text-sm text-gray-500\">${furtherTax.toFixed(2)}</td>` : ``}
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${totalValue.toFixed(2)}</td>
                 <td class="px-3 py-4 whitespace-nowrap text-right text-sm">
                     <button class="delete-product-btn text-red-600 hover:text-red-900" data-index="${index}">
@@ -2218,6 +2238,19 @@
             document.getElementById("review-grand-total").textContent =
                 grandTotal.toFixed(2);
 
+            // Toggle and set Further Tax in review totals
+            const ftRow = document.getElementById("review-further-tax-row");
+            const ftVal = document.getElementById("review-further-tax");
+            if (ftRow && ftVal) {
+                if (shouldApplyFurtherTax()) {
+                    ftRow.classList.remove("hidden");
+                    ftVal.textContent = totalFurtherTax.toFixed(2);
+                } else {
+                    ftRow.classList.add("hidden");
+                    ftVal.textContent = "0.00";
+                }
+            }
+
             // Product items
             const tableBody = document.getElementById("review-items-table");
             const noProductsRow = document.getElementById("review-no-products-row");
@@ -2228,6 +2261,13 @@
 
                 // Clear existing rows
                 tableBody.innerHTML = "";
+
+                // Toggle header visibility based on applicability
+                const showFT = shouldApplyFurtherTax();
+                const ftHeader = document.getElementById("review-further-tax-header");
+                if (ftHeader) {
+                    if (showFT) ftHeader.classList.remove("hidden"); else ftHeader.classList.add("hidden");
+                }
 
                 // Add product rows
                 state.productItems.forEach((item) => {
@@ -2253,6 +2293,7 @@
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${rate.toFixed(2)}</td>
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${valueExcl.toFixed(2)}</td>
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${salesTax.toFixed(2)}</td>
+                ${showFT ? `<td class=\"px-3 py-4 whitespace-nowrap text-sm text-gray-500\">${furtherTax.toFixed(2)}</td>` : ``}
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${totalValue.toFixed(2)}</td>
             `;
 
