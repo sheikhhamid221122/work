@@ -499,6 +499,12 @@
                                 class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
                                 placeholder="Enter purchase order number" />
                         </div>
+                        <div id="dc-number-container" class="hidden">
+                            <label for="dc-number" class="block text-gray-700 font-medium mb-2">DC #</label>
+                            <input type="text" id="dc-number"
+                                class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
+                                placeholder="Enter delivery challan number" />
+                        </div>
                         <div id="delivery-challan-container" class="hidden">
                             <label for="delivery-challan" class="block text-gray-700 font-medium mb-2">Delivery Challan
                                 #</label>
@@ -668,13 +674,19 @@
                             <!-- Hidden custom product input (reuse existing logic) -->
                         </div>
 
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                             <div>
                                 <label for="product-description"
                                     class="block text-gray-700 text-sm mb-1">Description*</label>
                                 <input type="text" id="product-description"
                                     class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm"
                                     placeholder="Enter product description">
+                            </div>
+                            <div id="product-code-wrapper" class="hidden">
+                                <label for="product-code" class="block text-gray-700 text-sm mb-1">Product Code</label>
+                                <input type="text" id="product-code"
+                                    class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm"
+                                    placeholder="Enter product code">
                             </div>
                             <div>
                                 <label for="product-hs-code" class="block text-gray-700 text-sm mb-1">HS Code*</label>
@@ -1246,6 +1258,7 @@
                 <div id="product-form-modal" class="border-t pt-4">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div><label class="block text-xs font-semibold text-gray-600 mb-1">Description*</label><input id="pm-desc" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" /></div>
+                        <div id="pm-code-wrapper" class="hidden"><label class="block text-xs font-semibold text-gray-600 mb-1">Product Code</label><input id="pm-code" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" /></div>
                         <div><label class="block text-xs font-semibold text-gray-600 mb-1">HS Code</label><input id="pm-hs" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" /></div>
                         <div><label class="block text-xs font-semibold text-gray-600 mb-1">Rate (Unit)</label><input id="pm-rate" type="number" step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" /></div>
                         <div><label class="block text-xs font-semibold text-gray-600 mb-1">UoM*</label><select id="pm-uom" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"><option value="">-- Select UoM --</option></select></div>
@@ -1284,6 +1297,46 @@
             productItems: [],
             draft_id: null, // Store draft ID if loaded from a draft
         };
+
+        const TAX_ID_ERROR_MESSAGE = "must be 7 characters (NTN) or 13 digits (CNIC).";
+
+        function normalizeTaxIdValue(value) {
+            const raw = (value || "").toString().trim().toUpperCase();
+            const digitsOnly = raw.replace(/\D/g, "");
+            if (digitsOnly.length === 13) {
+                return digitsOnly;
+            }
+            return raw.replace(/[^A-Z0-9]/g, "");
+        }
+
+        function getValidTaxId(value) {
+            const normalized = normalizeTaxIdValue(value);
+            if (/^\d{13}$/.test(normalized)) {
+                return normalized;
+            }
+            if (/^[A-Z0-9]{7}$/.test(normalized)) {
+                return normalized;
+            }
+            return null;
+        }
+
+        function enforceTaxIdOnInput(inputElement, label) {
+            if (!inputElement) {
+                return null;
+            }
+            const validValue = getValidTaxId(inputElement.value);
+            if (!validValue) {
+                showNotification(
+                    "error",
+                    "Validation Error",
+                    `${label} ${TAX_ID_ERROR_MESSAGE}`
+                );
+                inputElement.focus();
+                return null;
+            }
+            inputElement.value = validValue;
+            return validValue;
+        }
 
         // Function to get URL parameters
         function getUrlParameter(name) {
@@ -1325,6 +1378,115 @@
         };
 
         let currentUsername = null;
+        const SPECIAL_USERNAMES = ['H075895', 'F667833', 'infinityeng'];
+        let usernameFetchPromise = null;
+
+        function isH075895User(username = currentUsername) {
+            if (!username) {
+                return false;
+            }
+            return SPECIAL_USERNAMES.includes(username.trim());
+        }
+
+        async function ensureCurrentUsername() {
+            if (currentUsername) {
+                return currentUsername;
+            }
+            if (usernameFetchPromise) {
+                return usernameFetchPromise;
+            }
+            usernameFetchPromise = fetch(apiUrl("/api/user-product-settings"))
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error("Failed to fetch user settings");
+                    }
+                    return response.json();
+                })
+                .then(settings => {
+                    setCurrentUsernameValue(settings.username);
+                    return currentUsername;
+                })
+                .catch(error => {
+                    console.error("Error fetching username:", error);
+                    usernameFetchPromise = null;
+                    throw error;
+                });
+            return usernameFetchPromise;
+        }
+
+        function fetchUsername() {
+            return ensureCurrentUsername();
+        }
+
+        function applyH075895UI(username = currentUsername) {
+            if (!username) {
+                return;
+            }
+
+            const enabled = isH075895User(username);
+
+            const dcContainer = document.getElementById('dc-number-container');
+            if (dcContainer) {
+                dcContainer.classList.toggle('hidden', !enabled);
+                const dcInput = document.getElementById('dc-number');
+                if (!enabled) {
+                    if (dcInput) {
+                        dcInput.value = '';
+                    }
+                    if (state && state.invoiceData) {
+                        delete state.invoiceData.DC;
+                    }
+                } else if (dcInput && state && state.invoiceData && typeof state.invoiceData.DC === 'string') {
+                    dcInput.value = state.invoiceData.DC;
+                }
+            }
+
+            const productCodeWrapper = document.getElementById('product-code-wrapper');
+            if (productCodeWrapper) {
+                productCodeWrapper.classList.toggle('hidden', !enabled);
+                if (!enabled) {
+                    const productCodeInput = document.getElementById('product-code');
+                    if (productCodeInput) {
+                        productCodeInput.value = '';
+                    }
+                }
+            }
+
+            const pmCodeWrapper = document.getElementById('pm-code-wrapper');
+            if (pmCodeWrapper) {
+                pmCodeWrapper.classList.toggle('hidden', !enabled);
+                if (!enabled) {
+                    const pmCodeInput = document.getElementById('pm-code');
+                    if (pmCodeInput) {
+                        pmCodeInput.value = '';
+                    }
+                }
+            }
+
+            const toggleModalFieldVisibility = (inputId) => {
+                const inputEl = document.getElementById(inputId);
+                if (!inputEl || !inputEl.parentElement) {
+                    return;
+                }
+                inputEl.parentElement.classList.toggle('hidden', enabled);
+                if (enabled) {
+                    inputEl.value = '';
+                }
+            };
+
+            // Special usernames do not need sale type or SRO details in the product modal
+            ['pm-sale-type', 'pm-sro-schedule', 'pm-sro-item'].forEach(toggleModalFieldVisibility);
+        }
+
+        function setCurrentUsernameValue(username) {
+            if (!username) {
+                return;
+            }
+            currentUsername = username;
+            setSRODefaults(currentUsername);
+            syncFurtherTaxDefaults();
+            applyH075895UI(currentUsername);
+        }
 
         const FURTHER_TAX_CLIENT = '0946915';
 
@@ -1487,17 +1649,22 @@
                     invoiceDate: invoiceData.invoiceDate || '',
                     invoiceRefNo: invoiceData.invoiceRefNo || invoiceData.invoice_ref_no || '',
                     poNumber: invoiceData.poNumber || invoiceData.PO || '',
+                    DC: invoiceData.DC || invoiceData.dcNumber || '',
                     scenarioId: invoiceData.scenarioId || '',
                 };
                 
                 // Populate seller data
                 if (invoiceData.sellerData) {
-                    state.sellerData = invoiceData.sellerData;
-                    document.getElementById('seller-business-name').value = invoiceData.sellerData.sellerBusinessName || '';
-                    document.getElementById('seller-ntn-cnic').value = invoiceData.sellerData.sellerNTNCNIC || '';
-                    document.getElementById('seller-strn').value = invoiceData.sellerData.sellerSTRN || '';
-                    document.getElementById('seller-province').value = invoiceData.sellerData.sellerProvince || '';
-                    document.getElementById('seller-address').value = invoiceData.sellerData.sellerAddress || '';
+                    const sanitizedSellerTax = normalizeTaxIdValue(invoiceData.sellerData.sellerNTNCNIC || "");
+                    state.sellerData = {
+                        ...invoiceData.sellerData,
+                        sellerNTNCNIC: sanitizedSellerTax,
+                    };
+                    document.getElementById('seller-business-name').value = state.sellerData.sellerBusinessName || '';
+                    document.getElementById('seller-ntn-cnic').value = sanitizedSellerTax;
+                    document.getElementById('seller-strn').value = state.sellerData.sellerSTRN || '';
+                    document.getElementById('seller-province').value = state.sellerData.sellerProvince || '';
+                    document.getElementById('seller-address').value = state.sellerData.sellerAddress || '';
                 }
                 
                 // Populate invoice data fields
@@ -1512,6 +1679,8 @@
                 const invoiceRefEl = document.getElementById('invoice-ref-no');
                 if (invoiceRefEl) invoiceRefEl.value = invoiceData.invoiceRefNo || invoiceData.invoice_ref_no || '';
                 document.getElementById('po-number').value = invoiceData.poNumber || invoiceData.PO || '';
+                const dcInput = document.getElementById('dc-number');
+                if (dcInput) dcInput.value = invoiceData.DC || invoiceData.dcNumber || '';
                 
                 // Only set scenario if available and in sandbox environment
                 if (ENV === 'sandbox' && invoiceData.scenarioId) {
@@ -1521,14 +1690,18 @@
                 
                 // Populate buyer data
                 if (invoiceData.buyerData) {
-                    state.buyerData = invoiceData.buyerData;
-                    document.getElementById('buyer-business-name').value = invoiceData.buyerData.buyerBusinessName || '';
-                    document.getElementById('buyer-ntn-cnic').value = invoiceData.buyerData.buyerNTNCNIC || '';
-                    document.getElementById('buyer-strn').value = invoiceData.buyerData.buyerSTRN || '';
-                    document.getElementById('buyer-province').value = invoiceData.buyerData.buyerProvince || '';
-                    document.getElementById('buyer-address').value = invoiceData.buyerData.buyerAddress || '';
-                    document.getElementById('buyer-registration-type').value = invoiceData.buyerData.buyerRegistrationType || '';
-                    document.getElementById('buyer-code').value = invoiceData.buyerData.buyerCode || '';
+                    const sanitizedBuyerTax = normalizeTaxIdValue(invoiceData.buyerData.buyerNTNCNIC || "");
+                    state.buyerData = {
+                        ...invoiceData.buyerData,
+                        buyerNTNCNIC: sanitizedBuyerTax,
+                    };
+                    document.getElementById('buyer-business-name').value = state.buyerData.buyerBusinessName || '';
+                    document.getElementById('buyer-ntn-cnic').value = sanitizedBuyerTax;
+                    document.getElementById('buyer-strn').value = state.buyerData.buyerSTRN || '';
+                    document.getElementById('buyer-province').value = state.buyerData.buyerProvince || '';
+                    document.getElementById('buyer-address').value = state.buyerData.buyerAddress || '';
+                    document.getElementById('buyer-registration-type').value = state.buyerData.buyerRegistrationType || '';
+                    document.getElementById('buyer-code').value = state.buyerData.buyerCode || '';
                 }
                 
                 // Populate product items with correct field mapping
@@ -1557,7 +1730,7 @@
                         ? ((valueExcl * furtherTaxPercent) / 100)
                         : (parseFloat(item.furtherTax) || 0);
 
-                    return {
+                    const normalizedItem = {
                         productDescription: item.productDescription || item.description || '',
                         hsCode: item.hsCode || item.hsCodeNo || '',
                         quantity,
@@ -1585,6 +1758,13 @@
                             item.fixedNotifiedValueOrRetailPrice ?? item.fixedNotifiedValue ?? 0
                         ) || 0
                     };
+
+                    if (isH075895User()) {
+                        normalizedItem.product_code = item.product_code || item.productCode || normalizedItem.product_code || '';
+                        normalizedItem.hs_code = item.hs_code || normalizedItem.hsCode || '';
+                    }
+
+                    return normalizedItem;
                 };
 
                 // Process items based on different possible structures
@@ -1761,10 +1941,11 @@
 
         // Populate seller form with selected profile
         function populateSellerForm(profile) {
+            const sanitizedNtn = normalizeTaxIdValue(profile.ntn_cnic || "");
             document.getElementById("seller-business-name").value =
                 profile.business_name || "";
             document.getElementById("seller-ntn-cnic").value =
-                profile.ntn_cnic || "";
+                sanitizedNtn;
             document.getElementById("seller-strn").value = profile.strn || "";
             document.getElementById("seller-province").value =
                 profile.province || "";
@@ -1774,7 +1955,7 @@
             state.sellerData = {
                 id: profile.id,
                 sellerBusinessName: profile.business_name,
-                sellerNTNCNIC: profile.ntn_cnic,
+                sellerNTNCNIC: sanitizedNtn,
                 sellerSTRN: profile.strn,
                 sellerProvince: profile.province,
                 sellerAddress: profile.address,
@@ -1783,9 +1964,10 @@
                     syncFurtherTaxDefaults();
         // Populate buyer form with selected buyer
         function populateBuyerForm(buyer) {
+            const sanitizedNtn = normalizeTaxIdValue(buyer.ntn_cnic || "");
             document.getElementById("buyer-business-name").value =
                 buyer.business_name || "";
-            document.getElementById("buyer-ntn-cnic").value = buyer.ntn_cnic || "";
+            document.getElementById("buyer-ntn-cnic").value = sanitizedNtn;
             document.getElementById("buyer-strn").value = buyer.strn || "";
             document.getElementById("buyer-province").value = buyer.province || "";
             document.getElementById("buyer-registration-type").value =
@@ -1797,7 +1979,7 @@
             state.buyerData = {
                 id: buyer.id,
                 buyerBusinessName: buyer.business_name,
-                buyerNTNCNIC: buyer.ntn_cnic,
+                buyerNTNCNIC: sanitizedNtn,
                 buyerSTRN: buyer.strn,
                 buyerProvince: buyer.province,
                 buyerAddress: buyer.address,
@@ -1818,6 +2000,8 @@
             calculateValueAndTax();
             const description = document.getElementById("product-description").value;
             const hsCode = document.getElementById("product-hs-code").value;
+            const productCodeInput = document.getElementById("product-code");
+            const productCode = productCodeInput ? productCodeInput.value.trim() : "";
             const quantity = parseFloat(document.getElementById("product-quantity").value);
             const uom = document.getElementById("product-uom").value;
             const rate = parseFloat(document.getElementById("product-rate").value) || 0;
@@ -1903,6 +2087,11 @@
                 fixedNotifiedValueOrRetailPrice: parseFloat(document.getElementById('product-fixed-value')?.value || 0)
             };
 
+            if (isH075895User()) {
+                item.product_code = productCode;
+                item.hs_code = hsCode;
+            }
+
             console.log("Item created:", item);
 
             // Add item to state
@@ -1921,6 +2110,9 @@
             document.getElementById("product-value-excl").value = "";
             document.getElementById("product-tax-rate").value = "";
             document.getElementById("product-tax-amount").value = "";
+            if (productCodeInput) {
+                productCodeInput.value = "";
+            }
 
             // Reset SRO fields with proper defaults for the current user
             setSRODefaults(currentUsername);
@@ -2316,7 +2508,8 @@
                 case 1:
                     // Validate seller information
                     const sellerName = document.getElementById("seller-business-name").value;
-                    const sellerNtn = document.getElementById("seller-ntn-cnic").value;
+                    const sellerNtnInput = document.getElementById("seller-ntn-cnic");
+                    const sellerNtn = sellerNtnInput.value;
                     const sellerProvince = document.getElementById("seller-province").value;
                     const sellerAddress = document.getElementById("seller-address").value;
 
@@ -2329,10 +2522,15 @@
                         return false;
                     }
 
+                    const normalizedSellerNtn = enforceTaxIdOnInput(sellerNtnInput, "Seller NTN/CNIC");
+                    if (!normalizedSellerNtn) {
+                        return false;
+                    }
+
                     // Update state
                     state.sellerData = {
                         sellerBusinessName: sellerName,
-                        sellerNTNCNIC: sellerNtn,
+                        sellerNTNCNIC: normalizedSellerNtn,
                         sellerSTRN: document.getElementById("seller-strn").value,
                         sellerProvince: sellerProvince,
                         sellerAddress: sellerAddress,
@@ -2373,6 +2571,13 @@
                             document.getElementById("scenario-id").value;
                     }
 
+                    if (isH075895User()) {
+                        const dcInput = document.getElementById("dc-number");
+                        state.invoiceData.DC = dcInput ? dcInput.value.trim() : "";
+                    } else if (state.invoiceData) {
+                        delete state.invoiceData.DC;
+                    }
+
                     return true;
 
                 case 3:
@@ -2380,7 +2585,8 @@
                     const buyerName = document.getElementById(
                         "buyer-business-name"
                     ).value;
-                    const buyerNtn = document.getElementById("buyer-ntn-cnic").value;
+                    const buyerNtnInput = document.getElementById("buyer-ntn-cnic");
+                    const buyerNtn = buyerNtnInput.value;
                     const buyerProvince =
                         document.getElementById("buyer-province").value;
                     const buyerAddress = document.getElementById("buyer-address").value;
@@ -2403,10 +2609,15 @@
                         return false;
                     }
 
+                    const normalizedBuyerNtn = enforceTaxIdOnInput(buyerNtnInput, "Buyer NTN/CNIC");
+                    if (!normalizedBuyerNtn) {
+                        return false;
+                    }
+
                     // Update state
                     state.buyerData = {
                         buyerBusinessName: buyerName,
-                        buyerNTNCNIC: buyerNtn,
+                        buyerNTNCNIC: normalizedBuyerNtn,
                         buyerSTRN: document.getElementById("buyer-strn").value,
                         buyerProvince: buyerProvince,
                         buyerAddress: buyerAddress,
@@ -2438,9 +2649,36 @@
 
         // Submit invoice
         // Submit invoice
-        async function submitInvoice(saveDraft = false) {
+        async function submitInvoice(saveDraft = false, extraOptions = {}) {
             try {
                 // Prepare data
+                const preparedItems = (state.productItems || []).map((item) => {
+                    const cloned = { ...item };
+                    if (isH075895User()) {
+                        const resolvedHsCode = cloned.hs_code || cloned.hsCode || '';
+                        const resolvedProductCode = cloned.product_code || cloned.productCode || '';
+                        cloned.product_code = resolvedProductCode;
+                        cloned.hs_code = resolvedHsCode;
+                    } else {
+                        delete cloned.product_code;
+                        delete cloned.hs_code;
+                    }
+                    return cloned;
+                });
+
+                const sellerTaxId = getValidTaxId(state.sellerData && state.sellerData.sellerNTNCNIC);
+                const buyerTaxId = getValidTaxId(state.buyerData && state.buyerData.buyerNTNCNIC);
+                if (!sellerTaxId || !buyerTaxId) {
+                    showNotification(
+                        "error",
+                        "Validation Error",
+                        "Seller and buyer NTN/CNIC must be 7 characters (NTN) or 13 digits (CNIC)"
+                    );
+                    throw new Error("Invalid tax identifiers");
+                }
+                state.sellerData.sellerNTNCNIC = sellerTaxId;
+                state.buyerData.buyerNTNCNIC = buyerTaxId;
+
                 const invoiceData = {
                     invoiceType: state.invoiceData.invoiceType,
                     invoiceDate: state.invoiceData.invoiceDate,
@@ -2448,10 +2686,21 @@
                     poNumber: state.invoiceData.poNumber,
                     sellerData: state.sellerData,
                     buyerData: state.buyerData,
-                    items: state.productItems,
+                    items: preparedItems,
                     saveDraft: saveDraft,
                     submit: !saveDraft,
                 };
+
+                if (isH075895User()) {
+                    invoiceData.DC = state.invoiceData.DC || "";
+                }
+
+                if (saveDraft) {
+                    if (extraOptions.title) {
+                        invoiceData.title = extraOptions.title;
+                    }
+                    invoiceData.original_env = extraOptions.original_env || ENV;
+                }
 
                 // Include draft_id if this invoice was loaded from a draft
                 if (state.draft_id) {
@@ -2478,10 +2727,13 @@
                 }
 
                 if (saveDraft) {
+                    const titleSuffix = extraOptions.title
+                        ? ` with title "${extraOptions.title}"`
+                        : "";
                     showNotification(
                         "success",
                         "Draft Saved",
-                        "Invoice has been saved as draft"
+                        `Invoice has been saved as draft${titleSuffix}`
                     );
                 } else {
                     showNotification(
@@ -3098,62 +3350,20 @@
                 document.getElementById("save-draft-modal").classList.add("hidden");
             });
 
-            document.getElementById("confirm-save-draft").addEventListener("click", function () {
-                const title = document.getElementById("draft-invoice-title").value.trim();
+            document.getElementById("confirm-save-draft").addEventListener("click", async function () {
+                const titleInput = document.getElementById("draft-invoice-title");
+                const title = titleInput.value.trim();
 
                 // Hide the modal
                 document.getElementById("save-draft-modal").classList.add("hidden");
 
-                // Include title in the request
-                const invoiceData = {
-                    invoiceType: state.invoiceData.invoiceType || "Sale Invoice",
-                    invoiceDate: state.invoiceData.invoiceDate,
-                    invoiceRefNo: state.invoiceData.invoiceRefNo,
-                    poNumber: state.invoiceData.poNumber,
-                    sellerData: state.sellerData,
-                    buyerData: state.buyerData,
-                    items: state.productItems,
-                    saveDraft: true,
-                    title: title,
-                    original_env: ENV  // Store original environment
-                };
-
-                if (ENV === "sandbox" && state.invoiceData.scenarioId) {
-                    invoiceData.scenarioId = state.invoiceData.scenarioId;
+                try {
+                    await submitInvoice(true, { title, original_env: ENV });
+                } catch (error) {
+                    console.error("Error saving draft:", error);
+                } finally {
+                    titleInput.value = "";
                 }
-
-                // Call API
-                fetch(apiUrl("/api/invoice/create"), {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify(invoiceData),
-                })
-                    .then(response => response.json())
-                    .then(result => {
-                        if (result.draft_id) {
-                            showNotification(
-                                "success",
-                                "Draft Saved",
-                                `Invoice has been saved as draft${title ? ` with title "${title}"` : ''}`
-                            );
-                        } else {
-                            showNotification(
-                                "success",
-                                "Draft Saved",
-                                "Invoice has been saved as draft"
-                            );
-                        }
-                    })
-                    .catch(error => {
-                        console.error("Error saving draft:", error);
-                        showNotification(
-                            "error",
-                            "Error",
-                            error.message || "Failed to save draft"
-                        );
-                    });
             });
 
             // Scenario select change
@@ -3176,22 +3386,7 @@
                 generateBtn.classList.add("opacity-50", "cursor-not-allowed");
             }
 
-            // Fetch username when page loads
-            async function fetchUsername() {
-                try {
-                    const response = await fetch(apiUrl("/api/user-product-settings"));
-                    if (!response.ok) throw new Error("Failed to fetch user settings");
-                    const settings = await response.json();
-                    currentUsername = settings.username;
-                    setSRODefaults(currentUsername);
-                    syncFurtherTaxDefaults();
-                } catch (error) {
-                    console.error("Error fetching username:", error);
-                }
-            }
-
-            // Fetch username on load
-            fetchUsername();
+            ensureCurrentUsername().catch(() => {});
         });
 
         // Product management
@@ -3249,6 +3444,12 @@
             if(p.uom){ document.getElementById('product-uom').value=p.uom; }
             if(p.default_tax_rate!=null){ const taxSelect=document.getElementById('product-tax-rate'); const target=`${p.default_tax_rate}%`; for(let i=0;i<taxSelect.options.length;i++){ if(taxSelect.options[i].textContent.trim()===target){ taxSelect.selectedIndex=i; break; } } }
             document.getElementById('product-sale-type').value=p.sale_type||document.getElementById('product-sale-type').value;
+                    if(isH075895User()){
+                        const productCodeInput=document.getElementById('product-code');
+                        if(productCodeInput){
+                            productCodeInput.value=p.product_code||'';
+                        }
+                    }
             setSRODefaults(currentUsername);
             // If quantity already entered, recalc value & tax
             if(document.getElementById('product-quantity').value){ calculateValueAndTax(); }
@@ -3261,9 +3462,7 @@
                 const resp = await fetch(apiUrl("/api/user-product-settings"));
                 if (!resp.ok) throw new Error("Failed to fetch product settings");
                 const settings = await resp.json();
-                currentUsername = settings.username;
-                setSRODefaults(currentUsername);
-                syncFurtherTaxDefaults();
+                setCurrentUsernameValue(settings.username);
             } catch (e) {
                 console.error("Error fetching product settings:", e);
             }
@@ -3272,7 +3471,10 @@
         // Fetch products and render
         async function fetchProducts() {
             try {
-                const resp = await fetch(apiUrl("/api/products"));
+                await ensureCurrentUsername();
+                const baseUrl = apiUrl("/api/products");
+                const url = isH075895User() ? `${baseUrl}&includeProductCode=true` : baseUrl;
+                const resp = await fetch(url);
                 if (!resp.ok) throw new Error("Failed to fetch products");
                 productList = await resp.json();
                 renderProductMenu();
@@ -3410,6 +3612,13 @@
             document.getElementById("product-description").value = product.description;
             document.getElementById("product-hs-code").value = product.hs_code || "";
 
+            if (isH075895User()) {
+                const productCodeInput = document.getElementById("product-code");
+                if (productCodeInput) {
+                    productCodeInput.value = product.product_code || "";
+                }
+            }
+
             // Set UOM if available
             const uomSelect = document.getElementById("product-uom");
             if (product.uom) {
@@ -3470,10 +3679,14 @@
 
                 // Set the new product as selected and hide custom field
                 const selectElement = document.getElementById("product-select");
-                selectElement.value = result.id;
-
-                // Set product description
-                document.getElementById("product-description").value = description;
+                if (!isH075895User()) {
+                    selectElement.value = result.id;
+                    document.getElementById("product-description").value = description;
+                } else {
+                    selectElement.value = "";
+                    document.getElementById("product-description").value = "";
+                    showNotification("info", "Product Ready", "Select the saved product from the list when needed.");
+                }
 
                 // Hide custom field
                 document.getElementById("custom-product-field").classList.add("hidden");
@@ -3491,10 +3704,10 @@
             fetch(apiUrl("/api/user-product-settings"))
                 .then(response => response.json())
                 .then(settings => {
-                    currentUsername = settings.username;
+                    setCurrentUsernameValue(settings.username);
 
                     // Show/hide delivery challan field based on username
-                    if (currentUsername === '8974121') {
+                    if (settings.username === '8974121') {
                         const deliveryChallanContainer = document.getElementById("delivery-challan-container");
                         if (deliveryChallanContainer) {
                             deliveryChallanContainer.classList.remove("hidden");
@@ -3632,7 +3845,7 @@ function handleBPAction(e){
 function fillBPForm(p){
   if(!p) return; showBPForm(true);
   document.getElementById('bp-name').value=p.business_name||'';
-  document.getElementById('bp-ntn').value=p.ntn_cnic||'';
+    document.getElementById('bp-ntn').value=normalizeTaxIdValue(p.ntn_cnic||'');
   document.getElementById('bp-strn').value=p.strn||'';
   document.getElementById('bp-province').value=p.province||'';
   document.getElementById('bp-address').value=p.address||'';
@@ -3647,8 +3860,12 @@ async function setDefaultBusinessProfile(id){
   catch(err){ showNotification('error','Error',err.message);} }
 function applyBusinessProfile(p){ if(!p) return; populateSellerForm({id:p.id,business_name:p.business_name,ntn_cnic:p.ntn_cnic,strn:p.strn,province:p.province,address:p.address,is_default:p.is_default}); }
 async function saveBusinessProfileFromModal(){
-  const payload={ business_name:document.getElementById('bp-name').value.trim(), ntn_cnic:document.getElementById('bp-ntn').value.trim(), strn:document.getElementById('bp-strn').value.trim(), province:document.getElementById('bp-province').value, address:document.getElementById('bp-address').value.trim(), is_default:document.getElementById('bp-default').checked };
-  if(!payload.business_name||!payload.ntn_cnic||!payload.province||!payload.address){ showNotification('error','Validation','All required fields must be filled'); return; }
+    const bpNtnInput=document.getElementById('bp-ntn');
+    const payload={ business_name:document.getElementById('bp-name').value.trim(), ntn_cnic:bpNtnInput.value.trim(), strn:document.getElementById('bp-strn').value.trim(), province:document.getElementById('bp-province').value, address:document.getElementById('bp-address').value.trim(), is_default:document.getElementById('bp-default').checked };
+    if(!payload.business_name||!payload.ntn_cnic||!payload.province||!payload.address){ showNotification('error','Validation','All required fields must be filled'); return; }
+    const normalizedBpTax=enforceTaxIdOnInput(bpNtnInput,'Business NTN/CNIC');
+    if(!normalizedBpTax){ return; }
+    payload.ntn_cnic=normalizedBpTax;
   try {
     let res, data;
     if(editingBusinessProfileId){
@@ -3885,24 +4102,46 @@ function resetBuyerForm(){ editingBuyerId=null; document.getElementById('buyer-f
 function showBuyerForm(edit=false){ document.getElementById('buyer-form-modal').classList.remove('hidden'); document.getElementById('buyer-form-title').textContent=edit?'Edit Buyer':'Create Buyer'; }
 function handleBuyerAction(e){ const id=e.currentTarget.getAttribute('data-id'); const action=e.currentTarget.getAttribute('data-action'); const buyer=buyersCache.find(b=>b.id==id); if(action==='del') return deleteBuyer(id); if(action==='apply'){ applyBuyer(buyer); closeBuyerModal(); return;} if(action==='edit' ){ editingBuyerId=id; showBuyerForm(true); fillBuyerForm(buyer); }
 }
-function fillBuyerForm(b){ if(!b) return; ['by-name','by-ntn','by-strn','by-province','by-reg','by-code','by-address'].forEach(()=>{}); document.getElementById('by-name').value=b.business_name||''; document.getElementById('by-ntn').value=b.ntn_cnic||''; document.getElementById('by-strn').value=b.strn||''; document.getElementById('by-province').value=b.province||''; document.getElementById('by-reg').value=b.registration_type||''; document.getElementById('by-code').value=b.buyer_code||''; document.getElementById('by-address').value=b.address||''; }
+function fillBuyerForm(b){ if(!b) return; ['by-name','by-ntn','by-strn','by-province','by-reg','by-code','by-address'].forEach(()=>{}); document.getElementById('by-name').value=b.business_name||''; document.getElementById('by-ntn').value=normalizeTaxIdValue(b.ntn_cnic||''); document.getElementById('by-strn').value=b.strn||''; document.getElementById('by-province').value=b.province||''; document.getElementById('by-reg').value=b.registration_type||''; document.getElementById('by-code').value=b.buyer_code||''; document.getElementById('by-address').value=b.address||''; }
 async function deleteBuyer(id){ if(!confirm('Delete this buyer?')) return; try{ const res=await fetch(apiUrl(`/api/buyers/${id}`),{method:'DELETE'}); const data=await res.json(); if(!res.ok) throw new Error(data.error||'Failed'); showNotification('success','Deleted','Buyer removed'); await loadBuyersModal(); }
 catch(err){ showNotification('error','Error',err.message);} }
 function applyBuyer(b){ if(!b) return; populateBuyerForm({id:b.id,business_name:b.business_name,address:b.address,province:b.province,ntn_cnic:b.ntn_cnic,strn:b.strn,registration_type:b.registration_type,buyer_code:b.buyer_code}); }
-async function saveBuyerFromModal(){ const payload={ business_name:document.getElementById('by-name').value.trim(), ntn_cnic:document.getElementById('by-ntn').value.trim(), strn:document.getElementById('by-strn').value.trim(), province:document.getElementById('by-province').value, registration_type:document.getElementById('by-reg').value, buyer_code:document.getElementById('by-code').value.trim(), address:document.getElementById('by-address').value.trim() }; if(!payload.business_name||!payload.ntn_cnic||!payload.province||!payload.registration_type||!payload.address){ showNotification('error','Validation','Required fields missing'); return;} try{ let res,data; if(editingBuyerId){ res=await fetch(apiUrl(`/api/buyers/${editingBuyerId}`),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); data=await res.json(); if(!res.ok) throw new Error(data.error||'Update failed'); showNotification('success','Updated','Buyer updated'); } else { res=await fetch(apiUrl('/api/buyers'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); data=await res.json(); if(!res.ok) throw new Error(data.error||'Create failed'); showNotification('success','Created','Buyer created'); }
-    await loadBuyersModal(); const applied=buyersCache.find(b=>b.business_name===payload.business_name && b.ntn_cnic===payload.ntn_cnic) || buyersCache[buyersCache.length-1]; if(applied) applyBuyer(applied); closeBuyerModal(); resetBuyerForm(); }catch(err){ showNotification('error','Error',err.message);} }
+async function saveBuyerFromModal(){ const buyerNtnInput=document.getElementById('by-ntn'); const payload={ business_name:document.getElementById('by-name').value.trim(), ntn_cnic:buyerNtnInput.value.trim(), strn:document.getElementById('by-strn').value.trim(), province:document.getElementById('by-province').value, registration_type:document.getElementById('by-reg').value, buyer_code:document.getElementById('by-code').value.trim(), address:document.getElementById('by-address').value.trim() }; if(!payload.business_name||!payload.ntn_cnic||!payload.province||!payload.registration_type||!payload.address){ showNotification('error','Validation','Required fields missing'); return;} const normalizedBuyerTax=enforceTaxIdOnInput(buyerNtnInput,'Buyer NTN/CNIC'); if(!normalizedBuyerTax){ return;} payload.ntn_cnic=normalizedBuyerTax; const creatingNew=!editingBuyerId; try{ let res,data; if(editingBuyerId){ res=await fetch(apiUrl(`/api/buyers/${editingBuyerId}`),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); data=await res.json(); if(!res.ok) throw new Error(data.error||'Update failed'); showNotification('success','Updated','Buyer updated'); } else { res=await fetch(apiUrl('/api/buyers'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); data=await res.json(); if(!res.ok) throw new Error(data.error||'Create failed'); showNotification('success','Created','Buyer created'); }
+    await loadBuyersModal();
+    if(creatingNew && isH075895User()){
+        if(typeof fetchBuyers==='function'){
+            await fetchBuyers();
+        }
+        resetBuyerForm();
+        showNotification('info','Buyer Ready','Select the new buyer from the list to apply it.');
+        return;
+    }
+    const applied=buyersCache.find(b=>b.business_name===payload.business_name && b.ntn_cnic===payload.ntn_cnic) || buyersCache[buyersCache.length-1]; if(applied) applyBuyer(applied); closeBuyerModal(); resetBuyerForm(); }catch(err){ showNotification('error','Error',err.message);} }
 
 // ---------------- Product Modal Logic (mirrors buyer modal) ----------------
 let productsCache = []; let editingProductId = null;
 function openProductModal(){ document.getElementById('product-modal').classList.remove('hidden'); loadProductsModal(); populateProductModalSelects(); }
 function closeProductModal(){ document.getElementById('product-modal').classList.add('hidden'); resetProductModalForm(); }
 function populateProductModalSelects(){ const uomSel=document.getElementById('pm-uom'); const taxSel=document.getElementById('pm-tax'); if(uomSel && uomSel.options.length<=1){ const src=document.getElementById('product-uom'); for(let i=1;i<src.options.length;i++){ uomSel.appendChild(src.options[i].cloneNode(true)); } } if(taxSel && taxSel.options.length<=1){ const taxSrc=document.getElementById('product-tax-rate'); for(let i=1;i<taxSrc.options.length;i++){ taxSel.appendChild(taxSrc.options[i].cloneNode(true)); } } }
-async function loadProductsModal(){ try{ const res=await fetch(apiUrl('/api/products')); if(!res.ok) throw new Error('Failed to load products'); productsCache=await res.json(); window._allProductsModal = productsCache.slice(); renderProductListModal(productsCache); }catch(e){ showNotification('error','Error',e.message);} }
+async function loadProductsModal(){
+    try{
+        await ensureCurrentUsername();
+        const baseUrl=apiUrl('/api/products');
+        const url=isH075895User()? `${baseUrl}&includeProductCode=true` : baseUrl;
+        const res=await fetch(url);
+        if(!res.ok) throw new Error('Failed to load products');
+        productsCache=await res.json();
+        window._allProductsModal = productsCache.slice();
+        renderProductListModal(productsCache);
+    }catch(e){
+        showNotification('error','Error',e.message);
+    }
+}
 function renderProductListModal(arr){ const list=document.getElementById('product-list-modal'); if(!list) return; const term=(document.getElementById('product-search-modal').value||'').trim(); list.innerHTML=''; const scored=arr.map(p=>({p,score:fuzzyMatch(term,p.description||'')})).filter(x=>x.score>0).sort((a,b)=> b.score-a.score || (a.p.description||'').localeCompare(b.p.description||'')); if(scored.length===0){ list.innerHTML='<div class="text-xs text-gray-500 px-2">No products found</div>'; return;} scored.forEach(({p})=>{ const row=document.createElement('div'); row.className='flex items-start justify-between bg-white rounded border border-gray-200 px-3 py-2 hover:shadow-sm transition'; row.innerHTML=`<div class='text-sm'><div class='font-medium text-gray-800 truncate max-w-[240px]'>${p.description||''}</div><div class='text-xs text-gray-500'>${p.hs_code||''} ${(p.uom? '• '+p.uom:'')}</div><div class='text-xs text-gray-400 truncate max-w-[260px]'>${p.sale_type||''}</div></div><div class='flex items-center space-x-2'><button class='text-blue-600 hover:text-blue-800 text-xs font-medium' data-action='edit' data-id='${p.id}'><i class='fas fa-edit'></i></button><button class='text-red-600 hover:text-red-800 text-xs font-medium' data-action='del' data-id='${p.id}'><i class='fas fa-times'></i></button><button class='text-accent-600 hover:text-accent-700 text-xs font-medium' data-action='apply' data-id='${p.id}'><i class='fas fa-check'></i></button></div>`; list.appendChild(row);} ); list.querySelectorAll('button[data-action]').forEach(btn=>btn.addEventListener('click',handleProductAction)); }
-function resetProductModalForm(){ editingProductId=null; ['pm-desc','pm-hs','pm-rate','pm-uom','pm-tax','pm-sale-type','pm-sro-schedule','pm-sro-item'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; }); document.getElementById('product-form-modal')?.classList.remove('hidden'); }
+function resetProductModalForm(){ editingProductId=null; ['pm-desc','pm-code','pm-hs','pm-rate','pm-uom','pm-tax','pm-sale-type','pm-sro-schedule','pm-sro-item'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; }); document.getElementById('product-form-modal')?.classList.remove('hidden'); }
 function showProductForm(edit=false){ document.getElementById('product-form-modal').classList.remove('hidden'); }
 function handleProductAction(e){ const id=e.currentTarget.getAttribute('data-id'); const action=e.currentTarget.getAttribute('data-action'); const prod=productsCache.find(p=>p.id==id); if(action==='del') return deleteProductFromModal(id); if(action==='apply'){ applyProduct(prod); closeProductModal(); return;} if(action==='edit'){ editingProductId=id; fillProductForm(prod); showProductForm(true);} }
-function fillProductForm(p){ if(!p) return; document.getElementById('pm-desc').value=p.description||''; document.getElementById('pm-hs').value=p.hs_code||''; document.getElementById('pm-rate').value=p.rate||''; document.getElementById('pm-uom').value=p.uom||''; document.getElementById('pm-tax').value=p.default_tax_rate||''; document.getElementById('pm-sale-type').value=p.sale_type||'Goods at Reduced Rate'; document.getElementById('pm-sro-schedule').value=p.sro_schedule_no||''; document.getElementById('pm-sro-item').value=p.sro_item_serial_no||''; }
+function fillProductForm(p){ if(!p) return; document.getElementById('pm-desc').value=p.description||''; const pmCodeInput=document.getElementById('pm-code'); if(pmCodeInput){ pmCodeInput.value=isH075895User()? (p.product_code||'') : ''; } document.getElementById('pm-hs').value=p.hs_code||''; document.getElementById('pm-rate').value=p.rate||''; document.getElementById('pm-uom').value=p.uom||''; document.getElementById('pm-tax').value=p.default_tax_rate||''; document.getElementById('pm-sale-type').value=p.sale_type||'Goods at Reduced Rate'; document.getElementById('pm-sro-schedule').value=p.sro_schedule_no||''; document.getElementById('pm-sro-item').value=p.sro_item_serial_no||''; }
 function applyProduct(p){ if(!p) return; // fill main product entry form for new line item
     document.getElementById('product-description').value=p.description||'';
     document.getElementById('product-hs-code').value=p.hs_code||'';
@@ -3913,11 +4152,32 @@ function applyProduct(p){ if(!p) return; // fill main product entry form for new
     document.getElementById('product-sale-type').value=p.sale_type||document.getElementById('product-sale-type').value;
     // SRO defaults based on current user (not product) stay via setSRODefaults
     setSRODefaults(currentUsername);
+    if(isH075895User()){
+        const mainProductCodeInput=document.getElementById('product-code');
+        if(mainProductCodeInput){
+            const catalogCode=(p&&p.product_code)||'';
+            let modalValue='';
+            const modalProductCode=document.getElementById('pm-code');
+            if(modalProductCode){
+                modalValue=modalProductCode.value.trim();
+            }
+            mainProductCodeInput.value=catalogCode||modalValue||mainProductCodeInput.value;
+        }
+    }
     if(document.getElementById('product-quantity').value){ calculateValueAndTax(); }
     showNotification('success','Product Applied','Fields populated from product');
 }
-async function saveProductFromModal(){ const payload={ description:document.getElementById('pm-desc').value.trim(), hs_code:document.getElementById('pm-hs').value.trim(), uom:document.getElementById('pm-uom').value, default_tax_rate: parseFloat(document.getElementById('pm-tax').value)||0, sale_type:document.getElementById('pm-sale-type').value.trim(), sro_schedule_no:document.getElementById('pm-sro-schedule').value.trim(), sro_item_serial_no:document.getElementById('pm-sro-item').value.trim() }; if(!payload.description||!payload.uom){ showNotification('error','Validation','Description and UoM required'); return;} try { let res,data; if(editingProductId){ res=await fetch(apiUrl(`/api/products/${editingProductId}`),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); data=await res.json(); if(!res.ok) throw new Error(data.error||'Update failed'); showNotification('success','Updated','Product updated'); } else { res=await fetch(apiUrl('/api/products'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); data=await res.json(); if(!res.ok) throw new Error(data.error||'Create failed'); showNotification('success','Created','Product created'); }
-        await loadProductsModal(); const applied=productsCache.find(p=>p.description===payload.description && p.hs_code===payload.hs_code) || productsCache[productsCache.length-1]; if(applied) applyProduct(applied); closeProductModal(); resetProductModalForm(); } catch(err){ showNotification('error','Error',err.message);} }
+async function saveProductFromModal(){ const pmRate=parseFloat(document.getElementById('pm-rate').value)||0; const payload={ description:document.getElementById('pm-desc').value.trim(), hs_code:document.getElementById('pm-hs').value.trim(), rate:pmRate, uom:document.getElementById('pm-uom').value, default_tax_rate: parseFloat(document.getElementById('pm-tax').value)||0, sale_type:document.getElementById('pm-sale-type').value.trim(), sro_schedule_no:document.getElementById('pm-sro-schedule').value.trim(), sro_item_serial_no:document.getElementById('pm-sro-item').value.trim() }; const pmCodeInput=document.getElementById('pm-code'); if(isH075895User()){ payload.product_code=pmCodeInput? pmCodeInput.value.trim():''; payload.sale_type=''; payload.sro_schedule_no=''; payload.sro_item_serial_no=''; } if(!payload.description||!payload.uom){ showNotification('error','Validation','Description and UoM required'); return;} const creatingNew=!editingProductId; try { let res,data; if(editingProductId){ res=await fetch(apiUrl(`/api/products/${editingProductId}`),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); data=await res.json(); if(!res.ok) throw new Error(data.error||'Update failed'); showNotification('success','Updated','Product updated'); } else { res=await fetch(apiUrl('/api/products'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); data=await res.json(); if(!res.ok) throw new Error(data.error||'Create failed'); showNotification('success','Created','Product created'); }
+        await loadProductsModal();
+        if(creatingNew && isH075895User()){
+            if(typeof fetchProducts==='function'){
+                await fetchProducts();
+            }
+            resetProductModalForm();
+            showNotification('info','Product Ready','Select the saved product from the list when needed.');
+            return;
+        }
+        const applied=productsCache.find(p=>p.description===payload.description && p.hs_code===payload.hs_code) || productsCache[productsCache.length-1]; if(applied) applyProduct(applied); closeProductModal(); resetProductModalForm(); } catch(err){ showNotification('error','Error',err.message);} }
 async function deleteProductFromModal(id){ if(!confirm('Delete this product?')) return; try{ const res=await fetch(apiUrl(`/api/products/${id}`),{method:'DELETE'}); const data=await res.json(); if(!res.ok) throw new Error(data.error||'Failed'); showNotification('success','Deleted','Product removed'); await loadProductsModal(); } catch(err){ showNotification('error','Error',err.message);} }
     </script>
   </body>

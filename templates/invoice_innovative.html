@@ -77,7 +77,6 @@
                 <p style="margin: 0;"><strong>{{ data.sellerAddress }}</strong></p>
                 <p style="margin: 0;"><strong>NTN:</strong><span style="margin-left: 12px;">{{ data.sellerNTNCNIC }}</span></p>
                 <p style="margin: 0;"><strong>STRN:</strong> {{ data.sellerSTRN }}</p>
-                <p style="margin: 0;"><strong>FBR INVOICE #:</strong> {{ data.fbrInvoiceNumber or "" }}</p>
             </div>
         </td>
     </tr>
@@ -88,30 +87,6 @@
     <div class="section-header" style="margin-top: 15px;">SALES TAX INVOICE</div>
 
     <!-- Buyer and Invoice Info -->
-    {% if username in ['3075270', '0946915', '2853653', '7542425'] %}
-    <!-- Customized layout for username 3075270: remove BUYER STRN row and show STATUS instead of P.O#/DATE -->
-    <table style="width: 100%; border: 1px solid #333;">
-        <tr>
-            <td style="width: 20%; font-weight: bold; border: 1px solid #333;" class="left">BUYER NAME</td>
-            <td style="width: 45%; border: 1px solid #333;" class="left">{{ data.buyerBusinessName }}</td>
-            <td style="width: 15%; font-weight: bold; border: 1px solid #333;" class="left">DATE</td>
-            <td style="width: 20%; border: 1px solid #333;" class="left">{{ data.invoiceDate | datetimeformat }}</td>
-        </tr>
-        <tr>
-            <td style="font-weight: bold;" class="left">BUYER ADDRESS</td>
-            <td class="left">{{ data.buyerAddress }}</td>
-            <td style="font-weight: bold;" class="left">INVOICE #</td>
-            <td class="left">{{ data.invoiceRefNo }}</td>
-        </tr>
-        <tr>
-            <td style="font-weight: bold; border: 1px solid #333;" class="left">BUYER NTN/CNIC</td>
-            <td style="border: 1px solid #333;" class="left">{{ data.buyerNTNCNIC }}</td>
-            <td style="font-weight: bold; border: 1px solid #333;" class="left">STATUS</td>
-            <td style="border: 1px solid #333;" class="left">{% if data.buyerRegistrationType and (data.buyerRegistrationType|string).lower() in ['registered','r','yes','1'] %}Registered{% else %}Unregistered{% endif %}</td>
-        </tr>
-    </table>
-    {% else %}
-    <!-- Default layout for all other users -->
     <table style="width: 100%; border: 1px solid #333;">
         <tr>
             <td style="width: 20%; font-weight: bold; border: 1px solid #333;" class="left">BUYER NAME</td>
@@ -132,51 +107,49 @@
         <tr>
             <td style="font-weight: bold; border: 1px solid #333;" class="left">BUYER NTN/CNIC</td>
             <td style="border: 1px solid #333;" class="left">{{ data.buyerNTNCNIC }}</td>
-            <td style="font-weight: bold; border: 1px solid #333;" class="left" rowspan="2">P.O # / DATE</td>
-            <td style="border: 1px solid #333;" class="left" rowspan="2">{{ data.PO }}</td>
+            <td style="font-weight: bold; border: 1px solid #333;" class="left">P.O #</td>
+            <td style="border: 1px solid #333;" class="left">{{ data.PO }}</td>
         </tr>
         <tr>
             <td style="font-weight: bold; border: 1px solid #333;" class="left">BUYER STRN</td>
             <td style="border: 1px solid #333;" class="left">{{ data.buyerSTRN }}</td>
+            <td style="font-weight: bold; border: 1px solid #333;" class="left">DC #</td>
+            <td style="border: 1px solid #333;" class="left">{{ data.DC or "" }}</td>
         </tr>
     </table>
-    {% endif %}
 
 
 <!-- Detail Section -->
 <div class="section-header" style="margin-top: 15px;">DETAILS</div>
-
-{% set buyer_unregistered = (data.buyerRegistrationType or '')|lower == 'unregistered' %}
-{% set show_further_tax = username == '0946915' and buyer_unregistered and data.showFurtherTax %}
 
 <!-- Products Table -->
 <table style="margin-bottom: 0; border-bottom: none; width: 100%; border-collapse: collapse;">
     <thead>
         <tr>
             <th style="width: 5%;">Sr. No.</th>
-            <th style="width: 23%;">Product Detail</th>
+            <th style="width: 22%;">Product Detail</th>
+            <th style="width: 12%;">Product Code</th>
+            <th style="width: 12%;">HS Code</th>
             <th style="width: 9%;">Quantity</th>
-            <th style="width: 9%;">Rate</th>
+            <th style="width: 10%;">Rate</th>
             <th style="width: 12%;">Value Exclusive of ST</th>
-            <th style="width: 10%;">Sales Tax Rate</th>
-            <th style="width: 9%;">Sales Tax</th>
-            {% if show_further_tax %}<th style="width: 9%;">Further Tax</th>{% endif %}
-            <th style="width: 14%;">Value Inclusive of Sales Tax</th>
+            <th style="width: 8%;">Sales Tax Rate (18%)</th>
+            <th style="width: 10%;">Value Inclusive of Sales Tax</th>
         </tr>
     </thead>
     <tbody>
         {% for item in data["items"] %}
-        {% set further_tax_amount = item.furtherTaxAmount or 0 %}
         <tr>
             <td>{{ loop.index }}</td>
             <td class="left">{{ item.productDescription }}</td>
+            <td class="left">{{ item.product_code or "" }}</td>
+            <td class="left">{{ item.hs_code or "" }}</td>
             <td>{{ item.quantity }}</td>
             <td>{{ item.unitrate | comma_format }}</td>
             <td>{{ item.valueSalesExcludingST | comma_format }}</td>
-            <td>{{ item.rate }}</td>
-            <td>{{ item.salesTaxApplicable | comma_format }}</td>
-            {% if show_further_tax %}<td>{{ further_tax_amount | comma_format }}</td>{% endif %}
-            <td>{{ (item.valueSalesExcludingST + item.salesTaxApplicable + (show_further_tax and further_tax_amount or 0)) | comma_format }}</td>
+            {% set eighteen_percent_value = (((item.valueSalesExcludingST or 0) | float) * 0.18) %}
+            <td>{{ eighteen_percent_value | comma_format }}</td>
+            <td>{{ (item.valueSalesExcludingST + item.salesTaxApplicable) | comma_format }}</td>
         </tr>
         {% endfor %}
 
@@ -191,7 +164,7 @@
             <td></td>
             <td></td>
             <td></td>
-            {% if show_further_tax %}<td></td>{% endif %}
+            <td></td>
             <td></td>
         </tr>
         {% endfor %}

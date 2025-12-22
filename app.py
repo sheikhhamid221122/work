@@ -207,6 +207,42 @@ def generate_form_invoice():
             
             print(f"Debug - Final PO value: {data.get('PO', 'Not set')}")
 
+        # Ensure DC (delivery challan) value is present in data for downstream templates
+        if not data.get("DC"):
+            dc_value = data.get("dcNumber")
+
+            invoice_data = data.get("invoiceData")
+            if not dc_value and invoice_data:
+                if isinstance(invoice_data, str):
+                    try:
+                        invoice_data = json.loads(invoice_data)
+                    except Exception:
+                        invoice_data = {}
+                if isinstance(invoice_data, dict):
+                    dc_value = (
+                        invoice_data.get("DC")
+                        or invoice_data.get("dcNumber")
+                        or dc_value
+                    )
+
+            complete_invoice_data = data.get("complete_invoice_data")
+            if not dc_value and complete_invoice_data:
+                if isinstance(complete_invoice_data, str):
+                    try:
+                        complete_invoice_data = json.loads(complete_invoice_data)
+                    except Exception:
+                        complete_invoice_data = {}
+                if isinstance(complete_invoice_data, dict):
+                    dc_value = (
+                        complete_invoice_data.get("DC")
+                        or complete_invoice_data.get("dcNumber")
+                        or dc_value
+                    )
+
+            data["DC"] = dc_value or ""
+        else:
+            data["DC"] = data.get("DC", "")
+
         # For client 8974121 (Computer Gold), set the delivery challan number
         # Make sure the CNIC field is properly set regardless of how it came in
         if username == "8974121":
@@ -336,13 +372,16 @@ def generate_form_invoice():
 
         # Select the appropriate template based on username - expand with all your clients
         print(f"Selecting template for username: {username}")
-        if username == "8974121":
+        if username in {"H075895", "F667833", "infinityeng"}:
+            template_name = "invoice_innovative.html"
+            print(f"Selected template: {template_name} for username {username}")
+        elif username == "8974121":
             template_name = "invoice_template.html"
             print(f"Selected template: {template_name} for Computer Gold")
         elif username == "7542425":
             template_name = "invoice_template3.html"
             print(f"Selected template: {template_name} for username 7542425")
-        elif username in ["3075270", "0946915", "7542425", "2853653", "H075895"]:
+        elif username in ["3075270", "0946915", "7542425", "2853653"]:
             template_name = "invoice_template3.html"  # Shared template for these users
             print(f"Selected template: {template_name} for username: {username}")
         else:
@@ -1021,7 +1060,7 @@ def submit_fbr():
                 template_name = "invoice_zeeshanst.html"
             elif username == "7542425":
                 template_name = "invoice_template3.html"
-            elif username in ["3075270", "0946915", "2853653", "H075895"]:
+            elif username in ["3075270", "0946915", "2853653"]:
                 template_name = "invoice_template3.html"
             else:
                 template_name = "invoice_template2.html"

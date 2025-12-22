@@ -6,6 +6,33 @@ import json
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
 
+SPECIAL_USERNAMES = {"H075895", "F667833", "infinityeng"}
+
+
+def _is_special_username(username):
+    return (username or "").strip() in SPECIAL_USERNAMES
+
+
+def _normalize_tax_id(value):
+    if value is None:
+        return ""
+
+    raw = str(value).strip().upper()
+    digits_only = "".join(ch for ch in raw if ch.isdigit())
+    if len(digits_only) == 13:
+        return digits_only
+
+    return "".join(ch for ch in raw if ch.isalnum())
+
+
+def _require_valid_tax_id(value, label):
+    normalized = _normalize_tax_id(value)
+    if normalized.isdigit() and len(normalized) == 13:
+        return normalized
+    if len(normalized) == 7 and normalized.isalnum():
+        return normalized
+    raise ValueError(f"{label} must be 7 characters (NTN) or 13 digits (CNIC)")
+
 
 # Business Profiles / Buyers / Products / Invoice APIs
 def add_invoice_form_routes(app, get_db_connection, get_env):
@@ -55,6 +82,11 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             if field not in data or not data[field]:
                 return jsonify({"error": f"Missing required field: {field}"}), 400
 
+        try:
+            data["ntn_cnic"] = _require_valid_tax_id(data["ntn_cnic"], "Seller NTN/CNIC")
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+
         conn = get_db_connection()
         cur = conn.cursor()
 
@@ -92,7 +124,12 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         client_id = session.get("client_id")
         if not client_id:
             return jsonify({"error": "No client ID in session"}), 401
-        data = request.get_json()
+        data = request.get_json() or {}
+        if "ntn_cnic" in data:
+            try:
+                data["ntn_cnic"] = _require_valid_tax_id(data["ntn_cnic"], "Seller NTN/CNIC")
+            except ValueError as exc:
+                return jsonify({"error": str(exc)}), 400
 
         conn = get_db_connection()
         cur = conn.cursor()
@@ -261,6 +298,11 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             if field not in data or not data[field]:
                 return jsonify({"error": f"Missing required field: {field}"}), 400
 
+        try:
+            data["ntn_cnic"] = _require_valid_tax_id(data["ntn_cnic"], "Buyer NTN/CNIC")
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+
         conn = get_db_connection()
         cur = conn.cursor()
         if data.get("is_default", False):
@@ -329,49 +371,94 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             return jsonify({"error": "No client ID in session"}), 401
         conn = get_db_connection()
         cur = conn.cursor()
-        # (username fetch retained only if needed later)
-        cur.execute(
-            """
-            SELECT u.username 
-            FROM users u
-            JOIN clients c ON u.id = c.user_id
-            WHERE c.id = %s
-            """,
-            (client_id,),
-        )
-        if not cur.fetchone():
+        try:
+            # Determine username for gating
+            cur.execute(
+                """
+                SELECT u.username 
+                FROM users u
+                JOIN clients c ON u.id = c.user_id
+                WHERE c.id = %s
+                """,
+                (client_id,),
+            )
+            row = cur.fetchone()
+            if not row:
+                return jsonify({"error": "User not found"}), 404
+            username = (row[0] or "").strip()
+            is_special_user = _is_special_username(username)
+
+            # Discover optional product columns
+            cur.execute(
+                """
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = 'products'
+                """
+            )
+            available_columns = {r[0] for r in cur.fetchall()}
+            has_product_code = "product_code" in available_columns
+            has_sro_item_serial_no = "sro_item_serial_no" in available_columns
+
+            should_include_product_code = has_product_code and is_special_user
+
+            select_exprs = [
+                "id",
+                "description",
+                "hs_code",
+                "rate",
+                "uom",
+                "default_tax_rate",
+                "sro_schedule_no",
+                "sale_type",
+            ]
+
+            if should_include_product_code:
+                select_exprs.insert(3, "product_code")
+
+            if has_sro_item_serial_no:
+                select_exprs.append("sro_item_serial_no")
+
+            cur.execute(
+                f"""
+                SELECT {', '.join(select_exprs)}
+                FROM products
+                WHERE client_id = %s
+                  AND (is_active = TRUE OR is_active IS NULL)
+                ORDER BY description
+                """,
+                (client_id,),
+            )
+
+            columns = [desc[0] for desc in cur.description]
+            products = []
+            for row in cur.fetchall():
+                record = dict(zip(columns, row))
+                product = {
+                    "id": record["id"],
+                    "description": record.get("description") or "",
+                    "hs_code": record.get("hs_code") or "",
+                    "rate": float(record.get("rate") or 0),
+                    "uom": record.get("uom") or "",
+                    "default_tax_rate": float(record.get("default_tax_rate") or 0),
+                    "sro_schedule_no": record.get("sro_schedule_no") or "",
+                    "sale_type": record.get("sale_type") or "",
+                }
+
+                if should_include_product_code:
+                    product["product_code"] = record.get("product_code") or ""
+                else:
+                    product["product_code"] = ""
+
+                if has_sro_item_serial_no:
+                    product["sro_item_serial_no"] = record.get("sro_item_serial_no") or ""
+
+                products.append(product)
+
+            return jsonify(products)
+        finally:
             cur.close()
             conn.close()
-            return jsonify({"error": "User not found"}), 404
-
-        # Only active (legacy rows with NULL still show)
-        cur.execute(
-            """
-            SELECT id, description, hs_code, rate, uom, default_tax_rate,
-                   sro_schedule_no, sale_type
-            FROM products
-            WHERE client_id = %s
-              AND (is_active = TRUE OR is_active IS NULL)
-            ORDER BY description
-            """,
-            (client_id,),
-        )
-        products = [
-            {
-                "id": r[0],
-                "description": r[1],
-                "hs_code": r[2],
-                "rate": float(r[3]) if r[3] else 0,
-                "uom": r[4],
-                "default_tax_rate": float(r[5]) if r[5] else 0,
-                "sro_schedule_no": r[6],
-                "sale_type": r[7],
-            }
-            for r in cur.fetchall()
-        ]
-        cur.close()
-        conn.close()
-        return jsonify(products)
 
     @app.route("/api/products", methods=["POST"])
     def create_product():
@@ -386,50 +473,234 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
 
         conn = get_db_connection()
         cur = conn.cursor()
-        # Case-insensitive match
-        cur.execute(
-            """
-            SELECT id, is_active FROM products
-            WHERE client_id = %s AND LOWER(description) = LOWER(%s)
-            """,
-            (client_id, description),
-        )
-        existing = cur.fetchone()
-        if existing:
-            if existing[1] is False:  # Reactivate soft-deleted
-                cur.execute(
-                    "UPDATE products SET is_active = TRUE WHERE id = %s",
-                    (existing[0],),
-                )
-                conn.commit()
-            cur.close()
-            conn.close()
-            return jsonify({"id": existing[0], "message": "Product already exists"}), 200
+        try:
+            # Discover optional columns for backwards compatibility
+            cur.execute(
+                """
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = 'products'
+                """
+            )
+            available_columns = {r[0] for r in cur.fetchall()}
+            has_product_code = "product_code" in available_columns
+            has_sro_item_serial_no = "sro_item_serial_no" in available_columns
 
-        cur.execute(
-            """
-            INSERT INTO products
-              (client_id, description, hs_code, rate, uom,
-               default_tax_rate, sro_schedule_no, sale_type, is_active)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s, TRUE)
-            RETURNING id
-            """,
-            (
+            # Case-insensitive match to prevent duplicates
+            cur.execute(
+                """
+                SELECT id, is_active FROM products
+                WHERE client_id = %s AND LOWER(description) = LOWER(%s)
+                """,
+                (client_id, description),
+            )
+            existing = cur.fetchone()
+            if existing:
+                if existing[1] is False:
+                    cur.execute(
+                        "UPDATE products SET is_active = TRUE WHERE id = %s",
+                        (existing[0],),
+                    )
+                    conn.commit()
+                return jsonify({"id": existing[0], "message": "Product already exists"}), 200
+
+            # Determine username for user-specific behavior
+            cur.execute(
+                """
+                SELECT u.username 
+                FROM users u
+                JOIN clients c ON u.id = c.user_id
+                WHERE c.id = %s
+                """,
+                (client_id,),
+            )
+            row = cur.fetchone()
+            username = (row[0] or "").strip() if row else None
+            is_special_user = _is_special_username(username)
+
+            # Normalize numeric inputs
+            try:
+                rate_value = float(data.get("rate", 0))
+            except (TypeError, ValueError):
+                rate_value = 0.0
+
+            try:
+                default_tax_rate = float(data.get("default_tax_rate", 0))
+            except (TypeError, ValueError):
+                default_tax_rate = 0.0
+
+            payload_sale_type = (data.get("sale_type") or "").strip()
+            payload_sro_schedule = (data.get("sro_schedule_no") or "").strip()
+            payload_sro_item = (data.get("sro_item_serial_no") or "").strip()
+
+            if is_special_user:
+                payload_sale_type = ""
+                payload_sro_schedule = ""
+                payload_sro_item = ""
+
+            columns = [
+                "client_id",
+                "description",
+                "hs_code",
+                "rate",
+                "uom",
+                "default_tax_rate",
+                "sro_schedule_no",
+                "sale_type",
+            ]
+            values = [
                 client_id,
                 description,
                 data.get("hs_code", ""),
-                data.get("rate", 0),
+                rate_value,
                 data.get("uom", ""),
-                data.get("default_tax_rate", 0),
-                data.get("sro_schedule_no", ""),
-                data.get("sale_type", ""),
-            ),
-        )
-        new_id = cur.fetchone()[0]
-        conn.commit()
-        cur.close()
-        conn.close()
-        return jsonify({"id": new_id, "message": "Product created successfully"})
+                default_tax_rate,
+                payload_sro_schedule,
+                payload_sale_type,
+            ]
+
+            if has_product_code and is_special_user:
+                columns.insert(3, "product_code")
+                values.insert(3, (data.get("product_code") or "").strip())
+
+            if has_sro_item_serial_no:
+                columns.append("sro_item_serial_no")
+                values.append(payload_sro_item)
+
+            placeholders = ", ".join(["%s"] * len(values))
+            cur.execute(
+                f"""
+                INSERT INTO products ({', '.join(columns)}, is_active)
+                VALUES ({placeholders}, TRUE)
+                RETURNING id
+                """,
+                values,
+            )
+            new_id = cur.fetchone()[0]
+            conn.commit()
+            return jsonify({"id": new_id, "message": "Product created successfully"})
+        except Exception as e:
+            conn.rollback()
+            return jsonify({"error": f"Failed to create product: {str(e)}"}), 500
+        finally:
+            cur.close()
+            conn.close()
+
+    @app.route("/api/products/<int:product_id>", methods=["PUT"])
+    def update_product(product_id):
+        client_id = session.get("client_id")
+        if not client_id:
+            return jsonify({"error": "No client ID in session"}), 401
+
+        data = request.get_json() or {}
+        description = (data.get("description") or "").strip()
+        uom = (data.get("uom") or "").strip()
+        if not description or not uom:
+            return jsonify({"error": "Description and UoM are required"}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                """
+                SELECT id
+                FROM products
+                WHERE id = %s
+                  AND client_id = %s
+                  AND (is_active = TRUE OR is_active IS NULL)
+                """,
+                (product_id, client_id),
+            )
+            if not cur.fetchone():
+                return jsonify({"error": "Product not found"}), 404
+
+            cur.execute(
+                """
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = 'products'
+                """
+            )
+            available_columns = {r[0] for r in cur.fetchall()}
+            has_product_code = "product_code" in available_columns
+            has_sro_item_serial_no = "sro_item_serial_no" in available_columns
+
+            cur.execute(
+                """
+                SELECT u.username
+                FROM users u
+                JOIN clients c ON u.id = c.user_id
+                WHERE c.id = %s
+                """,
+                (client_id,),
+            )
+            row = cur.fetchone()
+            username = (row[0] or "").strip() if row else None
+            is_special_user = _is_special_username(username)
+
+            def safe_float(val):
+                try:
+                    return float(val)
+                except (TypeError, ValueError):
+                    return 0.0
+
+            rate_value = safe_float(data.get("rate", 0))
+            default_tax_rate = safe_float(data.get("default_tax_rate", 0))
+            payload_sale_type = (data.get("sale_type") or "").strip()
+            payload_sro_schedule = (data.get("sro_schedule_no") or "").strip()
+            payload_sro_item = (data.get("sro_item_serial_no") or "").strip()
+
+            if is_special_user:
+                payload_sale_type = ""
+                payload_sro_schedule = ""
+                payload_sro_item = ""
+
+            updates = []
+            values = []
+
+            def add_update(column, value):
+                updates.append(f"{column} = %s")
+                values.append(value)
+
+            add_update("description", description)
+            add_update("hs_code", (data.get("hs_code") or "").strip())
+            add_update("rate", rate_value)
+            add_update("uom", uom)
+            add_update("default_tax_rate", default_tax_rate)
+            add_update("sro_schedule_no", payload_sro_schedule)
+            add_update("sale_type", payload_sale_type)
+
+            if has_sro_item_serial_no:
+                add_update("sro_item_serial_no", payload_sro_item)
+
+            if has_product_code:
+                product_code_value = (data.get("product_code") or "").strip()
+                add_update("product_code", product_code_value if is_special_user else product_code_value)
+
+            if not updates:
+                return jsonify({"error": "No fields to update"}), 400
+
+            values.extend([product_id, client_id])
+            cur.execute(
+                f"""
+                UPDATE products
+                SET {', '.join(updates)}
+                WHERE id = %s AND client_id = %s
+                RETURNING id
+                """,
+                values,
+            )
+            updated = cur.fetchone()
+            conn.commit()
+            if not updated:
+                return jsonify({"error": "Product update failed"}), 404
+            return jsonify({"id": updated[0], "message": "Product updated successfully"})
+        except Exception as e:
+            conn.rollback()
+            return jsonify({"error": f"Failed to update product: {str(e)}"}), 500
+        finally:
+            cur.close()
+            conn.close()
 
     @app.route("/api/products/<int:product_id>", methods=["DELETE"])
     def delete_product(product_id):
@@ -665,6 +936,16 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             if f not in buyer:
                 return jsonify({"error": f"Missing required buyer field: {f}"}), 400
 
+        try:
+            seller["sellerNTNCNIC"] = _require_valid_tax_id(
+                seller["sellerNTNCNIC"], "Seller NTN/CNIC"
+            )
+            buyer["buyerNTNCNIC"] = _require_valid_tax_id(
+                buyer["buyerNTNCNIC"], "Buyer NTN/CNIC"
+            )
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+
         if not data["items"]:
             return jsonify({"error": "At least one item is required"}), 400
 
@@ -681,6 +962,7 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         )
         row = cur.fetchone()
         username = row[0] if row else None
+        is_special_user = _is_special_username(username)
         cur.close()
         conn.close()
         
@@ -709,6 +991,8 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         if data.get("poNumber"):
             invoice_json["PO"] = data["poNumber"]
             invoice_json["poNumber"] = data["poNumber"]
+        if is_special_user and ("DC" in data or "dcNumber" in data):
+            invoice_json["DC"] = data.get("DC") or data.get("dcNumber") or ""
         if env == "sandbox" and data.get("scenarioId"):
             invoice_json["scenarioId"] = data.get("scenarioId")
 
@@ -772,6 +1056,10 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                             item[f] = str(item_data[f])
                     else:
                         item[f] = default
+
+                if is_special_user:
+                    item["hs_code"] = item_data.get("hs_code") or item_data.get("hsCode") or ""
+                    item["product_code"] = item_data.get("product_code") or item_data.get("productCode") or ""
                 items_list.append(item)
 
                 # Persist product if new (reactivate if soft deleted)
@@ -843,6 +1131,7 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                 "scenarioId": data.get("scenarioId", ""),
                 "poNumber": data.get("poNumber", ""),
                 "PO": data.get("poNumber", ""),
+                "DC": data.get("DC") or data.get("dcNumber") or "",
                 "sellerData": seller,
                 "buyerData": buyer,
                 "items": data["items"],
@@ -850,6 +1139,9 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                 "created_env": env,
                 "totalAmount": sum(i["totalValues"] for i in items_list),
             }
+
+            if not is_special_user and "DC" in complete_invoice_data:
+                complete_invoice_data.pop("DC")
 
             if data.get("draft_id"):
                 cur.execute(
