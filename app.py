@@ -1054,7 +1054,7 @@ def submit_fbr():
             conn_temp.close()
 
             # Select template
-            if username == "8974121":
+            if username in ["8974121", "B690329"]:
                 template_name = "invoice_template.html"
             elif username == "5207949":
                 template_name = "invoice_zeeshanst.html"

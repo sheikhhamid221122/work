@@ -1039,7 +1039,7 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                     "sroScheduleNo": "",
                     "fedPayable": 0,
                     "discount": 0,
-                    "saleType": "Goods at Reduced Rate",
+                    "saleType": "Goods at standard rate (default)",
                     "sroItemSerialNo": "",
                 }
                 for f, default in defaults.items():

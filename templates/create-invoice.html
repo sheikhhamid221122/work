@@ -838,6 +838,10 @@
                                         class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                                         Description
                                     </th>
+                                    <th scope="col" id="product-code-header"
+                                        class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase hidden">
+                                        Product Code
+                                    </th>
                                     <th scope="col"
                                         class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                                         HS Code
@@ -879,7 +883,7 @@
                             <tbody id="product-items-table" class="bg-white divide-y divide-gray-200">
                                 <!-- No products message -->
                                 <tr id="no-products-row">
-                                    <td colspan="10" class="px-6 py-4 text-center text-gray-500">
+                                    <td id="product-no-items-cell" colspan="10" class="px-6 py-4 text-center text-gray-500">
                                         No products added yet. Add products using the form
                                         above.
                                     </td>
@@ -1063,6 +1067,10 @@
                                             class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                                             Description
                                         </th>
+                                        <th scope="col" id="review-product-code-header"
+                                            class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase hidden">
+                                            Product Code
+                                        </th>
                                         <th scope="col"
                                             class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                                             HS Code
@@ -1100,7 +1108,7 @@
                                 <tbody id="review-items-table" class="bg-white divide-y divide-gray-200">
                                     <!-- Product items will be populated here -->
                                     <tr id="review-no-products-row">
-                                        <td colspan="9" class="px-6 py-4 text-center text-gray-500">
+                                        <td id="review-no-products-cell" colspan="9" class="px-6 py-4 text-center text-gray-500">
                                             No products added yet.
                                         </td>
                                     </tr>
@@ -1298,46 +1306,6 @@
             draft_id: null, // Store draft ID if loaded from a draft
         };
 
-        const TAX_ID_ERROR_MESSAGE = "must be 7 characters (NTN) or 13 digits (CNIC).";
-
-        function normalizeTaxIdValue(value) {
-            const raw = (value || "").toString().trim().toUpperCase();
-            const digitsOnly = raw.replace(/\D/g, "");
-            if (digitsOnly.length === 13) {
-                return digitsOnly;
-            }
-            return raw.replace(/[^A-Z0-9]/g, "");
-        }
-
-        function getValidTaxId(value) {
-            const normalized = normalizeTaxIdValue(value);
-            if (/^\d{13}$/.test(normalized)) {
-                return normalized;
-            }
-            if (/^[A-Z0-9]{7}$/.test(normalized)) {
-                return normalized;
-            }
-            return null;
-        }
-
-        function enforceTaxIdOnInput(inputElement, label) {
-            if (!inputElement) {
-                return null;
-            }
-            const validValue = getValidTaxId(inputElement.value);
-            if (!validValue) {
-                showNotification(
-                    "error",
-                    "Validation Error",
-                    `${label} ${TAX_ID_ERROR_MESSAGE}`
-                );
-                inputElement.focus();
-                return null;
-            }
-            inputElement.value = validValue;
-            return validValue;
-        }
-
         // Function to get URL parameters
         function getUrlParameter(name) {
             name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
@@ -1376,6 +1344,37 @@
             'SN027': '3rd Schedule Goods',
             'SN028': 'Goods at Reduced Rate'
         };
+
+        function syncSaleTypeWithScenario() {
+            const saleTypeInput = document.getElementById("product-sale-type");
+            if (!saleTypeInput) {
+                return;
+            }
+
+            if (!saleTypeInput.dataset.defaultSaleType) {
+                saleTypeInput.dataset.defaultSaleType = saleTypeInput.value || "Goods at Reduced Rate";
+            }
+
+            const scenarioSelect = document.getElementById("scenario-id");
+            const scenarioId = scenarioSelect ? scenarioSelect.value : "";
+            const mappedSaleType = scenarioId ? (scenarioToSaleType[scenarioId] || "") : "";
+            const lastScenarioId = saleTypeInput.dataset.lastScenarioId || "";
+
+            if (mappedSaleType) {
+                if (
+                    scenarioId === lastScenarioId &&
+                    saleTypeInput.value &&
+                    saleTypeInput.value !== saleTypeInput.dataset.defaultSaleType
+                ) {
+                    return;
+                }
+                saleTypeInput.value = mappedSaleType;
+                saleTypeInput.dataset.lastScenarioId = scenarioId;
+            } else if (!saleTypeInput.value) {
+                saleTypeInput.value = saleTypeInput.dataset.defaultSaleType;
+                saleTypeInput.dataset.lastScenarioId = "";
+            }
+        }
 
         let currentUsername = null;
         const SPECIAL_USERNAMES = ['H075895', 'F667833', 'infinityeng'];
@@ -1486,6 +1485,8 @@
             setSRODefaults(currentUsername);
             syncFurtherTaxDefaults();
             applyH075895UI(currentUsername);
+            updateProductTable();
+            updateReviewSection();
         }
 
         const FURTHER_TAX_CLIENT = '0946915';
@@ -1655,16 +1656,12 @@
                 
                 // Populate seller data
                 if (invoiceData.sellerData) {
-                    const sanitizedSellerTax = normalizeTaxIdValue(invoiceData.sellerData.sellerNTNCNIC || "");
-                    state.sellerData = {
-                        ...invoiceData.sellerData,
-                        sellerNTNCNIC: sanitizedSellerTax,
-                    };
-                    document.getElementById('seller-business-name').value = state.sellerData.sellerBusinessName || '';
-                    document.getElementById('seller-ntn-cnic').value = sanitizedSellerTax;
-                    document.getElementById('seller-strn').value = state.sellerData.sellerSTRN || '';
-                    document.getElementById('seller-province').value = state.sellerData.sellerProvince || '';
-                    document.getElementById('seller-address').value = state.sellerData.sellerAddress || '';
+                    state.sellerData = invoiceData.sellerData;
+                    document.getElementById('seller-business-name').value = invoiceData.sellerData.sellerBusinessName || '';
+                    document.getElementById('seller-ntn-cnic').value = invoiceData.sellerData.sellerNTNCNIC || '';
+                    document.getElementById('seller-strn').value = invoiceData.sellerData.sellerSTRN || '';
+                    document.getElementById('seller-province').value = invoiceData.sellerData.sellerProvince || '';
+                    document.getElementById('seller-address').value = invoiceData.sellerData.sellerAddress || '';
                 }
                 
                 // Populate invoice data fields
@@ -1685,23 +1682,22 @@
                 // Only set scenario if available and in sandbox environment
                 if (ENV === 'sandbox' && invoiceData.scenarioId) {
                     const scenarioEl = document.getElementById('scenario-id');
-                    if (scenarioEl) scenarioEl.value = invoiceData.scenarioId;
+                    if (scenarioEl) {
+                        scenarioEl.value = invoiceData.scenarioId;
+                        syncSaleTypeWithScenario();
+                    }
                 }
                 
                 // Populate buyer data
                 if (invoiceData.buyerData) {
-                    const sanitizedBuyerTax = normalizeTaxIdValue(invoiceData.buyerData.buyerNTNCNIC || "");
-                    state.buyerData = {
-                        ...invoiceData.buyerData,
-                        buyerNTNCNIC: sanitizedBuyerTax,
-                    };
-                    document.getElementById('buyer-business-name').value = state.buyerData.buyerBusinessName || '';
-                    document.getElementById('buyer-ntn-cnic').value = sanitizedBuyerTax;
-                    document.getElementById('buyer-strn').value = state.buyerData.buyerSTRN || '';
-                    document.getElementById('buyer-province').value = state.buyerData.buyerProvince || '';
-                    document.getElementById('buyer-address').value = state.buyerData.buyerAddress || '';
-                    document.getElementById('buyer-registration-type').value = state.buyerData.buyerRegistrationType || '';
-                    document.getElementById('buyer-code').value = state.buyerData.buyerCode || '';
+                    state.buyerData = invoiceData.buyerData;
+                    document.getElementById('buyer-business-name').value = invoiceData.buyerData.buyerBusinessName || '';
+                    document.getElementById('buyer-ntn-cnic').value = invoiceData.buyerData.buyerNTNCNIC || '';
+                    document.getElementById('buyer-strn').value = invoiceData.buyerData.buyerSTRN || '';
+                    document.getElementById('buyer-province').value = invoiceData.buyerData.buyerProvince || '';
+                    document.getElementById('buyer-address').value = invoiceData.buyerData.buyerAddress || '';
+                    document.getElementById('buyer-registration-type').value = invoiceData.buyerData.buyerRegistrationType || '';
+                    document.getElementById('buyer-code').value = invoiceData.buyerData.buyerCode || '';
                 }
                 
                 // Populate product items with correct field mapping
@@ -1809,6 +1805,8 @@
                         .getElementById("review-scenario-container")
                         .classList.remove("hidden");
                 }
+
+                syncSaleTypeWithScenario();
             } catch (error) {
                 console.error("Error fetching form options:", error);
                 showNotification("error", "Error", "Failed to load form options");
@@ -1941,11 +1939,10 @@
 
         // Populate seller form with selected profile
         function populateSellerForm(profile) {
-            const sanitizedNtn = normalizeTaxIdValue(profile.ntn_cnic || "");
             document.getElementById("seller-business-name").value =
                 profile.business_name || "";
             document.getElementById("seller-ntn-cnic").value =
-                sanitizedNtn;
+                profile.ntn_cnic || "";
             document.getElementById("seller-strn").value = profile.strn || "";
             document.getElementById("seller-province").value =
                 profile.province || "";
@@ -1955,7 +1952,7 @@
             state.sellerData = {
                 id: profile.id,
                 sellerBusinessName: profile.business_name,
-                sellerNTNCNIC: sanitizedNtn,
+                sellerNTNCNIC: profile.ntn_cnic,
                 sellerSTRN: profile.strn,
                 sellerProvince: profile.province,
                 sellerAddress: profile.address,
@@ -1964,10 +1961,9 @@
                     syncFurtherTaxDefaults();
         // Populate buyer form with selected buyer
         function populateBuyerForm(buyer) {
-            const sanitizedNtn = normalizeTaxIdValue(buyer.ntn_cnic || "");
             document.getElementById("buyer-business-name").value =
                 buyer.business_name || "";
-            document.getElementById("buyer-ntn-cnic").value = sanitizedNtn;
+            document.getElementById("buyer-ntn-cnic").value = buyer.ntn_cnic || "";
             document.getElementById("buyer-strn").value = buyer.strn || "";
             document.getElementById("buyer-province").value = buyer.province || "";
             document.getElementById("buyer-registration-type").value =
@@ -1979,7 +1975,7 @@
             state.buyerData = {
                 id: buyer.id,
                 buyerBusinessName: buyer.business_name,
-                buyerNTNCNIC: sanitizedNtn,
+                buyerNTNCNIC: buyer.ntn_cnic,
                 buyerSTRN: buyer.strn,
                 buyerProvince: buyer.province,
                 buyerAddress: buyer.address,
@@ -2136,10 +2132,33 @@
         function updateProductTable() {
             const tableBody = document.getElementById("product-items-table");
             const noProductsRow = document.getElementById("no-products-row");
+            if (!tableBody) {
+                return;
+            }
+            const showProductCode = isH075895User();
+            const productCodeHeader = document.getElementById("product-code-header");
+
+            if (productCodeHeader) {
+                productCodeHeader.classList.toggle("hidden", !showProductCode);
+            }
 
             // Ensure state.productItems exists
             if (!state.productItems) {
                 state.productItems = [];
+            }
+
+            const showFT = shouldApplyFurtherTax();
+            const ftHeader = document.getElementById("product-further-tax-header");
+            if (ftHeader) {
+                ftHeader.classList.toggle("hidden", !showFT);
+            }
+
+            if (noProductsRow) {
+                const noProductsCell = document.getElementById("product-no-items-cell") || noProductsRow.querySelector("td");
+                if (noProductsCell) {
+                    const baseColumns = 9 + (showFT ? 1 : 0) + (showProductCode ? 1 : 0);
+                    noProductsCell.setAttribute("colspan", String(baseColumns));
+                }
             }
 
             if (state.productItems.length > 0) {
@@ -2156,20 +2175,13 @@
                 // Add the no-products row back (it will be hidden)
                 tableBody.appendChild(noProductsRow);
 
-                // Add product rows
-                const showFT = shouldApplyFurtherTax();
-                // Toggle header visibility based on applicability
-                const ftHeader = document.getElementById("product-further-tax-header");
-                if (ftHeader) {
-                    if (showFT) ftHeader.classList.remove("hidden"); else ftHeader.classList.add("hidden");
-                }
-
                 state.productItems.forEach((item, index) => {
                     const row = document.createElement("tr");
                     row.className = "hover:bg-gray-50 transition-colors";
                     
                     // Safely access properties with fallbacks for missing values
                     const productDesc = item.productDescription || '';
+                    const productCode = item.product_code || item.productCode || '';
                     const hsCode = item.hsCode || '';
                     const quantity = parseFloat(item.quantity) || 0;
                     const uoM = item.uoM || '';
@@ -2181,6 +2193,7 @@
 
                     row.innerHTML = `
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-900">${productDesc}</td>
+                ${showProductCode ? `<td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${productCode || '-'}</td>` : ''}
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${hsCode}</td>
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${quantity}</td>
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${uoM}</td>
@@ -2305,6 +2318,9 @@
             state.currentStep = step;
 
             // Perform step-specific actions
+            if (step === 4) {
+                syncSaleTypeWithScenario();
+            }
             if (step === 5) {
                 updateReviewSection();
             }
@@ -2405,6 +2421,8 @@
             document.getElementById("review-items-count").textContent =
                 state.productItems ? state.productItems.length : 0;
 
+            const applyFurtherTax = shouldApplyFurtherTax();
+
             const totalValueExcl = state.productItems ? state.productItems.reduce(
                 (sum, item) => sum + (parseFloat(item.valueSalesExcludingST) || 0),
                 0
@@ -2415,7 +2433,7 @@
                 0
             ) : 0;
 
-            const totalFurtherTax = shouldApplyFurtherTax() && state.productItems ? state.productItems.reduce(
+            const totalFurtherTax = applyFurtherTax && state.productItems ? state.productItems.reduce(
                 (sum, item) => sum + (item.furtherTaxAmount !== undefined ? parseFloat(item.furtherTaxAmount) || 0 : computeFurtherTaxAmount(item)),
                 0
             ) : 0;
@@ -2434,7 +2452,7 @@
             const ftRow = document.getElementById("review-further-tax-row");
             const ftVal = document.getElementById("review-further-tax");
             if (ftRow && ftVal) {
-                if (shouldApplyFurtherTax()) {
+                if (applyFurtherTax) {
                     ftRow.classList.remove("hidden");
                     ftVal.textContent = totalFurtherTax.toFixed(2);
                 } else {
@@ -2446,6 +2464,23 @@
             // Product items
             const tableBody = document.getElementById("review-items-table");
             const noProductsRow = document.getElementById("review-no-products-row");
+            if (!tableBody) {
+                return;
+            }
+            const showProductCode = isH075895User();
+            const reviewProductCodeHeader = document.getElementById("review-product-code-header");
+
+            if (reviewProductCodeHeader) {
+                reviewProductCodeHeader.classList.toggle("hidden", !showProductCode);
+            }
+
+            if (noProductsRow) {
+                const reviewNoProductsCell = document.getElementById("review-no-products-cell") || noProductsRow.querySelector("td");
+                if (reviewNoProductsCell) {
+                    const baseColumns = 8 + (applyFurtherTax ? 1 : 0) + (showProductCode ? 1 : 0);
+                    reviewNoProductsCell.setAttribute("colspan", String(baseColumns));
+                }
+            }
 
             if (state.productItems && state.productItems.length > 0) {
                 // Hide "no products" row
@@ -2455,7 +2490,7 @@
                 tableBody.innerHTML = "";
 
                 // Toggle header visibility based on applicability
-                const showFT = shouldApplyFurtherTax();
+                const showFT = applyFurtherTax;
                 const ftHeader = document.getElementById("review-further-tax-header");
                 if (ftHeader) {
                     if (showFT) ftHeader.classList.remove("hidden"); else ftHeader.classList.add("hidden");
@@ -2468,6 +2503,7 @@
                     
                     // Safely access properties with fallbacks for missing values
                     const productDesc = item.productDescription || '';
+                    const productCode = item.product_code || item.productCode || '';
                     const hsCode = item.hsCode || '';
                     const quantity = parseFloat(item.quantity) || 0;
                     const uoM = item.uoM || '';
@@ -2479,6 +2515,7 @@
 
                     row.innerHTML = `
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-900">${productDesc}</td>
+                ${showProductCode ? `<td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${productCode || '-'}</td>` : ''}
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${hsCode}</td>
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${quantity}</td>
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${uoM}</td>
@@ -2492,9 +2529,10 @@
                     tableBody.appendChild(row);
                 });
             } else {
+                const emptyColspan = 8 + (applyFurtherTax ? 1 : 0) + (showProductCode ? 1 : 0);
                 tableBody.innerHTML = `
             <tr id="review-no-products-row">
-                <td colspan="8" class="px-6 py-4 text-center text-gray-500">
+                <td id="review-no-products-cell" colspan="${emptyColspan}" class="px-6 py-4 text-center text-gray-500">
                     No products added yet.
                 </td>
             </tr>
@@ -2508,8 +2546,7 @@
                 case 1:
                     // Validate seller information
                     const sellerName = document.getElementById("seller-business-name").value;
-                    const sellerNtnInput = document.getElementById("seller-ntn-cnic");
-                    const sellerNtn = sellerNtnInput.value;
+                    const sellerNtn = document.getElementById("seller-ntn-cnic").value;
                     const sellerProvince = document.getElementById("seller-province").value;
                     const sellerAddress = document.getElementById("seller-address").value;
 
@@ -2522,15 +2559,10 @@
                         return false;
                     }
 
-                    const normalizedSellerNtn = enforceTaxIdOnInput(sellerNtnInput, "Seller NTN/CNIC");
-                    if (!normalizedSellerNtn) {
-                        return false;
-                    }
-
                     // Update state
                     state.sellerData = {
                         sellerBusinessName: sellerName,
-                        sellerNTNCNIC: normalizedSellerNtn,
+                        sellerNTNCNIC: sellerNtn,
                         sellerSTRN: document.getElementById("seller-strn").value,
                         sellerProvince: sellerProvince,
                         sellerAddress: sellerAddress,
@@ -2585,8 +2617,7 @@
                     const buyerName = document.getElementById(
                         "buyer-business-name"
                     ).value;
-                    const buyerNtnInput = document.getElementById("buyer-ntn-cnic");
-                    const buyerNtn = buyerNtnInput.value;
+                    const buyerNtn = document.getElementById("buyer-ntn-cnic").value;
                     const buyerProvince =
                         document.getElementById("buyer-province").value;
                     const buyerAddress = document.getElementById("buyer-address").value;
@@ -2609,15 +2640,10 @@
                         return false;
                     }
 
-                    const normalizedBuyerNtn = enforceTaxIdOnInput(buyerNtnInput, "Buyer NTN/CNIC");
-                    if (!normalizedBuyerNtn) {
-                        return false;
-                    }
-
                     // Update state
                     state.buyerData = {
                         buyerBusinessName: buyerName,
-                        buyerNTNCNIC: normalizedBuyerNtn,
+                        buyerNTNCNIC: buyerNtn,
                         buyerSTRN: document.getElementById("buyer-strn").value,
                         buyerProvince: buyerProvince,
                         buyerAddress: buyerAddress,
@@ -2665,19 +2691,6 @@
                     }
                     return cloned;
                 });
-
-                const sellerTaxId = getValidTaxId(state.sellerData && state.sellerData.sellerNTNCNIC);
-                const buyerTaxId = getValidTaxId(state.buyerData && state.buyerData.buyerNTNCNIC);
-                if (!sellerTaxId || !buyerTaxId) {
-                    showNotification(
-                        "error",
-                        "Validation Error",
-                        "Seller and buyer NTN/CNIC must be 7 characters (NTN) or 13 digits (CNIC)"
-                    );
-                    throw new Error("Invalid tax identifiers");
-                }
-                state.sellerData.sellerNTNCNIC = sellerTaxId;
-                state.buyerData.buyerNTNCNIC = buyerTaxId;
 
                 const invoiceData = {
                     invoiceType: state.invoiceData.invoiceType,
@@ -3370,14 +3383,11 @@
             const scenarioSelect = document.getElementById("scenario-id");
             if (scenarioSelect) {
                 scenarioSelect.addEventListener("change", function () {
-                    const selectedScenario = this.value;
-                    const saleType = scenarioToSaleType[selectedScenario] || '';
-                    const saleTypeInput = document.getElementById("product-sale-type");
-                    if (saleTypeInput) {
-                        saleTypeInput.value = saleType;
-                    }
+                    syncSaleTypeWithScenario();
                 });
             }
+
+            syncSaleTypeWithScenario();
 
             // Initialize the Generate Invoice button as disabled until submission is successful
             const generateBtn = document.getElementById("generate-invoice-btn");
@@ -3845,7 +3855,7 @@ function handleBPAction(e){
 function fillBPForm(p){
   if(!p) return; showBPForm(true);
   document.getElementById('bp-name').value=p.business_name||'';
-    document.getElementById('bp-ntn').value=normalizeTaxIdValue(p.ntn_cnic||'');
+  document.getElementById('bp-ntn').value=p.ntn_cnic||'';
   document.getElementById('bp-strn').value=p.strn||'';
   document.getElementById('bp-province').value=p.province||'';
   document.getElementById('bp-address').value=p.address||'';
@@ -3860,12 +3870,8 @@ async function setDefaultBusinessProfile(id){
   catch(err){ showNotification('error','Error',err.message);} }
 function applyBusinessProfile(p){ if(!p) return; populateSellerForm({id:p.id,business_name:p.business_name,ntn_cnic:p.ntn_cnic,strn:p.strn,province:p.province,address:p.address,is_default:p.is_default}); }
 async function saveBusinessProfileFromModal(){
-    const bpNtnInput=document.getElementById('bp-ntn');
-    const payload={ business_name:document.getElementById('bp-name').value.trim(), ntn_cnic:bpNtnInput.value.trim(), strn:document.getElementById('bp-strn').value.trim(), province:document.getElementById('bp-province').value, address:document.getElementById('bp-address').value.trim(), is_default:document.getElementById('bp-default').checked };
-    if(!payload.business_name||!payload.ntn_cnic||!payload.province||!payload.address){ showNotification('error','Validation','All required fields must be filled'); return; }
-    const normalizedBpTax=enforceTaxIdOnInput(bpNtnInput,'Business NTN/CNIC');
-    if(!normalizedBpTax){ return; }
-    payload.ntn_cnic=normalizedBpTax;
+  const payload={ business_name:document.getElementById('bp-name').value.trim(), ntn_cnic:document.getElementById('bp-ntn').value.trim(), strn:document.getElementById('bp-strn').value.trim(), province:document.getElementById('bp-province').value, address:document.getElementById('bp-address').value.trim(), is_default:document.getElementById('bp-default').checked };
+  if(!payload.business_name||!payload.ntn_cnic||!payload.province||!payload.address){ showNotification('error','Validation','All required fields must be filled'); return; }
   try {
     let res, data;
     if(editingBusinessProfileId){
@@ -4102,11 +4108,11 @@ function resetBuyerForm(){ editingBuyerId=null; document.getElementById('buyer-f
 function showBuyerForm(edit=false){ document.getElementById('buyer-form-modal').classList.remove('hidden'); document.getElementById('buyer-form-title').textContent=edit?'Edit Buyer':'Create Buyer'; }
 function handleBuyerAction(e){ const id=e.currentTarget.getAttribute('data-id'); const action=e.currentTarget.getAttribute('data-action'); const buyer=buyersCache.find(b=>b.id==id); if(action==='del') return deleteBuyer(id); if(action==='apply'){ applyBuyer(buyer); closeBuyerModal(); return;} if(action==='edit' ){ editingBuyerId=id; showBuyerForm(true); fillBuyerForm(buyer); }
 }
-function fillBuyerForm(b){ if(!b) return; ['by-name','by-ntn','by-strn','by-province','by-reg','by-code','by-address'].forEach(()=>{}); document.getElementById('by-name').value=b.business_name||''; document.getElementById('by-ntn').value=normalizeTaxIdValue(b.ntn_cnic||''); document.getElementById('by-strn').value=b.strn||''; document.getElementById('by-province').value=b.province||''; document.getElementById('by-reg').value=b.registration_type||''; document.getElementById('by-code').value=b.buyer_code||''; document.getElementById('by-address').value=b.address||''; }
+function fillBuyerForm(b){ if(!b) return; ['by-name','by-ntn','by-strn','by-province','by-reg','by-code','by-address'].forEach(()=>{}); document.getElementById('by-name').value=b.business_name||''; document.getElementById('by-ntn').value=b.ntn_cnic||''; document.getElementById('by-strn').value=b.strn||''; document.getElementById('by-province').value=b.province||''; document.getElementById('by-reg').value=b.registration_type||''; document.getElementById('by-code').value=b.buyer_code||''; document.getElementById('by-address').value=b.address||''; }
 async function deleteBuyer(id){ if(!confirm('Delete this buyer?')) return; try{ const res=await fetch(apiUrl(`/api/buyers/${id}`),{method:'DELETE'}); const data=await res.json(); if(!res.ok) throw new Error(data.error||'Failed'); showNotification('success','Deleted','Buyer removed'); await loadBuyersModal(); }
 catch(err){ showNotification('error','Error',err.message);} }
 function applyBuyer(b){ if(!b) return; populateBuyerForm({id:b.id,business_name:b.business_name,address:b.address,province:b.province,ntn_cnic:b.ntn_cnic,strn:b.strn,registration_type:b.registration_type,buyer_code:b.buyer_code}); }
-async function saveBuyerFromModal(){ const buyerNtnInput=document.getElementById('by-ntn'); const payload={ business_name:document.getElementById('by-name').value.trim(), ntn_cnic:buyerNtnInput.value.trim(), strn:document.getElementById('by-strn').value.trim(), province:document.getElementById('by-province').value, registration_type:document.getElementById('by-reg').value, buyer_code:document.getElementById('by-code').value.trim(), address:document.getElementById('by-address').value.trim() }; if(!payload.business_name||!payload.ntn_cnic||!payload.province||!payload.registration_type||!payload.address){ showNotification('error','Validation','Required fields missing'); return;} const normalizedBuyerTax=enforceTaxIdOnInput(buyerNtnInput,'Buyer NTN/CNIC'); if(!normalizedBuyerTax){ return;} payload.ntn_cnic=normalizedBuyerTax; const creatingNew=!editingBuyerId; try{ let res,data; if(editingBuyerId){ res=await fetch(apiUrl(`/api/buyers/${editingBuyerId}`),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); data=await res.json(); if(!res.ok) throw new Error(data.error||'Update failed'); showNotification('success','Updated','Buyer updated'); } else { res=await fetch(apiUrl('/api/buyers'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); data=await res.json(); if(!res.ok) throw new Error(data.error||'Create failed'); showNotification('success','Created','Buyer created'); }
+async function saveBuyerFromModal(){ const payload={ business_name:document.getElementById('by-name').value.trim(), ntn_cnic:document.getElementById('by-ntn').value.trim(), strn:document.getElementById('by-strn').value.trim(), province:document.getElementById('by-province').value, registration_type:document.getElementById('by-reg').value, buyer_code:document.getElementById('by-code').value.trim(), address:document.getElementById('by-address').value.trim() }; if(!payload.business_name||!payload.ntn_cnic||!payload.province||!payload.registration_type||!payload.address){ showNotification('error','Validation','Required fields missing'); return;} const creatingNew=!editingBuyerId; try{ let res,data; if(editingBuyerId){ res=await fetch(apiUrl(`/api/buyers/${editingBuyerId}`),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); data=await res.json(); if(!res.ok) throw new Error(data.error||'Update failed'); showNotification('success','Updated','Buyer updated'); } else { res=await fetch(apiUrl('/api/buyers'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); data=await res.json(); if(!res.ok) throw new Error(data.error||'Create failed'); showNotification('success','Created','Buyer created'); }
     await loadBuyersModal();
     if(creatingNew && isH075895User()){
         if(typeof fetchBuyers==='function'){
