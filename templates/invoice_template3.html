@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/taxlinkpro-favicon.svg') }}">
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -67,7 +68,11 @@
         <!-- Logo -->
         <td style="width: 50%; vertical-align: middle; text-align: left;">
             {% if client_logo_url %}
-                <img src="{{ client_logo_url }}" alt="Client Logo" style="width: {% if username == 'B690329' %}200px{% else %}140px{% endif %}; height: auto;">
+                {% if username == 'B690329' %}
+                    <img src="{{ client_logo_url }}" alt="Client Logo" style="width: 200px; height: auto;">
+                {% else %}
+                    <img src="{{ client_logo_url }}" alt="Client Logo" style="width: 140px; height: auto;">
+                {% endif %}
             {% endif %}
         </td>
 
