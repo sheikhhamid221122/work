@@ -532,6 +532,105 @@ def get_env():
     return env if env in ["sandbox", "production"] else "sandbox"
 
 
+def _first_non_empty_text(value):
+    """Return the first non-empty string nested anywhere inside *value*."""
+    if isinstance(value, str):
+        text = value.strip()
+        return text if text else None
+
+    if isinstance(value, list):
+        for entry in value:
+            text = _first_non_empty_text(entry)
+            if text:
+                return text
+        return None
+
+    if isinstance(value, dict):
+        preferred_keys = (
+            "error",
+            "message",
+            "detail",
+            "description",
+            "errorMessage",
+            "statusMessage",
+            "remarks",
+        )
+        for key in preferred_keys:
+            if key in value:
+                text = _first_non_empty_text(value[key])
+                if text:
+                    return text
+        for nested in value.values():
+            text = _first_non_empty_text(nested)
+            if text:
+                return text
+    return None
+
+
+def _extract_fbr_error_message(res_json, fallback_text=""):
+    """Pull a user-friendly message out of the FBR response payload."""
+
+    def clean_text(raw):
+        collapsed = " ".join(str(raw).split())
+        lowered = collapsed.lower()
+        for marker in ("please refer", "kindly refer", "refer to the relevant"):
+            idx = lowered.find(marker)
+            if idx > 0:
+                collapsed = collapsed[:idx].strip()
+                break
+        if len(collapsed) > 240:
+            collapsed = collapsed[:237].rstrip(" .,:;") + "..."
+        return collapsed
+
+    def search_invoice_status_error(payload):
+        if isinstance(payload, dict):
+            statuses = payload.get("invoiceStatuses")
+            if isinstance(statuses, list):
+                for entry in statuses:
+                    text = _first_non_empty_text(entry)
+                    if text:
+                        return text
+            validation = payload.get("validationResponse")
+            if validation:
+                text = search_invoice_status_error(validation)
+                if text:
+                    return text
+            for nested in payload.values():
+                text = search_invoice_status_error(nested)
+                if text:
+                    return text
+        elif isinstance(payload, list):
+            for entry in payload:
+                text = search_invoice_status_error(entry)
+                if text:
+                    return text
+        return None
+
+    prioritized_message = search_invoice_status_error(res_json)
+    if prioritized_message:
+        return clean_text(prioritized_message)
+
+    sources = []
+    if isinstance(res_json, dict):
+        validation = res_json.get("validationResponse")
+        if isinstance(validation, dict):
+            sources.append(validation)
+        sources.append(res_json)
+
+    for source in sources:
+        message = _first_non_empty_text(source)
+        if message and message.lower() not in {"invalid", "valid"}:
+            return clean_text(message)
+
+    fallback_text = (fallback_text or "").strip()
+    if fallback_text:
+        if len(fallback_text) > 240:
+            fallback_text = fallback_text[:237].rstrip(" .,:;") + "..."
+        return fallback_text
+
+    return "Invoice rejected by FBR. Please review the values and try again."
+
+
 add_invoice_form_routes(app, get_db_connection, get_env)
 add_draft_invoice_routes(app, get_db_connection, get_env)
 add_reports_routes(app, get_db_connection, get_env)
@@ -955,11 +1054,13 @@ def submit_fbr():
 
         # If failed, return error without inserting into DB
         if not is_success:
+            friendly_error = _extract_fbr_error_message(res_json, response.text)
             return (
                 jsonify(
                     {
                         "status": "Failed",
                         "status_code": response.status_code,
+                        "error": friendly_error,
                         "response_text": response.text,
                     }
                 ),
@@ -1054,7 +1155,7 @@ def submit_fbr():
             conn_temp.close()
 
             # Select template
-            if username in ["8974121", "B690329"]:
+            if username in ["8974121"]:
                 template_name = "invoice_template.html"
             elif username == "5207949":
                 template_name = "invoice_zeeshanst.html"

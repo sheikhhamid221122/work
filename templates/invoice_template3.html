@@ -67,7 +67,7 @@
         <!-- Logo -->
         <td style="width: 50%; vertical-align: middle; text-align: left;">
             {% if client_logo_url %}
-                <img src="{{ client_logo_url }}" alt="Client Logo" style="width: 160px; height: auto;">
+                <img src="{{ client_logo_url }}" alt="Client Logo" style="width: {% if username == 'B690329' %}200px{% else %}140px{% endif %}; height: auto;">
             {% endif %}
         </td>
 
@@ -148,6 +148,14 @@
 
 {% set buyer_unregistered = (data.buyerRegistrationType or '')|lower == 'unregistered' %}
 {% set show_further_tax = username == '0946915' and buyer_unregistered and data.showFurtherTax %}
+{% set is_b690329 = username == 'B690329' %}
+{% set b690329_tax_label = 'Sales Tax' %}
+{% if is_b690329 %}
+    {% set first_item = data["items"][0] if data["items"]|length > 0 else None %}
+    {% if first_item and first_item.rate %}
+        {% set b690329_tax_label = 'Sales Tax (' ~ first_item.rate ~ ')' %}
+    {% endif %}
+{% endif %}
 
 <!-- Products Table -->
 <table style="margin-bottom: 0; border-bottom: none; width: 100%; border-collapse: collapse;">
@@ -158,8 +166,12 @@
             <th style="width: 9%;">Quantity</th>
             <th style="width: 9%;">Rate</th>
             <th style="width: 12%;">Value Exclusive of ST</th>
-            <th style="width: 10%;">Sales Tax Rate</th>
-            <th style="width: 9%;">Sales Tax</th>
+            {% if is_b690329 %}
+                <th style="width: 8%; white-space: nowrap;">{{ b690329_tax_label }}</th>
+            {% else %}
+                <th style="width: 10%;">Sales Tax Rate</th>
+                <th style="width: 9%;">Sales Tax</th>
+            {% endif %}
             {% if show_further_tax %}<th style="width: 9%;">Further Tax</th>{% endif %}
             <th style="width: 14%;">Value Inclusive of Sales Tax</th>
         </tr>
@@ -173,8 +185,12 @@
             <td>{{ item.quantity }}</td>
             <td>{{ item.unitrate | comma_format }}</td>
             <td>{{ item.valueSalesExcludingST | comma_format }}</td>
-            <td>{{ item.rate }}</td>
-            <td>{{ item.salesTaxApplicable | comma_format }}</td>
+            {% if is_b690329 %}
+                <td>{{ item.salesTaxApplicable | comma_format }}</td>
+            {% else %}
+                <td>{{ item.rate }}</td>
+                <td>{{ item.salesTaxApplicable | comma_format }}</td>
+            {% endif %}
             {% if show_further_tax %}<td>{{ further_tax_amount | comma_format }}</td>{% endif %}
             <td>{{ (item.valueSalesExcludingST + item.salesTaxApplicable + (show_further_tax and further_tax_amount or 0)) | comma_format }}</td>
         </tr>
@@ -189,8 +205,12 @@
             <td></td>
             <td></td>
             <td></td>
-            <td></td>
-            <td></td>
+            {% if is_b690329 %}
+                <td></td>
+            {% else %}
+                <td></td>
+                <td></td>
+            {% endif %}
             {% if show_further_tax %}<td></td>{% endif %}
             <td></td>
         </tr>
