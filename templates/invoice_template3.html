@@ -69,7 +69,7 @@
         <td style="width: 50%; vertical-align: middle; text-align: left;">
             {% if client_logo_url %}
                 {% if username == 'B690329' %}
-                    <img src="{{ client_logo_url }}" alt="Client Logo" style="width: 200px; height: auto;">
+                    <img src="{{ client_logo_url }}" alt="Client Logo" style="width: 230px; height: auto;">
                 {% else %}
                     <img src="{{ client_logo_url }}" alt="Client Logo" style="width: 140px; height: auto;">
                 {% endif %}
@@ -79,6 +79,9 @@
         <!-- Seller Text Aligned Vertically Center and Right -->
         <td style="width: 50%; vertical-align: middle; text-align: right;">
             <div style="line-height: 1.6; display: inline-block; text-align: left;">
+                {% if username == '3556084' and data.sellerBusinessName %}
+                    <p style="margin: 0; font-weight: bold;">{{ data.sellerBusinessName }}</p>
+                {% endif %}
                 <p style="margin: 0;"><strong>{{ data.sellerAddress }}</strong></p>
                 <p style="margin: 0;"><strong>NTN:</strong><span style="margin-left: 12px;">{{ data.sellerNTNCNIC }}</span></p>
                 <p style="margin: 0;"><strong>STRN:</strong> {{ data.sellerSTRN }}</p>
@@ -93,7 +96,7 @@
     <div class="section-header" style="margin-top: 15px;">SALES TAX INVOICE</div>
 
     <!-- Buyer and Invoice Info -->
-    {% if username in ['3075270', '0946915', '2853653', '7542425', 'B690329'] %}
+    {% if username in ['3075270', '0946915', '2853653', '7542425', 'B690329', '3520271603355', '3556084'] %}
     <!-- Customized layout for username 3075270: remove BUYER STRN row and show STATUS instead of P.O#/DATE -->
     <table style="width: 100%; border: 1px solid #333;">
         <tr>

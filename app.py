@@ -381,7 +381,7 @@ def generate_form_invoice():
         elif username == "7542425":
             template_name = "invoice_template3.html"
             print(f"Selected template: {template_name} for username 7542425")
-        elif username in ["3075270", "0946915", "7542425", "2853653", "B690329"]:
+        elif username in ["3075270", "0946915", "7542425", "2853653", "B690329", "3520271603355", "3556084"]:
             template_name = "invoice_template3.html"  # Shared template for these users
             print(f"Selected template: {template_name} for username: {username}")
         else:
@@ -1161,7 +1161,7 @@ def submit_fbr():
                 template_name = "invoice_zeeshanst.html"
             elif username == "7542425":
                 template_name = "invoice_template3.html"
-            elif username in ["3075270", "0946915", "2853653", "B690329"]:
+            elif username in ["3075270", "0946915", "2853653", "B690329", "3520271603355", "3556084"]:
                 template_name = "invoice_template3.html"
             else:
                 template_name = "invoice_template2.html"
@@ -1394,7 +1394,7 @@ def generate_invoice_excel():
             template_name = "invoice_zeeshanst.html"
         elif username == "7542425":
             template_name = "invoice_template3.html"
-        elif username in ["3075270", "B690329"]:
+        elif username in ["3075270", "B690329", "3520271603355", "3556084"]:
             template_name = "invoice_template3.html"  # Use appropriate template for Care Pharmaceuticals
         else:
             template_name = "invoice_template3.html"
