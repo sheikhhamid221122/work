@@ -136,6 +136,22 @@
             transition: all 0.3s ease;
         }
 
+        .sidebar-sandbox {
+            background: linear-gradient(to bottom, #075985, #0c4a6e);
+        }
+
+        .sidebar-production {
+            background: linear-gradient(to bottom, #075985, #075985);
+        }
+
+        .mobile-sidebar-production {
+            background: linear-gradient(to bottom, #991b1b, #7f1d1d) !important;
+        }
+
+        .mobile-sidebar-sandbox {
+            background: linear-gradient(to bottom, #075985, #0c4a6e) !important;
+        }
+
         .sidebar-logo {
             transition: all 0.3s ease;
         }
@@ -1307,6 +1323,34 @@
             draft_id: null, // Store draft ID if loaded from a draft
         };
 
+        document.addEventListener('DOMContentLoaded', () => {
+            const env = getUrlParameter('env') || ENV || 'production';
+
+            // Sidebar gradient per environment
+            const sidebar = document.querySelector('.sidebar');
+            if (sidebar) {
+                sidebar.classList.remove('sidebar-sandbox', 'sidebar-production');
+                sidebar.classList.add(env === 'production' ? 'sidebar-production' : 'sidebar-sandbox');
+            }
+
+            // Mobile sidebar gradient per environment
+            const mobileSidebar = document.querySelector('#mobile-menu .flex.flex-col');
+            if (mobileSidebar) {
+                mobileSidebar.classList.remove('mobile-sidebar-sandbox', 'mobile-sidebar-production', 'bg-primary-800');
+                mobileSidebar.classList.add(env === 'production' ? 'mobile-sidebar-production' : 'mobile-sidebar-sandbox');
+            }
+
+            // Env badge color per environment
+            document.querySelectorAll('.env-badge').forEach((badge) => {
+                badge.classList.remove('bg-primary-400', 'bg-red-600');
+                if (env === 'production') {
+                    badge.classList.add('bg-red-600');
+                } else {
+                    badge.classList.add('bg-primary-400');
+                }
+            });
+        });
+
         // Function to get URL parameters
         function getUrlParameter(name) {
             name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
@@ -1507,20 +1551,39 @@
 
         function getFurtherTaxPercent(item) {
             if (!item) return 0;
-            const pctSource = item.furtherTaxPercent !== undefined ? item.furtherTaxPercent : item.furtherTax;
-            const pct = parseFloat(pctSource);
-            return Number.isFinite(pct) ? pct : 0;
+            const percentSources = [item.furtherTaxPercent, item.furtherTaxPct];
+            for (const src of percentSources) {
+                const pct = parseFloat(src);
+                if (Number.isFinite(pct)) return pct;
+            }
+
+            // Treat large values as currency amounts, not percentages
+            const raw = parseFloat(item.furtherTax);
+            if (Number.isFinite(raw) && raw <= 25) {
+                return raw;
+            }
+            return 0;
         }
 
         function computeFurtherTaxAmount(item) {
             if (!shouldApplyFurtherTax()) return 0;
             const base = parseFloat(item && item.valueSalesExcludingST) || 0;
+
+            const rawFt = item ? item.furtherTax : undefined;
+            const explicitAmount = item && item.furtherTaxAmount;
+            const amountCandidate = Number.isFinite(parseFloat(explicitAmount))
+                ? parseFloat(explicitAmount)
+                : (Number.isFinite(parseFloat(rawFt)) && parseFloat(rawFt) > 25 ? parseFloat(rawFt) : null);
+            if (Number.isFinite(amountCandidate)) {
+                return amountCandidate;
+            }
+
             const pct = getFurtherTaxPercent(item);
             if (base > 0 && pct > 0) {
                 return (base * pct) / 100;
             }
-            const amt = item && item.furtherTaxAmount;
-            return Number.isFinite(parseFloat(amt)) ? parseFloat(amt) : 0;
+
+            return 0;
         }
 
         function syncFurtherTaxDefaults() {
@@ -1721,11 +1784,32 @@
                     ) || 0;
                     const totalValuesRaw = item.totalValues ?? item.total ?? valueExcl + salesTax;
                     const totalValues = Number((Number(totalValuesRaw) || 0).toFixed(2));
+                    const rawFtPercent = parseFloat(item.furtherTaxPercent ?? item.furtherTaxPct);
+                    const rawFtAmount = parseFloat(item.furtherTaxAmount);
+                    const rawFtValue = parseFloat(item.furtherTax);
 
-                    const furtherTaxPercent = parseFloat(item.furtherTax ?? 0) || 0;
-                    const furtherTaxAmount = shouldApplyFurtherTax()
-                        ? ((valueExcl * furtherTaxPercent) / 100)
-                        : (parseFloat(item.furtherTax) || 0);
+                    let furtherTaxPercent = Number.isFinite(rawFtPercent) ? rawFtPercent : 0;
+                    let furtherTaxAmount = Number.isFinite(rawFtAmount) ? rawFtAmount : null;
+
+                    if (!Number.isFinite(furtherTaxPercent) || furtherTaxPercent <= 0) {
+                        if (Number.isFinite(rawFtValue) && rawFtValue <= 25) {
+                            furtherTaxPercent = rawFtValue;
+                        }
+                    }
+
+                    if (!Number.isFinite(furtherTaxAmount)) {
+                        if (Number.isFinite(rawFtValue) && rawFtValue > 25) {
+                            furtherTaxAmount = rawFtValue;
+                        }
+                    }
+
+                    if (!Number.isFinite(furtherTaxAmount) && shouldApplyFurtherTax() && furtherTaxPercent > 0) {
+                        furtherTaxAmount = (valueExcl * furtherTaxPercent) / 100;
+                    }
+
+                    if (!Number.isFinite(furtherTaxAmount)) {
+                        furtherTaxAmount = 0;
+                    }
 
                     const normalizedItem = {
                         productDescription: item.productDescription || item.description || '',
@@ -1746,7 +1830,7 @@
                         sroItemSerialNo: item.sroItemSerialNo || '',
                         furtherTax: furtherTaxAmount,
                         furtherTaxPercent: furtherTaxPercent,
-                        furtherTaxAmount: shouldApplyFurtherTax() ? furtherTaxAmount : undefined,
+                        furtherTaxAmount: furtherTaxAmount,
                         extraTax: item.extraTax ?? '',
                         salesTaxWithheldAtSource: parseFloat(item.salesTaxWithheldAtSource ?? 0) || 0,
                         fedPayable: parseFloat(item.fedPayable ?? 0) || 0,
