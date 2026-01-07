@@ -70,6 +70,8 @@
             {% if client_logo_url %}
                 {% if username == 'B690329' %}
                     <img src="{{ client_logo_url }}" alt="Client Logo" style="width: 230px; height: auto;">
+                {% elif username in ['0946915', '2853653'] %}
+                    <img src="{{ client_logo_url }}" alt="Client Logo" style="width: 170px; height: auto;">
                 {% else %}
                     <img src="{{ client_logo_url }}" alt="Client Logo" style="width: 140px; height: auto;">
                 {% endif %}
@@ -155,7 +157,7 @@
 <div class="section-header" style="margin-top: 15px;">DETAILS</div>
 
 {% set buyer_unregistered = (data.buyerRegistrationType or '')|lower == 'unregistered' %}
-{% set show_further_tax = username == '0946915' and buyer_unregistered and data.showFurtherTax %}
+{% set show_further_tax = username in ['0946915', '2853653'] and buyer_unregistered and data.showFurtherTax %}
 {% set is_b690329 = username == 'B690329' %}
 {% set b690329_tax_label = 'Sales Tax' %}
 {% if is_b690329 %}
@@ -176,11 +178,13 @@
             <th style="width: 12%;">Value Exclusive of ST</th>
             {% if is_b690329 %}
                 <th style="width: 8%; white-space: nowrap;">{{ b690329_tax_label }}</th>
+            {% elif username in ['0946915', '2853653'] %}
+                <th>Sales Tax (18%)</th>
             {% else %}
                 <th style="width: 10%;">Sales Tax Rate</th>
                 <th style="width: 9%;">Sales Tax</th>
             {% endif %}
-            {% if show_further_tax %}<th style="width: 9%;">Further Tax</th>{% endif %}
+            {% if show_further_tax %}<th style="width: 9%;">Further Tax (4%) </th>{% endif %}
             <th style="width: 14%;">Value Inclusive of Sales Tax</th>
         </tr>
     </thead>
@@ -194,6 +198,8 @@
             <td>{{ item.unitrate | comma_format }}</td>
             <td>{{ item.valueSalesExcludingST | comma_format }}</td>
             {% if is_b690329 %}
+                <td>{{ item.salesTaxApplicable | comma_format }}</td>
+            {% elif username in ['0946915', '2853653'] %}
                 <td>{{ item.salesTaxApplicable | comma_format }}</td>
             {% else %}
                 <td>{{ item.rate }}</td>
@@ -214,6 +220,8 @@
             <td></td>
             <td></td>
             {% if is_b690329 %}
+                <td></td>
+            {% elif username in ['0946915', '2853653'] %}
                 <td></td>
             {% else %}
                 <td></td>

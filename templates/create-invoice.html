@@ -141,7 +141,7 @@
         }
 
         .sidebar-production {
-            background: linear-gradient(to bottom, #075985, #075985);
+            background: linear-gradient(to bottom, #991b1b, #7f1d1d);
         }
 
         .mobile-sidebar-production {
@@ -236,22 +236,22 @@
                 <!-- Navigation Menu -->
                 <div class="flex flex-col flex-grow pt-4 pb-4 overflow-y-auto">
                     <nav class="flex-1 space-y-2 px-2">
-                        <a href="/dashboard.html" id="dashboard-tab"
+                        <a href="/dashboard" id="dashboard-tab"
                             class="sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
                             <i class="fas fa-tachometer-alt mr-3"></i>
                             Dashboard
                         </a>
-                        <a href="/create-invoice.html" id="create-invoice-tab"
+                        <a href="/create-invoice" id="create-invoice-tab"
                             class="sidebar-item active flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
                             <i class="fas fa-file-invoice mr-3"></i>
                             Create Invoice
                         </a>
-                        <a href="/draft-invoices.html" id="draft-invoices-tab"
+                        <a href="/draft-invoices" id="draft-invoices-tab"
                             class="sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
                             <i class="fas fa-file-alt mr-3"></i>
                             Draft Invoices
                         </a>
-                        <a href="/reports.html" id="reports-tab"
+                        <a href="/reports" id="reports-tab"
                             class="sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
                             <i class="fas fa-chart-bar mr-3"></i>
                             Reports & Analytics
@@ -315,10 +315,10 @@
                         </div>
                     </div>
                     <nav class="flex-1 p-4">
-                        <a href="/dashboard.html" class="block py-2 px-4 text-white hover:bg-primary-700 rounded-md">
+                        <a href="/dashboard" class="block py-2 px-4 text-white hover:bg-primary-700 rounded-md">
                             <i class="fas fa-tachometer-alt mr-3"></i> Dashboard
                         </a>
-                        <a href="/create-invoice.html" class="block py-2 px-4 text-white bg-primary-700 rounded-md">
+                        <a href="/create-invoice" class="block py-2 px-4 text-white bg-primary-700 rounded-md">
                             <i class="fas fa-file-invoice mr-3"></i> Create Invoice
                         </a>
                     </nav>
@@ -344,7 +344,7 @@
                         <h1 class="text-2xl font-bold text-gray-800">
                             Create New Invoice
                         </h1>
-                        <a href="/dashboard.html"
+                        <a href="/dashboard"
                             class="mt-3 md:mt-0 text-primary-600 hover:text-primary-700 font-medium flex items-center">
                             <i class="fas fa-arrow-left mr-2"></i> Back to Dashboard
                         </a>
@@ -1534,10 +1534,10 @@
             updateReviewSection();
         }
 
-        const FURTHER_TAX_CLIENT = '0946915';
+        const FURTHER_TAX_CLIENTS = new Set(['0946915', '2853653']);
 
         function isFurtherTaxClient() {
-            return currentUsername === FURTHER_TAX_CLIENT;
+            return FURTHER_TAX_CLIENTS.has(currentUsername);
         }
 
         function isUnregisteredBuyer() {

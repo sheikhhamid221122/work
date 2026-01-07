@@ -19,8 +19,12 @@ def _normalize_json(value):
 
 
 def add_draft_invoice_routes(app, get_db_connection, get_env):
+    @app.route("/draft-invoices")
     @app.route("/draft-invoices.html")
     def draft_invoices_html():
+        if request.path.endswith('.html'):
+            return redirect(url_for('draft_invoices_html').replace('.html', ''), code=301)
+
         if "user_id" not in session:
             return redirect(url_for("index"))
         return render_template("draft-invoices.html")

@@ -48,8 +48,12 @@ app.config.update(
 )
 
 
+@app.route("/create-invoice")
 @app.route("/create-invoice.html")
 def create_invoice_html():
+    if request.path.endswith('.html'):
+        return redirect(url_for('create_invoice_html', _external=False, _scheme=None).replace('.html', ''), code=301)
+
     if "user_id" not in session:
         print("No user_id in session, redirecting to login")
         return redirect(url_for("index"))
@@ -280,7 +284,7 @@ def generate_form_invoice():
             .strip()
             .lower()
         )
-        apply_further_tax = username == "0946915" and buyer_reg == "unregistered"
+        apply_further_tax = username in {"0946915", "2853653"} and buyer_reg == "unregistered"
 
         # Add unit rate for each item if not present
         for item in items:
@@ -1433,8 +1437,12 @@ def index():
     return render_template("index.html")
 
 
+@app.route("/dashboard")
 @app.route("/dashboard.html")
 def dashboard_html():
+    if request.path.endswith('.html'):
+        return redirect(url_for('dashboard_html', _external=False, _scheme=None).replace('.html', ''), code=301)
+
     print("Dashboard access attempt")
     print("Full session data:", dict(session))
     print("User ID in session:", session.get("user_id"))

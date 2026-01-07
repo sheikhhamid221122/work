@@ -26,8 +26,12 @@ def add_reports_routes(app, get_db_connection, get_env):
             return float(v)
         except Exception:
             return 0.0
+    @app.route("/reports")
     @app.route("/reports.html")
     def reports_html():
+        if request.path.endswith('.html'):
+            return redirect(url_for('reports_html').replace('.html', ''), code=301)
+
         if "user_id" not in session:
             return redirect(url_for("index"))
         return render_template("reports.html")

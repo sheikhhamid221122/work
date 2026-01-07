@@ -180,22 +180,22 @@
                 <!-- Navigation Menu -->
                 <div class="flex flex-col flex-grow pt-4 pb-4 overflow-y-auto">
                     <nav class="flex-1 space-y-2 px-2">
-                        <a href="/dashboard.html"
+                        <a href="/dashboard"
                             class="sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
                             <i class="fas fa-tachometer-alt mr-3"></i>
                             Dashboard
                         </a>
-                        <a href="/create-invoice.html"
+                        <a href="/create-invoice"
                             class="sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
                             <i class="fas fa-file-invoice mr-3"></i>
                             Create Invoice
                         </a>
-                        <a href="/draft-invoices.html"
+                        <a href="/draft-invoices"
                             class="sidebar-item active flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
                             <i class="fas fa-file-alt mr-3"></i>
                             Draft Invoices
                         </a>
-                        <a href="/reports.html" id="reports-tab"
+                        <a href="/reports" id="reports-tab"
                             class="sidebar-item flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
                             <i class="fas fa-chart-bar mr-3"></i>
                             Reports & Analytics
@@ -258,14 +258,14 @@
                         </div>
                     </div>
                     <nav class="flex-1 p-4">
-                        <a href="/dashboard.html" class="block py-2 px-4 text-white hover:bg-primary-700 rounded-md">
+                        <a href="/dashboard" class="block py-2 px-4 text-white hover:bg-primary-700 rounded-md">
                             <i class="fas fa-tachometer-alt mr-3"></i> Dashboard
                         </a>
-                        <a href="/create-invoice.html"
+                        <a href="/create-invoice"
                             class="block py-2 px-4 text-white hover:bg-primary-700 rounded-md">
                             <i class="fas fa-file-invoice mr-3"></i> Create Invoice
                         </a>
-                        <a href="/draft-invoices.html" class="block py-2 px-4 text-white bg-primary-700 rounded-md">
+                        <a href="/draft-invoices" class="block py-2 px-4 text-white bg-primary-700 rounded-md">
                             <i class="fas fa-file-alt mr-3"></i> Draft Invoices
                         </a>
                     </nav>
@@ -292,7 +292,7 @@
                             Draft Invoices
                         </h1>
                         <div class="mt-4 md:mt-0 flex flex-wrap gap-2">
-                            <a href="/create-invoice.html"
+                            <a href="/create-invoice"
                                 class="bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out flex items-center">
                                 <i class="fas fa-plus-circle mr-2"></i> Create New Invoice
                             </a>
@@ -352,7 +352,7 @@
                         <h3 class="text-lg font-medium text-gray-900 mb-2">No Draft Invoices</h3>
                         <p class="text-gray-500 mb-6">You haven't saved any draft invoices yet. Create a new invoice and
                             save it as a draft to see it here.</p>
-                        <a href="/create-invoice.html"
+                        <a href="/create-invoice"
                             class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700">
                             <i class="fas fa-plus mr-2"></i> Create New Invoice
                         </a>
@@ -970,7 +970,7 @@
             console.log(`Loading draft ${draftId} with environment: ${currentEnv}`);
             
             // Redirect to review page with draft ID and environment parameter
-            window.location.href = `/create-invoice.html?load_draft=${draftId}&env=${currentEnv}`;
+            window.location.href = `/create-invoice?load_draft=${draftId}&env=${currentEnv}`;
         }
 
         // Update draft title
