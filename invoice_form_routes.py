@@ -336,7 +336,86 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         conn.close()
         return jsonify({"id": new_id, "message": "Buyer created successfully"})
 
-    # NEW: Delete buyer
+    # UPDATE: Edit buyer
+    @app.route("/api/buyers/<int:buyer_id>", methods=["PUT"])
+    def update_buyer(buyer_id):
+        client_id = session.get("client_id")
+        if not client_id:
+            return jsonify({"error": "No client ID in session"}), 401
+        
+        data = request.get_json() or {}
+        
+        # Validate required fields if provided
+        if "ntn_cnic" in data and data["ntn_cnic"]:
+            try:
+                data["ntn_cnic"] = _require_valid_tax_id(data["ntn_cnic"], "Buyer NTN/CNIC")
+            except ValueError as exc:
+                return jsonify({"error": str(exc)}), 400
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        try:
+            # Check if buyer exists and belongs to this client
+            cur.execute(
+                "SELECT id FROM buyers WHERE id = %s AND client_id = %s",
+                (buyer_id, client_id),
+            )
+            if not cur.fetchone():
+                return jsonify({"error": "Buyer not found"}), 404
+
+            # Handle is_default flag - if setting this buyer as default, unset others
+            if data.get("is_default", False):
+                cur.execute(
+                    "UPDATE buyers SET is_default = FALSE WHERE client_id = %s",
+                    (client_id,),
+                )
+
+            # Build dynamic update query
+            fields = [
+                "business_name",
+                "address",
+                "province",
+                "ntn_cnic",
+                "strn",
+                "registration_type",
+                "buyer_code",
+                "is_default",
+            ]
+            updates = []
+            values = []
+            for field in fields:
+                if field in data:
+                    updates.append(f"{field} = %s")
+                    values.append(data[field] if data[field] is not None else "")
+            
+            if not updates:
+                return jsonify({"error": "No fields to update"}), 400
+
+            values.extend([buyer_id, client_id])
+            cur.execute(
+                f"""
+                UPDATE buyers
+                SET {', '.join(updates)}
+                WHERE id = %s AND client_id = %s
+                RETURNING id
+                """,
+                values,
+            )
+            updated = cur.fetchone()
+            conn.commit()
+            
+            if not updated:
+                return jsonify({"error": "Buyer update failed"}), 404
+            
+            return jsonify({"id": updated[0], "message": "Buyer updated successfully"})
+        except Exception as e:
+            conn.rollback()
+            return jsonify({"error": f"Failed to update buyer: {str(e)}"}), 500
+        finally:
+            cur.close()
+            conn.close()
+
+    # DELETE: Remove buyer
     @app.route("/api/buyers/<int:buyer_id>", methods=["DELETE"])
     def delete_buyer(buyer_id):
         client_id = session.get("client_id")

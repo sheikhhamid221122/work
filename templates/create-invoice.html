@@ -781,7 +781,8 @@
                                         class="form-input w-full pr-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm"
                                         placeholder="0" value="0" min="0" step="0.01"
                                         title="Enter percentage only. The value will be treated as % of the amount excluding sales tax.">
-                                    <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-500 text-sm">%</span>
+                                    <span
+                                        class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-gray-500 text-sm">%</span>
                                 </div>
                             </div>
                         </div>
@@ -900,7 +901,8 @@
                             <tbody id="product-items-table" class="bg-white divide-y divide-gray-200">
                                 <!-- No products message -->
                                 <tr id="no-products-row">
-                                    <td id="product-no-items-cell" colspan="10" class="px-6 py-4 text-center text-gray-500">
+                                    <td id="product-no-items-cell" colspan="10"
+                                        class="px-6 py-4 text-center text-gray-500">
                                         No products added yet. Add products using the form
                                         above.
                                     </td>
@@ -1125,7 +1127,8 @@
                                 <tbody id="review-items-table" class="bg-white divide-y divide-gray-200">
                                     <!-- Product items will be populated here -->
                                     <tr id="review-no-products-row">
-                                        <td id="review-no-products-cell" colspan="9" class="px-6 py-4 text-center text-gray-500">
+                                        <td id="review-no-products-cell" colspan="9"
+                                            class="px-6 py-4 text-center text-gray-500">
                                             No products added yet.
                                         </td>
                                     </tr>
@@ -1186,37 +1189,48 @@
             <div class="p-6">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-lg font-semibold text-gray-900">Manage Business Profiles</h3>
-                    <button id="close-business-profile-modal" class="text-gray-400 hover:text-gray-500"><i class="fas fa-times"></i></button>
+                    <button id="close-business-profile-modal" class="text-gray-400 hover:text-gray-500"><i
+                            class="fas fa-times"></i></button>
                 </div>
                 <div class="mb-4 flex items-center space-x-2">
-                    <input type="text" id="business-profile-search" placeholder="Search profiles..." class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
-                    <button id="new-business-profile-btn" class="px-3 py-2 bg-secondary-600 hover:bg-secondary-700 text-white rounded-md text-sm"><i class="fas fa-plus mr-1"></i>New</button>
+                    <input type="text" id="business-profile-search" placeholder="Search profiles..."
+                        class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                    <button id="new-business-profile-btn"
+                        class="px-3 py-2 bg-secondary-600 hover:bg-secondary-700 text-white rounded-md text-sm"><i
+                            class="fas fa-plus mr-1"></i>New</button>
                 </div>
-                <div id="business-profile-list" class="space-y-2 mb-6 max-h-60 overflow-y-auto border border-gray-200 rounded-md p-2 bg-gray-50"></div>
+                <div id="business-profile-list"
+                    class="space-y-2 mb-6 max-h-60 overflow-y-auto border border-gray-200 rounded-md p-2 bg-gray-50">
+                </div>
                 <div id="business-profile-form" class="hidden border-t pt-4">
                     <h4 class="font-medium text-gray-800 mb-2" id="business-profile-form-title">Create Profile</h4>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1">Business Name*</label>
-                            <input id="bp-name" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                            <input id="bp-name" type="text"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1">NTN/CNIC*</label>
-                            <input id="bp-ntn" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                            <input id="bp-ntn" type="text"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1">STRN</label>
-                            <input id="bp-strn" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                            <input id="bp-strn" type="text"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
                         </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1">Province*</label>
-                            <select id="bp-province" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm">
+                            <select id="bp-province"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm">
                                 <option value="">-- Select Province --</option>
                             </select>
                         </div>
                         <div class="md:col-span-2">
                             <label class="block text-xs font-semibold text-gray-600 mb-1">Address*</label>
-                            <textarea id="bp-address" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"></textarea>
+                            <textarea id="bp-address" rows="2"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"></textarea>
                         </div>
                         <div class="flex items-center space-x-2 md:col-span-2">
                             <input id="bp-default" type="checkbox" class="h-4 w-4 text-primary-600" />
@@ -1224,8 +1238,11 @@
                         </div>
                     </div>
                     <div class="mt-4 flex justify-end space-x-2">
-                        <button id="cancel-bp-form" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 text-sm">Cancel</button>
-                        <button id="save-bp-form" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-medium"><i class="fas fa-save mr-1"></i>Save Profile</button>
+                        <button id="cancel-bp-form"
+                            class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 text-sm">Cancel</button>
+                        <button id="save-bp-form"
+                            class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-medium"><i
+                                class="fas fa-save mr-1"></i>Save Profile</button>
                     </div>
                 </div>
             </div>
@@ -1239,27 +1256,60 @@
             <div class="p-6">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-lg font-semibold text-gray-900">Manage Buyers</h3>
-                    <button id="close-buyer-modal" class="text-gray-400 hover:text-gray-500"><i class="fas fa-times"></i></button>
+                    <button id="close-buyer-modal" class="text-gray-400 hover:text-gray-500"><i
+                            class="fas fa-times"></i></button>
                 </div>
                 <div class="mb-4 flex items-center space-x-2">
-                    <input type="text" id="buyer-search" placeholder="Search buyers..." class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
-                    <button id="new-buyer-btn" class="px-3 py-2 bg-secondary-600 hover:bg-secondary-700 text-white rounded-md text-sm"><i class="fas fa-plus mr-1"></i>New</button>
+                    <input type="text" id="buyer-search" placeholder="Search buyers..."
+                        class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                    <button id="new-buyer-btn"
+                        class="px-3 py-2 bg-secondary-600 hover:bg-secondary-700 text-white rounded-md text-sm"><i
+                            class="fas fa-plus mr-1"></i>New</button>
                 </div>
-                <div id="buyer-list" class="space-y-2 mb-6 max-h-60 overflow-y-auto border border-gray-200 rounded-md p-2 bg-gray-50"></div>
+                <div id="buyer-list"
+                    class="space-y-2 mb-6 max-h-60 overflow-y-auto border border-gray-200 rounded-md p-2 bg-gray-50">
+                </div>
                 <div id="buyer-form-modal" class="hidden border-t pt-4">
                     <h4 class="font-medium text-gray-800 mb-2" id="buyer-form-title">Create Buyer</h4>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">Business Name*</label><input id="by-name" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"/></div>
-                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">NTN/CNIC*</label><input id="by-ntn" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"/></div>
-                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">STRN</label><input id="by-strn" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"/></div>
-                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">Province*</label><select id="by-province" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"><option value="">-- Select Province --</option></select></div>
-                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">Registration Type*</label><select id="by-reg" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"><option value="">-- Select Type --</option></select></div>
-                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">Buyer Code</label><input id="by-code" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"/></div>
-                        <div class="md:col-span-2"><label class="block text-xs font-semibold text-gray-600 mb-1">Address*</label><textarea id="by-address" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"></textarea></div>
+                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">Business Name*</label><input
+                                id="by-name" type="text"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                        </div>
+                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">NTN/CNIC*</label><input
+                                id="by-ntn" type="text"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                        </div>
+                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">STRN</label><input
+                                id="by-strn" type="text"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                        </div>
+                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">Province*</label><select
+                                id="by-province"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm">
+                                <option value="">-- Select Province --</option>
+                            </select></div>
+                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">Registration
+                                Type*</label><select id="by-reg"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm">
+                                <option value="">-- Select Type --</option>
+                            </select></div>
+                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">Buyer Code</label><input
+                                id="by-code" type="text"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                        </div>
+                        <div class="md:col-span-2"><label
+                                class="block text-xs font-semibold text-gray-600 mb-1">Address*</label><textarea
+                                id="by-address" rows="2"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"></textarea>
+                        </div>
                     </div>
                     <div class="mt-4 flex justify-end space-x-2">
-                        <button id="cancel-buyer-form" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 text-sm">Cancel</button>
-                        <button id="save-buyer-form" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-medium"><i class="fas fa-save mr-1"></i>Save Buyer</button>
+                        <button id="cancel-buyer-form"
+                            class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 text-sm">Cancel</button>
+                        <button id="save-buyer-form"
+                            class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-medium"><i
+                                class="fas fa-save mr-1"></i>Save Buyer</button>
                     </div>
                 </div>
             </div>
@@ -1272,29 +1322,70 @@
         <div class="bg-white rounded-lg shadow-xl z-50 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div class="p-6">
                 <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-semibold text-gray-900">Create Product</h3>
-                    <button id="close-product-modal" class="text-gray-400 hover:text-gray-500"><i class="fas fa-times"></i></button>
+                    <h3 id="product-modal-title" class="text-lg font-semibold text-gray-900">Manage Products</h3>
+                    <button id="close-product-modal" class="text-gray-400 hover:text-gray-500"><i
+                            class="fas fa-times"></i></button>
                 </div>
                 <div class="mb-4 flex items-center space-x-2">
-                    <input type="text" id="product-search-modal" placeholder="Search existing..." class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
-                    <button id="refresh-products-btn" class="px-3 py-2 bg-secondary-600 hover:bg-secondary-700 text-white rounded-md text-sm"><i class="fas fa-rotate mr-1"></i>Refresh</button>
+                    <input type="text" id="product-search-modal" placeholder="Search products..."
+                        class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                    <button id="new-product-btn"
+                        class="px-3 py-2 bg-secondary-600 hover:bg-secondary-700 text-white rounded-md text-sm"><i
+                            class="fas fa-plus mr-1"></i>New</button>
                 </div>
-                <div id="product-list-modal" class="space-y-2 mb-6 max-h-56 overflow-y-auto border border-gray-200 rounded-md p-2 bg-gray-50"></div>
-                <div id="product-form-modal" class="border-t pt-4">
+                <div id="product-list-modal"
+                    class="space-y-2 mb-6 max-h-56 overflow-y-auto border border-gray-200 rounded-md p-2 bg-gray-50">
+                </div>
+                <div id="product-form-modal" class="hidden border-t pt-4">
+                    <h4 class="font-medium text-gray-800 mb-3" id="product-form-title">Create Product</h4>
+
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">Description*</label><input id="pm-desc" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" /></div>
-                        <div id="pm-code-wrapper" class="hidden"><label class="block text-xs font-semibold text-gray-600 mb-1">Product Code</label><input id="pm-code" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" /></div>
-                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">HS Code</label><input id="pm-hs" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" /></div>
-                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">Rate (Unit)</label><input id="pm-rate" type="number" step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" /></div>
-                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">UoM*</label><select id="pm-uom" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"><option value="">-- Select UoM --</option></select></div>
-                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">Default Tax Rate*</label><select id="pm-tax" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"><option value="">-- Select Tax --</option></select></div>
-                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">Sale Type</label><input id="pm-sale-type" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" value="Goods at Reduced Rate" /></div>
-                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">SRO Schedule No</label><input id="pm-sro-schedule" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" /></div>
-                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">SRO Item Serial No</label><input id="pm-sro-item" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" /></div>
+                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">Description*</label><input
+                                id="pm-desc" type="text"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                        </div>
+                        <div id="pm-code-wrapper" class="hidden"><label
+                                class="block text-xs font-semibold text-gray-600 mb-1">Product Code</label><input
+                                id="pm-code" type="text"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                        </div>
+                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">HS Code</label><input
+                                id="pm-hs" type="text"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                        </div>
+                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">Rate (Unit)</label><input
+                                id="pm-rate" type="number" step="0.01" min="0"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                        </div>
+                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">UoM*</label><select
+                                id="pm-uom"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm">
+                                <option value="">-- Select UoM --</option>
+                            </select></div>
+                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">Default Tax
+                                Rate*</label><select id="pm-tax"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm">
+                                <option value="">-- Select Tax --</option>
+                            </select></div>
+                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">Sale Type</label><input
+                                id="pm-sale-type" type="text"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                                value="Goods at Reduced Rate" /></div>
+                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">SRO Schedule No</label><input
+                                id="pm-sro-schedule" type="text"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                        </div>
+                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">SRO Item Serial
+                                No</label><input id="pm-sro-item" type="text"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                        </div>
                     </div>
                     <div class="mt-4 flex justify-end space-x-2">
-                        <button id="cancel-product-form" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 text-sm">Cancel</button>
-                        <button id="save-product-form" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-medium"><i class="fas fa-save mr-1"></i>Save Product</button>
+                        <button id="cancel-product-form"
+                            class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 text-sm">Cancel</button>
+                        <button id="save-product-form"
+                            class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-medium"><i
+                                class="fas fa-save mr-1"></i>Save Product</button>
                     </div>
                 </div>
             </div>
@@ -1304,7 +1395,7 @@
         // Get environment from session variable, if available, otherwise default to URL param or 'production'
         const ENV = "{{ session.get('env', '') }}" || new URLSearchParams(window.location.search).get('env') || 'production';
         console.log('Current environment:', ENV);
-        
+
         function apiUrl(endpoint) {
             // Always use URL parameter first, then fall back to ENV constant
             const env = getUrlParameter('env') || ENV;
@@ -1659,10 +1750,10 @@
             try {
                 const apiEndpoint = apiUrl(`/api/draft-invoices/${draftId}`);
                 console.log(`Loading draft with ID: ${draftId} from endpoint: ${apiEndpoint}`);
-                
+
                 const response = await fetch(apiEndpoint);
                 console.log(`Draft API response status: ${response.status}`);
-                
+
                 if (!response.ok) {
                     const errorText = await response.text();
                     console.error('Error response:', errorText);
@@ -1673,17 +1764,17 @@
                         throw new Error(`Failed to load draft invoice: Status ${response.status}`);
                     }
                 }
-                
+
                 const draft = await response.json();
                 console.log('Draft data received:', draft);
-                
+
                 if (!draft || !draft.id) {
                     throw new Error('Invalid draft data received from server');
                 }
-                
+
                 // Store draft_id in state
                 state.draft_id = draft.id;
-                
+
                 // Parse invoice data robustly
                 let invoiceData = {};
                 try {
@@ -1705,9 +1796,9 @@
                     console.error('Error parsing invoice_data:', e);
                     invoiceData = {};
                 }
-                
+
                 console.log('Loading draft invoice data:', invoiceData);
-                
+
                 // Set up top-level invoice data
                 state.invoiceData = {
                     invoiceType: invoiceData.invoiceType || 'Sale Invoice',
@@ -1717,7 +1808,7 @@
                     DC: invoiceData.DC || invoiceData.dcNumber || '',
                     scenarioId: invoiceData.scenarioId || '',
                 };
-                
+
                 // Populate seller data
                 if (invoiceData.sellerData) {
                     state.sellerData = invoiceData.sellerData;
@@ -1727,7 +1818,7 @@
                     document.getElementById('seller-province').value = invoiceData.sellerData.sellerProvince || '';
                     document.getElementById('seller-address').value = invoiceData.sellerData.sellerAddress || '';
                 }
-                
+
                 // Populate invoice data fields
                 // Keep invoice type in sync (visible and hidden)
                 const invType = invoiceData.invoiceType || 'Sale Invoice';
@@ -1742,7 +1833,7 @@
                 document.getElementById('po-number').value = invoiceData.poNumber || invoiceData.PO || '';
                 const dcInput = document.getElementById('dc-number');
                 if (dcInput) dcInput.value = invoiceData.DC || invoiceData.dcNumber || '';
-                
+
                 // Only set scenario if available and in sandbox environment
                 if (ENV === 'sandbox' && invoiceData.scenarioId) {
                     const scenarioEl = document.getElementById('scenario-id');
@@ -1751,7 +1842,7 @@
                         syncSaleTypeWithScenario();
                     }
                 }
-                
+
                 // Populate buyer data
                 if (invoiceData.buyerData) {
                     state.buyerData = invoiceData.buyerData;
@@ -1763,7 +1854,7 @@
                     document.getElementById('buyer-registration-type').value = invoiceData.buyerData.buyerRegistrationType || '';
                     document.getElementById('buyer-code').value = invoiceData.buyerData.buyerCode || '';
                 }
-                
+
                 // Populate product items with correct field mapping
                 state.productItems = []; // Clear existing items
 
@@ -1854,17 +1945,17 @@
                 } else if (invoiceData.productItems && Array.isArray(invoiceData.productItems)) {
                     state.productItems = invoiceData.productItems.map(normalizeDraftItem);
                 }
-                
+
                 // Render the product items in the product table
                 renderProductItems();
-                
+
                 // Update the review section with the loaded data
                 updateReviewSection();
-                
+
                 // Skip to review step and mark draft loaded
                 goToStep(5);
                 state.currentStep = 5;
-                
+
                 return true;
             } catch (error) {
                 console.error('Error loading draft invoice:', error);
@@ -1872,7 +1963,7 @@
                 return false;
             }
         }
-        
+
         async function fetchFormOptions() {
             try {
                 const response = await fetch(apiUrl("/api/form-options"));
@@ -2043,7 +2134,7 @@
                 sellerAddress: profile.address,
             };
         }
-                    syncFurtherTaxDefaults();
+        syncFurtherTaxDefaults();
         // Populate buyer form with selected buyer
         function populateBuyerForm(buyer) {
             document.getElementById("buyer-business-name").value =
@@ -2119,7 +2210,7 @@
                     taxAmount: isNaN(taxAmount) ? "NaN" : taxAmount
                 });
                 return;
-                       }
+            }
 
             // Calculate total
             const total = valueExcl + taxAmount;
@@ -2129,7 +2220,7 @@
             if (taxRate && document.getElementById("product-tax-rate").selectedIndex > 0) {
                 formattedTaxRate = document.getElementById("product-tax-rate").options[document.getElementById("product-tax-rate").selectedIndex].textContent.trim();
             }
-            
+
             let furtherTaxPercent = parseFloat(document.getElementById('product-further-tax')?.value || 0);
             if (shouldApplyFurtherTax() && (!Number.isFinite(furtherTaxPercent) || furtherTaxPercent <= 0)) {
                 furtherTaxPercent = 4;
@@ -2212,7 +2303,7 @@
         function renderProductItems() {
             updateProductTable();
         }
-        
+
         // Update product table
         function updateProductTable() {
             const tableBody = document.getElementById("product-items-table");
@@ -2263,7 +2354,7 @@
                 state.productItems.forEach((item, index) => {
                     const row = document.createElement("tr");
                     row.className = "hover:bg-gray-50 transition-colors";
-                    
+
                     // Safely access properties with fallbacks for missing values
                     const productDesc = item.productDescription || '';
                     const productCode = item.product_code || item.productCode || '';
@@ -2334,7 +2425,7 @@
                 if (!state.productItems) {
                     state.productItems = [];
                 }
-                
+
                 const totalValueExcl = state.productItems.reduce(
                     (sum, item) => sum + (parseFloat(item.valueSalesExcludingST) || 0),
                     0
@@ -2415,7 +2506,7 @@
         function updateReviewSection() {
             try {
                 console.log("Updating review section with state:", state);
-                
+
                 // Seller information
                 if (state.sellerData) {
                     document.getElementById("review-seller-name").textContent =
@@ -2448,8 +2539,8 @@
 
                 // Invoice details
                 if (state.invoiceData) {
-                    document.getElementById("review-invoice-type").textContent = 
-                        state.invoiceData.invoiceType || "Sale Invoice"; 
+                    document.getElementById("review-invoice-type").textContent =
+                        state.invoiceData.invoiceType || "Sale Invoice";
                     document.getElementById("review-invoice-date").textContent =
                         state.invoiceData.invoiceDate || "";
                     document.getElementById("review-invoice-ref").textContent =
@@ -2457,7 +2548,7 @@
                     document.getElementById("review-po-number").textContent =
                         state.invoiceData.poNumber || state.invoiceData.PO || "";
                 }
-                
+
                 // Validate product items to ensure they have required properties
                 if (!state.productItems) {
                     state.productItems = [];
@@ -2512,7 +2603,7 @@
                 (sum, item) => sum + (parseFloat(item.valueSalesExcludingST) || 0),
                 0
             ) : 0;
-            
+
             const totalSalesTax = state.productItems ? state.productItems.reduce(
                 (sum, item) => sum + (parseFloat(item.salesTaxApplicable) || 0),
                 0
@@ -2522,7 +2613,7 @@
                 (sum, item) => sum + (item.furtherTaxAmount !== undefined ? parseFloat(item.furtherTaxAmount) || 0 : computeFurtherTaxAmount(item)),
                 0
             ) : 0;
-            
+
             const totalTaxAmount = totalSalesTax + totalFurtherTax;
             const grandTotal = totalValueExcl + totalTaxAmount;
 
@@ -2585,7 +2676,7 @@
                 state.productItems.forEach((item) => {
                     const row = document.createElement("tr");
                     row.className = "hover:bg-gray-50 transition-colors";
-                    
+
                     // Safely access properties with fallbacks for missing values
                     const productDesc = item.productDescription || '';
                     const productCode = item.product_code || item.productCode || '';
@@ -2946,7 +3037,7 @@
                     } else {
                         let s = String(raw).trim();
                         if (s.endsWith('%')) {
-                            const num = parseFloat(s.replace('%',''));
+                            const num = parseFloat(s.replace('%', ''));
                             taxRateStr = isNaN(num) ? s : `${num.toFixed(2)}%`;
                         } else {
                             const num = parseFloat(s);
@@ -3072,18 +3163,18 @@
             console.log('URL parameters:', window.location.search);
             console.log('Environment from constant:', ENV);
             console.log('Environment from URL:', getUrlParameter('env'));
-            
+
             // Check if we should load a draft
             const draftIdFromUrl = getUrlParameter('load_draft');
             console.log('Draft ID from URL:', draftIdFromUrl);
-            
+
             // Fetch data
             fetchUsername();
             fetchFormOptions();
             fetchBusinessProfiles();
             fetchBuyers();
             initUserSpecificFields();
-            
+
             // If draft ID is present, load the draft after other initializations are done
             if (draftIdFromUrl) {
                 console.log(`Draft ID detected in URL: ${draftIdFromUrl}`);
@@ -3172,7 +3263,7 @@
             }
 
             // Buyer plus button now opens buyer management modal
-            document.getElementById("add-buyer-btn")?.addEventListener("click", function(){ openBuyerModal(); });
+            document.getElementById("add-buyer-btn")?.addEventListener("click", function () { openBuyerModal(); });
 
             // Add product item button
             document
@@ -3212,13 +3303,13 @@
             const qtyInput = document.getElementById('product-quantity');
             const rateInput = document.getElementById('product-rate');
             const taxRateSelect = document.getElementById('product-tax-rate');
-            if(qtyInput){
+            if (qtyInput) {
                 qtyInput.addEventListener('input', () => { calculateValueAndTax(); });
             }
-            if(rateInput){
+            if (rateInput) {
                 rateInput.addEventListener('input', () => { calculateValueAndTax(); });
             }
-            if(taxRateSelect){
+            if (taxRateSelect) {
                 taxRateSelect.addEventListener('input', () => { calculateValueAndTax(); });
             }
 
@@ -3481,7 +3572,7 @@
                 generateBtn.classList.add("opacity-50", "cursor-not-allowed");
             }
 
-            ensureCurrentUsername().catch(() => {});
+            ensureCurrentUsername().catch(() => { });
         });
 
         // Product management
@@ -3490,66 +3581,68 @@
         let productMenuOpen = false;
 
         // Ensure SRO defaults helper exists
-        function setSRODefaults(username){
-            const schedEl=document.getElementById('product-sro-schedule-no');
-            const itemEl=document.getElementById('product-sro-item-serial-no');
-            if(!schedEl||!itemEl) return;
-            if(username==='3075270'){
+        function setSRODefaults(username) {
+            const schedEl = document.getElementById('product-sro-schedule-no');
+            const itemEl = document.getElementById('product-sro-item-serial-no');
+            if (!schedEl || !itemEl) return;
+            if (username === '3075270') {
                 // Hard-coded defaults per original logic
-                schedEl.value='EIGHTH SCHEDULE Table 1';
-                itemEl.value='81';
+                schedEl.value = 'EIGHTH SCHEDULE Table 1';
+                itemEl.value = '81';
             }
         }
 
         // Product dropdown (legacy style) handlers restored & integrated
-        function openProductMenu(){ 
-            console.log('Opening product menu'); 
-            const menu=document.getElementById('product-menu'); 
-            if(!menu) { 
-                console.error('Product menu element not found'); 
-                return; 
-            } 
-            menu.classList.remove('hidden'); 
-            productMenuOpen=true; 
-            if(productList.length===0){ 
-                console.log('No products loaded, fetching now'); 
-                fetchProducts(); 
-            } else { 
-                console.log('Rendering product menu with', productList.length, 'items'); 
-                renderProductMenu(document.getElementById('product-filter')?.value||''); 
-            } 
+        function openProductMenu() {
+            console.log('Opening product menu');
+            const menu = document.getElementById('product-menu');
+            if (!menu) {
+                console.error('Product menu element not found');
+                return;
+            }
+            menu.classList.remove('hidden');
+            productMenuOpen = true;
+            if (productList.length === 0) {
+                console.log('No products loaded, fetching now');
+                fetchProducts();
+            } else {
+                console.log('Rendering product menu with', productList.length, 'items');
+                renderProductMenu(document.getElementById('product-filter')?.value || '');
+            }
         }
-        
-        function closeProductMenu(){ 
-            const menu=document.getElementById('product-menu'); 
-            if(!menu) return; 
-            menu.classList.add('hidden'); 
-            productMenuOpen=false; 
+
+        function closeProductMenu() {
+            const menu = document.getElementById('product-menu');
+            if (!menu) return;
+            menu.classList.add('hidden');
+            productMenuOpen = false;
         }
-        
-        function toggleProductMenu(){ 
-            console.log('Toggling product menu, current state:', productMenuOpen ? 'open' : 'closed'); 
-            if(productMenuOpen) closeProductMenu(); 
-            else openProductMenu(); 
+
+        function toggleProductMenu() {
+            console.log('Toggling product menu, current state:', productMenuOpen ? 'open' : 'closed');
+            if (productMenuOpen) closeProductMenu();
+            else openProductMenu();
         }
-        function selectProductRow(p){ if(!p) return; document.getElementById('product-selected-label').textContent=p.description||'-- Select Product --'; // populate main form
-            document.getElementById('product-description').value=p.description||'';
-            document.getElementById('product-hs-code').value=p.hs_code||'';
-            if(p.rate!=null){ document.getElementById('product-rate').value=p.rate; }
-            if(p.uom){ document.getElementById('product-uom').value=p.uom; }
-            if(p.default_tax_rate!=null){ const taxSelect=document.getElementById('product-tax-rate'); const target=`${p.default_tax_rate}%`; for(let i=0;i<taxSelect.options.length;i++){ if(taxSelect.options[i].textContent.trim()===target){ taxSelect.selectedIndex=i; break; } } }
-            document.getElementById('product-sale-type').value=p.sale_type||document.getElementById('product-sale-type').value;
-                    if(isH075895User()){
-                        const productCodeInput=document.getElementById('product-code');
-                        if(productCodeInput){
-                            productCodeInput.value=p.product_code||'';
-                        }
-                    }
+        function selectProductRow(p) {
+            if (!p) return; document.getElementById('product-selected-label').textContent = p.description || '-- Select Product --'; // populate main form
+            document.getElementById('product-description').value = p.description || '';
+            document.getElementById('product-hs-code').value = p.hs_code || '';
+            if (p.rate != null) { document.getElementById('product-rate').value = p.rate; }
+            if (p.uom) { document.getElementById('product-uom').value = p.uom; }
+            if (p.default_tax_rate != null) { const taxSelect = document.getElementById('product-tax-rate'); const target = `${p.default_tax_rate}%`; for (let i = 0; i < taxSelect.options.length; i++) { if (taxSelect.options[i].textContent.trim() === target) { taxSelect.selectedIndex = i; break; } } }
+            document.getElementById('product-sale-type').value = p.sale_type || document.getElementById('product-sale-type').value;
+            if (isH075895User()) {
+                const productCodeInput = document.getElementById('product-code');
+                if (productCodeInput) {
+                    productCodeInput.value = p.product_code || '';
+                }
+            }
             setSRODefaults(currentUsername);
             // If quantity already entered, recalc value & tax
-            if(document.getElementById('product-quantity').value){ calculateValueAndTax(); }
-            showNotification('success','Product Selected','Product fields populated'); }
-        async function deleteProductInline(p){ if(!p||!p.id) return; if(!confirm('Delete this product?')) return; try{ const res=await fetch(apiUrl(`/api/products/${p.id}`),{method:'DELETE'}); const data=await res.json(); if(!res.ok) throw new Error(data.error||'Failed'); showNotification('success','Deleted','Product removed'); await fetchProducts(); openProductMenu(); }catch(e){ showNotification('error','Error',e.message);} }
+            if (document.getElementById('product-quantity').value) { calculateValueAndTax(); }
+            showNotification('success', 'Product Selected', 'Product fields populated');
+        }
+        async function deleteProductInline(p) { if (!p || !p.id) return; if (!confirm('Delete this product?')) return; try { const res = await fetch(apiUrl(`/api/products/${p.id}`), { method: 'DELETE' }); const data = await res.json(); if (!res.ok) throw new Error(data.error || 'Failed'); showNotification('success', 'Deleted', 'Product removed'); await fetchProducts(); openProductMenu(); } catch (e) { showNotification('error', 'Error', e.message); } }
 
         // Fetch user product settings (kept for SRO defaults + username)
         async function fetchProductSettings() {
@@ -3843,62 +3936,62 @@
         }
 
         // --- Fuzzy search utility (simple subsequence & prefix boost) ---
-function fuzzyMatch(term, text) {
-  term = term.toLowerCase();
-  text = text.toLowerCase();
-  if (!term) return 1; // show all when empty
-  if (text.startsWith(term)) return 2 + term.length / text.length; // strong prefix
-  // subsequence
-  let ti = 0;
-  for (let i = 0; i < text.length && ti < term.length; i++) {
-    if (text[i] === term[ti]) ti++;
-  }
-  return ti === term.length ? term.length / (text.length + 1) : 0;
-}
+        function fuzzyMatch(term, text) {
+            term = term.toLowerCase();
+            text = text.toLowerCase();
+            if (!term) return 1; // show all when empty
+            if (text.startsWith(term)) return 2 + term.length / text.length; // strong prefix
+            // subsequence
+            let ti = 0;
+            for (let i = 0; i < text.length && ti < term.length; i++) {
+                if (text[i] === term[ti]) ti++;
+            }
+            return ti === term.length ? term.length / (text.length + 1) : 0;
+        }
 
-let businessProfilesCache = [];
-let editingBusinessProfileId = null;
+        let businessProfilesCache = [];
+        let editingBusinessProfileId = null;
 
-function openBusinessProfileModal() {
-  document.getElementById('business-profile-modal').classList.remove('hidden');
-  loadBusinessProfiles();
-  populateBPProvinces();
-}
-function closeBusinessProfileModal() {
-  document.getElementById('business-profile-modal').classList.add('hidden');
-  resetBPForm();
-}
-function populateBPProvinces(){
-  const sel = document.getElementById('bp-province');
-  if(!sel) return;
-  // reuse existing seller province select options
-  const sellerProvince = document.getElementById('seller-province');
-  if (sellerProvince && sellerProvince.options.length > 1 && sel.options.length <= 1){
-    for (let i=1;i<sellerProvince.options.length;i++){ sel.appendChild(sellerProvince.options[i].cloneNode(true)); }
-  }
-}
-async function loadBusinessProfiles(){
-  try {
-    const res = await fetch(apiUrl('/api/business-profiles'));
-    if(!res.ok) throw new Error('Failed to load');
-    businessProfilesCache = await res.json();
-    renderBusinessProfiles();
-  } catch(e){
-    showNotification('error','Error',e.message);
-  }
-}
-function renderBusinessProfiles(){
-  const list = document.getElementById('business-profile-list');
-  const term = document.getElementById('business-profile-search').value.trim();
-  list.innerHTML='';
-  const scored = businessProfilesCache.map(p=>({p,score:fuzzyMatch(term,p.business_name)})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score || a.p.business_name.localeCompare(b.p.business_name));
-  if(scored.length===0){
-    list.innerHTML = '<div class="text-xs text-gray-500 px-2">No profiles found</div>'; return;
-  }
-  scored.forEach(({p})=>{
-    const row = document.createElement('div');
-    row.className='flex items-start justify-between bg-white rounded border border-gray-200 px-3 py-2 hover:shadow-sm transition';
-    row.innerHTML = `
+        function openBusinessProfileModal() {
+            document.getElementById('business-profile-modal').classList.remove('hidden');
+            loadBusinessProfiles();
+            populateBPProvinces();
+        }
+        function closeBusinessProfileModal() {
+            document.getElementById('business-profile-modal').classList.add('hidden');
+            resetBPForm();
+        }
+        function populateBPProvinces() {
+            const sel = document.getElementById('bp-province');
+            if (!sel) return;
+            // reuse existing seller province select options
+            const sellerProvince = document.getElementById('seller-province');
+            if (sellerProvince && sellerProvince.options.length > 1 && sel.options.length <= 1) {
+                for (let i = 1; i < sellerProvince.options.length; i++) { sel.appendChild(sellerProvince.options[i].cloneNode(true)); }
+            }
+        }
+        async function loadBusinessProfiles() {
+            try {
+                const res = await fetch(apiUrl('/api/business-profiles'));
+                if (!res.ok) throw new Error('Failed to load');
+                businessProfilesCache = await res.json();
+                renderBusinessProfiles();
+            } catch (e) {
+                showNotification('error', 'Error', e.message);
+            }
+        }
+        function renderBusinessProfiles() {
+            const list = document.getElementById('business-profile-list');
+            const term = document.getElementById('business-profile-search').value.trim();
+            list.innerHTML = '';
+            const scored = businessProfilesCache.map(p => ({ p, score: fuzzyMatch(term, p.business_name) })).filter(x => x.score > 0).sort((a, b) => b.score - a.score || a.p.business_name.localeCompare(b.p.business_name));
+            if (scored.length === 0) {
+                list.innerHTML = '<div class="text-xs text-gray-500 px-2">No profiles found</div>'; return;
+            }
+            scored.forEach(({ p }) => {
+                const row = document.createElement('div');
+                row.className = 'flex items-start justify-between bg-white rounded border border-gray-200 px-3 py-2 hover:shadow-sm transition';
+                row.innerHTML = `
       <div class="text-sm"> <div class="font-medium text-gray-800 flex items-center space-x-2">
           <span>${p.business_name}</span>
           ${p.is_default ? '<span class="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">Default</span>' : ''}
@@ -3912,156 +4005,158 @@ function renderBusinessProfiles(){
         <button class="text-red-600 hover:text-red-800 text-xs font-medium" data-action="del" data-id="${p.id}" title="Delete"><i class="fas fa-times"></i></button>
         <button class="text-accent-600 hover:text-accent-700 text-xs font-medium" data-action="apply" data-id="${p.id}" title="Use This"><i class="fas fa-check"></i></button>
       </div>`;
-    list.appendChild(row);
-  });
-  list.querySelectorAll('button[data-action]').forEach(btn=>{
-    btn.addEventListener('click',handleBPAction);
-  });
-}
-function resetBPForm(){
-  editingBusinessProfileId=null;
-  document.getElementById('business-profile-form').classList.add('hidden');
-  ['bp-name','bp-ntn','bp-strn','bp-province','bp-address'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
-  document.getElementById('bp-default').checked=false;
-}
-function showBPForm(edit=false){
-  document.getElementById('business-profile-form').classList.remove('hidden');
-  document.getElementById('business-profile-form-title').textContent = edit? 'Edit Profile':'Create Profile';
-}
-function handleBPAction(e){
-  const id = e.currentTarget.getAttribute('data-id');
-  const action = e.currentTarget.getAttribute('data-action');
-  const profile = businessProfilesCache.find(p=>p.id==id);
-  if(action==='del') return deleteBusinessProfile(id);
-  if(action==='set') return setDefaultBusinessProfile(id);
-  if(action==='apply' ){ applyBusinessProfile(profile); closeBusinessProfileModal(); return; }
-  if(action==='edit' ){ editingBusinessProfileId=id; showBPForm(true); fillBPForm(profile); }
-}
-function fillBPForm(p){
-  if(!p) return; showBPForm(true);
-  document.getElementById('bp-name').value=p.business_name||'';
-  document.getElementById('bp-ntn').value=p.ntn_cnic||'';
-  document.getElementById('bp-strn').value=p.strn||'';
-  document.getElementById('bp-province').value=p.province||'';
-  document.getElementById('bp-address').value=p.address||'';
-  document.getElementById('bp-default').checked=!!p.is_default;
-}
-async function deleteBusinessProfile(id){
-  if(!confirm('Delete this business profile?')) return;
-  try { const res = await fetch(apiUrl(`/api/business-profiles/${id}`),{method:'DELETE'}); const data=await res.json(); if(!res.ok) throw new Error(data.error||'Failed'); showNotification('success','Deleted','Profile removed'); await loadBusinessProfiles(); }
-  catch(err){ showNotification('error','Error',err.message);} }
-async function setDefaultBusinessProfile(id){
-  try { const res = await fetch(apiUrl(`/api/business-profiles/${id}/default`),{method:'POST'}); const data=await res.json(); if(!res.ok) throw new Error(data.error||'Failed'); showNotification('success','Default Set','Profile marked default'); await loadBusinessProfiles(); }
-  catch(err){ showNotification('error','Error',err.message);} }
-function applyBusinessProfile(p){ if(!p) return; populateSellerForm({id:p.id,business_name:p.business_name,ntn_cnic:p.ntn_cnic,strn:p.strn,province:p.province,address:p.address,is_default:p.is_default}); }
-async function saveBusinessProfileFromModal(){
-  const payload={ business_name:document.getElementById('bp-name').value.trim(), ntn_cnic:document.getElementById('bp-ntn').value.trim(), strn:document.getElementById('bp-strn').value.trim(), province:document.getElementById('bp-province').value, address:document.getElementById('bp-address').value.trim(), is_default:document.getElementById('bp-default').checked };
-  if(!payload.business_name||!payload.ntn_cnic||!payload.province||!payload.address){ showNotification('error','Validation','All required fields must be filled'); return; }
-  try {
-    let res, data;
-    if(editingBusinessProfileId){
-      res = await fetch(apiUrl(`/api/business-profiles/${editingBusinessProfileId}`),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-      data = await res.json();
-      if(!res.ok) throw new Error(data.error||'Update failed');
-      showNotification('success','Updated','Profile updated');
-    } else {
-      res = await fetch(apiUrl('/api/business-profiles'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
-      data = await res.json();
-      if(!res.ok) throw new Error(data.error||'Create failed');
-      showNotification('success','Created','Profile created');
-    }
-    await loadBusinessProfiles();
-    // auto apply latest (find by name + ntn)
-    const applied = businessProfilesCache.find(p=>p.business_name===payload.business_name && p.ntn_cnic===payload.ntn_cnic) || businessProfilesCache[businessProfilesCache.length-1];
-    if(applied) applyBusinessProfile(applied);
-    resetBPForm();
-    closeBusinessProfileModal();
-  } catch(err){ showNotification('error','Error',err.message); }
-}
-// Event wiring (defer until DOM ready)
-document.addEventListener('DOMContentLoaded',()=>{
-  // Check again for draft loading (for reliability)
-  const draftIdFromSecondHandler = getUrlParameter('load_draft');
-  if (draftIdFromSecondHandler) {
-    setTimeout(() => {
-      try {
-        loadDraftInvoice(draftIdFromSecondHandler);
-      } catch (e) {
-        console.error('Error loading draft from second handler:', e);
-      }
-    }, 800); // Wait a bit longer than the first handler
-  }
-  // Initialize form
-  // Define setupForm function if not already defined
-  function setupForm() {
-    console.log('Setting up form components');
-    // Ensure product dropdown functionality is ready
-    const productSelectBtn = document.getElementById('product-select-btn');
-    if (productSelectBtn) {
-      console.log('Found product select button, setting up event listener');
-      // Remove any existing listeners to prevent duplicates
-      productSelectBtn.removeEventListener('click', toggleProductMenuHandler);
-      // Add the event listener again
-      productSelectBtn.addEventListener('click', toggleProductMenuHandler);
-    } else {
-      console.error('Product select button not found during setup');
-    }
-  }
-  
-  // Define handler function to avoid anonymous functions
-  function toggleProductMenuHandler(e) {
-    e.preventDefault();
-    console.log('Product select button clicked');
-    toggleProductMenu();
-  }
-  
-  setupForm();
-  
-  const sellerSection = document.getElementById('step-1');
-  if(sellerSection){
-    // Add manage button at bottom of seller section if not exists
-    if(!document.getElementById('open-manage-bp')){
-      const manageBtn = document.createElement('button');
-      manageBtn.id='open-manage-bp';
-      manageBtn.type='button';
-      manageBtn.className='mt-4 bg-secondary-600 hover:bg-secondary-700 text-white px-4 py-2 rounded-md text-sm';
-      manageBtn.innerHTML='<i class="fas fa-building mr-1"></i>Manage Business Profiles';
-      sellerSection.querySelector('#seller-form').appendChild(manageBtn);
-      manageBtn.addEventListener('click',openBusinessProfileModal);
-    }
-  }
-  document.getElementById('close-business-profile-modal')?.addEventListener('click',closeBusinessProfileModal);
-  document.getElementById('business-profile-search')?.addEventListener('input',()=>renderBusinessProfiles());
-  document.getElementById('new-business-profile-btn')?.addEventListener('click',()=>{editingBusinessProfileId=null;resetBPForm();showBPForm(false);});
-  document.getElementById('cancel-bp-form')?.addEventListener('click',resetBPForm);
-  document.getElementById('save-bp-form')?.addEventListener('click',saveBusinessProfileFromModal);
-  document.getElementById('close-buyer-modal')?.addEventListener('click',closeBuyerModal);
-  document.getElementById('buyer-search')?.addEventListener('input',renderBuyerList);
-  document.getElementById('new-buyer-btn')?.addEventListener('click',()=>{ editingBuyerId=null; resetBuyerForm(); showBuyerForm(false); });
-  document.getElementById('cancel-buyer-form')?.addEventListener('click',resetBuyerForm);
-  document.getElementById('save-buyer-form')?.addEventListener('click',saveBuyerFromModal);
-  document.getElementById('close-product-modal')?.addEventListener('click',closeProductModal);
-  document.getElementById('product-search-modal')?.addEventListener('input',()=>{ renderProductListModal(window._allProductsModal||[]); });
-  document.getElementById('refresh-products-btn')?.addEventListener('click',loadProductsModal);
-  document.getElementById('cancel-product-form')?.addEventListener('click',resetProductModalForm);
-  document.getElementById('save-product-form')?.addEventListener('click',saveProductFromModal);
-    // Wire Step 4 plus/reset button to open product modal instead of just clearing fields
-    document.getElementById('reset-product-btn')?.addEventListener('click',function(e){ e.preventDefault(); openProductModal(); });
-    // Product dropdown events - ensure we grab the button directly
-    const productSelectBtn = document.getElementById('product-select-btn');
-    if(productSelectBtn) {
-        console.log('Attaching product select button click handler from DOM ready event');
-        productSelectBtn.addEventListener('click', toggleProductMenuHandler);
-    } else {
-        console.error('Product select button not found in DOM ready event');
-    }
-    document.getElementById('close-product-menu')?.addEventListener('click',function(e){ e.preventDefault(); closeProductMenu(); });
-    document.getElementById('product-filter')?.addEventListener('input',function(){ renderProductMenu(this.value); });
-    // Close menu when clicking outside
-    document.addEventListener('click',function(ev){ const menu=document.getElementById('product-menu'); const btn=document.getElementById('product-select-btn'); if(!menu||menu.classList.contains('hidden')) return; if(!menu.contains(ev.target) && ev.target!==btn){ closeProductMenu(); } });
-    // Initialize products
-    fetchProducts();
-});
+                list.appendChild(row);
+            });
+            list.querySelectorAll('button[data-action]').forEach(btn => {
+                btn.addEventListener('click', handleBPAction);
+            });
+        }
+        function resetBPForm() {
+            editingBusinessProfileId = null;
+            document.getElementById('business-profile-form').classList.add('hidden');
+            ['bp-name', 'bp-ntn', 'bp-strn', 'bp-province', 'bp-address'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+            document.getElementById('bp-default').checked = false;
+        }
+        function showBPForm(edit = false) {
+            document.getElementById('business-profile-form').classList.remove('hidden');
+            document.getElementById('business-profile-form-title').textContent = edit ? 'Edit Profile' : 'Create Profile';
+        }
+        function handleBPAction(e) {
+            const id = e.currentTarget.getAttribute('data-id');
+            const action = e.currentTarget.getAttribute('data-action');
+            const profile = businessProfilesCache.find(p => p.id == id);
+            if (action === 'del') return deleteBusinessProfile(id);
+            if (action === 'set') return setDefaultBusinessProfile(id);
+            if (action === 'apply') { applyBusinessProfile(profile); closeBusinessProfileModal(); return; }
+            if (action === 'edit') { editingBusinessProfileId = id; showBPForm(true); fillBPForm(profile); }
+        }
+        function fillBPForm(p) {
+            if (!p) return; showBPForm(true);
+            document.getElementById('bp-name').value = p.business_name || '';
+            document.getElementById('bp-ntn').value = p.ntn_cnic || '';
+            document.getElementById('bp-strn').value = p.strn || '';
+            document.getElementById('bp-province').value = p.province || '';
+            document.getElementById('bp-address').value = p.address || '';
+            document.getElementById('bp-default').checked = !!p.is_default;
+        }
+        async function deleteBusinessProfile(id) {
+            if (!confirm('Delete this business profile?')) return;
+            try { const res = await fetch(apiUrl(`/api/business-profiles/${id}`), { method: 'DELETE' }); const data = await res.json(); if (!res.ok) throw new Error(data.error || 'Failed'); showNotification('success', 'Deleted', 'Profile removed'); await loadBusinessProfiles(); }
+            catch (err) { showNotification('error', 'Error', err.message); }
+        }
+        async function setDefaultBusinessProfile(id) {
+            try { const res = await fetch(apiUrl(`/api/business-profiles/${id}/default`), { method: 'POST' }); const data = await res.json(); if (!res.ok) throw new Error(data.error || 'Failed'); showNotification('success', 'Default Set', 'Profile marked default'); await loadBusinessProfiles(); }
+            catch (err) { showNotification('error', 'Error', err.message); }
+        }
+        function applyBusinessProfile(p) { if (!p) return; populateSellerForm({ id: p.id, business_name: p.business_name, ntn_cnic: p.ntn_cnic, strn: p.strn, province: p.province, address: p.address, is_default: p.is_default }); }
+        async function saveBusinessProfileFromModal() {
+            const payload = { business_name: document.getElementById('bp-name').value.trim(), ntn_cnic: document.getElementById('bp-ntn').value.trim(), strn: document.getElementById('bp-strn').value.trim(), province: document.getElementById('bp-province').value, address: document.getElementById('bp-address').value.trim(), is_default: document.getElementById('bp-default').checked };
+            if (!payload.business_name || !payload.ntn_cnic || !payload.province || !payload.address) { showNotification('error', 'Validation', 'All required fields must be filled'); return; }
+            try {
+                let res, data;
+                if (editingBusinessProfileId) {
+                    res = await fetch(apiUrl(`/api/business-profiles/${editingBusinessProfileId}`), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                    data = await res.json();
+                    if (!res.ok) throw new Error(data.error || 'Update failed');
+                    showNotification('success', 'Updated', 'Profile updated');
+                } else {
+                    res = await fetch(apiUrl('/api/business-profiles'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                    data = await res.json();
+                    if (!res.ok) throw new Error(data.error || 'Create failed');
+                    showNotification('success', 'Created', 'Profile created');
+                }
+                await loadBusinessProfiles();
+                // auto apply latest (find by name + ntn)
+                const applied = businessProfilesCache.find(p => p.business_name === payload.business_name && p.ntn_cnic === payload.ntn_cnic) || businessProfilesCache[businessProfilesCache.length - 1];
+                if (applied) applyBusinessProfile(applied);
+                resetBPForm();
+                closeBusinessProfileModal();
+            } catch (err) { showNotification('error', 'Error', err.message); }
+        }
+        // Event wiring (defer until DOM ready)
+        document.addEventListener('DOMContentLoaded', () => {
+            // Check again for draft loading (for reliability)
+            const draftIdFromSecondHandler = getUrlParameter('load_draft');
+            if (draftIdFromSecondHandler) {
+                setTimeout(() => {
+                    try {
+                        loadDraftInvoice(draftIdFromSecondHandler);
+                    } catch (e) {
+                        console.error('Error loading draft from second handler:', e);
+                    }
+                }, 800); // Wait a bit longer than the first handler
+            }
+            // Initialize form
+            // Define setupForm function if not already defined
+            function setupForm() {
+                console.log('Setting up form components');
+                // Ensure product dropdown functionality is ready
+                const productSelectBtn = document.getElementById('product-select-btn');
+                if (productSelectBtn) {
+                    console.log('Found product select button, setting up event listener');
+                    // Remove any existing listeners to prevent duplicates
+                    productSelectBtn.removeEventListener('click', toggleProductMenuHandler);
+                    // Add the event listener again
+                    productSelectBtn.addEventListener('click', toggleProductMenuHandler);
+                } else {
+                    console.error('Product select button not found during setup');
+                }
+            }
+
+            // Define handler function to avoid anonymous functions
+            function toggleProductMenuHandler(e) {
+                e.preventDefault();
+                console.log('Product select button clicked');
+                toggleProductMenu();
+            }
+
+            setupForm();
+
+            const sellerSection = document.getElementById('step-1');
+            if (sellerSection) {
+                // Add manage button at bottom of seller section if not exists
+                if (!document.getElementById('open-manage-bp')) {
+                    const manageBtn = document.createElement('button');
+                    manageBtn.id = 'open-manage-bp';
+                    manageBtn.type = 'button';
+                    manageBtn.className = 'mt-4 bg-secondary-600 hover:bg-secondary-700 text-white px-4 py-2 rounded-md text-sm';
+                    manageBtn.innerHTML = '<i class="fas fa-building mr-1"></i>Manage Business Profiles';
+                    sellerSection.querySelector('#seller-form').appendChild(manageBtn);
+                    manageBtn.addEventListener('click', openBusinessProfileModal);
+                }
+            }
+            document.getElementById('close-business-profile-modal')?.addEventListener('click', closeBusinessProfileModal);
+            document.getElementById('business-profile-search')?.addEventListener('input', () => renderBusinessProfiles());
+            document.getElementById('new-business-profile-btn')?.addEventListener('click', () => { editingBusinessProfileId = null; resetBPForm(); showBPForm(false); });
+            document.getElementById('cancel-bp-form')?.addEventListener('click', resetBPForm);
+            document.getElementById('save-bp-form')?.addEventListener('click', saveBusinessProfileFromModal);
+            document.getElementById('close-buyer-modal')?.addEventListener('click', closeBuyerModal);
+            document.getElementById('buyer-search')?.addEventListener('input', renderBuyerList);
+            document.getElementById('new-buyer-btn')?.addEventListener('click', () => { editingBuyerId = null; resetBuyerForm(); showBuyerForm(false); });
+            document.getElementById('cancel-buyer-form')?.addEventListener('click', resetBuyerForm);
+            document.getElementById('save-buyer-form')?.addEventListener('click', saveBuyerFromModal);
+            document.getElementById('close-product-modal')?.addEventListener('click', closeProductModal);
+            document.getElementById('product-search-modal')?.addEventListener('input', () => { renderProductListModal(window._allProductsModal || []); });
+            document.getElementById('new-product-btn')?.addEventListener('click', () => { editingProductId = null; resetProductModalForm(); openProductModal(); });
+            document.getElementById('cancel-product-form')?.addEventListener('click', resetProductModalForm);
+            document.getElementById('save-product-form')?.addEventListener('click', saveProductFromModal);
+            // Wire Step 4 plus/reset button to open product modal instead of just clearing fields
+            document.getElementById('reset-product-btn')?.addEventListener('click', function (e) { e.preventDefault(); openProductModal(); });
+            // Product dropdown events - ensure we grab the button directly
+            const productSelectBtn = document.getElementById('product-select-btn');
+            if (productSelectBtn) {
+                console.log('Attaching product select button click handler from DOM ready event');
+                productSelectBtn.addEventListener('click', toggleProductMenuHandler);
+            } else {
+                console.error('Product select button not found in DOM ready event');
+            }
+            document.getElementById('close-product-menu')?.addEventListener('click', function (e) { e.preventDefault(); closeProductMenu(); });
+            document.getElementById('product-filter')?.addEventListener('input', function () { renderProductMenu(this.value); });
+            // Close menu when clicking outside
+            document.addEventListener('click', function (ev) { const menu = document.getElementById('product-menu'); const btn = document.getElementById('product-select-btn'); if (!menu || menu.classList.contains('hidden')) return; if (!menu.contains(ev.target) && ev.target !== btn) { closeProductMenu(); } });
+            // Initialize products
+            fetchProducts();
+        });
     </script>
     <!-- Save Draft Modal -->
     <div id="save-draft-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
@@ -4097,180 +4192,260 @@ document.addEventListener('DOMContentLoaded',()=>{
 
     <!-- Buyer Management Modal -->
     <div id="buyer-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
-      <div class="modal-overlay absolute inset-0"></div>
-      <div class="bg-white rounded-lg shadow-xl z-50 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div class="p-6">
-          <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-semibold text-gray-900">Manage Buyers</h3>
-            <button id="close-buyer-modal" class="text-gray-400 hover:text-gray-500"><i class="fas fa-times"></i></button>
-          </div>
-          <div class="mb-4 flex items-center space-x-2">
-            <input type="text" id="buyer-search" placeholder="Search buyers..." class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
-            <button id="new-buyer-btn" class="px-3 py-2 bg-secondary-600 hover:bg-secondary-700 text-white rounded-md text-sm"><i class="fas fa-plus mr-1"></i>New</button>
-          </div>
-          <div id="buyer-list" class="space-y-2 mb-6 max-h-60 overflow-y-auto border border-gray-200 rounded-md p-2 bg-gray-50"></div>
-          <div id="buyer-form-modal" class="hidden border-t pt-4">
-            <h4 class="font-medium text-gray-800 mb-2" id="buyer-form-title">Create Buyer</h4>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div><label class="block text-xs font-semibold text-gray-600 mb-1">Business Name*</label><input id="by-name" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"/></div>
-              <div><label class="block text-xs font-semibold text-gray-600 mb-1">NTN/CNIC*</label><input id="by-ntn" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"/></div>
-              <div><label class="block text-xs font-semibold text-gray-600 mb-1">STRN</label><input id="by-strn" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"/></div>
-              <div><label class="block text-xs font-semibold text-gray-600 mb-1">Province*</label><select id="by-province" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"><option value="">-- Select Province --</option></select></div>
-              <div><label class="block text-xs font-semibold text-gray-600 mb-1">Registration Type*</label><select id="by-reg" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"><option value="">-- Select Type --</option></select></div>
-              <div><label class="block text-xs font-semibold text-gray-600 mb-1">Buyer Code</label><input id="by-code" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"/></div>
-              <div class="md:col-span-2"><label class="block text-xs font-semibold text-gray-600 mb-1">Address*</label><textarea id="by-address" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"></textarea></div>
+        <div class="modal-overlay absolute inset-0"></div>
+        <div class="bg-white rounded-lg shadow-xl z-50 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Manage Buyers</h3>
+                    <button id="close-buyer-modal" class="text-gray-400 hover:text-gray-500"><i
+                            class="fas fa-times"></i></button>
+                </div>
+                <div class="mb-4 flex items-center space-x-2">
+                    <input type="text" id="buyer-search" placeholder="Search buyers..."
+                        class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                    <button id="new-buyer-btn"
+                        class="px-3 py-2 bg-secondary-600 hover:bg-secondary-700 text-white rounded-md text-sm"><i
+                            class="fas fa-plus mr-1"></i>New</button>
+                </div>
+                <div id="buyer-list"
+                    class="space-y-2 mb-6 max-h-60 overflow-y-auto border border-gray-200 rounded-md p-2 bg-gray-50">
+                </div>
+                <div id="buyer-form-modal" class="hidden border-t pt-4">
+                    <h4 class="font-medium text-gray-800 mb-2" id="buyer-form-title">Create Buyer</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">Business Name*</label><input
+                                id="by-name" type="text"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                        </div>
+                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">NTN/CNIC*</label><input
+                                id="by-ntn" type="text"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                        </div>
+                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">STRN</label><input
+                                id="by-strn" type="text"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                        </div>
+                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">Province*</label><select
+                                id="by-province"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm">
+                                <option value="">-- Select Province --</option>
+                            </select></div>
+                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">Registration
+                                Type*</label><select id="by-reg"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm">
+                                <option value="">-- Select Type --</option>
+                            </select></div>
+                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">Buyer Code</label><input
+                                id="by-code" type="text"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                        </div>
+                        <div class="md:col-span-2"><label
+                                class="block text-xs font-semibold text-gray-600 mb-1">Address*</label><textarea
+                                id="by-address" rows="2"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"></textarea>
+                        </div>
+                    </div>
+                    <div class="mt-4 flex justify-end space-x-2">
+                        <button id="cancel-buyer-form"
+                            class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 text-sm">Cancel</button>
+                        <button id="save-buyer-form"
+                            class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-medium"><i
+                                class="fas fa-save mr-1"></i>Save Buyer</button>
+                    </div>
+                </div>
             </div>
-            <div class="mt-4 flex justify-end space-x-2">
-              <button id="cancel-buyer-form" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 text-sm">Cancel</button>
-              <button id="save-buyer-form" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-medium"><i class="fas fa-save mr-1"></i>Save Buyer</button>
-            </div>
-          </div>
         </div>
-      </div>
     </div>
 
     <!-- Product Creation Modal -->
     <div id="product-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
-      <div class="modal-overlay absolute inset-0"></div>
-      <div class="bg-white rounded-lg shadow-xl z-50 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div class="p-6">
-          <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-semibold text-gray-900">Create Product</h3>
-            <button id="close-product-modal" class="text-gray-400 hover:text-gray-500"><i class="fas fa-times"></i></button>
-          </div>
-          <div class="mb-4 flex items-center space-x-2">
-            <input type="text" id="product-search-modal" placeholder="Search existing..." class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
-            <button id="refresh-products-btn" class="px-3 py-2 bg-secondary-600 hover:bg-secondary-700 text-white rounded-md text-sm"><i class="fas fa-rotate mr-1"></i>Refresh</button>
-          </div>
-          <div id="product-list-modal" class="space-y-2 mb-6 max-h-56 overflow-y-auto border border-gray-200 rounded-md p-2 bg-gray-50"></div>
-          <div id="product-form-modal" class="border-t pt-4">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div><label class="block text-xs font-semibold text-gray-600 mb-1">Description*</label><input id="pm-desc" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" /></div>
-              <div><label class="block text-xs font-semibold text-gray-600 mb-1">HS Code</label><input id="pm-hs" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" /></div>
-              <div><label class="block text-xs font-semibold text-gray-600 mb-1">Rate (Unit)</label><input id="pm-rate" type="number" step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" /></div>
-              <div><label class="block text-xs font-semibold text-gray-600 mb-1">UoM*</label><select id="pm-uom" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"><option value="">-- Select UoM --</option></select></div>
-              <div><label class="block text-xs font-semibold text-gray-600 mb-1">Default Tax Rate*</label><select id="pm-tax" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"><option value="">-- Select Tax --</option></select></div>
-              <div><label class="block text-xs font-semibold text-gray-600 mb-1">Sale Type</label><input id="pm-sale-type" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" value="Goods at Reduced Rate" /></div>
-              <div><label class="block text-xs font-semibold text-gray-600 mb-1">SRO Schedule No</label><input id="pm-sro-schedule" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" /></div>
-              <div><label class="block text-xs font-semibold text-gray-600 mb-1">SRO Item Serial No</label><input id="pm-sro-item" type="text" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" /></div>
+        <div class="modal-overlay absolute inset-0"></div>
+        <div class="bg-white rounded-lg shadow-xl z-50 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Create Product</h3>
+                    <button id="close-product-modal" class="text-gray-400 hover:text-gray-500"><i
+                            class="fas fa-times"></i></button>
+                </div>
+                <div class="mb-4 flex items-center space-x-2">
+                    <input type="text" id="product-search-modal" placeholder="Search existing..."
+                        class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                    <button id="refresh-products-btn"
+                        class="px-3 py-2 bg-secondary-600 hover:bg-secondary-700 text-white rounded-md text-sm"><i
+                            class="fas fa-rotate mr-1"></i>Refresh</button>
+                </div>
+                <div id="product-list-modal"
+                    class="space-y-2 mb-6 max-h-56 overflow-y-auto border border-gray-200 rounded-md p-2 bg-gray-50">
+                </div>
+                <div id="product-form-modal" class="border-t pt-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">Description*</label><input
+                                id="pm-desc" type="text"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                        </div>
+                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">HS Code</label><input
+                                id="pm-hs" type="text"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                        </div>
+                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">Rate (Unit)</label><input
+                                id="pm-rate" type="number" step="0.01" min="0"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                        </div>
+                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">UoM*</label><select
+                                id="pm-uom"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm">
+                                <option value="">-- Select UoM --</option>
+                            </select></div>
+                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">Default Tax
+                                Rate*</label><select id="pm-tax"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm">
+                                <option value="">-- Select Tax --</option>
+                            </select></div>
+                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">Sale Type</label><input
+                                id="pm-sale-type" type="text"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                                value="Goods at Reduced Rate" /></div>
+                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">SRO Schedule No</label><input
+                                id="pm-sro-schedule" type="text"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                        </div>
+                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">SRO Item Serial
+                                No</label><input id="pm-sro-item" type="text"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                        </div>
+                    </div>
+                    <div class="mt-4 flex justify-end space-x-2">
+                        <button id="cancel-product-form"
+                            class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 text-sm">Cancel</button>
+                        <button id="save-product-form"
+                            class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-medium"><i
+                                class="fas fa-save mr-1"></i>Save Product</button>
+                    </div>
+                </div>
             </div>
-            <div class="mt-4 flex justify-end space-x-2">
-              <button id="cancel-product-form" class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50 text-sm">Cancel</button>
-              <button id="save-product-form" class="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-md text-sm font-medium"><i class="fas fa-save mr-1"></i>Save Product</button>
-            </div>
-          </div>
         </div>
-      </div>
     </div>
     <script>
-let buyersCache=[]; let editingBuyerId=null;
-function openBuyerModal(){ document.getElementById('buyer-modal').classList.remove('hidden'); loadBuyersModal(); populateBuyerModalSelects(); }
-function closeBuyerModal(){ document.getElementById('buyer-modal').classList.add('hidden'); resetBuyerForm(); }
-function populateBuyerModalSelects(){ const provSel=document.getElementById('by-province'); const regSel=document.getElementById('by-reg'); if(provSel && provSel.options.length<=1){ const src=document.getElementById('buyer-province'); for(let i=1;i<src.options.length;i++){ provSel.appendChild(src.options[i].cloneNode(true)); } } if(regSel && regSel.options.length<=1){ const regSrc=document.getElementById('buyer-registration-type'); for(let i=1;i<regSrc.options.length;i++){ regSel.appendChild(regSrc.options[i].cloneNode(true)); } } }
-async function loadBuyersModal(){ try{ const res=await fetch(apiUrl('/api/buyers')); if(!res.ok) throw new Error('Failed to load buyers'); buyersCache=await res.json(); renderBuyerList(); }catch(e){ showNotification('error','Error',e.message);} }
-function renderBuyerList(){
-    const list=document.getElementById('buyer-list');
-    const term=document.getElementById('buyer-search').value.trim();
-    list.innerHTML='';
-    const scored = buyersCache
-        .map(b=>({b,score:fuzzyMatch(term,b.business_name)}))
-        .filter(x=>x.score>0)
-        // FIX: reference b.b not b.p in comparator (previously caused undefined error)
-        .sort((a,b)=> b.score - a.score || a.b.business_name.localeCompare(b.b.business_name));
-    if(scored.length===0){
-        list.innerHTML = '<div class="text-xs text-gray-500 px-2">No buyers found</div>';
-        return;
-    }
-    scored.forEach(({b})=>{
-        const row=document.createElement('div');
-        row.className='flex items-start justify-between bg-white rounded border border-gray-200 px-3 py-2 hover:shadow-sm transition';
-        row.innerHTML=`<div class='text-sm'><div class='font-medium text-gray-800 truncate max-w-[240px]'>${b.business_name}</div><div class='text-xs text-gray-500'>${b.ntn_cnic} • ${b.province}</div><div class='text-xs text-gray-400 truncate max-w-[260px]'>${b.address||''}</div></div><div class='flex items-center space-x-2'><button class='text-blue-600 hover:text-blue-800 text-xs font-medium' data-action='edit' data-id='${b.id}'><i class='fas fa-edit'></i></button><button class='text-red-600 hover:text-red-800 text-xs font-medium' data-action='del' data-id='${b.id}'><i class='fas fa-times'></i></button><button class='text-accent-600 hover:text-accent-700 text-xs font-medium' data-action='apply' data-id='${b.id}'><i class='fas fa-check'></i></button></div>`;
-        list.appendChild(row);
-    });
-    list.querySelectorAll('button[data-action]').forEach(btn=>btn.addEventListener('click',handleBuyerAction));
-}
-function resetBuyerForm(){ editingBuyerId=null; document.getElementById('buyer-form-modal').classList.add('hidden'); ['by-name','by-ntn','by-strn','by-province','by-reg','by-code','by-address'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';}); }
-function showBuyerForm(edit=false){ document.getElementById('buyer-form-modal').classList.remove('hidden'); document.getElementById('buyer-form-title').textContent=edit?'Edit Buyer':'Create Buyer'; }
-function handleBuyerAction(e){ const id=e.currentTarget.getAttribute('data-id'); const action=e.currentTarget.getAttribute('data-action'); const buyer=buyersCache.find(b=>b.id==id); if(action==='del') return deleteBuyer(id); if(action==='apply'){ applyBuyer(buyer); closeBuyerModal(); return;} if(action==='edit' ){ editingBuyerId=id; showBuyerForm(true); fillBuyerForm(buyer); }
-}
-function fillBuyerForm(b){ if(!b) return; ['by-name','by-ntn','by-strn','by-province','by-reg','by-code','by-address'].forEach(()=>{}); document.getElementById('by-name').value=b.business_name||''; document.getElementById('by-ntn').value=b.ntn_cnic||''; document.getElementById('by-strn').value=b.strn||''; document.getElementById('by-province').value=b.province||''; document.getElementById('by-reg').value=b.registration_type||''; document.getElementById('by-code').value=b.buyer_code||''; document.getElementById('by-address').value=b.address||''; }
-async function deleteBuyer(id){ if(!confirm('Delete this buyer?')) return; try{ const res=await fetch(apiUrl(`/api/buyers/${id}`),{method:'DELETE'}); const data=await res.json(); if(!res.ok) throw new Error(data.error||'Failed'); showNotification('success','Deleted','Buyer removed'); await loadBuyersModal(); }
-catch(err){ showNotification('error','Error',err.message);} }
-function applyBuyer(b){ if(!b) return; populateBuyerForm({id:b.id,business_name:b.business_name,address:b.address,province:b.province,ntn_cnic:b.ntn_cnic,strn:b.strn,registration_type:b.registration_type,buyer_code:b.buyer_code}); }
-async function saveBuyerFromModal(){ const payload={ business_name:document.getElementById('by-name').value.trim(), ntn_cnic:document.getElementById('by-ntn').value.trim(), strn:document.getElementById('by-strn').value.trim(), province:document.getElementById('by-province').value, registration_type:document.getElementById('by-reg').value, buyer_code:document.getElementById('by-code').value.trim(), address:document.getElementById('by-address').value.trim() }; if(!payload.business_name||!payload.ntn_cnic||!payload.province||!payload.registration_type||!payload.address){ showNotification('error','Validation','Required fields missing'); return;} const creatingNew=!editingBuyerId; try{ let res,data; if(editingBuyerId){ res=await fetch(apiUrl(`/api/buyers/${editingBuyerId}`),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); data=await res.json(); if(!res.ok) throw new Error(data.error||'Update failed'); showNotification('success','Updated','Buyer updated'); } else { res=await fetch(apiUrl('/api/buyers'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); data=await res.json(); if(!res.ok) throw new Error(data.error||'Create failed'); showNotification('success','Created','Buyer created'); }
-    await loadBuyersModal();
-    if(creatingNew && isH075895User()){
-        if(typeof fetchBuyers==='function'){
-            await fetchBuyers();
+        let buyersCache = []; let editingBuyerId = null;
+        function openBuyerModal() { document.getElementById('buyer-modal').classList.remove('hidden'); loadBuyersModal(); populateBuyerModalSelects(); }
+        function closeBuyerModal() { document.getElementById('buyer-modal').classList.add('hidden'); resetBuyerForm(); }
+        function populateBuyerModalSelects() { const provSel = document.getElementById('by-province'); const regSel = document.getElementById('by-reg'); if (provSel && provSel.options.length <= 1) { const src = document.getElementById('buyer-province'); for (let i = 1; i < src.options.length; i++) { provSel.appendChild(src.options[i].cloneNode(true)); } } if (regSel && regSel.options.length <= 1) { const regSrc = document.getElementById('buyer-registration-type'); for (let i = 1; i < regSrc.options.length; i++) { regSel.appendChild(regSrc.options[i].cloneNode(true)); } } }
+        async function loadBuyersModal() { try { const res = await fetch(apiUrl('/api/buyers')); if (!res.ok) throw new Error('Failed to load buyers'); buyersCache = await res.json(); renderBuyerList(); } catch (e) { showNotification('error', 'Error', e.message); } }
+        function renderBuyerList() {
+            const list = document.getElementById('buyer-list');
+            const term = document.getElementById('buyer-search').value.trim();
+            list.innerHTML = '';
+            const scored = buyersCache
+                .map(b => ({ b, score: fuzzyMatch(term, b.business_name) }))
+                .filter(x => x.score > 0)
+                // FIX: reference b.b not b.p in comparator (previously caused undefined error)
+                .sort((a, b) => b.score - a.score || a.b.business_name.localeCompare(b.b.business_name));
+            if (scored.length === 0) {
+                list.innerHTML = '<div class="text-xs text-gray-500 px-2">No buyers found</div>';
+                return;
+            }
+            scored.forEach(({ b }) => {
+                const row = document.createElement('div');
+                row.className = 'flex items-start justify-between bg-white rounded border border-gray-200 px-3 py-2 hover:shadow-sm transition';
+                row.innerHTML = `<div class='text-sm'><div class='font-medium text-gray-800 truncate max-w-[240px]'>${b.business_name}</div><div class='text-xs text-gray-500'>${b.ntn_cnic} • ${b.province}</div><div class='text-xs text-gray-400 truncate max-w-[260px]'>${b.address || ''}</div></div><div class='flex items-center space-x-2'><button class='text-blue-600 hover:text-blue-800 text-xs font-medium' data-action='edit' data-id='${b.id}'><i class='fas fa-edit'></i></button><button class='text-red-600 hover:text-red-800 text-xs font-medium' data-action='del' data-id='${b.id}'><i class='fas fa-times'></i></button><button class='text-accent-600 hover:text-accent-700 text-xs font-medium' data-action='apply' data-id='${b.id}'><i class='fas fa-check'></i></button></div>`;
+                list.appendChild(row);
+            });
+            list.querySelectorAll('button[data-action]').forEach(btn => btn.addEventListener('click', handleBuyerAction));
         }
-        resetBuyerForm();
-        showNotification('info','Buyer Ready','Select the new buyer from the list to apply it.');
-        return;
-    }
-    const applied=buyersCache.find(b=>b.business_name===payload.business_name && b.ntn_cnic===payload.ntn_cnic) || buyersCache[buyersCache.length-1]; if(applied) applyBuyer(applied); closeBuyerModal(); resetBuyerForm(); }catch(err){ showNotification('error','Error',err.message);} }
+        function resetBuyerForm() { editingBuyerId = null; document.getElementById('buyer-form-modal').classList.add('hidden');['by-name', 'by-ntn', 'by-strn', 'by-province', 'by-reg', 'by-code', 'by-address'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; }); }
+        function showBuyerForm(edit = false) { document.getElementById('buyer-form-modal').classList.remove('hidden'); document.getElementById('buyer-form-title').textContent = edit ? 'Edit Buyer' : 'Create Buyer'; }
+        function handleBuyerAction(e) {
+            const id = e.currentTarget.getAttribute('data-id'); const action = e.currentTarget.getAttribute('data-action'); const buyer = buyersCache.find(b => b.id == id); if (action === 'del') return deleteBuyer(id); if (action === 'apply') { applyBuyer(buyer); closeBuyerModal(); return; } if (action === 'edit') { editingBuyerId = id; showBuyerForm(true); fillBuyerForm(buyer); }
+        }
+        function fillBuyerForm(b) { if (!b) return;['by-name', 'by-ntn', 'by-strn', 'by-province', 'by-reg', 'by-code', 'by-address'].forEach(() => { }); document.getElementById('by-name').value = b.business_name || ''; document.getElementById('by-ntn').value = b.ntn_cnic || ''; document.getElementById('by-strn').value = b.strn || ''; document.getElementById('by-province').value = b.province || ''; document.getElementById('by-reg').value = b.registration_type || ''; document.getElementById('by-code').value = b.buyer_code || ''; document.getElementById('by-address').value = b.address || ''; }
+        async function deleteBuyer(id) {
+            if (!confirm('Delete this buyer?')) return; try { const res = await fetch(apiUrl(`/api/buyers/${id}`), { method: 'DELETE' }); const data = await res.json(); if (!res.ok) throw new Error(data.error || 'Failed'); showNotification('success', 'Deleted', 'Buyer removed'); await loadBuyersModal(); }
+                catch (err) { showNotification('error', 'Error', err.message); }
+        }
+        function applyBuyer(b) { if (!b) return; populateBuyerForm({ id: b.id, business_name: b.business_name, address: b.address, province: b.province, ntn_cnic: b.ntn_cnic, strn: b.strn, registration_type: b.registration_type, buyer_code: b.buyer_code }); }
+        async function saveBuyerFromModal() {
+            const payload = { business_name: document.getElementById('by-name').value.trim(), ntn_cnic: document.getElementById('by-ntn').value.trim(), strn: document.getElementById('by-strn').value.trim(), province: document.getElementById('by-province').value, registration_type: document.getElementById('by-reg').value, buyer_code: document.getElementById('by-code').value.trim(), address: document.getElementById('by-address').value.trim() }; if (!payload.business_name || !payload.ntn_cnic || !payload.province || !payload.registration_type || !payload.address) { showNotification('error', 'Validation', 'Required fields missing'); return; } const creatingNew = !editingBuyerId; try {
+                let res, data; if (editingBuyerId) { res = await fetch(apiUrl(`/api/buyers/${editingBuyerId}`), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); data = await res.json(); if (!res.ok) throw new Error(data.error || 'Update failed'); showNotification('success', 'Updated', 'Buyer updated'); } else { res = await fetch(apiUrl('/api/buyers'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); data = await res.json(); if (!res.ok) throw new Error(data.error || 'Create failed'); showNotification('success', 'Created', 'Buyer created'); }
+                await loadBuyersModal();
+                if (creatingNew && isH075895User()) {
+                    if (typeof fetchBuyers === 'function') {
+                        await fetchBuyers();
+                    }
+                    resetBuyerForm();
+                    showNotification('info', 'Buyer Ready', 'Select the new buyer from the list to apply it.');
+                    return;
+                }
+                const applied = buyersCache.find(b => b.business_name === payload.business_name && b.ntn_cnic === payload.ntn_cnic) || buyersCache[buyersCache.length - 1]; if (applied) applyBuyer(applied); closeBuyerModal(); resetBuyerForm();
+            } catch (err) { showNotification('error', 'Error', err.message); }
+        }
 
-// ---------------- Product Modal Logic (mirrors buyer modal) ----------------
-let productsCache = []; let editingProductId = null;
-function openProductModal(){ document.getElementById('product-modal').classList.remove('hidden'); loadProductsModal(); populateProductModalSelects(); }
-function closeProductModal(){ document.getElementById('product-modal').classList.add('hidden'); resetProductModalForm(); }
-function populateProductModalSelects(){ const uomSel=document.getElementById('pm-uom'); const taxSel=document.getElementById('pm-tax'); if(uomSel && uomSel.options.length<=1){ const src=document.getElementById('product-uom'); for(let i=1;i<src.options.length;i++){ uomSel.appendChild(src.options[i].cloneNode(true)); } } if(taxSel && taxSel.options.length<=1){ const taxSrc=document.getElementById('product-tax-rate'); for(let i=1;i<taxSrc.options.length;i++){ taxSel.appendChild(taxSrc.options[i].cloneNode(true)); } } }
-async function loadProductsModal(){
-    try{
-        await ensureCurrentUsername();
-        const baseUrl=apiUrl('/api/products');
-        const url=isH075895User()? `${baseUrl}&includeProductCode=true` : baseUrl;
-        const res=await fetch(url);
-        if(!res.ok) throw new Error('Failed to load products');
-        productsCache=await res.json();
-        window._allProductsModal = productsCache.slice();
-        renderProductListModal(productsCache);
-    }catch(e){
-        showNotification('error','Error',e.message);
-    }
-}
-function renderProductListModal(arr){ const list=document.getElementById('product-list-modal'); if(!list) return; const term=(document.getElementById('product-search-modal').value||'').trim(); list.innerHTML=''; const scored=arr.map(p=>({p,score:fuzzyMatch(term,p.description||'')})).filter(x=>x.score>0).sort((a,b)=> b.score-a.score || (a.p.description||'').localeCompare(b.p.description||'')); if(scored.length===0){ list.innerHTML='<div class="text-xs text-gray-500 px-2">No products found</div>'; return;} scored.forEach(({p})=>{ const row=document.createElement('div'); row.className='flex items-start justify-between bg-white rounded border border-gray-200 px-3 py-2 hover:shadow-sm transition'; row.innerHTML=`<div class='text-sm'><div class='font-medium text-gray-800 truncate max-w-[240px]'>${p.description||''}</div><div class='text-xs text-gray-500'>${p.hs_code||''} ${(p.uom? '• '+p.uom:'')}</div><div class='text-xs text-gray-400 truncate max-w-[260px]'>${p.sale_type||''}</div></div><div class='flex items-center space-x-2'><button class='text-blue-600 hover:text-blue-800 text-xs font-medium' data-action='edit' data-id='${p.id}'><i class='fas fa-edit'></i></button><button class='text-red-600 hover:text-red-800 text-xs font-medium' data-action='del' data-id='${p.id}'><i class='fas fa-times'></i></button><button class='text-accent-600 hover:text-accent-700 text-xs font-medium' data-action='apply' data-id='${p.id}'><i class='fas fa-check'></i></button></div>`; list.appendChild(row);} ); list.querySelectorAll('button[data-action]').forEach(btn=>btn.addEventListener('click',handleProductAction)); }
-function resetProductModalForm(){ editingProductId=null; ['pm-desc','pm-code','pm-hs','pm-rate','pm-uom','pm-tax','pm-sale-type','pm-sro-schedule','pm-sro-item'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; }); document.getElementById('product-form-modal')?.classList.remove('hidden'); }
-function showProductForm(edit=false){ document.getElementById('product-form-modal').classList.remove('hidden'); }
-function handleProductAction(e){ const id=e.currentTarget.getAttribute('data-id'); const action=e.currentTarget.getAttribute('data-action'); const prod=productsCache.find(p=>p.id==id); if(action==='del') return deleteProductFromModal(id); if(action==='apply'){ applyProduct(prod); closeProductModal(); return;} if(action==='edit'){ editingProductId=id; fillProductForm(prod); showProductForm(true);} }
-function fillProductForm(p){ if(!p) return; document.getElementById('pm-desc').value=p.description||''; const pmCodeInput=document.getElementById('pm-code'); if(pmCodeInput){ pmCodeInput.value=isH075895User()? (p.product_code||'') : ''; } document.getElementById('pm-hs').value=p.hs_code||''; document.getElementById('pm-rate').value=p.rate||''; document.getElementById('pm-uom').value=p.uom||''; document.getElementById('pm-tax').value=p.default_tax_rate||''; document.getElementById('pm-sale-type').value=p.sale_type||'Goods at Reduced Rate'; document.getElementById('pm-sro-schedule').value=p.sro_schedule_no||''; document.getElementById('pm-sro-item').value=p.sro_item_serial_no||''; }
-function applyProduct(p){ if(!p) return; // fill main product entry form for new line item
-    document.getElementById('product-description').value=p.description||'';
-    document.getElementById('product-hs-code').value=p.hs_code||'';
-    if(p.rate!=null){ document.getElementById('product-rate').value=p.rate; }
-    if(p.uom){ document.getElementById('product-uom').value=p.uom; }
-    // match tax rate label if exists
-    if(p.default_tax_rate!=null){ const taxSelect=document.getElementById('product-tax-rate'); const target=`${p.default_tax_rate}%`; for(let i=0;i<taxSelect.options.length;i++){ if(taxSelect.options[i].textContent.trim()===target){ taxSelect.selectedIndex=i; break; } } }
-    document.getElementById('product-sale-type').value=p.sale_type||document.getElementById('product-sale-type').value;
-    // SRO defaults based on current user (not product) stay via setSRODefaults
-    setSRODefaults(currentUsername);
-    if(isH075895User()){
-        const mainProductCodeInput=document.getElementById('product-code');
-        if(mainProductCodeInput){
-            const catalogCode=(p&&p.product_code)||'';
-            let modalValue='';
-            const modalProductCode=document.getElementById('pm-code');
-            if(modalProductCode){
-                modalValue=modalProductCode.value.trim();
+        // ---------------- Product Modal Logic (mirrors buyer modal) ----------------
+        let productsCache = []; let editingProductId = null;
+        function openProductModal() { document.getElementById('product-modal').classList.remove('hidden'); loadProductsModal(); populateProductModalSelects(); }
+        function closeProductModal() { document.getElementById('product-modal').classList.add('hidden'); resetProductModalForm(); }
+        function populateProductModalSelects() { const uomSel = document.getElementById('pm-uom'); const taxSel = document.getElementById('pm-tax'); if (uomSel && uomSel.options.length <= 1) { const src = document.getElementById('product-uom'); for (let i = 1; i < src.options.length; i++) { uomSel.appendChild(src.options[i].cloneNode(true)); } } if (taxSel && taxSel.options.length <= 1) { const taxSrc = document.getElementById('product-tax-rate'); for (let i = 1; i < taxSrc.options.length; i++) { taxSel.appendChild(taxSrc.options[i].cloneNode(true)); } } }
+        async function loadProductsModal() {
+            try {
+                await ensureCurrentUsername();
+                const baseUrl = apiUrl('/api/products');
+                const url = isH075895User() ? `${baseUrl}&includeProductCode=true` : baseUrl;
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('Failed to load products');
+                productsCache = await res.json();
+                window._allProductsModal = productsCache.slice();
+                renderProductListModal(productsCache);
+            } catch (e) {
+                showNotification('error', 'Error', e.message);
             }
-            mainProductCodeInput.value=catalogCode||modalValue||mainProductCodeInput.value;
         }
-    }
-    if(document.getElementById('product-quantity').value){ calculateValueAndTax(); }
-    showNotification('success','Product Applied','Fields populated from product');
-}
-async function saveProductFromModal(){ const pmRate=parseFloat(document.getElementById('pm-rate').value)||0; const payload={ description:document.getElementById('pm-desc').value.trim(), hs_code:document.getElementById('pm-hs').value.trim(), rate:pmRate, uom:document.getElementById('pm-uom').value, default_tax_rate: parseFloat(document.getElementById('pm-tax').value)||0, sale_type:document.getElementById('pm-sale-type').value.trim(), sro_schedule_no:document.getElementById('pm-sro-schedule').value.trim(), sro_item_serial_no:document.getElementById('pm-sro-item').value.trim() }; const pmCodeInput=document.getElementById('pm-code'); if(isH075895User()){ payload.product_code=pmCodeInput? pmCodeInput.value.trim():''; payload.sale_type=''; payload.sro_schedule_no=''; payload.sro_item_serial_no=''; } if(!payload.description||!payload.uom){ showNotification('error','Validation','Description and UoM required'); return;} const creatingNew=!editingProductId; try { let res,data; if(editingProductId){ res=await fetch(apiUrl(`/api/products/${editingProductId}`),{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); data=await res.json(); if(!res.ok) throw new Error(data.error||'Update failed'); showNotification('success','Updated','Product updated'); } else { res=await fetch(apiUrl('/api/products'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}); data=await res.json(); if(!res.ok) throw new Error(data.error||'Create failed'); showNotification('success','Created','Product created'); }
-        await loadProductsModal();
-        if(creatingNew && isH075895User()){
-            if(typeof fetchProducts==='function'){
-                await fetchProducts();
+        function renderProductListModal(arr) { const list = document.getElementById('product-list-modal'); if (!list) return; const term = (document.getElementById('product-search-modal').value || '').trim(); list.innerHTML = ''; const scored = arr.map(p => ({ p, score: fuzzyMatch(term, p.description || '') })).filter(x => x.score > 0).sort((a, b) => b.score - a.score || (a.p.description || '').localeCompare(b.p.description || '')); if (scored.length === 0) { list.innerHTML = '<div class="text-xs text-gray-500 px-2">No products found</div>'; return; } scored.forEach(({ p }) => { const row = document.createElement('div'); row.className = 'flex items-start justify-between bg-white rounded border border-gray-200 px-3 py-2 hover:shadow-sm transition'; row.innerHTML = `<div class='text-sm'><div class='font-medium text-gray-800 truncate max-w-[240px]'>${p.description || ''}</div><div class='text-xs text-gray-500'>${p.hs_code || ''} ${(p.uom ? '• ' + p.uom : '')}</div><div class='text-xs text-gray-400 truncate max-w-[260px]'>${p.sale_type || ''}</div></div><div class='flex items-center space-x-2'><button class='text-blue-600 hover:text-blue-800 text-xs font-medium' data-action='edit' data-id='${p.id}'><i class='fas fa-edit'></i></button><button class='text-red-600 hover:text-red-800 text-xs font-medium' data-action='del' data-id='${p.id}'><i class='fas fa-times'></i></button><button class='text-accent-600 hover:text-accent-700 text-xs font-medium' data-action='apply' data-id='${p.id}'><i class='fas fa-check'></i></button></div>`; list.appendChild(row); }); list.querySelectorAll('button[data-action]').forEach(btn => btn.addEventListener('click', handleProductAction)); }
+        function resetProductModalForm() { editingProductId = null;['pm-desc', 'pm-code', 'pm-hs', 'pm-rate', 'pm-uom', 'pm-tax', 'pm-sale-type', 'pm-sro-schedule', 'pm-sro-item'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; }); document.getElementById('product-form-modal')?.classList.add('hidden'); const titleEl = document.getElementById('product-form-title'); if (titleEl) titleEl.textContent = 'Create Product'; }
+        function showProductForm(edit = false) { document.getElementById('product-form-modal').classList.remove('hidden'); const titleEl = document.getElementById('product-form-title'); if (titleEl) titleEl.textContent = edit ? 'Edit Product' : 'Create Product'; }
+        function handleProductAction(e) { const id = e.currentTarget.getAttribute('data-id'); const action = e.currentTarget.getAttribute('data-action'); const prod = productsCache.find(p => p.id == id); if (action === 'del') return deleteProductFromModal(id); if (action === 'apply') { applyProduct(prod); closeProductModal(); return; } if (action === 'edit') { editingProductId = id; fillProductForm(prod); showProductForm(true); } }
+        function fillProductForm(p) { if (!p) return; document.getElementById('pm-desc').value = p.description || ''; const pmCodeInput = document.getElementById('pm-code'); if (pmCodeInput) { pmCodeInput.value = isH075895User() ? (p.product_code || '') : ''; } document.getElementById('pm-hs').value = p.hs_code || ''; document.getElementById('pm-rate').value = p.rate || ''; document.getElementById('pm-uom').value = p.uom || ''; document.getElementById('pm-tax').value = p.default_tax_rate || ''; document.getElementById('pm-sale-type').value = p.sale_type || 'Goods at Reduced Rate'; document.getElementById('pm-sro-schedule').value = p.sro_schedule_no || ''; document.getElementById('pm-sro-item').value = p.sro_item_serial_no || ''; }
+        function applyProduct(p) {
+            if (!p) return; // fill main product entry form for new line item
+            document.getElementById('product-description').value = p.description || '';
+            document.getElementById('product-hs-code').value = p.hs_code || '';
+            if (p.rate != null) { document.getElementById('product-rate').value = p.rate; }
+            if (p.uom) { document.getElementById('product-uom').value = p.uom; }
+            // match tax rate label if exists
+            if (p.default_tax_rate != null) { const taxSelect = document.getElementById('product-tax-rate'); const target = `${p.default_tax_rate}%`; for (let i = 0; i < taxSelect.options.length; i++) { if (taxSelect.options[i].textContent.trim() === target) { taxSelect.selectedIndex = i; break; } } }
+            document.getElementById('product-sale-type').value = p.sale_type || document.getElementById('product-sale-type').value;
+            // SRO defaults based on current user (not product) stay via setSRODefaults
+            setSRODefaults(currentUsername);
+            if (isH075895User()) {
+                const mainProductCodeInput = document.getElementById('product-code');
+                if (mainProductCodeInput) {
+                    const catalogCode = (p && p.product_code) || '';
+                    let modalValue = '';
+                    const modalProductCode = document.getElementById('pm-code');
+                    if (modalProductCode) {
+                        modalValue = modalProductCode.value.trim();
+                    }
+                    mainProductCodeInput.value = catalogCode || modalValue || mainProductCodeInput.value;
+                }
             }
-            resetProductModalForm();
-            showNotification('info','Product Ready','Select the saved product from the list when needed.');
-            return;
+            if (document.getElementById('product-quantity').value) { calculateValueAndTax(); }
+            showNotification('success', 'Product Applied', 'Fields populated from product');
         }
-        const applied=productsCache.find(p=>p.description===payload.description && p.hs_code===payload.hs_code) || productsCache[productsCache.length-1]; if(applied) applyProduct(applied); closeProductModal(); resetProductModalForm(); } catch(err){ showNotification('error','Error',err.message);} }
-async function deleteProductFromModal(id){ if(!confirm('Delete this product?')) return; try{ const res=await fetch(apiUrl(`/api/products/${id}`),{method:'DELETE'}); const data=await res.json(); if(!res.ok) throw new Error(data.error||'Failed'); showNotification('success','Deleted','Product removed'); await loadProductsModal(); } catch(err){ showNotification('error','Error',err.message);} }
+        async function saveProductFromModal() {
+            const pmRate = parseFloat(document.getElementById('pm-rate').value) || 0; const payload = { description: document.getElementById('pm-desc').value.trim(), hs_code: document.getElementById('pm-hs').value.trim(), rate: pmRate, uom: document.getElementById('pm-uom').value, default_tax_rate: parseFloat(document.getElementById('pm-tax').value) || 0, sale_type: document.getElementById('pm-sale-type').value.trim(), sro_schedule_no: document.getElementById('pm-sro-schedule').value.trim(), sro_item_serial_no: document.getElementById('pm-sro-item').value.trim() }; const pmCodeInput = document.getElementById('pm-code'); if (isH075895User()) { payload.product_code = pmCodeInput ? pmCodeInput.value.trim() : ''; payload.sale_type = ''; payload.sro_schedule_no = ''; payload.sro_item_serial_no = ''; } if (!payload.description || !payload.uom) { showNotification('error', 'Validation', 'Description and UoM required'); return; } const creatingNew = !editingProductId; try {
+                let res, data; if (editingProductId) { res = await fetch(apiUrl(`/api/products/${editingProductId}`), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); data = await res.json(); if (!res.ok) throw new Error(data.error || 'Update failed'); showNotification('success', 'Updated', 'Product updated'); } else { res = await fetch(apiUrl('/api/products'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); data = await res.json(); if (!res.ok) throw new Error(data.error || 'Create failed'); showNotification('success', 'Created', 'Product created'); }
+                await loadProductsModal();
+                if (creatingNew && isH075895User()) {
+                    if (typeof fetchProducts === 'function') {
+                        await fetchProducts();
+                    }
+                    resetProductModalForm();
+                    showNotification('info', 'Product Ready', 'Select the saved product from the list when needed.');
+                    return;
+                }
+                const applied = productsCache.find(p => p.description === payload.description && p.hs_code === payload.hs_code) || productsCache[productsCache.length - 1]; if (applied) applyProduct(applied); closeProductModal(); resetProductModalForm();
+            } catch (err) { showNotification('error', 'Error', err.message); }
+        }
+        async function deleteProductFromModal(id) { if (!confirm('Delete this product?')) return; try { const res = await fetch(apiUrl(`/api/products/${id}`), { method: 'DELETE' }); const data = await res.json(); if (!res.ok) throw new Error(data.error || 'Failed'); showNotification('success', 'Deleted', 'Product removed'); await loadProductsModal(); } catch (err) { showNotification('error', 'Error', err.message); } }
     </script>
-  </body>
+</body>
 
 </html>
