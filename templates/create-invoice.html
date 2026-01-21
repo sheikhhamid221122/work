@@ -2275,14 +2275,29 @@
         }
 
         // Populate seller form with selected profile
+        // Helper function to set select value with case-insensitive matching
+        function setSelectValueCaseInsensitive(selectElement, value) {
+            if (!selectElement || !value) return;
+            const upperValue = value.toUpperCase();
+            for (let i = 0; i < selectElement.options.length; i++) {
+                if (selectElement.options[i].value.toUpperCase() === upperValue) {
+                    selectElement.selectedIndex = i;
+                    return;
+                }
+            }
+            // Fallback: try exact match
+            selectElement.value = value;
+        }
+
         function populateSellerForm(profile) {
             document.getElementById("seller-business-name").value =
                 profile.business_name || "";
             document.getElementById("seller-ntn-cnic").value =
                 profile.ntn_cnic || "";
             document.getElementById("seller-strn").value = profile.strn || "";
-            document.getElementById("seller-province").value =
-                profile.province || "";
+            // Use case-insensitive matching for province
+            const sellerProvinceEl = document.getElementById("seller-province");
+            setSelectValueCaseInsensitive(sellerProvinceEl, profile.province || "");
             document.getElementById("seller-address").value = profile.address || "";
 
             // Update state
@@ -2302,7 +2317,9 @@
                 buyer.business_name || "";
             document.getElementById("buyer-ntn-cnic").value = buyer.ntn_cnic || "";
             document.getElementById("buyer-strn").value = buyer.strn || "";
-            document.getElementById("buyer-province").value = buyer.province || "";
+            // Use case-insensitive matching for province
+            const buyerProvinceEl = document.getElementById("buyer-province");
+            setSelectValueCaseInsensitive(buyerProvinceEl, buyer.province || "");
             document.getElementById("buyer-registration-type").value =
                 buyer.registration_type || "";
             document.getElementById("buyer-code").value = buyer.buyer_code || "";
