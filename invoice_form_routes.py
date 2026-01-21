@@ -847,6 +847,46 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
     # ---------------- Form Options ----------------
     @app.route("/api/form-options", methods=["GET"])
     def get_form_options():
+        # Static province list - matching values stored in database
+        provinces_data = [
+            {"value": "PUNJAB", "label": "PUNJAB"},
+            {"value": "SINDH", "label": "SINDH"},
+            {"value": "KPK", "label": "KPK"},
+            {"value": "BALOCHISTAN", "label": "BALOCHISTAN"},
+            {"value": "ISLAMABAD", "label": "ISLAMABAD"},
+            {"value": "AJK", "label": "AJK"},
+            {"value": "GILGIT BALTISTAN", "label": "GILGIT BALTISTAN"},
+        ]
+        
+        # Sale types per FBR Documentation Section 9 - Scenarios for Sandbox Testing
+        # These are the official sale type values that map to each scenario
+        sale_types_data = [
+            {"value": "Goods at Standard Rate (default)", "label": "Goods at Standard Rate (default)"},
+            {"value": "Steel melting and re-rolling", "label": "Steel melting and re-rolling"},
+            {"value": "Ship breaking", "label": "Ship breaking"},
+            {"value": "Goods at Reduced Rate", "label": "Goods at Reduced Rate"},
+            {"value": "Exempt Goods", "label": "Exempt Goods"},
+            {"value": "Goods at zero-rate", "label": "Goods at zero-rate"},
+            {"value": "3rd Schedule Goods", "label": "3rd Schedule Goods"},
+            {"value": "Cotton Ginners", "label": "Cotton Ginners"},
+            {"value": "Telecommunication services", "label": "Telecommunication services"},
+            {"value": "Toll Manufacturing", "label": "Toll Manufacturing"},
+            {"value": "Petroleum Products", "label": "Petroleum Products"},
+            {"value": "Electricity Supply to Retailers", "label": "Electricity Supply to Retailers"},
+            {"value": "Gas to CNG stations", "label": "Gas to CNG stations"},
+            {"value": "Mobile Phones", "label": "Mobile Phones"},
+            {"value": "Processing/ Conversion of Goods", "label": "Processing/ Conversion of Goods"},
+            {"value": "Goods (FED in ST Mode)", "label": "Goods (FED in ST Mode)"},
+            {"value": "Services (FED in ST Mode)", "label": "Services (FED in ST Mode)"},
+            {"value": "Services", "label": "Services"},
+            {"value": "Electric Vehicle", "label": "Electric Vehicle"},
+            {"value": "Cement /Concrete Block", "label": "Cement /Concrete Block"},
+            {"value": "Potassium Chlorate", "label": "Potassium Chlorate"},
+            {"value": "CNG Sales", "label": "CNG Sales"},
+            {"value": "Goods as per SRO.297(|)/2023", "label": "Goods as per SRO.297(|)/2023"},
+            {"value": "Non-Adjustable Supplies", "label": "Non-Adjustable Supplies"},
+        ]
+        
         return jsonify(
             {
                 "invoiceTypes": [
@@ -854,26 +894,15 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                     {"value": "Credit Note", "label": "Credit Note"},
                     {"value": "Debit Note", "label": "Debit Note"},
                 ],
-                "provinces": [
-                    {"value": "Punjab", "label": "Punjab"},
-                    {"value": "Sindh", "label": "Sindh"},
-                    {"value": "KPK", "label": "KPK"},
-                    {"value": "Balochistan", "label": "Balochistan"},
-                    {"value": "Gilgit-Baltistan", "label": "Gilgit-Baltistan"},
-                    {
-                        "value": "Azad Jammu and Kashmir",
-                        "label": "Azad Jammu and Kashmir",
-                    },
-                    {
-                        "value": "Islamabad Capital Territory",
-                        "label": "Islamabad Capital Territory",
-                    },
-                ],
+                "provinces": provinces_data,
+                # Registration types per FBR doc - only 2 valid values for buyerRegistrationType
                 "registrationTypes": [
                     {"value": "Registered", "label": "Registered"},
                     {"value": "Unregistered", "label": "Unregistered"},
-                    {"value": "NTN Tax Base", "label": "NTN Tax Base"},
                 ],
+                "saleTypes": sale_types_data,
+                # Extended UOM list - fallback values if FBR API unavailable
+                # Dynamic UOMs are fetched via /api/reference/uoms and /api/reference/hs-uom
                 "uoms": [
                     {"value": "Numbers, pieces, units", "label": "Numbers, pieces, units"},
                     {"value": "KG", "label": "KG - Kilogram"},
@@ -881,6 +910,35 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                     {"value": "LTR", "label": "LTR - Liter"},
                     {"value": "KWH", "label": "KWH - Kilowatt Hour"},
                     {"value": "MTR", "label": "MTR - Meter"},
+                    {"value": "Square Metre", "label": "Square Metre"},
+                    {"value": "CFT", "label": "CFT - Cubic Feet"},
+                    {"value": "SFT", "label": "SFT - Square Feet"},
+                    {"value": "PAIRS", "label": "PAIRS"},
+                    {"value": "DOZEN", "label": "DOZEN"},
+                    {"value": "GROSS", "label": "GROSS"},
+                    {"value": "SET", "label": "SET"},
+                    {"value": "PACK", "label": "PACK"},
+                    {"value": "REAM", "label": "REAM"},
+                    {"value": "ROLL", "label": "ROLL"},
+                    {"value": "SHEET", "label": "SHEET"},
+                    {"value": "TON", "label": "TON"},
+                    {"value": "YARD", "label": "YARD"},
+                    {"value": "FEET", "label": "FEET"},
+                    {"value": "INCH", "label": "INCH"},
+                    {"value": "CM", "label": "CM - Centimeter"},
+                    {"value": "MM", "label": "MM - Millimeter"},
+                    {"value": "GRAM", "label": "GRAM"},
+                    {"value": "ML", "label": "ML - Milliliter"},
+                    {"value": "GALLON", "label": "GALLON"},
+                    {"value": "BARREL", "label": "BARREL"},
+                    {"value": "BAG", "label": "BAG"},
+                    {"value": "BOX", "label": "BOX"},
+                    {"value": "CARTON", "label": "CARTON"},
+                    {"value": "BOTTLE", "label": "BOTTLE"},
+                    {"value": "CAN", "label": "CAN"},
+                    {"value": "DRUM", "label": "DRUM"},
+                    {"value": "BUNDLE", "label": "BUNDLE"},
+                    {"value": "BALE", "label": "BALE"},
                 ],
                 "scenarioIds": [
                     {"value": f"SN{str(i).zfill(3)}", "label": f"SN{str(i).zfill(3)}"}
@@ -908,6 +966,14 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                     {"value": "24.00%", "label": "24%"},
                     {"value": "25.00%", "label": "25%"},
                 ],
+                # Flag to indicate dynamic HS/UOM features are available
+                "dynamicReferenceDataEnabled": True,
+                "referenceDataEndpoints": {
+                    "hsCodes": "/api/reference/hs-codes",
+                    "uoms": "/api/reference/uoms",
+                    "hsUom": "/api/reference/hs-uom",
+                    "validate": "/api/reference/validate-hs-uom"
+                }
             }
         )
 

@@ -1,6 +1,7 @@
 from reports_routes import add_reports_routes
 from invoice_form_routes import add_invoice_form_routes
 from draft_invoice_routes import add_draft_invoice_routes
+from fbr_reference_routes import add_fbr_reference_routes
 from flask import Flask, render_template, request, jsonify, send_file
 from flask import render_template
 from flask import session, redirect, url_for
@@ -385,6 +386,9 @@ def generate_form_invoice():
         elif username == "7542425":
             template_name = "invoice_template3.html"
             print(f"Selected template: {template_name} for username 7542425")
+        elif username == "8255820":
+            template_name = "invoice_templatezahid.html"
+            print(f"Selected template: {template_name} for username 8255820")
         elif username in ["3075270", "0946915", "7542425", "2853653", "B690329", "3520271603355", "3556084"]:
             template_name = "invoice_template3.html"  # Shared template for these users
             print(f"Selected template: {template_name} for username: {username}")
@@ -638,6 +642,7 @@ def _extract_fbr_error_message(res_json, fallback_text=""):
 add_invoice_form_routes(app, get_db_connection, get_env)
 add_draft_invoice_routes(app, get_db_connection, get_env)
 add_reports_routes(app, get_db_connection, get_env)
+add_fbr_reference_routes(app, get_db_connection, get_env)
 
 # Store last uploaded file and last JSON per environment
 last_uploaded_file = {}

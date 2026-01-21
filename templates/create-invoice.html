@@ -204,6 +204,114 @@
             background-color: #3b82f6;
             color: white;
         }
+
+        /* HS Code Autocomplete Styles */
+        .hs-autocomplete-container {
+            position: relative;
+        }
+        
+        .hs-autocomplete-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            max-height: 250px;
+            overflow-y: auto;
+            background: white;
+            border: 1px solid #d1d5db;
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 100;
+            display: none;
+        }
+        
+        .hs-autocomplete-dropdown.show {
+            display: block;
+        }
+        
+        .hs-autocomplete-item {
+            padding: 10px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid #f3f4f6;
+            transition: background-color 0.15s;
+        }
+        
+        .hs-autocomplete-item:last-child {
+            border-bottom: none;
+        }
+        
+        .hs-autocomplete-item:hover,
+        .hs-autocomplete-item.selected {
+            background-color: #eff6ff;
+        }
+        
+        .hs-autocomplete-item .hs-code {
+            font-weight: 600;
+            color: #1e40af;
+            font-family: monospace;
+        }
+        
+        .hs-autocomplete-item .hs-desc {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .hs-loading {
+            padding: 12px;
+            text-align: center;
+            color: #6b7280;
+            font-size: 13px;
+        }
+        
+        .hs-no-results {
+            padding: 12px;
+            text-align: center;
+            color: #9ca3af;
+            font-size: 13px;
+        }
+        
+        .uom-loading-indicator {
+            position: absolute;
+            right: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6b7280;
+        }
+        
+        .uom-validation-badge {
+            display: inline-flex;
+            align-items: center;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 8px;
+        }
+        
+        .uom-validation-badge.valid {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+        
+        .uom-validation-badge.warning {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+        
+        /* UOM filtered state - shows green border when filtered by HS code */
+        .uom-filtered {
+            border-color: #10b981 !important;
+            background-color: #ecfdf5 !important;
+        }
+        
+        .uom-filtered:focus {
+            border-color: #059669 !important;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2) !important;
+        }
     </style>
 </head>
 
@@ -705,11 +813,12 @@
                                     class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm"
                                     placeholder="Enter product code">
                             </div>
-                            <div>
+                            <div class="hs-autocomplete-container">
                                 <label for="product-hs-code" class="block text-gray-700 text-sm mb-1">HS Code*</label>
                                 <input type="text" id="product-hs-code"
                                     class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm"
-                                    placeholder="HS code">
+                                    placeholder="Type to search HS codes..." autocomplete="off">
+                                <div id="hs-code-dropdown" class="hs-autocomplete-dropdown"></div>
                             </div>
                             <div>
                                 <label for="product-quantity" class="block text-gray-700 text-sm mb-1">Quantity*</label>
@@ -753,9 +862,10 @@
                             <div>
                                 <label for="product-sale-type" class="block text-gray-700 text-sm mb-1">Sale
                                     Type*</label>
-                                <input type="text" id="product-sale-type"
-                                    class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm"
-                                    placeholder="Sale type" value="Goods at Reduced Rate">
+                                <select id="product-sale-type"
+                                    class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm">
+                                    <option value="">-- Select Sale Type --</option>
+                                </select>
                             </div>
                         </div>
 
@@ -1349,9 +1459,11 @@
                                 id="pm-code" type="text"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
                         </div>
-                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">HS Code</label><input
+                        <div class="hs-autocomplete-container"><label class="block text-xs font-semibold text-gray-600 mb-1">HS Code</label><input
                                 id="pm-hs" type="text"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                                placeholder="Type to search HS codes..." autocomplete="off" />
+                            <div id="pm-hs-dropdown" class="hs-autocomplete-dropdown"></div>
                         </div>
                         <div><label class="block text-xs font-semibold text-gray-600 mb-1">Rate (Unit)</label><input
                                 id="pm-rate" type="number" step="0.01" min="0"
@@ -1367,10 +1479,11 @@
                                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm">
                                 <option value="">-- Select Tax --</option>
                             </select></div>
-                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">Sale Type</label><input
-                                id="pm-sale-type" type="text"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-                                value="Goods at Reduced Rate" /></div>
+                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">Sale Type</label><select
+                                id="pm-sale-type"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm">
+                                <option value="">-- Select Sale Type --</option>
+                            </select></div>
                         <div><label class="block text-xs font-semibold text-gray-600 mb-1">SRO Schedule No</label><input
                                 id="pm-sro-schedule" type="text"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
@@ -1399,8 +1512,10 @@
         function apiUrl(endpoint) {
             // Always use URL parameter first, then fall back to ENV constant
             const env = getUrlParameter('env') || ENV;
-            console.log(`API URL: ${endpoint}?env=${env}`);
-            return `${endpoint}?env=${env}`;
+            // Use & if endpoint already has query params, otherwise use ?
+            const separator = endpoint.includes('?') ? '&' : '?';
+            console.log(`API URL: ${endpoint}${separator}env=${env}`);
+            return `${endpoint}${separator}env=${env}`;
         }
 
         // State to store form data
@@ -1450,6 +1565,8 @@
             return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
         }
 
+        // Scenario to Sale Type mapping per FBR Documentation Section 9
+        // Sale Type values must match exactly with dropdown options
         const scenarioToSaleType = {
             'SN001': 'Goods at standard rate (default)',
             'SN002': 'Goods at standard rate (default)',
@@ -1476,39 +1593,62 @@
             'SN023': 'CNG Sales',
             'SN024': 'Goods as per SRO.297(|)/2023',
             'SN025': 'Non-Adjustable Supplies',
-            'SN026': 'Goods at standard rate',
+            'SN026': 'Goods at standard rate (default)',
             'SN027': '3rd Schedule Goods',
             'SN028': 'Goods at Reduced Rate'
         };
 
         function syncSaleTypeWithScenario() {
-            const saleTypeInput = document.getElementById("product-sale-type");
-            if (!saleTypeInput) {
+            const saleTypeSelect = document.getElementById("product-sale-type");
+            if (!saleTypeSelect) {
                 return;
             }
 
-            if (!saleTypeInput.dataset.defaultSaleType) {
-                saleTypeInput.dataset.defaultSaleType = saleTypeInput.value || "Goods at Reduced Rate";
+            // Store initial default value
+            if (!saleTypeSelect.dataset.defaultSaleType) {
+                saleTypeSelect.dataset.defaultSaleType = saleTypeSelect.value || "";
             }
 
             const scenarioSelect = document.getElementById("scenario-id");
             const scenarioId = scenarioSelect ? scenarioSelect.value : "";
             const mappedSaleType = scenarioId ? (scenarioToSaleType[scenarioId] || "") : "";
-            const lastScenarioId = saleTypeInput.dataset.lastScenarioId || "";
 
             if (mappedSaleType) {
-                if (
-                    scenarioId === lastScenarioId &&
-                    saleTypeInput.value &&
-                    saleTypeInput.value !== saleTypeInput.dataset.defaultSaleType
-                ) {
-                    return;
+                // Find and select the matching sale type option - exact match first
+                let found = false;
+                for (let i = 0; i < saleTypeSelect.options.length; i++) {
+                    if (saleTypeSelect.options[i].value === mappedSaleType) {
+                        saleTypeSelect.selectedIndex = i;
+                        found = true;
+                        console.log(`[SaleType Sync] Exact match: Scenario ${scenarioId} -> "${mappedSaleType}"`);
+                        break;
+                    }
                 }
-                saleTypeInput.value = mappedSaleType;
-                saleTypeInput.dataset.lastScenarioId = scenarioId;
-            } else if (!saleTypeInput.value) {
-                saleTypeInput.value = saleTypeInput.dataset.defaultSaleType;
-                saleTypeInput.dataset.lastScenarioId = "";
+                // If exact match not found, try case-insensitive match
+                if (!found) {
+                    const mappedLower = mappedSaleType.toLowerCase();
+                    for (let i = 0; i < saleTypeSelect.options.length; i++) {
+                        if (saleTypeSelect.options[i].value.toLowerCase() === mappedLower) {
+                            saleTypeSelect.selectedIndex = i;
+                            found = true;
+                            console.log(`[SaleType Sync] Case-insensitive match: Scenario ${scenarioId} -> "${saleTypeSelect.options[i].value}"`);
+                            break;
+                        }
+                    }
+                }
+                // If still not found, try partial match
+                if (!found) {
+                    const mappedLower = mappedSaleType.toLowerCase();
+                    for (let i = 0; i < saleTypeSelect.options.length; i++) {
+                        const optVal = saleTypeSelect.options[i].value.toLowerCase();
+                        if (optVal.includes(mappedLower) || mappedLower.includes(optVal)) {
+                            saleTypeSelect.selectedIndex = i;
+                            console.log(`[SaleType Sync] Partial match: Scenario ${scenarioId} -> "${saleTypeSelect.options[i].value}"`);
+                            break;
+                        }
+                    }
+                }
+                saleTypeSelect.dataset.lastScenarioId = scenarioId;
             }
         }
 
@@ -2096,6 +2236,27 @@
             // Populate tax rate
             const taxRate = document.getElementById("product-tax-rate");
             populateSelect(taxRate, state.formOptions.taxRates);
+
+            // Populate sale type from FBR API
+            const productSaleType = document.getElementById("product-sale-type");
+            if (productSaleType && state.formOptions.saleTypes) {
+                populateSelect(productSaleType, state.formOptions.saleTypes);
+                // Set default sale type
+                if (productSaleType.options.length > 1) {
+                    // Find "Goods at Reduced Rate" or use first option
+                    let defaultFound = false;
+                    for (let i = 0; i < productSaleType.options.length; i++) {
+                        if (productSaleType.options[i].value.includes("Reduced Rate")) {
+                            productSaleType.selectedIndex = i;
+                            defaultFound = true;
+                            break;
+                        }
+                    }
+                    if (!defaultFound) {
+                        productSaleType.selectedIndex = 1; // First actual option after placeholder
+                    }
+                }
+            }
         }
 
         // Helper function to populate select elements
@@ -4137,7 +4298,7 @@
             document.getElementById('save-buyer-form')?.addEventListener('click', saveBuyerFromModal);
             document.getElementById('close-product-modal')?.addEventListener('click', closeProductModal);
             document.getElementById('product-search-modal')?.addEventListener('input', () => { renderProductListModal(window._allProductsModal || []); });
-            document.getElementById('new-product-btn')?.addEventListener('click', () => { editingProductId = null; resetProductModalForm(); openProductModal(); });
+            document.getElementById('new-product-btn')?.addEventListener('click', () => { editingProductId = null; resetProductModalForm(); populateProductModalSelects(); showProductForm(false); });
             document.getElementById('cancel-product-form')?.addEventListener('click', resetProductModalForm);
             document.getElementById('save-product-form')?.addEventListener('click', saveProductFromModal);
             // Wire Step 4 plus/reset button to open product modal instead of just clearing fields
@@ -4301,10 +4462,11 @@
                                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm">
                                 <option value="">-- Select Tax --</option>
                             </select></div>
-                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">Sale Type</label><input
-                                id="pm-sale-type" type="text"
-                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
-                                value="Goods at Reduced Rate" /></div>
+                        <div><label class="block text-xs font-semibold text-gray-600 mb-1">Sale Type</label><select
+                                id="pm-sale-type"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm">
+                                <option value="">-- Select Sale Type --</option>
+                            </select></div>
                         <div><label class="block text-xs font-semibold text-gray-600 mb-1">SRO Schedule No</label><input
                                 id="pm-sro-schedule" type="text"
                                 class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm" />
@@ -4383,7 +4545,32 @@
         let productsCache = []; let editingProductId = null;
         function openProductModal() { document.getElementById('product-modal').classList.remove('hidden'); loadProductsModal(); populateProductModalSelects(); }
         function closeProductModal() { document.getElementById('product-modal').classList.add('hidden'); resetProductModalForm(); }
-        function populateProductModalSelects() { const uomSel = document.getElementById('pm-uom'); const taxSel = document.getElementById('pm-tax'); if (uomSel && uomSel.options.length <= 1) { const src = document.getElementById('product-uom'); for (let i = 1; i < src.options.length; i++) { uomSel.appendChild(src.options[i].cloneNode(true)); } } if (taxSel && taxSel.options.length <= 1) { const taxSrc = document.getElementById('product-tax-rate'); for (let i = 1; i < taxSrc.options.length; i++) { taxSel.appendChild(taxSrc.options[i].cloneNode(true)); } } }
+        function populateProductModalSelects() { 
+            const uomSel = document.getElementById('pm-uom'); 
+            const taxSel = document.getElementById('pm-tax'); 
+            const saleTypeSel = document.getElementById('pm-sale-type');
+            if (uomSel && uomSel.options.length <= 1) { 
+                const src = document.getElementById('product-uom'); 
+                for (let i = 1; i < src.options.length; i++) { 
+                    uomSel.appendChild(src.options[i].cloneNode(true)); 
+                } 
+            } 
+            if (taxSel && taxSel.options.length <= 1) { 
+                const taxSrc = document.getElementById('product-tax-rate'); 
+                for (let i = 1; i < taxSrc.options.length; i++) { 
+                    taxSel.appendChild(taxSrc.options[i].cloneNode(true)); 
+                } 
+            }
+            // Populate sale type from main form
+            if (saleTypeSel && saleTypeSel.options.length <= 1) { 
+                const saleTypeSrc = document.getElementById('product-sale-type'); 
+                if (saleTypeSrc) {
+                    for (let i = 1; i < saleTypeSrc.options.length; i++) { 
+                        saleTypeSel.appendChild(saleTypeSrc.options[i].cloneNode(true)); 
+                    }
+                }
+            }
+        }
         async function loadProductsModal() {
             try {
                 await ensureCurrentUsername();
@@ -4402,7 +4589,42 @@
         function resetProductModalForm() { editingProductId = null;['pm-desc', 'pm-code', 'pm-hs', 'pm-rate', 'pm-uom', 'pm-tax', 'pm-sale-type', 'pm-sro-schedule', 'pm-sro-item'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; }); document.getElementById('product-form-modal')?.classList.add('hidden'); const titleEl = document.getElementById('product-form-title'); if (titleEl) titleEl.textContent = 'Create Product'; }
         function showProductForm(edit = false) { document.getElementById('product-form-modal').classList.remove('hidden'); const titleEl = document.getElementById('product-form-title'); if (titleEl) titleEl.textContent = edit ? 'Edit Product' : 'Create Product'; }
         function handleProductAction(e) { const id = e.currentTarget.getAttribute('data-id'); const action = e.currentTarget.getAttribute('data-action'); const prod = productsCache.find(p => p.id == id); if (action === 'del') return deleteProductFromModal(id); if (action === 'apply') { applyProduct(prod); closeProductModal(); return; } if (action === 'edit') { editingProductId = id; fillProductForm(prod); showProductForm(true); } }
-        function fillProductForm(p) { if (!p) return; document.getElementById('pm-desc').value = p.description || ''; const pmCodeInput = document.getElementById('pm-code'); if (pmCodeInput) { pmCodeInput.value = isH075895User() ? (p.product_code || '') : ''; } document.getElementById('pm-hs').value = p.hs_code || ''; document.getElementById('pm-rate').value = p.rate || ''; document.getElementById('pm-uom').value = p.uom || ''; document.getElementById('pm-tax').value = p.default_tax_rate || ''; document.getElementById('pm-sale-type').value = p.sale_type || 'Goods at Reduced Rate'; document.getElementById('pm-sro-schedule').value = p.sro_schedule_no || ''; document.getElementById('pm-sro-item').value = p.sro_item_serial_no || ''; }
+        function fillProductForm(p) { 
+            if (!p) return; 
+            document.getElementById('pm-desc').value = p.description || ''; 
+            const pmCodeInput = document.getElementById('pm-code'); 
+            if (pmCodeInput) { pmCodeInput.value = isH075895User() ? (p.product_code || '') : ''; } 
+            document.getElementById('pm-hs').value = p.hs_code || ''; 
+            document.getElementById('pm-rate').value = p.rate || ''; 
+            document.getElementById('pm-uom').value = p.uom || ''; 
+            document.getElementById('pm-tax').value = p.default_tax_rate || ''; 
+            // Set sale type dropdown value
+            const pmSaleType = document.getElementById('pm-sale-type');
+            if (pmSaleType) {
+                const saleTypeVal = p.sale_type || '';
+                // Try exact match first
+                let found = false;
+                for (let i = 0; i < pmSaleType.options.length; i++) {
+                    if (pmSaleType.options[i].value === saleTypeVal) {
+                        pmSaleType.selectedIndex = i;
+                        found = true;
+                        break;
+                    }
+                }
+                // If not found, try partial match
+                if (!found && saleTypeVal) {
+                    for (let i = 0; i < pmSaleType.options.length; i++) {
+                        if (pmSaleType.options[i].value.toLowerCase().includes(saleTypeVal.toLowerCase()) || 
+                            saleTypeVal.toLowerCase().includes(pmSaleType.options[i].value.toLowerCase())) {
+                            pmSaleType.selectedIndex = i;
+                            break;
+                        }
+                    }
+                }
+            }
+            document.getElementById('pm-sro-schedule').value = p.sro_schedule_no || ''; 
+            document.getElementById('pm-sro-item').value = p.sro_item_serial_no || ''; 
+        }
         function applyProduct(p) {
             if (!p) return; // fill main product entry form for new line item
             document.getElementById('product-description').value = p.description || '';
@@ -4411,7 +4633,17 @@
             if (p.uom) { document.getElementById('product-uom').value = p.uom; }
             // match tax rate label if exists
             if (p.default_tax_rate != null) { const taxSelect = document.getElementById('product-tax-rate'); const target = `${p.default_tax_rate}%`; for (let i = 0; i < taxSelect.options.length; i++) { if (taxSelect.options[i].textContent.trim() === target) { taxSelect.selectedIndex = i; break; } } }
-            document.getElementById('product-sale-type').value = p.sale_type || document.getElementById('product-sale-type').value;
+            // Set sale type dropdown for product
+            const saleTypeSelect = document.getElementById('product-sale-type');
+            if (saleTypeSelect && p.sale_type) {
+                for (let i = 0; i < saleTypeSelect.options.length; i++) {
+                    if (saleTypeSelect.options[i].value === p.sale_type || 
+                        saleTypeSelect.options[i].value.toLowerCase().includes(p.sale_type.toLowerCase())) {
+                        saleTypeSelect.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
             // SRO defaults based on current user (not product) stay via setSRODefaults
             setSRODefaults(currentUsername);
             if (isH075895User()) {
@@ -4445,6 +4677,506 @@
             } catch (err) { showNotification('error', 'Error', err.message); }
         }
         async function deleteProductFromModal(id) { if (!confirm('Delete this product?')) return; try { const res = await fetch(apiUrl(`/api/products/${id}`), { method: 'DELETE' }); const data = await res.json(); if (!res.ok) throw new Error(data.error || 'Failed'); showNotification('success', 'Deleted', 'Product removed'); await loadProductsModal(); } catch (err) { showNotification('error', 'Error', err.message); } }
+
+        // ================== FBR Reference Data: HS Code Autocomplete & Dynamic UOM ==================
+        
+        // Cache for HS codes and UOMs to minimize API calls
+        const hsCodeCache = { data: [], loaded: false, loading: false };
+        const uomCache = { all: [], byHsCode: {}, loading: false };
+        let hsSearchTimeout = null;
+        let currentHsDropdown = null;
+        
+        // Initialize HS Code autocomplete for both main form and product modal
+        function initHsCodeAutocomplete() {
+            // Main product form
+            setupHsAutocomplete('product-hs-code', 'hs-code-dropdown', 'product-uom');
+            // Product modal form
+            setupHsAutocomplete('pm-hs', 'pm-hs-dropdown', 'pm-uom');
+        }
+        
+        function setupHsAutocomplete(inputId, dropdownId, uomSelectId) {
+            const input = document.getElementById(inputId);
+            const dropdown = document.getElementById(dropdownId);
+            const uomSelect = document.getElementById(uomSelectId);
+            
+            if (!input || !dropdown) return;
+            
+            let selectedIndex = -1;
+            
+            // Input event for search
+            input.addEventListener('input', function() {
+                const query = this.value.trim();
+                selectedIndex = -1;
+                
+                if (query.length < 2) {
+                    hideDropdown(dropdown);
+                    return;
+                }
+                
+                // Debounce the search
+                clearTimeout(hsSearchTimeout);
+                hsSearchTimeout = setTimeout(() => {
+                    searchHsCodes(query, dropdown, input, uomSelect);
+                }, 300);
+            });
+            
+            // Focus event - show dropdown if there's text
+            input.addEventListener('focus', function() {
+                const query = this.value.trim();
+                if (query.length >= 2) {
+                    searchHsCodes(query, dropdown, input, uomSelect);
+                }
+            });
+            
+            // Keyboard navigation
+            input.addEventListener('keydown', function(e) {
+                const items = dropdown.querySelectorAll('.hs-autocomplete-item');
+                
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+                    updateSelectedItem(items, selectedIndex);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    selectedIndex = Math.max(selectedIndex - 1, 0);
+                    updateSelectedItem(items, selectedIndex);
+                } else if (e.key === 'Enter' && selectedIndex >= 0) {
+                    e.preventDefault();
+                    const selectedItem = items[selectedIndex];
+                    if (selectedItem) {
+                        selectHsCode(selectedItem.dataset.code, input, dropdown, uomSelect);
+                    }
+                } else if (e.key === 'Escape') {
+                    hideDropdown(dropdown);
+                }
+            });
+            
+            // Blur event - hide dropdown after small delay AND fetch UOMs
+            input.addEventListener('blur', function() {
+                setTimeout(() => hideDropdown(dropdown), 200);
+                
+                // Fetch UOMs when user finishes typing HS code (on blur)
+                const hsCode = this.value.trim();
+                if (hsCode && hsCode.length >= 4 && uomSelect) {
+                    console.log(`[HS Code Blur] Triggering UOM fetch for: ${hsCode}`);
+                    fetchValidUomsForHsCode(hsCode, uomSelect);
+                }
+            });
+            
+            // When HS code changes, update UOM options
+            input.addEventListener('change', function() {
+                const hsCode = this.value.trim();
+                if (hsCode && uomSelect) {
+                    console.log(`[HS Code Change] Triggering UOM fetch for: ${hsCode}`);
+                    fetchValidUomsForHsCode(hsCode, uomSelect);
+                }
+            });
+        }
+        
+        async function searchHsCodes(query, dropdown, input, uomSelect) {
+            showDropdownLoading(dropdown);
+            
+            try {
+                // First try to search in cache
+                if (hsCodeCache.loaded && hsCodeCache.data.length > 0) {
+                    const filtered = filterHsCodes(hsCodeCache.data, query);
+                    renderHsDropdown(filtered, dropdown, input, uomSelect);
+                    return;
+                }
+                
+                // If cache not loaded, fetch from API
+                const response = await fetch(apiUrl(`/api/reference/hs-codes?search=${encodeURIComponent(query)}`));
+                const data = await response.json();
+                
+                if (data.hs_codes && data.hs_codes.length > 0) {
+                    // Update cache if we got a full result set
+                    if (data.source === 'api' && data.total > 50) {
+                        hsCodeCache.data = data.hs_codes;
+                        hsCodeCache.loaded = true;
+                    }
+                    renderHsDropdown(data.hs_codes, dropdown, input, uomSelect);
+                } else {
+                    renderNoResults(dropdown, query);
+                }
+            } catch (error) {
+                console.error('HS Code search error:', error);
+                renderDropdownError(dropdown, 'Could not search HS codes. You can enter manually.');
+            }
+        }
+        
+        function filterHsCodes(allCodes, query) {
+            const q = query.toLowerCase();
+            return allCodes.filter(hs => {
+                const code = (hs.hS_CODE || hs.hs_code || '').toLowerCase();
+                const desc = (hs.description || '').toLowerCase();
+                return code.includes(q) || desc.includes(q);
+            }).slice(0, 50);
+        }
+        
+        function renderHsDropdown(hsCodes, dropdown, input, uomSelect) {
+            if (!hsCodes || hsCodes.length === 0) {
+                renderNoResults(dropdown, input.value);
+                return;
+            }
+            
+            dropdown.innerHTML = '';
+            
+            hsCodes.slice(0, 50).forEach((hs, index) => {
+                const code = hs.hS_CODE || hs.hs_code || '';
+                const desc = hs.description || '';
+                
+                const item = document.createElement('div');
+                item.className = 'hs-autocomplete-item';
+                item.dataset.code = code;
+                item.dataset.index = index;
+                
+                item.innerHTML = `
+                    <div class="hs-code">${escapeHtml(code)}</div>
+                    <div class="hs-desc" title="${escapeHtml(desc)}">${escapeHtml(desc)}</div>
+                `;
+                
+                item.addEventListener('click', function() {
+                    selectHsCode(code, input, dropdown, uomSelect);
+                });
+                
+                dropdown.appendChild(item);
+            });
+            
+            showDropdown(dropdown);
+        }
+        
+        function selectHsCode(code, input, dropdown, uomSelect) {
+            input.value = code;
+            hideDropdown(dropdown);
+            
+            // Trigger change event to update UOM options
+            input.dispatchEvent(new Event('change'));
+            
+            // Fetch valid UOMs for this HS code
+            if (uomSelect) {
+                fetchValidUomsForHsCode(code, uomSelect);
+            }
+        }
+        
+        async function fetchValidUomsForHsCode(hsCode, uomSelect) {
+            if (!hsCode || !uomSelect) {
+                console.log('[fetchValidUomsForHsCode] Missing hsCode or uomSelect, skipping');
+                return;
+            }
+            
+            console.log(`[fetchValidUomsForHsCode] Starting fetch for HS code: ${hsCode}`);
+            
+            // Check cache first
+            if (uomCache.byHsCode[hsCode]) {
+                console.log(`Using cached UOMs for HS code ${hsCode}:`, uomCache.byHsCode[hsCode]);
+                populateUomSelect(uomSelect, uomCache.byHsCode[hsCode], true);
+                return;
+            }
+            
+            // Store original options BEFORE modifying (save from formOptions if available)
+            if (!uomSelect.dataset.originalOptionsStored) {
+                const originalOpts = [];
+                for (let i = 0; i < uomSelect.options.length; i++) {
+                    originalOpts.push({ value: uomSelect.options[i].value, text: uomSelect.options[i].text });
+                }
+                uomSelect.dataset.originalOptions = JSON.stringify(originalOpts);
+                uomSelect.dataset.originalOptionsStored = 'true';
+                console.log(`[fetchValidUomsForHsCode] Stored ${originalOpts.length} original UOM options`);
+            }
+            
+            // Show loading state
+            uomSelect.innerHTML = '<option value="">Loading UOMs for HS code...</option>';
+            uomSelect.disabled = true;
+            
+            try {
+                const apiUrlStr = apiUrl(`/api/reference/hs-uom?hs_code=${encodeURIComponent(hsCode)}`);
+                console.log(`[fetchValidUomsForHsCode] Calling API: ${apiUrlStr}`);
+                
+                const response = await fetch(apiUrlStr);
+                const data = await response.json();
+                
+                console.log('[fetchValidUomsForHsCode] API response:', data);
+                
+                if (data.valid_uoms && data.valid_uoms.length > 0 && data.source === 'api') {
+                    // Cache the result
+                    uomCache.byHsCode[hsCode] = data.valid_uoms;
+                    populateUomSelect(uomSelect, data.valid_uoms, true);
+                    
+                    // Show info about restricted UOMs
+                    console.log(`HS code ${hsCode} has ${data.count} valid UOMs: ${data.valid_uoms.map(u => u.description).join(', ')}`);
+                    showNotification('info', 'UOM Filter', `Only ${data.count} UOM(s) are valid for this HS code`);
+                } else if (data.source === 'fallback' || data.source === 'error') {
+                    // API failed or not configured - restore original options
+                    console.log('[fetchValidUomsForHsCode] API returned fallback/error, restoring original UOM options');
+                    restoreOriginalUomOptions(uomSelect);
+                    if (data.error) {
+                        console.warn('HS-UOM API error:', data.error);
+                    }
+                    // Show notification that all UOMs are available
+                    if (data.message) {
+                        showNotification('warning', 'UOM Info', data.message);
+                    }
+                } else if (data.valid_uoms && data.valid_uoms.length > 0 && (data.source === 'cache' || data.source === 'fallback')) {
+                    // Fallback data with UOMs - show all available
+                    console.log('[fetchValidUomsForHsCode] Using fallback UOM list');
+                    populateUomSelect(uomSelect, data.valid_uoms, false);
+                } else {
+                    // No specific UOMs returned, restore all options
+                    console.log('[fetchValidUomsForHsCode] No specific UOMs, restoring all options');
+                    restoreOriginalUomOptions(uomSelect);
+                }
+            } catch (error) {
+                console.error('[fetchValidUomsForHsCode] Error:', error);
+                // Restore original options on error
+                restoreOriginalUomOptions(uomSelect);
+            }
+            
+            uomSelect.disabled = false;
+            console.log(`[fetchValidUomsForHsCode] Done. UOM select now has ${uomSelect.options.length} options`);
+        }
+        
+        function restoreOriginalUomOptions(select) {
+            if (select.dataset.originalOptions) {
+                const options = JSON.parse(select.dataset.originalOptions);
+                select.innerHTML = '';
+                options.forEach(opt => {
+                    const option = document.createElement('option');
+                    option.value = opt.value;
+                    option.textContent = opt.text;
+                    select.appendChild(option);
+                });
+                select.title = 'All UOMs available (no HS code restriction)';
+            }
+        }
+        
+        function populateUomSelect(select, uoms, isFiltered) {
+            const currentValue = select.value;
+            select.innerHTML = '<option value="">-- Select Unit --</option>';
+            
+            uoms.forEach(uom => {
+                const option = document.createElement('option');
+                // Use description as the value (this is what FBR expects)
+                option.value = uom.description || uom.value || '';
+                option.textContent = uom.description || uom.value || '';
+                select.appendChild(option);
+            });
+            
+            // Try to restore previous selection if it's still valid
+            if (currentValue) {
+                for (let i = 0; i < select.options.length; i++) {
+                    if (select.options[i].value === currentValue) {
+                        select.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+            
+            // Add visual indicator that UOMs are filtered for this HS code
+            if (isFiltered && uoms.length > 0) {
+                select.title = `Showing ${uoms.length} valid UOM(s) for this HS code`;
+                select.classList.add('uom-filtered');
+            } else {
+                select.classList.remove('uom-filtered');
+            }
+        }
+        
+        // Preload all UOMs from FBR if available
+        async function preloadAllUoms() {
+            if (uomCache.all.length > 0 || uomCache.loading) return;
+            
+            uomCache.loading = true;
+            
+            try {
+                const response = await fetch(apiUrl('/api/reference/uoms'));
+                const data = await response.json();
+                
+                if (data.uoms && data.uoms.length > 0) {
+                    uomCache.all = data.uoms;
+                    console.log(`Loaded ${data.uoms.length} UOMs from FBR (source: ${data.source})`);
+                    
+                    // Optionally update the UOM dropdowns with full list
+                    // updateAllUomDropdowns(data.uoms);
+                }
+            } catch (error) {
+                console.error('Error preloading UOMs:', error);
+            }
+            
+            uomCache.loading = false;
+        }
+        
+        // Helper functions for dropdown
+        function showDropdown(dropdown) {
+            dropdown.classList.add('show');
+            currentHsDropdown = dropdown;
+        }
+        
+        function hideDropdown(dropdown) {
+            dropdown.classList.remove('show');
+            if (currentHsDropdown === dropdown) {
+                currentHsDropdown = null;
+            }
+        }
+        
+        function showDropdownLoading(dropdown) {
+            dropdown.innerHTML = '<div class="hs-loading"><i class="fas fa-spinner fa-spin mr-2"></i>Searching...</div>';
+            showDropdown(dropdown);
+        }
+        
+        function renderNoResults(dropdown, query) {
+            dropdown.innerHTML = `<div class="hs-no-results">No HS codes found for "${escapeHtml(query)}". You can enter it manually.</div>`;
+            showDropdown(dropdown);
+        }
+        
+        function renderDropdownError(dropdown, message) {
+            dropdown.innerHTML = `<div class="hs-no-results">${escapeHtml(message)}</div>`;
+            showDropdown(dropdown);
+        }
+        
+        function updateSelectedItem(items, selectedIndex) {
+            items.forEach((item, i) => {
+                item.classList.toggle('selected', i === selectedIndex);
+            });
+            
+            // Scroll into view
+            if (items[selectedIndex]) {
+                items[selectedIndex].scrollIntoView({ block: 'nearest' });
+            }
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text || '';
+            return div.innerHTML;
+        }
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(e) {
+            if (currentHsDropdown && !e.target.closest('.hs-autocomplete-container')) {
+                hideDropdown(currentHsDropdown);
+            }
+        });
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initHsCodeAutocomplete();
+            // Preload UOMs in background
+            setTimeout(preloadAllUoms, 2000);
+            // Initialize buyer NTN auto-detection
+            initBuyerRegistrationAutoDetect();
+        });
+        
+        // ================== End FBR Reference Data ==================
+
+        // ================== Buyer Registration Auto-Detection ==================
+        
+        /**
+         * Auto-detect buyer registration type from FBR when NTN/CNIC is entered.
+         * This uses the FBR Get_Reg_Type API to determine if buyer is Registered or Unregistered.
+         */
+        function initBuyerRegistrationAutoDetect() {
+            const ntnInput = document.getElementById('buyer-ntn-cnic');
+            const regTypeSelect = document.getElementById('buyer-registration-type');
+            
+            if (!ntnInput || !regTypeSelect) return;
+            
+            // Add a small indicator next to the registration type field
+            const indicator = document.createElement('span');
+            indicator.id = 'reg-type-indicator';
+            indicator.className = 'ml-2 text-xs';
+            indicator.style.display = 'none';
+            regTypeSelect.parentNode.querySelector('label').appendChild(indicator);
+            
+            // Debounce timer
+            let lookupTimer = null;
+            
+            // On blur (when user leaves the field), look up registration type
+            ntnInput.addEventListener('blur', function() {
+                const ntnValue = this.value.trim();
+                if (ntnValue.length >= 7) {  // Minimum length for NTN/CNIC
+                    lookupRegistrationType(ntnValue, regTypeSelect, indicator);
+                }
+            });
+            
+            // Also allow lookup on Enter key
+            ntnInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    const ntnValue = this.value.trim();
+                    if (ntnValue.length >= 7) {
+                        lookupRegistrationType(ntnValue, regTypeSelect, indicator);
+                    }
+                }
+            });
+        }
+        
+        async function lookupRegistrationType(registrationNo, selectElement, indicator) {
+            // Show loading state
+            indicator.textContent = '🔄 Checking...';
+            indicator.style.display = 'inline';
+            indicator.className = 'ml-2 text-xs text-blue-500';
+            
+            try {
+                const response = await fetch(apiUrl('/api/reference/registration-type'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ registration_no: registrationNo })
+                });
+                
+                const data = await response.json();
+                console.log('Registration type lookup result:', data);
+                
+                if (data.error) {
+                    indicator.textContent = '⚠️ Could not verify';
+                    indicator.className = 'ml-2 text-xs text-yellow-600';
+                    setTimeout(() => { indicator.style.display = 'none'; }, 3000);
+                    return;
+                }
+                
+                // Auto-select the registration type
+                const regType = data.is_registered ? 'Registered' : 'Unregistered';
+                
+                // Find and select the matching option
+                let matched = false;
+                for (let i = 0; i < selectElement.options.length; i++) {
+                    const optionText = selectElement.options[i].textContent.toLowerCase();
+                    const optionValue = selectElement.options[i].value.toLowerCase();
+                    
+                    if (optionText.includes(regType.toLowerCase()) || optionValue.includes(regType.toLowerCase())) {
+                        selectElement.selectedIndex = i;
+                        matched = true;
+                        break;
+                    }
+                }
+                
+                if (matched) {
+                    // Show success indicator
+                    if (data.is_registered) {
+                        indicator.textContent = '✅ Registered with FBR';
+                        indicator.className = 'ml-2 text-xs text-green-600 font-medium';
+                    } else {
+                        indicator.textContent = '⚪ Unregistered';
+                        indicator.className = 'ml-2 text-xs text-gray-600';
+                    }
+                    
+                    // Trigger change event so any listeners are notified
+                    selectElement.dispatchEvent(new Event('change'));
+                    
+                    showNotification('info', 'Auto-Detected', `Buyer is ${regType} with FBR`);
+                } else {
+                    indicator.textContent = `ℹ️ ${regType}`;
+                    indicator.className = 'ml-2 text-xs text-blue-600';
+                }
+                
+                // Keep indicator visible for this field
+                
+            } catch (error) {
+                console.error('Registration type lookup error:', error);
+                indicator.textContent = '❌ Lookup failed';
+                indicator.className = 'ml-2 text-xs text-red-500';
+                setTimeout(() => { indicator.style.display = 'none'; }, 3000);
+            }
+        }
+        
+        // ================== End Buyer Registration Auto-Detection ==================
     </script>
 </body>
 

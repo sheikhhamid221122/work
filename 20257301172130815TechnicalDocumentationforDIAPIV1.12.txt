@@ -1,0 +1,4077 @@
+Technical Specification for DI API
+User Manual
+Version: 1.12
+
+Disclaimer:
+
+The information provided in this document is intended solely for the “Technical Specification for DI API” from
+PRAL. The contents of this document may not be reproduced or divulged outside the intended organizations
+without the express written permission of PRAL.
+
+PAKISTAN REVENUE AUTOMATION (PVT.) LTD
+PRAL – Head office, Software Technology Park-III, Plot No. 156, Service Road (North),
+Industrial Area, I-9/3, Islamabad. Pakistan
+
+Document Information
+Document Name
+
+Technical Specification for DI API
+
+Project Name
+
+Digital Invoicing (DI)
+
+Version
+
+1.12
+
+Status
+
+Issued
+
+Author
+
+Muhammad Umair Siddique
+
+First Reviewer(s)
+
+Mehboob Ur Rehman, Sohail Anjum
+
+First Review Date
+
+7-Apr-2025
+
+Approver
+
+SA&D Wing
+
+Issue Date
+
+7-Apr-2025
+
+Updated by
+
+Muhammad Umair Siddique
+
+Last Update Date
+
+24-July-2025
+
+Update Reviewed by
+
+Arslan Nazir
+
+Distribution
+
+SD Wing
+
+Category
+
+External
+
+Privacy Level
+
+Public
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 2 of 51
+
+Document Changelog
+Sr. #
+
+Review/Update Date
+
+Reviewer(s) Name
+
+Remarks
+
+1.
+
+7-Apr-25
+
+Mehboob Ur Rehman, Sohail Anjum
+
+Initial Document
+
+2.
+
+09-May-25
+
+Naseem Ahmed Razzaq
+
+Sample Json & Error Codes Updated
+
+3.
+
+22-May-25
+
+Naseem Ahmed Razzaq
+
+Sample Json & Error Codes Updated
+
+Naseem Ahmed Razzaq
+
+Sample Jason for Sandbox & Production
+Updated
+ST ATL API production (Added)
+
+4.
+
+01-Jun-25
+
+Updates:
+ Sales Error Codes
+ Purchase Error Codes
+ Scenarios for Sandbox Testing
+ Applicable Scenarios based on
+Business Activity
+
+5.
+
+03-Jun-25
+
+Arslan Nazir
+
+6.
+
+10-Jun-25
+
+Adeel Abbasi
+
+Fields description updated
+
+7.
+
+18-Jun-25
+
+Naseem Ahmed Razzaq
+
+SRO URL updated
+
+8.
+
+24-Jun-25
+
+Naseem Ahmed Razzaq
+
+Sample JSON updated
+
+9.
+
+25-Jun-25
+
+Adeel Abbasi
+
+Fields description updated
+
+10.
+
+30-Jun-25
+
+Arslan Nazir
+
+Minor Change in applicable Scenarios
+
+11.
+
+02-July-25
+
+Mehboob Ur Rehman
+
+Sample JSON updated
+
+
+12.
+
+24-July-25
+
+Document Version :1.12
+
+Arslan Nazir
+
+PRAL © 2025 – All rights reserved
+
+
+
+Description of SN010, SN018 and
+SN019 Updated
+Error Codes 401 & 402 added
+
+Page 3 of 51
+
+Table of Content
+
+1.
+
+Purpose ................................................................................................................................................. 5
+
+2.
+
+Data Sharing Mode ............................................................................................................................... 6
+
+3.
+
+Web API................................................................................................................................................. 6
+3.1.
+
+Web API Security........................................................................................................................... 6
+
+3.2.
+
+Web Methods Details ................................................................................................................... 6
+
+4.
+
+Digital Invoicing API............................................................................................................................... 7
+4.1.
+
+Web method for Digital Invoicing - Post ....................................................................................... 7
+
+4.1.1.
+
+Sample JSON Data (For Sandbox Only):............................................................................... 7
+
+4.1.2.
+
+Sample JSON Data (For Production): ................................................................................... 9
+
+4.2.
+
+5.
+
+Web method for Digital Invoicing - Validate............................................................................... 15
+
+4.2.1.
+
+Sample JSON Data (For Sandbox Only):............................................................................. 15
+
+4.2.2.
+
+Sample JSON Data (For Production): ................................................................................. 17
+
+Digital Invoicing Reference APIs.......................................................................................................... 22
+5.1.
+
+Web method for Digital Invoicing – Province Code .................................................................... 23
+
+5.2.
+
+Web method for Digital Invoicing – Document Type ID ............................................................. 23
+
+5.3.
+
+Web method for Digital Invoicing – Item Code .......................................................................... 25
+
+5.4.
+
+Web method for Digital Invoicing – SRO Item ID ........................................................................ 26
+
+5.5.
+
+Web method for Digital Invoicing – Transaction Type ID ........................................................... 27
+
+5.6.
+
+Web method for Digital Invoicing – ID of the UOM.................................................................... 28
+
+5.7.
+
+Web method for Digital Invoicing – SRO Schedule ..................................................................... 29
+
+5.8.
+
+Web method for Digital Invoicing – ID of The Rate .................................................................... 30
+
+5.9.
+
+Web method for Digital Invoicing – HS Code with UOM ............................................................ 31
+
+5.10.
+
+Web method for Digital Invoicing – SRO Item ID .................................................................... 32
+
+5.11
+
+Web method for Digital Invoicing – STATL ................................................................................. 33
+
+5.12
+
+Web method for Digital Invoicing – STATL ................................................................................. 34
+
+6.
+
+Digital Invoicing Logo & QR Code Printing .......................................................................................... 35
+
+7.
+
+Sales Error Codes ................................................................................................................................ 36
+
+8.
+
+Purchase Error Codes .......................................................................................................................... 42
+
+9.
+
+Scenarios for Sandbox Testing ............................................................................................................ 46
+
+10.
+
+Applicable Scenarios based on Business Activity ............................................................................ 47
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 4 of 51
+
+1. Purpose
+The purpose of this document is to facilitate Supply Chain Operators to understand the
+methods for Digital Invoice Data sharing with FBR.
+
+Figure 1 - Invoice Focalization Process
+
+ERP or equivalent software will be integrated with FBR as per the following steps:
+
+
+Each ERP or equivalent software will register in the FBR system from which it wants to
+upload the invoice data.
+
+
+
+Taxpayers will integrate their ERP/System with FBR Digital Invoicing System as per
+provided details in the Section (3) Integration Steps with FBR.
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 5 of 51
+
+2. Data Sharing Mode
+
+Digital Invoicing sharing mode will be real-time using Web API shared by FBR. The Data
+Format of this service will be as per object models referred below in this document.
+
+3. Web API
+
+This Web API resides on PRAL ESP (Enterprise Service Platform) and is exposed with
+methods to facilitate Digital Invoicing sharing between Supply Chain Operators and FBR.
+
+3.1. Web API Security
+This Web API is secured and will require a security token to be passed in the header of
+each request. This security token will be issued by PRAL and given to Supply Chain
+Operators along with all URLs to access the web API. This security token will have a validity
+of 5 Years, and a new token will be requested by the Supply Chain Operators upon expiry,
+and a new security token will automatically be issued to access these services.
+Figure 1 below illustrates how to pass this token in the header of each request using
+Postman.
+
+Figure 2 Security Key added with the word "Bearer" will be passed on in Value of parameter
+Authorization
+3.2. Web Methods Details
+Web APIs expose different web methods for data sharing. The details of these web
+methods are as follows.
+ Digital Invoicing API
+ Digital Invoicing Reference APIs
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 6 of 51
+
+4. Digital Invoicing API
+
+
+
+Web method for Digital Invoicing - Post
+Web method for Digital Invoicing - Validate
+
+Note: DI data acquisition API URL's are mentioned in this document will remain the same for
+Sandbox and Production routing will be based on the security token being used.
+4.1. Web method for Digital Invoicing - Post
+The first web method (postinvoicedata) will be used on a real time basis. The API
+consumer will have to send object model mentioned below. This method will take
+following parameters and will return JSON response as shown in example below.
+4.1.1. Sample JSON Data (For Sandbox Only):
+Input Parameters of the first web method (postinvoicedata) will be as follows:
+Note: Invoice Header will only be added once in the object model.
+Sandbox URL: https://gw.fbr.gov.pk/di_data/v1/di/postinvoicedata_sb
+{
+"invoiceType": "Sale Invoice",
+"invoiceDate": "2025-04-21",
+"sellerNTNCNIC": "….7 or 13 digit of seller NTN/CNIC….",
+"sellerBusinessName": "Company 8",
+"sellerProvince": "Sindh",
+"sellerAddress": "Karachi",
+"buyerNTNCNIC": "….7 or 13 digit of buyer NTN/CNIC….",
+"buyerBusinessName": "FERTILIZER MANUFAC IRS NEW",
+"buyerProvince": "Sindh",
+"buyerAddress": "Karachi",
+"buyerRegistrationType": "Registered",
+"invoiceRefNo": "",
+"scenarioId": "SN001",
+"items": [
+{
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 7 of 51
+
+"hsCode": "0101.2100",
+"productDescription": "product Description",
+"rate": "18%",
+"uoM": "Numbers, pieces, units",
+"quantity": 1.0000,
+"totalValues": 0.00,
+"valueSalesExcludingST":1000.00,
+"fixedNotifiedValueOrRetailPrice":0.00,
+"salesTaxApplicable": 180.00,
+"salesTaxWithheldAtSource":0.00,
+"extraTax": 0.00,
+"furtherTax": 120.00,
+"sroScheduleNo": "",
+"fedPayable": 0.00,
+"discount": 0.00,
+"saleType": "Goods at standard rate (default)",
+"sroItemSerialNo": ""
+}
+]
+}
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 8 of 51
+
+4.1.2. Sample JSON Data (For Production):
+Input Parameters of the first web method (postinvoicedata) will be as follows:
+Note: Invoice Header will only be added once in the object model.
+Production URL: https://gw.fbr.gov.pk/di_data/v1/di/postinvoicedata
+{
+
+"invoiceType": "Sale Invoice",
+"invoiceDate": "2025-04-21",
+"sellerNTNCNIC": "….7 or 13 digit of seller NTN/CNIC….",
+"sellerBusinessName": "Company 8",
+"sellerProvince": "Sindh",
+"sellerAddress": "Karachi",
+"buyerNTNCNIC": "….7 or 13 digit of buyer NTN/CNIC….",
+"buyerBusinessName": "FERTILIZER MANUFAC IRS NEW",
+"buyerProvince": "Sindh",
+"buyerAddress": "Karachi",
+"buyerRegistrationType": "Unregistered",
+"invoiceRefNo": "",
+"items": [
+{
+"hsCode": "0101.2100",
+"productDescription": "product Description",
+"rate": "18%",
+"uoM": "Numbers, pieces, units",
+"quantity": 1.0000,
+"totalValues": 0.00,
+"valueSalesExcludingST": 1000.00,
+"fixedNotifiedValueOrRetailPrice": 0.00,
+"salesTaxApplicable": 180.00,
+"salesTaxWithheldAtSource": 0.00,
+"extraTax": 0.00,
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 9 of 51
+
+"furtherTax": 120.00,
+"sroScheduleNo": "SRO123",
+"fedPayable": 0.00,
+"discount": 0.00,
+"saleType": "Goods at standard rate (default)",
+"sroItemSerialNo": ""
+}
+]
+}
+
+Invoice Field Description
+JSON Field
+
+Json Data
+Type
+
+Required
+
+Sample Data
+
+InvoiceType
+
+string
+
+Required
+
+"Sale Invoice"
+
+invoiceDate
+
+date
+
+Required
+
+"2025-04-21"
+
+sellerNTNCNIC
+sellerBusinessName
+
+string
+string
+
+Required
+Required
+
+"0786909"
+"Company 8"
+
+sellerProvince
+
+string
+
+Required
+
+"Sindh"
+
+sellerAddress
+
+string
+
+Required
+
+"Karachi"
+
+Required
+(Optional in
+1000000000000
+case of
+Unregistered)
+"FERTILIZER MANUFAC IRS
+Required
+NEW"
+
+buyerNTNCNIC
+
+string
+
+buyerBusinessName
+
+string
+
+buyerProvince
+
+string
+
+Required
+
+"Sindh"
+
+buyerAddress
+
+string
+
+Required
+
+"Karachi"
+
+buyeRegistrationType string
+
+Required
+
+"Unregistered"
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Description
+• Sales Invoice
+• Debit Note
+Date of Invoice
+Issuance
+Seller NTN/CNIC
+Seller Business Name
+Seller province
+(province from
+reference API 5.1)
+Seller business
+Address
+Buyer NTN/CNIC
+Buyer Business Name
+Buyer Province
+(province from
+reference API 5.1)
+Buyer Address
+• Registered
+• Unregistered
+
+Page 10 of 51
+
+invoiceRefNo
+
+String
+
+Reference Invoice no
+Required only
+7327556DI1744111990654 for the debit note.
+in case of
+22 digits in case of NTN
+debit note
+
+28 digits in case of CNIC
+
+scenarioId
+
+String
+
+Required for
+Sandbox only
+
+"SN001"
+
+Scenario ID / Number
+(Refer to 9. Scenarios
+for Sandbox Testing)
+
+Invoice Items Field Description
+JSON Field
+
+Json
+Data
+Type
+
+required
+
+sample data Description
+
+hsCode
+
+String
+
+Required
+
+"0101.2100"
+
+productDescription
+
+String
+
+Required
+
+"product
+Description"
+
+rate
+
+String
+
+Required
+
+18%
+
+uoM
+
+String
+
+Required
+
+"Numbers,
+pieces,
+units"
+
+Unit of Measurement (uom
+from reference API 5.6)
+
+Required
+
+1.0000
+
+Quantity of the item sold
+
+Required
+
+0.00
+
+Total Sales Value (Including
+Tax)
+
+Required
+
+1000.00
+
+Sales Value Excluding sales tax
+
+Required
+
+0.00
+
+Required
+
+180.00
+
+Required
+
+0.00
+
+Sales Tax Withheld at source
+
+Optional
+
+0.00
+
+Any Extra Tax (if applicable)
+
+Optional
+
+120.00
+
+Further Tax (if applicable)
+
+Number
+(Decimal)
+Number
+totalValues
+(Decimal)
+Number
+valueSalesExcludingST
+(Decimal)
+Number
+fixedNotifiedValueOrRetailPrice
+(Decimal)
+
+quantity
+
+salesTaxApplicable
+salesTaxWithheldAtSource
+extraTax
+furtherTax
+
+Number
+(Decimal)
+Number
+(Decimal)
+Number
+(Decimal)
+Number
+(Decimal)
+
+Harmonized System (HS) Code
+of the product.
+Details of the product or
+service sold.
+Tax Rate (ratE_DESC from
+reference API 5.8)
+
+Notified fixed price or retail
+price, (Item Based)
+Amount of Sales Tax/ FED in
+sales tax mode
+(Excluding Further & Extra tax)
+
+sroScheduleNo
+
+String
+
+Optional
+
+"SRO123"
+
+SRO Schedule No
+
+fedPayable
+
+Number
+(Decimal)
+
+Optional
+
+0.00
+
+Federal excise duty payable
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 11 of 51
+
+discount
+
+Number
+(Decimal)
+
+Optional
+
+70.00
+
+Any Discount (if applicable)
+
+saleType
+
+String
+
+Required
+
+"Goods at
+standard rate
+(default)"
+
+Type of Sale
+
+sroItemSerialNo
+
+String
+
+Optional
+
+""
+
+Item serial number in SRO
+
+4.1.3. Sample JSON Valid Response:
+{
+"invoiceNumber": "7000007DI1747119701593",
+"dated": "2025-05-13 12:01:41",
+"validationResponse": {
+"statusCode": "00",
+"status": "Valid",
+"error": "",
+"invoiceStatuses": [
+{
+"itemSNo": "1",
+"statusCode": "00",
+"status": "Valid",
+"invoiceNo": "7000007DI1747119701593-1",
+"errorCode": "",
+"error": ""
+}
+]
+}
+}
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 12 of 51
+
+4.1.4. Sample JSON Invalid Response 1:
+{
+"dated": "2025-05-13 13:09:05",
+"validationResponse": {
+"statusCode": "01",
+"status": "Invalid",
+"errorCode": "0052",
+"error": "Provide proper HS Code with invoice no. null",
+"invoiceStatuses": null
+}
+}
+
+4.1.5. Sample JSON Invalid Response 2:
+{
+"dated": "2025-05-13 13:10:00",
+"validationResponse": {
+"statusCode": "00",
+"status": "invalid",
+"error": "",
+"invoiceStatuses": [
+{
+"itemSNo": "1",
+"statusCode": "01",
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 13 of 51
+
+"status": "Invalid",
+"invoiceNo": null,
+"errorCode": "0046",
+"error": "Provide rate."
+}
+]
+}
+}
+
+S. No
+
+Field
+
+Message
+
+1.
+2.
+
+Invoice Number
+Status Code
+
+3.
+4.
+
+Exception
+Invoice Status
+
+Invoice Number issued by FBR System
+00 – Valid
+01 – Invalid
+Details of the errors
+Item Serial Number
+Statuscode (00 valid, 01 Invalid)
+Status (“Valid or invalid)
+Invoice Number (Invoice Number Issued by FBR
+System)
+Error Code
+Remarks:
+
+4.1.6. HTTP Status Codes:
+S. No
+1.
+2.
+3.
+
+Status Code
+200
+401
+500
+
+Document Version :1.12
+
+Message
+Ok
+Unauthorized
+Internal Server Error (Contact Administrator)
+
+PRAL © 2025 – All rights reserved
+
+Page 14 of 51
+
+4.2. Web method for Digital Invoicing - Validate
+The second web method (validateinvoicedata) will be used on a real time basis. API
+consumer will have to send object model mentioned below. This method will take
+following parameters and will return Json response as shown in example below.
+4.2.1. Sample JSON Data (For Sandbox Only):
+Input Parameters of the first web method validate) will be as follows:
+Note: Invoice Header will only be added once in the object model.
+Sandbox URL: https://gw.fbr.gov.pk/di_data/v1/di/validateinvoicedata_sb
+{
+"invoiceType": "Sale Invoice",
+"invoiceDate": "2025-04-21",
+"sellerNTNCNIC": "….7 or 13 digit of seller NTN/CNIC….",
+"sellerBusinessName": "Company 8",
+"sellerProvince": "Sindh",
+"sellerAddress": "Karachi",
+"buyerNTNCNIC": "….7 or 13 digit of buyer NTN/CNIC….",
+"buyerBusinessName": "FERTILIZER MANUFAC IRS NEW",
+"buyerProvince": "Sindh",
+"buyerAddress": "Karachi",
+"buyerRegistrationType": "Registered",
+"invoiceRefNo": "",
+"scenarioId": "SN001",
+"items": [
+{
+"hsCode": "0101.2100",
+"productDescription": "product Description",
+"rate": "18%",
+"uoM": "Numbers, pieces, units",
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 15 of 51
+
+"quantity": 1.0000,
+"totalValues": 0.00,
+"valueSalesExcludingST":1000.00,
+"fixedNotifiedValueOrRetailPrice":0.00,
+"salesTaxApplicable": 180.00,
+"salesTaxWithheldAtSource":0.00,
+"extraTax": 0.00,
+"furtherTax": 120.00,
+"sroScheduleNo": "",
+"fedPayable": 0.00,
+"discount": 0.00,
+"saleType": "Goods at standard rate (default)",
+"sroItemSerialNo": ""
+}
+]
+}
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 16 of 51
+
+4.2.2. Sample JSON Data (For Production):
+Input Parameters of the first web method validate) will be as follows:
+Note: Invoice Header will only be added once in the object model.
+Production URL: https://gw.fbr.gov.pk/di_data/v1/di/validateinvoicedata
+{
+"invoiceType": "Sale Invoice",
+"invoiceDate": "2025-04-21",
+"sellerNTNCNIC": "….7 or 13 digit of seller NTN/CNIC….",
+"sellerBusinessName": "Company 8",
+"sellerProvince": "Sindh",
+"sellerAddress": "Karachi",
+"buyerNTNCNIC": "….7 or 13 digit of buyer NTN/CNIC….",
+"buyerBusinessName": "FERTILIZER MANUFAC IRS NEW",
+"buyerProvince": "Sindh",
+"buyerAddress": "Karachi",
+"buyerRegistrationType": "Unregistered",
+"invoiceRefNo": "",
+"items": [
+{
+"hsCode": "0101.2100",
+"productDescription": "product Description",
+"rate": "18%",
+"uoM": "Numbers, pieces, units",
+"quantity": 1.0000,
+"totalValues": 0.00,
+"valueSalesExcludingST": 1000.00,
+"fixedNotifiedValueOrRetailPrice": 0.00,
+"salesTaxApplicable": 180.00,
+"salesTaxWithheldAtSource": 0.00,
+"extraTax": 0.00,
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 17 of 51
+
+"furtherTax": 120.00,
+"sroScheduleNo": "SRO123",
+"fedPayable": 0.00,
+"discount": 0.00,
+"saleType": "Goods at standard rate (default)",
+"sroItemSerialNo": ""
+}
+]
+}
+
+Invoice Field Description
+JSON Field
+
+Json Data
+Type
+
+Required
+
+Sample Data
+
+InvoiceType
+
+string
+
+Required
+
+"Sale Invoice"
+
+invoiceDate
+
+date
+
+Required
+
+"2025-04-21"
+
+sellerNTNCNIC
+sellerBusinessName
+
+string
+string
+
+Required
+Required
+
+"0786909"
+"Company 8"
+
+sellerProvince
+
+string
+
+Required
+
+"Sindh"
+
+sellerAddress
+
+string
+
+Required
+
+"Karachi"
+
+Required
+(Optional in
+1000000000000
+case of
+Unregistered)
+"FERTILIZER MANUFAC IRS
+Required
+NEW"
+
+buyerNTNCNIC
+
+string
+
+buyerBusinessName
+
+string
+
+buyerProvince
+
+string
+
+Required
+
+"Sindh"
+
+buyerAddress
+
+string
+
+Required
+
+"Karachi"
+
+buyeRegistrationType string
+
+Required
+
+"Unregistered"
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Description
+• Sales Invoice
+• Debit Note
+Date of Invoice
+Issuance
+Seller NTN/CNIC
+Seller Business Name
+Seller province
+(province from
+reference API 5.1)
+Seller business
+Address
+Buyer NTN/CNIC
+Buyer Business Name
+Buyer Province
+(province from
+reference API 5.1)
+Buyer Address
+• Registered
+• Unregistered
+
+Page 18 of 51
+
+invoiceRefNo
+
+String
+
+Reference Invoice no
+Required only
+7327556DI1744111990654 for the debit note.
+in case of
+22 digits in case of NTN
+debit note
+
+28 digits in case of CNIC
+
+scenarioId
+
+String
+
+Required for
+Sandbox only
+
+"SN001"
+
+Scenario ID / Number
+(Refer to 9. Scenarios
+for Sandbox Testing)
+
+Invoice Items Field Description
+JSON Field
+
+Json
+Data
+Type
+
+required
+
+sample data Description
+
+hsCode
+
+String
+
+Required
+
+"0101.2100"
+
+productDescription
+
+String
+
+Required
+
+"product
+Description"
+
+rate
+
+String
+
+Required
+
+18%
+
+uoM
+
+String
+
+Required
+
+"Numbers,
+pieces,
+units"
+
+Unit of Measurement (uom
+from reference API 5.6)
+
+Required
+
+1.0000
+
+Quantity of the item sold
+
+Required
+
+0.00
+
+Total Sales Value (Including
+Tax)
+
+Required
+
+1000.00
+
+Sales Value Excluding sales tax
+
+Required
+
+0.00
+
+Required
+
+180.00
+
+Required
+
+0.00
+
+Sales Tax Withheld at source
+
+Optional
+
+0.00
+
+Any Extra Tax (if applicable)
+
+Optional
+
+120.00
+
+Further Tax (if applicable)
+
+Number
+(Decimal)
+Number
+totalValues
+(Decimal)
+Number
+valueSalesExcludingST
+(Decimal)
+Number
+fixedNotifiedValueOrRetailPrice
+(Decimal)
+
+quantity
+
+salesTaxApplicable
+salesTaxWithheldAtSource
+extraTax
+furtherTax
+
+Number
+(Decimal)
+Number
+(Decimal)
+Number
+(Decimal)
+Number
+(Decimal)
+
+Harmonized System (HS) Code
+of the product.
+Details of the product or
+service sold.
+Tax Rate (ratE_DESC from
+reference API 5.8)
+
+Notified fixed price or retail
+price, (Item Based)
+Amount of Sales Tax/ FED in
+sales tax mode
+(Excluding Further & Extra tax)
+
+sroScheduleNo
+
+String
+
+Optional
+
+"SRO123"
+
+SRO Schedule No
+
+fedPayable
+
+Number
+(Decimal)
+
+Optional
+
+0.00
+
+Federal excise duty payable
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 19 of 51
+
+discount
+
+Number
+(Decimal)
+
+Optional
+
+70.00
+
+Any Discount (if applicable)
+
+saleType
+
+String
+
+Required
+
+"Goods at
+standard rate
+(default)"
+
+Type of Sale
+
+sroItemSerialNo
+
+String
+
+Optional
+
+""
+
+Item serial number in SRO
+
+4.2.3. Sample Json Response (In Case of Valid):
+{
+"dated": "2025-05-13 13:13:07",
+"validationResponse": {
+"statusCode": "00",
+"status": "Valid",
+"errorCode": null,
+"error": "",
+"invoiceStatuses": [
+{
+"itemSNo": "1",
+"statusCode": "00",
+"status": "Valid",
+"errorCode": null,
+"error": ""
+}
+]
+}
+}
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 20 of 51
+
+4.2.4. Sample Json Response (In Case of Invalid):
+{
+"dated": "2025-05-13 13:13:54",
+"validationResponse": {
+"statusCode": "00",
+"status": "Invalid",
+"errorCode": null,
+"error": "",
+"invoiceStatuses": [
+{
+"itemSNo": "1",
+"statusCode": "01",
+"status": "Invalid",
+"errorCode": "0046",
+"error": "Provide rate."
+}
+]
+}
+}
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 21 of 51
+
+S. No
+1.
+
+Field
+Status Code
+
+2.
+3.
+
+Exception
+Invoice Status
+
+Message
+00 - Valid
+01 – Invalid
+Details of the errors
+Item Serial Number
+Statuscode (00 valid, 01 Invalid)
+Status (“Valid or invalid)
+Invoice Number (Invoice Number Issued by FBR
+System)
+Error Code
+Remarks:
+
+4.2.5. Http Status Codes:
+S. No
+
+Status Code
+200
+401
+500
+
+1.
+2.
+3.
+
+Message
+Ok
+Unauthorized
+Internal Server Error (Contact Administrator)
+
+5. Digital Invoicing Reference APIs
+
+
+
+
+
+
+
+
+
+
+
+
+
+Web method for Digital Invoicing – Province Code
+Web method for Digital Invoicing – Document Type
+Web method for Digital Invoicing – Item Code
+Web method for Digital Invoicing – SRO item ID
+Web method for Digital Invoicing – Transaction Type ID
+Web method for Digital Invoicing – UOM ID
+Web method for Digital Invoicing – SRO ID
+Web method for Digital Invoicing – Sale Type To Rate
+Web method for Digital Invoicing – HS_UOM
+Web method for Digital Invoicing – SRO item ID
+Web method for Digital Invoicing – STATL
+Web method for Digital Invoicing – STATL (Get_Reg_Type)
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 22 of 51
+
+5.1. Web method for Digital Invoicing – Province Code
+This Web method (provinces) HTTP meth Get will be used on a real time basis. API
+consumer will have to send object model mentioned below. This method will take
+following parameters and will return Json response as shown in example below.
+URL: https://gw.fbr.gov.pk/pdi/v1/provinces
+5.1.1. Sample JSON Data:
+API requires no request input.
+5.1.2. Sample Json Response:
+[ {
+"stateProvinceCode": 7,
+"stateProvinceDesc": "PUNJAB"
+},
+{
+"stateProvinceCode": 8,
+"stateProvinceDesc": "SINDH"
+}
+]
+
+S. No
+Field
+1.
+StateprovinceCode
+2.
+stateprovinceDesc
+5.1.3. Http Status Codes:
+
+Description
+Province code
+Description on the province
+
+S. No
+
+Message
+Ok
+Unauthorized
+Internal Server Error (Contact Administrator)
+
+1.
+2.
+3.
+
+Status Code
+200
+401
+500
+
+5.2. Web method for Digital Invoicing – Document Type ID
+This Web method (doctypecode) HTTP meth Get will be used on a real time basis. API
+consumer will have to send object model mentioned below. This method will take
+following parameters and will return Json response as shown in example below.
+URL: https://gw.fbr.gov.pk/pdi/v1/doctypecode
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 23 of 51
+
+5.2.1. Sample JSON Data:
+API requires no request input.
+5.2.2. Sample Json Response:
+[{
+"docTypeId": 4,
+"docDescription": "Sale Invoice"
+},
+{
+"docTypeId": 9,
+"docDescription": "Debit Note"
+}]
+S. No
+1.
+2.
+
+Field
+docTypeId
+docDescription
+
+Description
+Id for the document type
+Description of the document type
+
+5.2.3. Http Status Codes:
+S. No
+1.
+2.
+3.
+
+Status Code
+200
+401
+500
+
+Document Version :1.12
+
+Message
+Ok
+Unauthorized
+Internal Server Error (Contact Administrator)
+
+PRAL © 2025 – All rights reserved
+
+Page 24 of 51
+
+5.3. Web method for Digital Invoicing – Item Code
+This Web method (itemdesccode) HTTP meth Get will be used on a real time basis. API
+consumer will have to send object model mentioned below. This method will take
+following parameters and will return Json response as shown in example below.
+URL: https://gw.fbr.gov.pk/pdi/v1/itemdesccode
+5.3.1. Sample JSON Data:
+API requires no request input.
+5.3.2. Sample Json Response:
+[{
+"hS_CODE": "8432.1010",
+"description": "NUCLEAR REACTOR, BOILERS, MACHINERY AND
+MECHANICAL APPLIANCES; PARTS THEREOF. - AGRICULTURAL,
+HORTICULTURAL OR FORESTRY MACHINERY FOR SOIL PREPARATION OR
+CULTI- VATION; LAWN OR SPORTS GROUND ROLLERS. - CHISEL
+PLOUGHS"
+},
+{
+"hS_CODE": "0304.7400",
+"description": "FISH AND CRUSTACEANS, MOLLUSCS AND OTHER
+AQUATIC INVERTEBRATES - FISH FILLETS AND OTHER FISH MEAT
+(WHETHER OR NOT MINCED), FRESH, CHILLED OR FROZEN. - HAKE
+(MERLUCCIUS SPP., UROPHYCIS SPP.)"
+}]
+S. No
+1.
+2.
+
+Field
+Hs_Code
+description
+
+Description
+HS Code
+Description of the HSCode
+
+5.3.3. Http Status Codes:
+S. No
+1.
+2.
+3.
+
+Status Code
+200
+401
+500
+
+Document Version :1.12
+
+Message
+Ok
+Unauthorized
+Internal Server Error (Contact Administrator)
+
+PRAL © 2025 – All rights reserved
+
+Page 25 of 51
+
+5.4. Web method for Digital Invoicing – SRO Item ID
+This Web method (sroitemcode) HTTP meth Get will be used on a real time basis. API
+consumer will have to send object model mentioned below. This method will take
+following parameters and will return Json response as shown in example below.
+URL: https://gw.fbr.gov.pk/pdi/v1/sroitemcode
+5.4.1. Sample JSON Data:
+API requires no request input.
+5.4.2. Sample Json Response:
+[
+{
+"srO_ITEM_ID": 724,
+"srO_ITEM_DESC": "9"
+},
+{
+"srO_ITEM_ID": 728,
+"srO_ITEM_DESC": "1"
+}
+]
+
+S. No
+1.
+2.
+
+Field
+Sro_ITEM_ID
+srO_ITEM_DESC
+
+Description
+SRO item id
+SRO Item Description
+
+5.4.3. Http Status Codes:
+S. No
+1.
+2.
+3.
+
+Status Code
+200
+401
+500
+
+Document Version :1.12
+
+Message
+Ok
+Unauthorized
+Internal Server Error (Contact Administrator)
+
+PRAL © 2025 – All rights reserved
+
+Page 26 of 51
+
+5.5. Web method for Digital Invoicing – Transaction Type ID
+This Web method (transtypecode) HTTP meth Get will be used on a real time basis. API
+consumer will have to send object model mentioned below. This method will take
+following parameters and will return Json response as shown in example below.
+URL: https://gw.fbr.gov.pk/pdi/v1/transtypecode
+5.5.1. Sample JSON Data:
+API requires no request input.
+5.5.2. Sample Json Response:
+[
+{
+"transactioN_TYPE_ID": 82,
+"transactioN_DESC": "DTRE goods"
+},
+{
+"transactioN_TYPE_ID": 87,
+"transactioN_DESC": "Special procedure cottonseed"
+},
+{
+"transactioN_TYPE_ID": 111,
+"transactioN_DESC": "Electricity Supplied to marble/granite
+industry"
+}
+]
+
+S. No
+Field
+transactioN_TYPE_ID
+1.
+transaction_DESC
+2.
+5.5.3. Http Status Codes:
+
+Description
+Transaction type id
+Description of the transaction type
+
+S. No
+
+Message
+Ok
+Unauthorized
+Internal Server Error (Contact Administrator)
+
+1.
+2.
+3.
+
+Status Code
+200
+401
+500
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 27 of 51
+
+5.6. Web method for Digital Invoicing – ID of the UOM
+This Web method (uom) HTTP meth Get will be used on a real time basis. API consumer
+will have to send object model mentioned below. This method will take following
+parameters and will return Json response as shown in example below.
+URL: https://gw.fbr.gov.pk/pdi/v1/uom
+5.6.1. Sample JSON Data:
+API requires no request input.
+5.6.2. Sample Json Response:
+[
+{
+"uoM_ID": 77,
+"description": "Square Metre"
+},
+{
+"uoM_ID": 13,
+"description": "KG"
+]
+
+}
+
+S. No
+Field
+UOM_ID
+1.
+Description
+2.
+5.6.3. Http Status Codes:
+
+Description
+ID of the UOM
+Description of the UOM
+
+S. No
+
+Message
+Ok
+Unauthorized
+Internal Server Error (Contact Administrator)
+
+1.
+2.
+3.
+
+Status Code
+200
+401
+500
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 28 of 51
+
+5.7. Web method for Digital Invoicing – SRO Schedule
+This Web method (srosched) HTTP meth Get will be used on a real time basis. API
+consumer will have to send object model mentioned below. This method will take
+following parameters and will return Json response as shown in example below.
+URL: https://gw.fbr.gov.pk/pdi/v1/SroSchedule?rate_id=413&date=04-Feb2024&origination_supplier_csv=1
+
+5.7.1. Sample JSON Data:
+API requires no request input.
+5.7.2. Sample Json Response:
+[
+{
+"srO_ID": 7,
+"srO_DESC": "Zero Rated Gas"
+},
+{
+"srO_ID": 8,
+"srO_DESC": "5th Schedule"
+}
+]
+
+S. No
+Field
+SRO_ID
+1.
+srO_DESC
+2.
+5.7.3. Http Status Codes:
+S. No
+Status Code
+1.
+200
+2.
+401
+3.
+500
+
+Document Version :1.12
+
+Description
+ID of the SRO
+Description of the SRO
+Message
+Ok
+Unauthorized
+Internal Server Error (Contact Administrator)
+
+PRAL © 2025 – All rights reserved
+
+Page 29 of 51
+
+5.8.
+
+Web method for Digital Invoicing – ID of The Rate
+This Web method (SaleTypeToRate) HTTP meth Get will be used on a real time basis. API
+consumer will have to send object model mentioned below. This method will take
+following parameters and will return Json response as shown in example below.
+URL: https://gw.fbr.gov.pk/pdi/v2/SaleTypeToRate?date=24-Feb2024&transTypeId=18&originationSupplier=1
+
+5.8.1. Sample JSON Data:
+API requires the following input as a query string.
+S. No
+Field
+Description
+date
+1.
+Date
+transTypeId
+2.
+ID of the transaction type
+originationSuppl
+3.
+Province ID
+5.8.2. Sample Json Response:
+[
+{
+"ratE_ID": 734,
+"ratE_DESC": "18% along with rupees 60 per kilogram",
+"ratE_VALUE": 18
+}
+,
+{
+"ratE_ID": 280,
+"ratE_DESC": "0%",
+"ratE_VALUE": 0
+]
+
+}
+
+S. No
+Field
+1.
+Rate_ID
+rate_DESC
+2.
+Rate_VALUE
+3.
+5.8.3. Http Status Codes:
+
+Description
+ID of the rate
+Description of the rate
+Value of the rate
+
+S. No
+
+Message
+Ok
+Unauthorized
+Internal Server Error (Contact Administrator)
+
+1.
+2.
+3.
+
+Status Code
+200
+401
+500
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 30 of 51
+
+5.9. Web method for Digital Invoicing – HS Code with UOM
+This Web method (HS_UOM) HTTP method Get will be used on a real time basis. API
+consumer will have to send object model mentioned below. This method will take
+following parameters and will return Json response as shown in example below.
+URL: https://gw.fbr.gov.pk/pdi/v2/HS_UOM?hs_code=5904.9000&annexure_id=3
+5.9.1. Sample JSON Data:
+API requires the following input as a query string.
+S. No
+Field
+Description
+1.
+Hs_code
+HS code
+Annexureid
+2.
+Sales annexure id
+5.9.2. Sample Json Response:
+[
+{
+"uoM_ID": 77,
+"description": "Square Meter"
+}
+]
+]
+
+S. No
+Field
+1.
+uoM_ID
+description
+2.
+5.9.3. Http Status Codes:
+
+Description
+ID of the unit of measure
+Description of the unit of measure
+
+S. No
+
+Message
+Ok
+Unauthorized
+Internal Server Error (Contact Administrator)
+
+1.
+2.
+3.
+
+Status Code
+200
+401
+500
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 31 of 51
+
+5.10. Web method for Digital Invoicing – SRO Item ID
+This Web method (SROItem) HTTP meth Get will be used on a real time basis. API consumer
+will have to send object model mentioned below. This method will take following
+parameters and will return Json response as shown in example below.
+URL: https://gw.fbr.gov.pk/pdi/v2/SROItem?date=2025-03-25&sro_id=389
+5.10.1. Sample JSON Data:
+S. No
+1.
+2.
+
+API requires the following input as a query string.
+Field
+Description
+Date
+Date
+Sro_id
+Sro id
+
+5.10.2. Sample Json Response:
+[
+{
+"srO_ITEM_ID": 17853,
+"srO_ITEM_DESC": "50"
+},
+{
+"srO_ITEM_ID": 17854,
+"srO_ITEM_DESC": "51"
+}
+]
+
+S. No
+Field
+1.
+Sro_ITEM_ID
+2.
+Sro_ITEM_DESC
+5.10.3. Http Status Codes:
+
+Description
+Item id
+Description of the Item
+
+S. No
+
+Message
+Ok
+Unauthorized
+Internal Server Error (Contact Administrator)
+
+1.
+2.
+3.
+
+Status Code
+200
+401
+500
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 32 of 51
+
+5.11
+
+Web method for Digital Invoicing – STATL
+This Web method (statl) HTTP meth Get will be used on a real time basis. API consumer
+will have to send object model mentioned below. This method will take following
+parameters and will return Json response as shown in example below.
+URL: https://gw.fbr.gov.pk/dist/v1/statl
+
+Sample JSON Request:
+Request: {"regno":"0788762","date":"2025-05-18"}
+Response:
+{
+"status code": "01",
+"status": "In-Active"
+}
+or
+{
+"status code": "02",
+"status": "In-Active"
+}
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 33 of 51
+
+5.12
+
+Web method for Digital Invoicing – STATL
+This Web method (Get_Reg_Type) HTTP meth Get will be used on a real time basis. API
+consumer will have to send object model mentioned below. This method will take
+following parameters and will return Json response as shown in example below.
+
+URL: https://gw.fbr.gov.pk/dist/v1/Get_Reg_Type
+Sample JSON Request:
+{"Registration_No":"0788762"}
+Response:
+{
+"statuscode": "01",
+"REGISTRATION_NO": "0788762",
+"REGISTRATION_TYPE": "unregistered"
+}
+or
+{
+"statuscode": "00",
+"REGISTRATION_NO": "0788762",
+"REGISTRATION_TYPE": "Registered"
+}
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 34 of 51
+
+6. Digital Invoicing Logo & QR Code Printing
+
+The below Digital Invoicing System logo and QR code must be printed on each invoice issued by
+the taxpayers.
+
+Ensure the following specifications for QR Code Printing:
+QR Code Version: 2.0 (25×25)
+QR Code Dimensions: 1.0 x 1.0 Inch.
+
+Use FBR Digital Invoicing System image to print on receipts
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 35 of 51
+
+7. Sales Error Codes
+MESSAGE
+CODE
+
+MESSAGE_DESC
+
+BRIEF_MSG_DESC
+
+0001
+
+Seller not registered for sales tax,
+please provide valid
+registration/NTN.
+
+Seller is not registered for sales tax, please provide
+valid seller registration/NTN.
+
+0002
+
+Invalid Buyer Registration No or NTN
+:
+
+0003
+
+Provide proper invoice type.
+
+0005
+
+please provide date in valid format
+01-DEC-2021
+
+0006
+
+Sale invoice not exist.
+
+Sales invoice does not exist against STWH
+
+Wrong Sale type is selected with
+invoice no (Invoice no)
+ST withheld at source should either
+be zero or same as sales tax/fed in st
+mode.
+
+Selected invoice type is not associated with proper
+registration number, please select actual invoice type
+ST withheld at source is not equal to zero or sales tax,
+please enter ST withheld at source zero or equal to
+sales tax
+
+0009
+
+Provide Buyer registration No.
+
+Buyer Registration Number cannot be empty, please
+provide proper buyer registration number
+
+0010
+
+Provide Buyer Name.
+
+Buyer Name cannot be empty, please provide valid
+buyer name
+
+0012
+
+Provide Buyer Registration Type
+
+Buyer Registration type cannot be empty, please
+provide valid Buyer Registration type
+
+0011
+
+Provide invoice type.
+
+Invoice type cannot be empty, please provide valid
+invoice type
+
+0013
+
+Provide valid Sale type.
+
+Sale type cannot be empty/null, please provide valid
+sale type
+
+0018
+
+Please provide Sales Tax/FED in ST
+Mode
+
+Sales Tax/FED cannot be empty, please valid provide
+Sales Tax/FED
+
+0019
+
+Please provide HSCode
+
+HS Code cannot be empty, please provide valid HS
+Code
+
+0020
+
+Please provide Rate
+
+Rate field cannot be empty, please provide Rate
+
+0021
+
+Please provide Value of Sales Excl. ST
+/Quantity
+
+Value of Sales Excl. ST /Quantity cannot be empty,
+Please provide valid Value of Sales Excl. ST /Quantity
+
+0007
+0008
+
+Document Version :1.12
+
+Buyer Registration Number or NTN is not in proper
+format, please provide buyer registration number in
+13 digits or NTN in 7 or 9 digits
+Invoice type is not valid or empty, please provide valid
+invoice type
+Invoice date is not in proper format, please provide
+invoice date in "YYYY-MM-DD" format. For example:
+2025-05-25
+
+PRAL © 2025 – All rights reserved
+
+Page 36 of 51
+
+ST withheld at Source or STS Withheld cannot be
+empty, Please provide valid ST withheld at Source or
+STS Withheld
+Sales Tax cannot be empty, Please provide valid Sales
+Tax
+
+0022
+
+Please provide ST withheld at Source
+or STS Withheld
+
+0023
+
+Please provide Sales Tax
+
+0024
+
+Please provide ST withheld
+
+Sales Tax withheld cannot be empty, Please provide
+valid Sales Tax withheld
+
+0026
+
+Invoice Reference No. is required.
+
+Invoice Reference No. is mandatory requirement for
+debit/credit note. Please provide valid Invoice
+Reference No.
+
+0027
+
+Reason is required.
+
+Reason is mandatory requirement for debit/credit
+note. Please provide valid reason for debit/credit note
+
+0028
+
+Reason Remarks are required.
+
+Reason is selected as "Others". Please provide valid
+remarks against this reason
+
+0029
+
+Invoice date must be greater or
+equal to original invoice no.
+
+Debit/Credit note date should be equal or greater
+from original invoice date
+
+0030
+
+Unregistered distributer type not
+allowed before date
+
+Unregistered distributer type not allowed before
+system cut of date
+
+0031
+
+Provide Sales Tax
+
+Sales Tax is not mentioned, please provide Sales Tax
+
+0032
+
+STWH can only be created for
+GOV/FTN Holders.
+
+User is not FTN holder, STWH can only be created for
+GOV/FTN Holders without sales invoice.
+
+0034
+
+{0} only allowed within {1} days of
+invoice date of the original invoice
+
+Debit/Credit note can only be added within 180 days
+of original invoice date
+
+0035
+
+{0} date must be greater or equal to
+original invoice date.
+
+Note Date must be greater or equal to original invoice
+date
+
+0036
+
+0037
+
+Total {1} value of {0} invoice(s) is
+greater than {1} of original invoice.
+Value of Sales
+Total {1} value of {0} invoice(s) is
+greater than {1} of original invoice.ST
+Withheld as WH Agent
+
+Credit Note Value of Sale must be less or equal to the
+value of Sale in original invoice.
+Credit Note Value of ST Withheld must be less or
+equal to the value of ST Withheld in original invoice.
+
+0039
+
+Sale invoice not exist.
+
+For registered users, STWH invoice fields must be
+same as sale invoice
+
+0041
+
+Provide invoice No.
+
+Invoice number cannot be empty, please provide
+invoice number.
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 37 of 51
+
+0042
+
+Provide invoice date.
+
+Invoice date cannot be empty, please provide invoice
+date.
+
+0043
+
+Provide valid Date.
+
+Invoice date is not valid, please provide valid invoice
+date.
+
+0044
+
+Provide HS Code.
+
+HS Code cannot be empty, please provide HS Code
+
+0046
+
+Provide rate.
+
+Rate cannot be empty, please provide valid rate as per
+selected Sales Type.
+
+0050
+
+0052
+
+Please provide valid Sales Tax
+withheld. For sale type 'Cotton
+ginners', Sales Tax Withheld must be
+equal to Sales Tax or zero
+Please provide valid HS Code against
+invoice no:
+
+Please provide valid Sales Tax withheld. For sale type
+'Cotton ginners', Sales Tax Withheld must be equal to
+Sales Tax or zero
+HS Code that does not match with provided sale type,
+Please provide valid HS Code against sale type
+
+0053
+
+Provided buyer registration type is
+invalid
+
+Buyer Registration Type is invalid, please provide valid
+Buyer Registration Type
+
+0055
+
+Please Provide ST Withheld as WH
+Agent
+
+Sales tax withheld cannot be empty or invalid format.
+Please provide valid sales tax withheld.
+
+0056
+
+Buyer not exists in steel sector.
+
+Buyer does not exist in steel sector
+
+0057
+
+Reference Invoice does not exist.
+
+Reference invoice for debit/ credit note does not
+exists. Please provide valid Invoice Reference No.
+
+0058
+
+Self-invoicing not allowed
+
+Buyer and Seller Registration number are same, this
+type of invoice is not allowed
+
+0064
+
+Reference invoice already exist.
+
+Credit note is already added to a invoice
+
+0067
+
+{1} of {0} invoice is greater than {1}
+of original invoice.
+
+Sales Tax value of Debit Note is greater than original
+invoice's sales tax
+
+0068
+
+{1} of {0} invoice is less than {1} of
+original invoice.
+
+Sales Tax value of Credit Note is less than original
+invoice's sales tax according to the rate.
+
+0070
+
+STWH cannot be created for
+unregistered buyers.
+
+User is not registered, STWH is allowed only for
+registered user
+
+0071
+
+Entry of {0} against the declared
+invoice is not allowed.
+
+Credit note allowed to add only for specific users
+
+0073
+
+Provide Sale Origination Province of
+Supplier
+
+Sale Origination Province of Supplier cannot be empty,
+please provide valid Sale Origination Province of
+Supplier.
+
+0074
+
+Provide Destination of Supply
+
+Destination of Supply cannot be empty, please
+provide valid Destination of Supply
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 38 of 51
+
+0077
+
+Provide SRO/Schedule No.
+
+SRO/Schedule Number cannot be empty, please
+provide valid SRO/Schedule Number
+
+0078
+
+Provide Item Sr. No.
+
+Item serial number cannot be empty, please provide
+valid item serial number
+
+0079
+
+If Value of Sales Excl. ST greater than
+{0}. Rate {1} not allowed.
+
+If sales value is greater than 20,000 than rate 5% is
+not allowed
+
+0080
+
+Please provide Further Tax
+
+0081
+0082
+
+Please provide Input Credit not
+Allowed
+The Seller is not registered for sales
+tax. Please provide a valid
+registration/NTN.
+
+Further Tax' cannot be empty, please provide valid
+Further Tax
+'Input Credit not Allowed' cannot be empty, please
+provide ‘Input Credit not Allowed'
+The Seller is not registered for sales tax. Please
+provide a valid registration/NTN.
+
+0083
+
+Mismatch Seller Registration No.
+
+Seller Reg No. doesn’t match. Please provide valid
+Seller Registration Number
+
+0085
+
+Please provide Total Value of Sales
+(In case of PFAD only)
+
+Total Value of Sales is not provided, please provide
+valid Total Value of Sales (In case of PFAD only)
+
+0086
+
+You are not an EFS license holder
+who has imported Compressor Scrap
+in the last 12 months.
+
+You are not an EFS license holder who has imported
+Compressor Scrap in the last 12 months.
+
+0087
+0088
+
+Petroleum Levy rates not configured
+properly.
+Alphanumeric and (-) contained
+invoice No. is allowed. (-) should be
+in between Alphanumeric string.
+
+Petroleum Levy rates not configured properly. Please
+update levy rates properly
+Invoice number is not valid, please provide valid
+invoice number in alphanumeric format. For example:
+Inv-001
+FED Charged cannot be empty, please provide valid
+FED Charged
+
+0089
+
+Please provide FED Charged
+
+0090
+
+Please provide Fixed / notified value
+or Retail Price
+
+Fixed / notified value or Retail Price cannot be empty,
+please provide valid Fixed / notified value or Retail
+Price
+
+0091
+
+Extra tax must be empty.
+
+Extra tax must be empty.
+
+0092
+
+Provide Valid Sale Type.
+
+Purchase type cannot be empty, please provide valid
+purchase type
+
+0093
+
+Selected Sale Type are not allowed
+to Manufacturer.
+
+Selected Sale is are not allowed to Manufacturer.
+Please select proper sale type
+
+Please provide Extra Tax
+
+Extra Tax cannot be empty, please provide valid extra
+tax
+
+0095
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 39 of 51
+
+0096
+
+For selected HSCode only KWH UOM
+is allowed.
+
+For provided HS Code, only KWH UOM is allowed
+
+0097
+
+Provide UOM KG.
+
+Please provide UOM in KG
+
+0098
+
+Please provide Quantity / Electricity
+Units
+
+Quantity / Electricity Unit cannot be empty, please
+provide valid Quantity / Electricity Unit
+
+0099
+
+Provide uom.
+
+UOM is not valid. UOM must be according to given HS
+Code
+
+0100
+
+Cotton Ginners allowed against
+registered buyers only.
+
+Registered user cannot add sale invoice. Only cotton
+ginner sale type is allowed for registered users.
+
+0101
+
+Please Use Toll Manufacturing Sale
+Type for Steel Sector.
+
+Sale type is not selected properly, please use Toll
+Manufacturing Sale Type for Steel Sector.
+
+0102
+
+Calculated tax not matched in 3rd
+schedule
+
+0103
+
+The calculated tax for Potassium
+Chlorate does not match.
+
+0104
+
+The calculated percentage sales tax
+does not match.
+
+The calculated sales tax not calculated as per 3rd
+schedule calculation formula
+Calculated tax not matched for potassium chlorate.
+Calculated value doesn’t match according to
+potassium chlorate for sales potassium invoices.
+Calculated percentage of sales tax not matched.
+Calculation must be correct with respect to provided
+rate
+
+0105
+0106
+
+The calculated sales tax for the
+quantity is incorrect.
+The Buyer is not registered for sales
+tax. Please provide a valid
+registration/NTN.
+
+The calculated sales tax for the quantity is incorrect.
+The Buyer is not registered for sales tax. Please
+provide a valid registration/NTN.
+
+0107
+
+Mismatch Buyer Registration No.
+
+Buyer Reg No. doesn’t match. Please provide valid
+Buyer Registration Number
+
+0108
+
+Invalid Seller Registration No or NTN
+
+Seller Reg No. is not valid. Please provide valid Seller
+Registration Number/NTN
+
+0109
+
+Wrong invoice type is selected in
+invoice no
+
+Invoice type is not selected properly, please select
+proper invoice type
+
+Wrong purchase type is selected
+with invoice no
+System is unable to parse date.
+Please provide date in valid format
+dd-MMM-yy.
+
+Purchase type is not selected properly, please provide
+proper purchase type
+
+0111
+0113
+
+0300
+
+Provided decimal value is not valid at
+field
+
+Document Version :1.12
+
+Date is not in proper format, please provide date in
+"YYYY-MM-DD" format. For example: 2025-05-25
+Discount Value is not valid at item 1 | Total Value is
+not valid at item 1 | Fed Payable Value is not valid at
+item 1 | Extra Tax Value is not valid at item 1 | Further
+Tax Value is not valid at item 1 |
+SalesTaxWithheldAtSource Value is not valid at item 1
+| Quantity Value is not valid at item 1
+
+PRAL © 2025 – All rights reserved
+
+Page 40 of 51
+
+0401
+
+The provided seller NTN/CNIC does
+not have a valid or authorized access
+token
+
+0402
+
+The provided buyer NTN/CNIC does
+not have a valid or authorized access
+token
+
+Document Version :1.12
+
+Unauthorized access: Provided seller registration
+number is not 13 digits (CNIC) or 7 digits (NTN) or the
+authorized token does not exist against seller
+registration number
+Unauthorized access: Provided buyer registration
+number is not 13 digits (CNIC) or 7 digits (NTN) or the
+authorized token does not exist against buyer
+registration number
+
+PRAL © 2025 – All rights reserved
+
+Page 41 of 51
+
+8. Purchase Error Codes
+MESSAGE
+CODE
+
+MESSAGE_DESC
+
+BRIEF_MSG_DESC
+
+0156
+
+Invalid NTN / Reg No. provided.
+
+NTN/Reg. No is invalid/Null, please provide valid
+NTN/Reg. No.
+
+0157
+
+The Buyer is not registered for sales
+tax. Please provide a valid
+registration/NTN.
+
+The Buyer is not registered for sales tax. Please
+provide valid Registration/NTN.
+
+0158
+
+Mismatch Buyer Registration No.
+
+Buyer Reg No. doesn’t match. Please provide valid
+Buyer Registration Number
+
+0159
+
+FTN holder as seller not allowed for
+purchases.
+
+FTN Holder as Seller is not allowed for purchases
+
+0160
+
+Provide Buyer Name.
+
+Buyer Name cannot be empty, please provide valid
+buyer name
+
+0161
+
+Invoice Date must be greater or
+equal to {0}
+
+Invoice Date must be greater or equal to original sale
+invoice date
+
+0162
+
+Provide Sale Type.
+
+Sale Type cannot be empty/Invalid, please provide
+valid Sale Type
+
+0163
+
+Selected Sale Type are not allowed
+to Manufacturer.
+
+Provided Sale Type is not allowed for Manufacturer.
+
+0164
+
+For selected HSCode only KWH UOM
+is allowed.
+
+For provided HS Code, only KWH UOM is allowed
+
+0165
+
+Provide UOM KG.
+
+Please provide UOM in KG
+
+0166
+
+Please provide Quantity / Electricity
+Units
+
+Quantity / Electricity Unit cannot be empty, please
+provide valid Quantity / Electricity Unit
+
+0167
+
+Provide Value of Sales Excl. ST
+
+Value of Sales Excl. ST cannot be empty/Invalid, please
+provide valid Value of Sales Excl. ST
+
+0168
+
+Cotton Ginners allowed against
+registered buyers only.
+
+Only cotton ginner purchase type is allowed for
+registered users.
+
+STWH can only be created for
+GOV/FTN Holders.
+If Value of Sales Excl. ST greater than
+{0}. Rate {1} not allowed.
+You are not an EFS license holder
+who has imported Compressor Scrap
+in the last 12 months.
+
+User is not FTN holder, STWH can only be created for
+GOV/FTN Holders without purchase invoice.
+If Value of Sales Excl. ST greater than 20000 than rate
+5% is not allowed.
+
+0169
+0170
+0171
+
+Document Version :1.12
+
+You are not an EFS license holder who has imported
+Compressor Scrap in the last 12 months.
+
+PRAL © 2025 – All rights reserved
+
+Page 42 of 51
+
+0172
+0173
+
+Petroleum Levy rates not configured
+properly.
+Alphanumeric and (-) contained
+invoice No. is allowed. (-) should be
+in between Alphanumeric string.
+
+Petroleum Levy rates not configured properly. Please
+update levy rates properly
+Invoice number is not valid, please provide valid
+invoice number in alphanumeric format. For example:
+Inv-001
+Sales Tax cannot be empty, please provide valid Sales
+Tax
+Fixed / notified value or Retail Price cannot be empty,
+please provide valid Fixed / notified value or Retail
+Price
+ST withheld at Source cannot be empty, please
+provide valid ST withheld at Source
+
+0174
+
+Please provide Sales Tax
+
+0175
+
+Please provide Fixed / notified value
+or Retail Price
+
+0176
+
+Please provide ST withheld at Source
+
+0177
+
+Please provide Further Tax
+
+Further Tax cannot be empty, please provide valid
+further tax
+
+0156
+
+Invalid NTN / Reg No. provided.
+
+NTN/Reg. No is invalid/Null, please provide valid
+NTN/Reg. No.
+
+0157
+
+The Buyer is not registered for sales
+tax. Please provide a valid
+registration/NTN..
+
+The Buyer is not registered for sales tax. Please
+provide valid Registration/NTN.
+
+0158
+
+Mismatch Buyer Registration No.
+
+Buyer Reg No. doesn’t match. Please provide valid
+Buyer Registration Number
+
+0159
+
+FTN holder as seller not allowed for
+purchases.
+
+FTN Holder as Seller is not allowed for purchases
+
+0160
+
+Provide Buyer Name.
+
+Buyer Name cannot be empty, please provide valid
+buyer name
+
+0161
+
+Invoice Date must be greater or
+equal to {0}
+
+Invoice Date must be greater or equal to original sale
+invoice date
+
+0162
+
+Provide Sale Type.
+
+Sale Type cannot be empty/Invalid, please provide
+valid Sale Type
+
+0163
+
+Selected Sale Type are not allowed
+to Manufacturer.
+
+Provided Sale Type is not allowed for Manufacturer.
+
+0164
+
+For selected HSCode only KWH UOM
+is allowed.
+
+For provided HS Code, only KWH UOM is allowed
+
+0165
+
+Provide UOM KG.
+
+Please provide UOM in KG
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 43 of 51
+
+0166
+
+Please provide Quantity / Electricity
+Units
+
+Quantity / Electricity Unit cannot be empty, please
+provide valid Quantity / Electricity Unit
+
+0167
+
+Provide Value of Sales Excl. ST
+
+Value of Sales Excl. ST cannot be empty/Invalid, please
+provide valid Value of Sales Excl. ST
+
+0168
+
+Cotton Ginners allowed against
+registered buyers only.
+
+Only cotton ginner purchase type is allowed for
+registered users.
+
+0169
+
+STWH can only be created for
+GOV/FTN Holders.
+
+User is not FTN holder, STWH can only be created for
+GOV/FTN Holders without purchase invoice.
+
+0170
+
+If Value of Sales Excl. ST greater than
+{0}. Rate {1} not allowed.
+
+If Value of Sales Excl. ST greater than 20000 than rate
+5% is not allowed.
+
+0171
+0172
+0173
+
+You are not an EFS license holder
+who has imported Compressor Scrap
+in the last 12 months.
+Petroleum Levy rates not configured
+properly.
+Alphanumeric and (-) contained
+invoice No. is allowed. (-) should be
+in between Alphanumeric string.
+
+You are not an EFS license holder who has imported
+Compressor Scrap in the last 12 months.
+Petroleum Levy rates not configured properly. Please
+update levy rates properly
+Invoice number is not valid, please provide valid
+invoice number in alphanumeric format. For example:
+Inv-001
+
+0174
+
+Please provide Sales Tax
+
+Sales Tax cannot be empty, please provide valid Sales
+Tax
+
+0175
+
+Please provide Fixed / notified value
+or Retail Price
+
+Fixed / notified value or Retail Price cannot be empty,
+please provide valid Fixed / notified value or Retail
+Price
+
+0176
+
+Please provide ST withheld at Source
+
+ST withheld at Source cannot be empty, please
+provide valid ST withheld at Source
+
+0177
+
+Please provide Further Tax
+
+Further Tax cannot be empty, please provide valid
+further tax
+
+0156
+
+Invalid NTN / Reg No. provided.
+
+NTN/Reg. No is invalid/Null, please provide valid
+NTN/Reg. No.
+
+0157
+
+The Buyer is not registered for sales
+tax. Please provide a valid
+registration/NTN..
+
+The Buyer is not registered for sales tax. Please
+provide valid Registration/NTN.
+
+0158
+
+Mismatch Buyer Registration No.
+
+Buyer Reg No. doesn’t match. Please provide valid
+Buyer Registration Number
+
+0159
+
+FTN holder as seller not allowed for
+purchases.
+
+FTN Holder as Seller is not allowed for purchases
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 44 of 51
+
+0160
+
+Provide Buyer Name.
+
+Buyer Name cannot be empty, please provide valid
+buyer name
+
+0161
+
+Invoice Date must be greater or
+equal to {0}
+
+Invoice Date must be greater or equal to original sale
+invoice date
+
+0162
+
+Provide Sale Type.
+
+Sale Type cannot be empty/Invalid, please provide
+valid Sale Type
+
+0163
+
+Selected Sale Type are not allowed
+to Manufacturer.
+
+Provided Sale Type is not allowed for Manufacturer.
+
+0164
+
+For selected HSCode only KWH UOM
+is allowed.
+
+For provided HS Code, only KWH UOM is allowed
+
+0165
+
+Provide UOM KG.
+
+Please provide UOM in KG
+
+0166
+
+Please provide Quantity / Electricity
+Units
+
+Quantity / Electricity Unit cannot be empty, please
+provide valid Quantity / Electricity Unit
+
+0167
+
+Provide Value of Sales Excl. ST
+
+Value of Sales Excl. ST cannot be empty/Invalid, please
+provide valid Value of Sales Excl. ST
+
+0168
+
+Cotton Ginners allowed against
+registered buyers only.
+
+Only cotton ginner purchase type is allowed for
+registered users.
+
+0169
+
+STWH can only be created for
+GOV/FTN Holders.
+
+User is not FTN holder, STWH can only be created for
+GOV/FTN Holders without purchase invoice.
+
+0170
+
+If Value of Sales Excl. ST greater than
+{0}. Rate {1} not allowed.
+
+If Value of Sales Excl. ST greater than 20000 than rate
+5% is not allowed.
+
+0171
+
+You are not an EFS license holder
+who has imported Compressor Scrap
+in the last 12 months.
+
+You are not an EFS license holder who has imported
+Compressor Scrap in the last 12 months.
+
+0172
+
+Petroleum Levy rates not configured
+properly.
+
+Petroleum Levy rates not configured properly. Please
+update levy rates properly
+
+0173
+
+Alphanumeric and (-) contained
+invoice No. is allowed. (-) should be
+in between Alphanumeric string.
+
+Invoice number is not valid, please provide valid
+invoice number in alphanumeric format. For example:
+Inv-001
+
+0174
+
+Please provide Sales Tax
+
+Sales Tax cannot be empty, please provide valid Sales
+Tax
+
+0175
+
+Please provide Fixed / notified value
+or Retail Price
+
+Fixed / notified value or Retail Price cannot be empty,
+please provide valid Fixed / notified value or Retail
+Price
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 45 of 51
+
+9. Scenarios for Sandbox Testing
+Scenario Description
+
+Sale Type (Purchase type in case of
+Cotton Ginners)
+
+SN001
+SN002
+SN003
+SN004
+SN005
+SN006
+SN007
+SN008
+
+Goods at standard rate to registered buyers
+Goods at standard rate to unregistered buyers
+Sale of Steel (Melted and Re-Rolled)
+Sale by Ship Breakers
+Reduced rate sale
+Exempt goods sale
+Zero rated sale
+Sale of 3rd schedule goods
+Cotton Spinners purchase from Cotton Ginners
+(Textile Sector)
+
+Goods at Standard Rate (default)
+Goods at Standard Rate (default)
+Steel Melting and re-rolling
+Ship breaking
+Goods at Reduced Rate
+Exempt Goods
+Goods at zero-rate
+3rd Schedule Goods
+
+SN010
+
+Telecom services rendered or provided
+
+Telecommunication services
+
+SN011
+SN012
+SN013
+SN014
+SN015
+SN016
+SN017
+
+Toll Manufacturing sale by Steel sector
+Sale of Petroleum products
+Electricity Supply to Retailers
+Sale of Gas to CNG stations
+Sale of mobile phones
+Processing / Conversion of Goods
+Sale of Goods where FED is charged in ST mode
+Services rendered or provided where FED is
+charged in ST mode
+Services rendered or provided
+Sale of Electric Vehicles
+Sale of Cement /Concrete Block
+Sale of Potassium Chlorate
+Sale of CNG
+Goods sold that are listed in SRO 297(1)/2023
+Drugs sold at fixed ST rate under serial 81 of
+Eighth Schedule Table 1
+Sale to End Consumer by retailers
+Sale to End Consumer by retailers
+Sale to End Consumer by retailers
+
+Toll Manufacturing
+Petroleum Products
+Electricity Supply to Retailers
+Gas to CNG stations
+Mobile Phones
+Processing/ Conversion of Goods
+Goods (FED in ST Mode)
+
+SN009
+
+SN018
+SN019
+SN020
+SN021
+SN022
+SN023
+SN024
+SN025
+SN026
+SN027
+SN028
+
+Cotton Ginners
+
+Services (FED in ST Mode)
+Services
+Electric Vehicle
+Cement /Concrete Block
+Potassium Chlorate
+CNG Sales
+Goods as per SRO.297(|)/2023
+Non-Adjustable Supplies
+Goods at Standard Rate (default)
+3rd Schedule Goods
+Goods at Reduced Rate
+
+Note: Scenarios ID 26,27 & 28 are applicable only if registered as retailer in sales tax profile.
+
+Document Version :1.12
+
+PRAL © 2025 – All rights reserved
+
+Page 46 of 51
+
+10. Applicable Scenarios based on Business Activity
+Sr.
+
+Business
+Activity
+
+Sector
+
+Scenarios
+
+1 Manufacturer All Other Sectors
+2 Manufacturer Steel
+3 Manufacturer FMCG
+4 Manufacturer Textile
+5 Manufacturer Telecom
+6 Manufacturer Petroleum
+7 Manufacturer
+
+Electricity
+Distribution
+
+8 Manufacturer Gas Distribution
+9 Manufacturer Services
+10 Manufacturer Automobile
+11 Manufacturer CNG Stations
+12 Manufacturer Pharmaceuticals
+13 Manufacturer Wholesale / Retails
+16 Importer
+
+All Other Sectors
+
+17 Importer
+
+Steel
+
+18 Importer
+
+FMCG
+
+19 Importer
+
+Textile
+
+20 Importer
+
+Telecom
+
+21 Importer
+
+Petroleum
+
+22 Importer
+
+Electricity
+Distribution
+
+23 Importer
+
+Gas Distribution
+
+Document Version :1.12
+
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024
+SN003, SN004, SN011
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN008
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN009
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN010
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN012
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN013
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN014
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN018, SN019
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN020
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN023
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN026, SN027, SN028, SN008
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN003, SN004, SN011
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN008
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN009
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN010
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN012
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN013
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN014
+
+PRAL © 2025 – All rights reserved
+
+Page 47 of 51
+
+24 Importer
+
+Services
+
+25 Importer
+
+Automobile
+
+26 Importer
+
+CNG Stations
+
+27 Importer
+
+Pharmaceuticals
+
+28 Importer
+
+Wholesale / Retails
+
+31 Distributor
+
+All Other Sectors
+
+32
+33
+34
+35
+36
+
+Steel
+FMCG
+Textile
+Telecom
+Petroleum
+Electricity
+Distribution
+Gas Distribution
+Services
+Automobile
+CNG Stations
+Pharmaceuticals
+Wholesale / Retails
+
+Distributor
+Distributor
+Distributor
+Distributor
+Distributor
+
+37 Distributor
+38
+39
+40
+41
+42
+43
+
+Distributor
+Distributor
+Distributor
+Distributor
+Distributor
+Distributor
+
+46 Wholesaler
+
+All Other Sectors
+
+47
+48
+49
+50
+51
+
+Steel
+FMCG
+Textile
+Telecom
+Petroleum
+Electricity
+Distribution
+Gas Distribution
+Services
+Automobile
+CNG Stations
+Pharmaceuticals
+Wholesale / Retails
+
+Wholesaler
+Wholesaler
+Wholesaler
+Wholesaler
+Wholesaler
+
+52 Wholesaler
+53
+54
+55
+56
+57
+58
+
+Wholesaler
+Wholesaler
+Wholesaler
+Wholesaler
+Wholesaler
+Wholesaler
+
+61 Exporter
+
+All Other Sectors
+
+Document Version :1.12
+
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN018, SN019
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN020
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN023
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN025
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN026, SN027, SN028, SN008
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN026, SN027, SN028, SN008
+SN003, SN004, SN011, SN026, SN027, SN028, SN008
+SN008, SN026, SN027, SN028, SN008
+SN009, SN026, SN027, SN028, SN008
+SN010, SN026, SN027, SN028, SN008
+SN012, SN026, SN027, SN028, SN008
+SN013, SN026, SN027, SN028, SN008
+SN014, SN026, SN027, SN028, SN008
+SN018, SN019, SN026, SN027, SN028, SN008
+SN020, SN026, SN027, SN028, SN008
+SN023, SN026, SN027, SN028, SN008
+SN025, SN026, SN027, SN028, SN008
+SN001, SN002, SN026, SN027, SN028, SN008
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN026, SN027, SN028, SN008
+SN003, SN004, SN011, SN026, SN027, SN028, SN008
+SN008, SN026, SN027, SN028, SN008
+SN009, SN026, SN027, SN028, SN008
+SN010, SN026, SN027, SN028, SN008
+SN012, SN026, SN027, SN028, SN008
+SN013, SN026, SN027, SN028, SN008
+SN014, SN026, SN027, SN028, SN008
+SN018, SN019, SN026, SN027, SN028, SN008
+SN020, SN026, SN027, SN028, SN008
+SN023, SN026, SN027, SN028, SN008
+SN025, SN026, SN027, SN028, SN008
+SN001, SN002, SN026, SN027, SN028, SN008
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024
+
+PRAL © 2025 – All rights reserved
+
+Page 48 of 51
+
+62 Exporter
+
+Steel
+
+63 Exporter
+
+FMCG
+
+64 Exporter
+
+Textile
+
+65 Exporter
+
+Telecom
+
+66 Exporter
+
+Petroleum
+
+67 Exporter
+
+Electricity
+Distribution
+
+68 Exporter
+
+Gas Distribution
+
+69 Exporter
+
+Services
+
+70 Exporter
+
+Automobile
+
+71 Exporter
+
+CNG Stations
+
+72 Exporter
+
+Pharmaceuticals
+
+73 Exporter
+
+Wholesale / Retails
+
+76 Retailer
+
+All Other Sectors
+
+77
+78
+79
+80
+81
+
+Steel
+FMCG
+Textile
+Telecom
+Petroleum
+Electricity
+Distribution
+Gas Distribution
+Services
+Automobile
+CNG Stations
+Pharmaceuticals
+Wholesale / Retails
+
+Retailer
+Retailer
+Retailer
+Retailer
+Retailer
+
+82 Retailer
+83
+84
+85
+86
+87
+88
+
+Retailer
+Retailer
+Retailer
+Retailer
+Retailer
+Retailer
+Service
+91
+Provider
+Service
+92
+Provider
+
+All Other Sectors
+Steel
+
+Document Version :1.12
+
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN003, SN004, SN011
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN008
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN009
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN010
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN012
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN013
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN014
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN018, SN019
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN020
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN023
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN025
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN026, SN027, SN028, SN008
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN026, SN027, SN028, SN008
+SN003, SN004, SN011
+SN026, SN027, SN028, SN008
+SN009, SN026, SN027, SN028, SN008
+SN010, SN026, SN027, SN028, SN008
+SN012, SN026, SN027, SN028, SN008
+SN013, SN026, SN027, SN028, SN008
+SN014, SN026, SN027, SN028, SN008
+SN018, SN019, SN026, SN027, SN028, SN008
+SN020, SN026, SN027, SN028, SN008
+SN023, SN026, SN027, SN028, SN008
+SN025, SN026, SN027, SN028, SN008
+SN026, SN027, SN028, SN008
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN018, SN019
+SN003, SN004, SN011, SN018, SN019
+
+PRAL © 2025 – All rights reserved
+
+Page 49 of 51
+
+93
+94
+95
+96
+97
+98
+99
+100
+101
+102
+103
+
+Service
+Provider
+Service
+Provider
+Service
+Provider
+Service
+Provider
+Service
+Provider
+Service
+Provider
+Service
+Provider
+Service
+Provider
+Service
+Provider
+Service
+Provider
+Service
+Provider
+
+FMCG
+
+SN008, SN018, SN019
+
+Textile
+
+SN009, SN018, SN019
+
+Telecom
+
+SN010, SN018, SN019
+
+Petroleum
+
+SN012, SN018, SN019
+
+Electricity
+Distribution
+
+SN013, SN018, SN019
+
+Gas Distribution
+
+SN014, SN018, SN019
+
+Services
+
+SN018, SN019
+
+Automobile
+
+SN020, SN018, SN019
+
+CNG Stations
+
+SN023, SN018, SN019
+
+Pharmaceuticals
+
+SN025, SN018, SN019
+
+Wholesale / Retails
+
+SN026, SN027, SN028, SN008, SN018, SN019
+
+106 Other
+
+All Other Sectors
+
+107 Other
+
+Steel
+
+108 Other
+
+FMCG
+
+109 Other
+
+Textile
+
+110 Other
+
+Telecom
+
+111 Other
+
+Petroleum
+
+112 Other
+
+Electricity
+Distribution
+
+113 Other
+
+Gas Distribution
+
+114 Other
+
+Services
+
+115 Other
+
+Automobile
+
+116 Other
+
+CNG Stations
+
+Document Version :1.12
+
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN003, SN004, SN011
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN008
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN009
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN010
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN012
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN013
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN014
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN018, SN019
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN020
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN023
+
+PRAL © 2025 – All rights reserved
+
+Page 50 of 51
+
+117 Other
+
+Pharmaceuticals
+
+118 Other
+
+Wholesale / Retails
+
+Document Version :1.12
+
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN025
+SN001, SN002, SN005, SN006, SN007, SN015, SN016, SN017, SN021,
+SN022, SN024, SN026, SN027, SN028, SN008
+
+PRAL © 2025 – All rights reserved
+
+Page 51 of 51
+
+
