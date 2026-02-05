@@ -1111,19 +1111,41 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         cur.close()
         conn.close()
         
-        seller_address = seller["sellerAddress"].strip().replace("\n", " ")
-        buyer_address = buyer["buyerAddress"].strip().replace("\n", " ")
+        # Helper to sanitize any string value - removes control characters that break JSON
+        import re
+        def sanitize_string(val):
+            if not val:
+                return ""
+            s = str(val)
+            # Replace double quotes with single quotes (FBR API doesn't handle escaped quotes well)
+            s = s.replace('"', "'")
+            # Remove/replace all control characters and problematic whitespace
+            s = s.replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
+            s = s.replace("\\r\\n", " ").replace("\\n", " ").replace("\\r", " ")
+            s = s.replace("\t", " ")
+            # Remove any other control characters (ASCII 0-31 except space)
+            s = re.sub(r'[\x00-\x1f\x7f]', '', s)
+            # Collapse multiple spaces into single space
+            s = re.sub(r'\s+', ' ', s).strip()
+            return s
+
+        seller_address = sanitize_string(seller["sellerAddress"])
+        buyer_address = sanitize_string(buyer["buyerAddress"])
+        # Update the seller/buyer dicts so draft data also gets sanitized values
+        seller["sellerAddress"] = seller_address
+        buyer["buyerAddress"] = buyer_address
 
         invoice_json = {
-            "invoiceType": data["invoiceType"],
+            "invoiceType": sanitize_string(data["invoiceType"]),
             "invoiceDate": data["invoiceDate"],
             "sellerNTNCNIC": seller["sellerNTNCNIC"],
-            "sellerBusinessName": seller["sellerBusinessName"],
-            "sellerProvince": seller["sellerProvince"],
+            "sellerBusinessName": sanitize_string(seller["sellerBusinessName"]),
+            "sellerProvince": sanitize_string(seller["sellerProvince"]),
             "sellerAddress": seller_address,
+            "sellerSTRN": seller.get("sellerSTRN", ""),
             "buyerNTNCNIC": buyer["buyerNTNCNIC"],
-            "buyerBusinessName": buyer["buyerBusinessName"],
-            "buyerProvince": buyer["buyerProvince"],
+            "buyerBusinessName": sanitize_string(buyer["buyerBusinessName"]),
+            "buyerProvince": sanitize_string(buyer["buyerProvince"]),
             "buyerAddress": buyer_address,
             "buyerRegistrationType": buyer.get("buyerRegistrationType", "Unregistered"),
             "buyerSTRN": buyer.get("buyerSTRN", ""),
@@ -1166,10 +1188,10 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                     tax_rate = f"{tax_rate}%"
                 
                 item = {
-                    "hsCode": item_data.get("hsCode", ""),
-                    "productDescription": item_data["productDescription"],
+                    "hsCode": sanitize_string(item_data.get("hsCode", "")),
+                    "productDescription": sanitize_string(item_data["productDescription"]),
                     "quantity": float(item_data["quantity"]),
-                    "uoM": item_data.get("uoM", ""),
+                    "uoM": sanitize_string(item_data.get("uoM", "")),
                     "totalValues": total_values,
                     "valueSalesExcludingST": value_excl,
                     "salesTaxApplicable": sales_tax,

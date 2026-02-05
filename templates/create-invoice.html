@@ -10,6 +10,9 @@
     <title>Create Invoice - TaxLink Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/airbnb.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/taxlinkpro-favicon.svg') }}" />
     <script>
         tailwind.config = {
@@ -613,10 +616,10 @@
                         </div>
                         <div>
                             <label for="invoice-ref-no" class="block text-gray-700 font-medium mb-2">Invoice Reference
-                                No.</label>
+                                No.*</label>
                             <input type="text" id="invoice-ref-no"
                                 class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
-                                placeholder="Enter reference number" />
+                                placeholder="Enter reference number" required />
                         </div>
                         <div>
                             <label for="po-number" class="block text-gray-700 font-medium mb-2">PO#</label>
@@ -641,9 +644,9 @@
                         <!-- Sandbox Scenario ID (only shown in sandbox) -->
                         <div id="scenario-id-container" class="hidden">
                             <label for="scenario-id" class="block text-gray-700 font-medium mb-2">Scenario ID
-                                (Sandbox)</label>
+                                (Sandbox)*</label>
                             <select id="scenario-id"
-                                class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500">
+                                class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500" required>
                                 <option value="">-- Select Scenario ID --</option>
                             </select>
                         </div>
@@ -2928,6 +2931,7 @@
                 case 2:
                     // Validate invoice details
                     const invoiceDate = document.getElementById("invoice-date").value;
+                    const invoiceRefNo = document.getElementById("invoice-ref-no").value;
 
                     if (!invoiceDate) {
                         showNotification(
@@ -2936,6 +2940,28 @@
                             "Please fill in the invoice date"
                         );
                         return false;
+                    }
+
+                    if (!invoiceRefNo) {
+                        showNotification(
+                            "error",
+                            "Validation Error",
+                            "Please fill in the Invoice Reference No."
+                        );
+                        return false;
+                    }
+
+                    // Validate Scenario ID in sandbox environment
+                    if (ENV === "sandbox") {
+                        const scenarioId = document.getElementById("scenario-id").value;
+                        if (!scenarioId) {
+                            showNotification(
+                                "error",
+                                "Validation Error",
+                                "Please select a Scenario ID (required in sandbox)"
+                            );
+                            return false;
+                        }
                     }
 
                     // Update state - use hidden field value for invoice type
@@ -3337,6 +3363,16 @@
 
         // Event Listeners
         document.addEventListener("DOMContentLoaded", function () {
+            // Initialize Flatpickr for modern date picker
+            flatpickr("#invoice-date", {
+                dateFormat: "Y-m-d",
+                altInput: true,
+                altFormat: "F j, Y",
+                animate: true,
+                disableMobile: false,
+                theme: "airbnb"
+            });
+
             // Debug logging for URL parameters and environment
             console.log('URL parameters:', window.location.search);
             console.log('Environment from constant:', ENV);

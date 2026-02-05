@@ -145,6 +145,12 @@ def generate_form_invoice():
         # Ensure we store the client_id with the data for future reference
         data["client_id"] = client_id
 
+        # Always fetch client row for logo_url
+        cur.execute(
+            "SELECT strn, logo_url FROM clients WHERE id = %s", (client_id,)
+        )
+        client_row = cur.fetchone()
+
         # Get client's STRN directly from clients table
         # First check if STRN is in the invoice_data directly
         if "sellerSTRN" in data and data["sellerSTRN"]:
@@ -155,10 +161,6 @@ def generate_form_invoice():
             print(f"Using STRN from form input: {data['sellerSTRN']}")
         # Fall back to client's database record only as a last resort
         else:
-            cur.execute(
-                "SELECT strn, logo_url FROM clients WHERE id = %s", (client_id,)
-            )
-            client_row = cur.fetchone()
             if client_row and client_row[0]:
                 data["sellerSTRN"] = client_row[0]
                 print(f"Using STRN from clients table: {data['sellerSTRN']}")
@@ -377,7 +379,10 @@ def generate_form_invoice():
 
         # Select the appropriate template based on username - expand with all your clients
         print(f"Selecting template for username: {username}")
-        if username in {"H075895", "F667833", "infinityeng"}:
+        if username in ["4210111937929", "3520204956465", "3520270278447", "3520271603355"]:
+            template_name = "invoice_template_nologo.html"  # Template for users without logo
+            print(f"Selected template: {template_name} for username {username} (no logo)")
+        elif username in {"H075895", "F667833", "infinityeng"}:
             template_name = "invoice_innovative.html"
             print(f"Selected template: {template_name} for username {username}")
         elif username == "8974121":
@@ -389,7 +394,7 @@ def generate_form_invoice():
         elif username == "8255820":
             template_name = "invoice_templatezahid.html"
             print(f"Selected template: {template_name} for username 8255820")
-        elif username in ["3075270", "0946915", "7542425", "2853653", "B690329", "3520271603355", "3556084", "3520229157309"]:
+        elif username in ["3075270", "0946915", "7542425", "2853653", "B690329", "3556084", "3520229157309"]:
             template_name = "invoice_template3.html"  # Shared template for these users
             print(f"Selected template: {template_name} for username: {username}")
         else:
@@ -976,6 +981,14 @@ def get_json():
     else:
         invoice_date = str(raw_date).strip()
 
+    # Helper to sanitize address fields
+    import re as re_mod
+    def sanitize_address(addr):
+        if not addr:
+            return ""
+        addr = str(addr).strip().replace("\r\n", " ").replace("\n", " ").replace("\r", " ").replace("\\n", " ")
+        return re_mod.sub(r'\s+', ' ', addr).strip()
+
     invoice_json = OrderedDict(
         [
             ("invoiceType", safe(section_data.get("invoiceType"))),
@@ -983,11 +996,11 @@ def get_json():
             ("sellerNTNCNIC", str(safe(section_data.get("sellerNTNCNIC")))),
             ("sellerBusinessName", safe(section_data.get("sellerBusinessName"))),
             ("sellerProvince", safe(section_data.get("sellerProvince"))),
-            ("sellerAddress", safe(section_data.get("sellerAddress"))),
+            ("sellerAddress", sanitize_address(section_data.get("sellerAddress"))),
             ("buyerNTNCNIC", str(safe(section_data.get("buyerNTNCNIC")))),
             ("buyerBusinessName", safe(section_data.get("buyerBusinessName"))),
             ("buyerProvince", safe(section_data.get("buyerProvince"))),
-            ("buyerAddress", safe(section_data.get("buyerAddress"))),
+            ("buyerAddress", sanitize_address(section_data.get("buyerAddress"))),
             ("buyerRegistrationType", safe(section_data.get("buyerRegistrationType"))),
             (
                 "invoiceRefNo",
@@ -1019,10 +1032,42 @@ def submit_fbr():
     # Use a separate variable and clear global variable to save memory
     json_data = last_json_data[env].copy()
 
-    if "sellerAddress" in json_data:
-        json_data["sellerAddress"] = json_data["sellerAddress"].strip().replace("\n", " ")
-    if "buyerAddress" in json_data:
-        json_data["buyerAddress"] = json_data["buyerAddress"].strip().replace("\n", " ")
+    # Helper to sanitize any string value - removes control characters that break JSON
+    import re
+    def sanitize_string(val):
+        if not val:
+            return ""
+        s = str(val)
+        # Replace double quotes with single quotes (FBR API doesn't handle escaped quotes well)
+        s = s.replace('"', "'")
+        # Remove/replace all control characters and problematic whitespace
+        s = s.replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
+        s = s.replace("\\r\\n", " ").replace("\\n", " ").replace("\\r", " ")
+        s = s.replace("\t", " ")
+        # Remove any other control characters (ASCII 0-31 except space)
+        s = re.sub(r'[\x00-\x1f\x7f]', '', s)
+        # Collapse multiple spaces into single space
+        s = re.sub(r'\s+', ' ', s).strip()
+        return s
+
+    # Sanitize all string fields that could contain control characters
+    string_fields = ["sellerAddress", "buyerAddress", "sellerBusinessName", "buyerBusinessName", 
+                     "sellerProvince", "buyerProvince", "invoiceType"]
+    for field in string_fields:
+        if field in json_data:
+            json_data[field] = sanitize_string(json_data[field])
+    
+    # Sanitize items
+    if "items" in json_data:
+        for item in json_data["items"]:
+            if "productDescription" in item:
+                item["productDescription"] = sanitize_string(item["productDescription"])
+            if "hsCode" in item:
+                item["hsCode"] = sanitize_string(item["hsCode"])
+            if "uoM" in item:
+                item["uoM"] = sanitize_string(item["uoM"])
+            if "saleType" in item:
+                item["saleType"] = sanitize_string(item["saleType"])
         
     try:
         client_id = session.get("client_id")
@@ -1170,7 +1215,7 @@ def submit_fbr():
                 template_name = "invoice_zeeshanst.html"
             elif username == "7542425":
                 template_name = "invoice_template3.html"
-            elif username in ["3075270", "0946915", "2853653", "B690329", "3520271603355", "3556084", "3520229157309"]:
+            elif username in ["3075270", "0946915", "2853653", "B690329", "3556084", "3520229157309"]:
                 template_name = "invoice_template3.html"
             else:
                 template_name = "invoice_template2.html"
@@ -1397,13 +1442,15 @@ def generate_invoice_excel():
                 conn.close()
 
         # Select the appropriate template based on username
-        if username == "8974121":
+        if username in ["4210111937929", "3520204956465", "3520270278447", "3520271603355"]:
+            template_name = "invoice_template_nologo.html"  # Template for users without logo
+        elif username == "8974121":
             template_name = "invoice_template.html"
         elif username == "5207949":
             template_name = "invoice_zeeshanst.html"
         elif username == "7542425":
             template_name = "invoice_template3.html"
-        elif username in ["3075270", "B690329", "3520271603355", "3556084", "3520229157309"]:
+        elif username in ["3075270", "B690329", "3556084", "3520229157309"]:
             template_name = "invoice_template3.html"  # Use appropriate template for Care Pharmaceuticals
         else:
             template_name = "invoice_template3.html"
