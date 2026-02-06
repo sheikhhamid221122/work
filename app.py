@@ -379,7 +379,7 @@ def generate_form_invoice():
 
         # Select the appropriate template based on username - expand with all your clients
         print(f"Selecting template for username: {username}")
-        if username in ["4210111937929", "3520204956465", "3520270278447", "3520271603355"]:
+        if username in ["4210111937929", "3520204956465", "3520270278447", "3520271603355", "3520299147319"]:
             template_name = "invoice_template_nologo.html"  # Template for users without logo
             print(f"Selected template: {template_name} for username {username} (no logo)")
         elif username in {"H075895", "F667833", "infinityeng"}:
@@ -1442,7 +1442,7 @@ def generate_invoice_excel():
                 conn.close()
 
         # Select the appropriate template based on username
-        if username in ["4210111937929", "3520204956465", "3520270278447", "3520271603355"]:
+        if username in ["4210111937929", "3520204956465", "3520270278447", "3520271603355", "3520299147319"]:
             template_name = "invoice_template_nologo.html"  # Template for users without logo
         elif username == "8974121":
             template_name = "invoice_template.html"

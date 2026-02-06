@@ -2226,10 +2226,11 @@
             // const invoiceType = document.getElementById("invoice-type");
             // populateSelect(invoiceType, state.formOptions.invoiceTypes);
 
-            // Populate scenario ID if in sandbox
+            // Populate scenario ID if in sandbox with custom behavior
+            // Shows description in dropdown, but only ID when selected
             if (ENV === "sandbox") {
                 const scenarioId = document.getElementById("scenario-id");
-                populateSelect(scenarioId, state.formOptions.scenarioIds);
+                populateScenarioSelect(scenarioId, state.formOptions.scenarioIds);
             }
 
             // Populate product UoM
@@ -2274,6 +2275,57 @@
                 optElement.value = option.value;
                 optElement.textContent = option.label;
                 selectElement.appendChild(optElement);
+            });
+        }
+
+        // Special function to populate scenario dropdown
+        // Shows description in dropdown options but only ID when selected
+        function populateScenarioSelect(selectElement, options) {
+            if (!selectElement || !options) return;
+            
+            // Keep the first option (placeholder)
+            while (selectElement.options.length > 1) {
+                selectElement.remove(1);
+            }
+
+            options.forEach((option) => {
+                const optElement = document.createElement("option");
+                optElement.value = option.value;
+                // Store original label with description as data attribute
+                optElement.dataset.fullLabel = option.label;
+                // Initially show full label with description
+                optElement.textContent = option.label;
+                selectElement.appendChild(optElement);
+            });
+
+            // Add change event listener to show only ID after selection
+            selectElement.addEventListener('change', function() {
+                // Update all options to show full labels (for when dropdown opens)
+                for (let i = 1; i < this.options.length; i++) {
+                    this.options[i].textContent = this.options[i].dataset.fullLabel;
+                }
+                
+                // If an option is selected (not placeholder), show only ID in selected display
+                if (this.selectedIndex > 0) {
+                    const selectedOption = this.options[this.selectedIndex];
+                    // Temporarily set text to just the ID value for display
+                    selectedOption.textContent = selectedOption.value;
+                }
+            });
+
+            // Add focus event to restore full labels when dropdown opens
+            selectElement.addEventListener('focus', function() {
+                for (let i = 1; i < this.options.length; i++) {
+                    this.options[i].textContent = this.options[i].dataset.fullLabel;
+                }
+            });
+
+            // Add blur event to show only ID when dropdown closes
+            selectElement.addEventListener('blur', function() {
+                if (this.selectedIndex > 0) {
+                    const selectedOption = this.options[this.selectedIndex];
+                    selectedOption.textContent = selectedOption.value;
+                }
             });
         }
 
