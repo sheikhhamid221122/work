@@ -1,0 +1,24 @@
+# Temporary files
+tmpclaude-*
+tempCodeRunnerFile.*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+venv/
+env/
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# Uploads (optional - uncomment if you don't want to track uploads)
+# uploads/
