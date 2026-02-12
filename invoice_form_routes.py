@@ -1186,6 +1186,9 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             invoice_json["poNumber"] = data["poNumber"]
         if is_special_user and ("DC" in data or "dcNumber" in data):
             invoice_json["DC"] = data.get("DC") or data.get("dcNumber") or ""
+        if data.get("dnNumber"):
+            invoice_json["DN"] = data["dnNumber"]
+            invoice_json["dnNumber"] = data["dnNumber"]
         if env == "sandbox" and data.get("scenarioId"):
             invoice_json["scenarioId"] = data.get("scenarioId")
 
@@ -1325,6 +1328,7 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                 "poNumber": data.get("poNumber", ""),
                 "PO": data.get("poNumber", ""),
                 "DC": data.get("DC") or data.get("dcNumber") or "",
+                "dnNumber": data.get("dnNumber", ""),
                 "sellerData": seller,
                 "buyerData": buyer,
                 "items": data["items"],

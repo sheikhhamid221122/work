@@ -633,6 +633,12 @@
                                 class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
                                 placeholder="Enter delivery challan number" />
                         </div>
+                        <div id="dn-number-container" class="hidden">
+                            <label for="dn-number" class="block text-gray-700 font-medium mb-2">DN#</label>
+                            <input type="text" id="dn-number"
+                                class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
+                                placeholder="Enter delivery note number" />
+                        </div>
                         <div id="delivery-challan-container" class="hidden">
                             <label for="delivery-challan" class="block text-gray-700 font-medium mb-2">Delivery Challan
                                 #</label>
@@ -1149,6 +1155,10 @@
                                     <p id="review-delivery-challan-container" class="hidden">
                                         <span class="font-semibold">Delivery Challan #:</span>
                                         <span id="review-delivery-challan"></span>
+                                    </p>
+                                    <p id="review-dn-number-container" class="hidden">
+                                        <span class="font-semibold">DN#:</span>
+                                        <span id="review-dn-number"></span>
                                     </p>
                                     <p id="review-scenario-container" class="hidden">
                                         <span class="font-semibold">Scenario ID:</span>
@@ -1949,6 +1959,7 @@
                     invoiceRefNo: invoiceData.invoiceRefNo || invoiceData.invoice_ref_no || '',
                     poNumber: invoiceData.poNumber || invoiceData.PO || '',
                     DC: invoiceData.DC || invoiceData.dcNumber || '',
+                    dnNumber: invoiceData.dnNumber || '',
                     scenarioId: invoiceData.scenarioId || '',
                 };
 
@@ -1976,6 +1987,8 @@
                 document.getElementById('po-number').value = invoiceData.poNumber || invoiceData.PO || '';
                 const dcInput = document.getElementById('dc-number');
                 if (dcInput) dcInput.value = invoiceData.DC || invoiceData.dcNumber || '';
+                const dnInput = document.getElementById('dn-number');
+                if (dnInput) dnInput.value = invoiceData.dnNumber || '';
 
                 // Only set scenario if available and in sandbox environment
                 if (ENV === 'sandbox' && invoiceData.scenarioId) {
@@ -2814,6 +2827,18 @@
                 }
             }
 
+            // Add this block for DN# review (user 3520299147319)
+            const reviewDnContainer = document.getElementById('review-dn-number-container');
+            if (reviewDnContainer) {
+                if (currentUsername === '3520299147319') {
+                    document.getElementById('review-dn-number').textContent =
+                        state.invoiceData.dnNumber || "";
+                    reviewDnContainer.classList.remove('hidden');
+                } else {
+                    reviewDnContainer.classList.add('hidden');
+                }
+            }
+
             if (ENV === "sandbox" && state.invoiceData.scenarioId) {
                 document.getElementById("review-scenario-id").textContent =
                     state.invoiceData.scenarioId;
@@ -3042,6 +3067,12 @@
                         delete state.invoiceData.DC;
                     }
 
+                    // Capture DN# for user 3520299147319
+                    if (currentUsername === '3520299147319') {
+                        const dnInput = document.getElementById("dn-number");
+                        state.invoiceData.dnNumber = dnInput ? dnInput.value.trim() : "";
+                    }
+
                     return true;
 
                 case 3:
@@ -3138,6 +3169,11 @@
 
                 if (isH075895User()) {
                     invoiceData.DC = state.invoiceData.DC || "";
+                }
+
+                // Include DN# for user 3520299147319
+                if (currentUsername === '3520299147319') {
+                    invoiceData.dnNumber = state.invoiceData.dnNumber || "";
                 }
 
                 if (saveDraft) {
@@ -4165,6 +4201,14 @@
                         const deliveryChallanContainer = document.getElementById("delivery-challan-container");
                         if (deliveryChallanContainer) {
                             deliveryChallanContainer.classList.remove("hidden");
+                        }
+                    }
+
+                    // Show DN# field for user 3520299147319
+                    if (settings.username === '3520299147319') {
+                        const dnContainer = document.getElementById("dn-number-container");
+                        if (dnContainer) {
+                            dnContainer.classList.remove("hidden");
                         }
                     }
                 })

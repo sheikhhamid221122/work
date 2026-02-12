@@ -250,6 +250,34 @@ def generate_form_invoice():
         else:
             data["DC"] = data.get("DC", "")
 
+        # Ensure DN (delivery note) value is present in data for user 3520299147319
+        if not data.get("DN"):
+            dn_value = data.get("dnNumber")
+
+            invoice_data_dn = data.get("invoiceData")
+            if not dn_value and invoice_data_dn:
+                if isinstance(invoice_data_dn, str):
+                    try:
+                        invoice_data_dn = json.loads(invoice_data_dn)
+                    except Exception:
+                        invoice_data_dn = {}
+                if isinstance(invoice_data_dn, dict):
+                    dn_value = invoice_data_dn.get("DN") or invoice_data_dn.get("dnNumber") or dn_value
+
+            complete_invoice_data_dn = data.get("complete_invoice_data")
+            if not dn_value and complete_invoice_data_dn:
+                if isinstance(complete_invoice_data_dn, str):
+                    try:
+                        complete_invoice_data_dn = json.loads(complete_invoice_data_dn)
+                    except Exception:
+                        complete_invoice_data_dn = {}
+                if isinstance(complete_invoice_data_dn, dict):
+                    dn_value = complete_invoice_data_dn.get("DN") or complete_invoice_data_dn.get("dnNumber") or dn_value
+
+            data["DN"] = dn_value or ""
+        else:
+            data["DN"] = data.get("DN", "")
+
         # For client 8974121 (Computer Gold), set the delivery challan number
         # Make sure the CNIC field is properly set regardless of how it came in
         if username == "8974121":
@@ -1462,6 +1490,7 @@ def generate_invoice_excel():
             qr_base64=qr_base64,
             client_logo_url=client_logo_url,
             fbr_logo_url=fbr_logo_url,
+            username=username,
         )
 
         # --- Generate PDF directly to a stream ---
