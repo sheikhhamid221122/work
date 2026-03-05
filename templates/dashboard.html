@@ -267,6 +267,73 @@
             align-items: center;
             justify-content: center;
         }
+
+        /* Modern table styles */
+        .records-table-wrapper {
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        
+        /* Checkbox styling */
+        .invoice-select-checkbox:checked {
+            background-color: #0284c7;
+            border-color: #0284c7;
+        }
+
+        /* Action button hover animations */
+        .view-invoice-btn, .delete-invoice-btn {
+            transform: translateY(0);
+            transition: all 0.2s ease;
+        }
+        
+        .view-invoice-btn:hover, .delete-invoice-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .view-invoice-btn:active, .delete-invoice-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Stats card enhancement */
+        .stats-card {
+            transition: all 0.3s ease;
+            border-radius: 12px;
+        }
+        
+        .stats-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 20px -8px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Gradient text for totals */
+        .gradient-text {
+            background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Loading spinner animation */
+        @keyframes pulse-ring {
+            0% {
+                transform: scale(0.8);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1);
+                opacity: 0.5;
+            }
+            100% {
+                transform: scale(0.8);
+                opacity: 1;
+            }
+        }
+
+        .pulse-animation {
+            animation: pulse-ring 1.5s ease-in-out infinite;
+        }
     </style>
 </head>
 
@@ -413,81 +480,84 @@
 
                     <!-- Summary Cards -->
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                        <div class="bg-white p-4 rounded-lg shadow card-shadow border-l-4 border-primary-500">
+                        <div class="bg-white p-5 rounded-xl shadow-md stats-card border-l-4 border-primary-500 hover:border-primary-600">
                             <div class="flex items-center">
-                                <div class="p-3 rounded-full bg-primary-100 text-primary-600 mr-4">
+                                <div class="p-3 rounded-xl bg-gradient-to-br from-primary-100 to-primary-200 text-primary-600 mr-4">
                                     <i class="fas fa-file-invoice text-xl"></i>
                                 </div>
                                 <div>
-                                    <h3 class="text-gray-500 text-sm">Total Invoices</h3>
-                                    <p class="text-2xl font-semibold" id="total-invoices-count">0</p>
+                                    <h3 class="text-gray-500 text-sm font-medium">Total Invoices</h3>
+                                    <p class="text-2xl font-bold text-gray-800" id="total-invoices-count">0</p>
                                 </div>
                             </div>
                         </div>
-                        <div class="bg-white p-4 rounded-lg shadow card-shadow border-l-4 border-green-500">
+                        <div class="bg-white p-5 rounded-xl shadow-md stats-card border-l-4 border-green-500 hover:border-green-600">
                             <div class="flex items-center">
-                                <div class="p-3 rounded-full bg-green-100 text-green-600 mr-4">
+                                <div class="p-3 rounded-xl bg-gradient-to-br from-green-100 to-green-200 text-green-600 mr-4">
                                     <i class="fas fa-check-circle text-xl"></i>
                                 </div>
                                 <div>
-                                    <h3 class="text-gray-500 text-sm">Successful Submissions</h3>
-                                    <p class="text-2xl font-semibold" id="success-count">0</p>
+                                    <h3 class="text-gray-500 text-sm font-medium">Successful Submissions</h3>
+                                    <p class="text-2xl font-bold text-gray-800" id="success-count">0</p>
                                 </div>
                             </div>
                         </div>
-                        <div class="bg-white p-4 rounded-lg shadow card-shadow border-l-4 border-red-500">
+                        <div class="bg-white p-5 rounded-xl shadow-md stats-card border-l-4 border-red-500 hover:border-red-600">
                             <div class="flex items-center">
-                                <div class="p-3 rounded-full bg-red-100 text-red-600 mr-4">
+                                <div class="p-3 rounded-xl bg-gradient-to-br from-red-100 to-red-200 text-red-600 mr-4">
                                     <i class="fas fa-exclamation-circle text-xl"></i>
                                 </div>
                                 <div>
-                                    <h3 class="text-gray-500 text-sm">Failed Submissions</h3>
-                                    <p class="text-2xl font-semibold" id="failed-count">0</p>
+                                    <h3 class="text-gray-500 text-sm font-medium">Failed Submissions</h3>
+                                    <p class="text-2xl font-bold text-gray-800" id="failed-count">0</p>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- Records Table -->
-                    <div class="bg-white shadow rounded-lg overflow-hidden">
+                    <div class="bg-white shadow-lg rounded-xl overflow-hidden border border-gray-100">
                         <div class="overflow-x-auto">
                             <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50">
+                                <thead class="bg-gradient-to-r from-primary-600 to-primary-700">
                                     <tr>
+                                        <th scope="col" class="px-4 py-4 text-center">
+                                            <input type="checkbox" id="select-all-invoices" 
+                                                class="w-4 h-4 text-primary-600 bg-white border-gray-300 rounded focus:ring-primary-500 cursor-pointer">
+                                        </th>
                                         <th scope="col"
-                                            class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                            class="px-4 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-primary-500/50 transition-colors"
                                             id="sort-sr">
-                                            Sr # <i class="fas fa-sort ml-1"></i></th>
+                                            Sr # <i class="fas fa-sort ml-1 opacity-70"></i></th>
                                         <th scope="col"
-                                            class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                            class="px-3 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-primary-500/50 transition-colors"
                                             id="sort-number">
-                                            Invoice Number <i class="fas fa-sort ml-1"></i></th>
+                                            Invoice Number <i class="fas fa-sort ml-1 opacity-70"></i></th>
                                         <th scope="col"
-                                            class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                            class="px-6 py-4 text-center text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-primary-500/50 transition-colors"
                                             id="sort-refno">
-                                            Invoice Reference Number <i class="fas fa-sort ml-1"></i></th>
+                                            Invoice Ref # <i class="fas fa-sort ml-1 opacity-70"></i></th>
                                         <th scope="col"
-                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                            class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-primary-500/50 transition-colors"
                                             id="sort-date">
-                                            Invoice Date <i class="fas fa-sort ml-1"></i></th>
+                                            Date <i class="fas fa-sort ml-1 opacity-70"></i></th>
                                         <th scope="col"
-                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                            class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-primary-500/50 transition-colors"
                                             id="sort-buyer">
-                                            Buyer Name <i class="fas fa-sort ml-1"></i></th>
+                                            Buyer <i class="fas fa-sort ml-1 opacity-70"></i></th>
                                         <th scope="col"
-                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                                            id="sort-seller">
-                                            Seller Name <i class="fas fa-sort ml-1"></i></th>
-                                        <th scope="col"
-                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                            class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-primary-500/50 transition-colors"
                                             id="sort-value">
-                                            Total Value <i class="fas fa-sort ml-1"></i></th>
+                                            Total Value <i class="fas fa-sort ml-1 opacity-70"></i></th>
+                                        <th scope="col"
+                                            class="px-4 py-4 text-center text-xs font-semibold text-white uppercase tracking-wider">
+                                            View</th>
                                         <th scope="col" id="status-column-header"
-                                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                            Status</th>
+                                            class="px-4 py-4 text-center text-xs font-semibold text-white uppercase tracking-wider">
+                                            Delete</th>
                                     </tr>
                                 </thead>
-                                <tbody id="records-table-body" class="bg-white divide-y divide-gray-200">
+                                <tbody id="records-table-body" class="bg-white divide-y divide-gray-100">
                                     <!-- Records will be loaded here -->
                                 </tbody>
                             </table>
@@ -495,15 +565,15 @@
                     </div>
 
                     <!-- Pagination -->
-                    <div id="records-pagination" class="flex justify-center items-center mt-4 space-x-2"></div>
+                    <div id="records-pagination" class="flex justify-center items-center mt-6 space-x-2"></div>
 
                     <!-- Action Buttons with Fixed Height Status Messages -->
-                    <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <!-- Import Excel Button -->
                         <div class="status-container">
                             <button id="import-excel-btn"
-                                class="action-button bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out flex items-center justify-center btn-hover-effect">
-                                <i class="fas fa-file-excel mr-2"></i> Import Excel
+                                class="action-button w-full bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                                <i class="fas fa-file-excel mr-2 text-lg"></i> Import Excel
                             </button>
                             <div id="excel-upload-status" class="status-message"></div>
                         </div>
@@ -511,8 +581,8 @@
                         <!-- Validate JSON Button -->
                         <div class="status-container">
                             <button id="validate-json-btn"
-                                class="action-button bg-secondary-600 hover:bg-secondary-700 text-white font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out flex items-center justify-center btn-hover-effect">
-                                <i class="fas fa-check-circle mr-2"></i> Validate JSON
+                                class="action-button w-full bg-gradient-to-r from-secondary-600 to-secondary-700 hover:from-secondary-700 hover:to-secondary-800 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                                <i class="fas fa-check-circle mr-2 text-lg"></i> Validate JSON
                             </button>
                             <div id="json-validate-status" class="status-message"></div>
                         </div>
@@ -520,19 +590,19 @@
                         <!-- Submit to FBR Button -->
                         <div class="status-container">
                             <button id="submit-fbr-btn"
-                                class="action-button bg-accent-600 hover:bg-accent-700 text-white font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out flex items-center justify-center btn-hover-effect">
-                                <i class="fas fa-paper-plane mr-2"></i> <span id="submit-btn-text">Submit to FBR</span>
+                                class="action-button w-full bg-gradient-to-r from-accent-600 to-accent-700 hover:from-accent-700 hover:to-accent-800 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                                <i class="fas fa-paper-plane mr-2 text-lg"></i> <span id="submit-btn-text">Submit to FBR</span>
                             </button>
-                            <div class="status-message"></div> <!-- Empty status message placeholder -->
+                            <div class="status-message"></div>
                         </div>
 
                         <!-- Download PDF Button -->
                         <div class="status-container">
                             <button id="get-excel-btn"
-                                class="action-button bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out flex items-center justify-center btn-hover-effect">
-                                <i class="fas fa-file-pdf mr-2"></i> Download PDF
+                                class="action-button w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                                <i class="fas fa-file-pdf mr-2 text-lg"></i> Download PDF
                             </button>
-                            <div class="status-message"></div> <!-- Empty status message placeholder -->
+                            <div class="status-message"></div>
                         </div>
                     </div>
                 </div>
@@ -640,6 +710,33 @@
         </div>
     </div>
 
+    <!-- Invoice Details Modal -->
+    <div id="invoice-details-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
+        <div class="modal-overlay absolute inset-0"></div>
+        <div class="bg-white rounded-xl shadow-2xl z-50 w-full max-w-4xl max-h-[90vh] overflow-auto">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="text-xl font-bold text-gray-900 flex items-center">
+                        <i class="fas fa-file-invoice text-primary-600 mr-3"></i>
+                        Invoice Details
+                    </h3>
+                    <button id="close-invoice-details" class="text-gray-400 hover:text-gray-600 transition-colors p-2 hover:bg-gray-100 rounded-lg">
+                        <i class="fas fa-times text-lg"></i>
+                    </button>
+                </div>
+                <div id="invoice-details-content">
+                    <!-- Invoice details will be loaded here -->
+                </div>
+                <div class="mt-6 flex justify-end border-t pt-4">
+                    <button id="close-invoice-details-btn"
+                        class="px-5 py-2.5 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 font-medium transition-colors">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Notification Component -->
     <div id="notification-container"
         class="fixed inset-0 flex items-center justify-center z-50 pointer-events-none hidden">
@@ -732,7 +829,6 @@
 
             // Update table header and submit button based on environment
             if (env === "sandbox") {
-                document.getElementById('status-column-header').textContent = "Delete";
                 document.getElementById('submit-btn-text').textContent = "Submit to Sandbox";
                 document.getElementById('submitting-title').textContent = "Submitting to Sandbox";
             }
@@ -751,6 +847,12 @@
                     mobileMenu.classList.add('hidden');
                 });
             }
+
+            // Setup select all checkbox
+            setupSelectAllCheckbox();
+            
+            // Setup invoice details modal
+            setupInvoiceDetailsModal();
 
             loadRecords();
         });
@@ -794,8 +896,11 @@
             if (records.length === 0) {
                 const emptyRow = document.createElement('tr');
                 emptyRow.innerHTML = `
-                    <td colspan="8" class="px-6 py-4 text-center text-gray-500">
-                        No records found.
+                    <td colspan="9" class="px-6 py-8 text-center">
+                        <div class="flex flex-col items-center">
+                            <i class="fas fa-file-invoice text-gray-300 text-4xl mb-3"></i>
+                            <span class="text-gray-500 font-medium">No records found</span>
+                        </div>
                     </td>
                 `;
                 tableBody.appendChild(emptyRow);
@@ -807,49 +912,206 @@
 
             records.forEach((record, idx) => {
                 const row = document.createElement('tr');
-                row.className = 'table-row hover:bg-gray-50 transition-colors';
-
-                // Create the status/delete column content based on environment
-                let statusColumnContent = '';
-                if (ENV === 'sandbox') {
-                    statusColumnContent = `
-                        <button class="delete-invoice-btn bg-red-500 hover:bg-red-600 text-white px-3 py-1 text-xs font-semibold rounded-full transition-colors"
-                            data-invoice-ref="${record.invoiceReference}">
-                            <i class="fas fa-trash-alt mr-1"></i> Delete
-                        </button>
-                    `;
-                } else {
-                    statusColumnContent = `
-                        <span class="status-badge ${record.status.toLowerCase() === 'success' ? 'success' : 'failed'} px-2 py-1 text-xs font-semibold rounded-full text-white">
-                            ${record.status}
-                        </span>
-                    `;
-                }
+                row.className = 'hover:bg-primary-50/50 transition-all duration-200 border-b border-gray-50';
 
                 row.innerHTML = `
-                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">${startSr + idx}</td>
-                    <td class="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${record.invoiceReference}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">${record.invoiceRefNo || 'N/A'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${record.invoiceDate ? record.invoiceDate : ''}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${record.buyerName}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${record.sellerName}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">PKR ${record.totalValue.toFixed(2)}</td>
+                    <td class="px-4 py-4 text-center">
+                        <input type="checkbox" class="invoice-select-checkbox w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 cursor-pointer" 
+                            value="${record.invoiceReference}">
+                    </td>
+                    <td class="px-4 py-4 whitespace-nowrap">
+                        <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-600 text-sm font-medium">${startSr + idx}</span>
+                    </td>
+                    <td class="px-3 py-4 whitespace-nowrap">
+                        <span class="text-sm font-semibold text-primary-700">${record.invoiceReference}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                        <span class="text-sm text-gray-600">${record.invoiceRefNo || 'N/A'}</span>
+                    </td>
                     <td class="px-6 py-4 whitespace-nowrap">
-                        ${statusColumnContent}
+                        <span class="text-sm text-gray-500">${record.invoiceDate ? record.invoiceDate : ''}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="text-sm font-medium text-gray-700">${record.buyerName}</span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="text-sm font-semibold text-green-600">PKR ${record.totalValue.toFixed(2)}</span>
+                    </td>
+                    <td class="px-4 py-4 whitespace-nowrap text-center">
+                        <button class="view-invoice-btn inline-flex items-center justify-center w-9 h-9 rounded-lg bg-primary-100 text-primary-600 hover:bg-primary-200 hover:text-primary-700 transition-all duration-200 shadow-sm"
+                            data-invoice-id="${record.id}" title="View Invoice">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </td>
+                    <td class="px-4 py-4 whitespace-nowrap text-center">
+                        <button class="delete-invoice-btn inline-flex items-center justify-center w-9 h-9 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 hover:text-red-700 transition-all duration-200 shadow-sm"
+                            data-invoice-ref="${record.invoiceReference}" title="Delete Invoice">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
                     </td>
                 `;
                 tableBody.appendChild(row);
             });
 
-            // Add event listeners to delete buttons if in sandbox mode
-            if (ENV === 'sandbox') {
-                document.querySelectorAll('.delete-invoice-btn').forEach(btn => {
-                    btn.addEventListener('click', function () {
-                        const invoiceRef = this.getAttribute('data-invoice-ref');
-                        showDeleteConfirmationModal(invoiceRef);
-                    });
+            // Add event listeners to view buttons
+            document.querySelectorAll('.view-invoice-btn').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const invoiceId = this.getAttribute('data-invoice-id');
+                    viewInvoiceDetails(invoiceId);
+                });
+            });
+
+            // Add event listeners to delete buttons
+            document.querySelectorAll('.delete-invoice-btn').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const invoiceRef = this.getAttribute('data-invoice-ref');
+                    showDeleteConfirmationModal(invoiceRef);
+                });
+            });
+
+            // Update select-all checkbox state
+            updateSelectAllCheckbox();
+        }
+
+        // Handle select all checkbox
+        function setupSelectAllCheckbox() {
+            const selectAllCheckbox = document.getElementById('select-all-invoices');
+            if (selectAllCheckbox) {
+                selectAllCheckbox.addEventListener('change', function() {
+                    const checkboxes = document.querySelectorAll('.invoice-select-checkbox');
+                    checkboxes.forEach(cb => cb.checked = this.checked);
                 });
             }
+        }
+
+        // Update select all checkbox based on individual checkbox states
+        function updateSelectAllCheckbox() {
+            const selectAllCheckbox = document.getElementById('select-all-invoices');
+            const checkboxes = document.querySelectorAll('.invoice-select-checkbox');
+            if (selectAllCheckbox && checkboxes.length > 0) {
+                const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+                const someChecked = Array.from(checkboxes).some(cb => cb.checked);
+                selectAllCheckbox.checked = allChecked;
+                selectAllCheckbox.indeterminate = someChecked && !allChecked;
+            }
+        }
+
+        // Format currency helper
+        function formatCurrency(value) {
+            if (value === null || value === undefined) return 'PKR 0.00';
+            return 'PKR ' + parseFloat(value).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        // View invoice details function
+        function viewInvoiceDetails(invoiceId) {
+            // Show loading state in the modal
+            const contentDiv = document.getElementById('invoice-details-content');
+            contentDiv.innerHTML = `
+                <div class="flex items-center justify-center py-12">
+                    <div class="animate-spin rounded-full h-10 w-10 border-4 border-primary-200 border-t-primary-600"></div>
+                    <span class="ml-3 text-gray-500">Loading invoice details...</span>
+                </div>
+            `;
+            document.getElementById('invoice-details-modal').classList.remove('hidden');
+
+            fetch(`/api/reports/invoice/${invoiceId}?env=${ENV}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    const invoiceRef = data.invoice_details.invoice_ref || 'N/A';
+                    const buyerName = data.buyer_info && data.buyer_info.name ? data.buyer_info.name : 'Unknown Buyer';
+                    const items = data.items || [];
+
+                    let html = `
+                        <div class="mb-6 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl">
+                            <div class="flex items-start justify-between flex-wrap gap-4">
+                                <div>
+                                    <div class="flex items-center mb-2">
+                                        <span class="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-primary-100 text-primary-600 mr-3">
+                                            <i class="fas fa-file-invoice text-lg"></i>
+                                        </span>
+                                        <div>
+                                            <h4 class="text-lg font-bold text-gray-900">${invoiceRef}</h4>
+                                            <p class="text-sm text-gray-500">Invoice Number</p>
+                                        </div>
+                                    </div>
+                                    <div class="mt-3 space-y-1">
+                                        <p class="text-sm"><span class="text-gray-500">Buyer:</span> <span class="font-semibold text-gray-700">${buyerName}</span></p>
+                                        <p class="text-sm"><span class="text-gray-500">Reference:</span> <span class="text-gray-700">${data.invoice_details.invoice_ref_no || 'N/A'}</span></p>
+                                        <p class="text-sm"><span class="text-gray-500">Date:</span> <span class="text-gray-700">${data.invoice_details.invoice_date || 'N/A'}</span></p>
+                                    </div>
+                                </div>
+                                <div class="text-right bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+                                    <div class="text-sm text-gray-500 mb-1">Value Excl. Tax</div>
+                                    <div class="text-lg font-semibold text-gray-700">${formatCurrency(data.totals.total_value_excl)}</div>
+                                    <div class="text-sm text-gray-500 mt-2 mb-1">Tax Amount</div>
+                                    <div class="text-lg font-semibold text-orange-600">${formatCurrency(data.totals.total_tax)}</div>
+                                    <div class="border-t border-gray-200 mt-3 pt-3">
+                                        <div class="text-sm text-gray-500 mb-1">Total Amount</div>
+                                        <div class="text-xl font-bold text-green-600">${formatCurrency(data.totals.total_amount)}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="overflow-x-auto rounded-xl border border-gray-200">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Product</th>
+                                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Qty</th>
+                                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Value Excl.</th>
+                                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Tax</th>
+                                        <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-100">
+                                    ${items.map((item, idx) => `
+                                        <tr class="${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-primary-50/30 transition-colors">
+                                            <td class="px-4 py-3 text-sm text-gray-800 font-medium">${item.description || ''}</td>
+                                            <td class="px-4 py-3 text-sm text-right text-gray-600">${item.quantity || 0}</td>
+                                            <td class="px-4 py-3 text-sm text-right text-gray-600">${formatCurrency(item.value_excl || 0)}</td>
+                                            <td class="px-4 py-3 text-sm text-right text-orange-600">${formatCurrency(item.tax || 0)}</td>
+                                            <td class="px-4 py-3 text-sm text-right font-semibold text-gray-900">${formatCurrency(item.total || 0)}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+
+                    contentDiv.innerHTML = html;
+                })
+                .catch(error => {
+                    console.error('Error loading invoice details:', error);
+                    contentDiv.innerHTML = `
+                        <div class="flex flex-col items-center justify-center py-12">
+                            <div class="bg-red-100 p-4 rounded-full mb-4">
+                                <i class="fas fa-exclamation-circle text-red-500 text-2xl"></i>
+                            </div>
+                            <p class="text-gray-600 font-medium">Failed to load invoice details</p>
+                            <p class="text-gray-400 text-sm mt-1">Please try again later</p>
+                        </div>
+                    `;
+                });
+        }
+
+        // Set up invoice details modal close buttons
+        function setupInvoiceDetailsModal() {
+            document.getElementById('close-invoice-details').addEventListener('click', function () {
+                document.getElementById('invoice-details-modal').classList.add('hidden');
+            });
+            document.getElementById('close-invoice-details-btn').addEventListener('click', function () {
+                document.getElementById('invoice-details-modal').classList.add('hidden');
+            });
+            // Close on overlay click
+            document.querySelector('#invoice-details-modal .modal-overlay').addEventListener('click', function () {
+                document.getElementById('invoice-details-modal').classList.add('hidden');
+            });
         }
 
         // Function to show delete confirmation modal

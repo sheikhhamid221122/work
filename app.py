@@ -145,11 +145,45 @@ def generate_form_invoice():
         # Ensure we store the client_id with the data for future reference
         data["client_id"] = client_id
 
-        # Always fetch client row for logo_url
+        # Fetch client row including template settings (individual columns)
         cur.execute(
-            "SELECT strn, logo_url FROM clients WHERE id = %s", (client_id,)
+            """SELECT strn, logo_url, template_type,
+                      tpl_header_color, tpl_top_spacing, tpl_logo_width,
+                      tpl_show_seller_strn, tpl_show_seller_ntn, tpl_show_seller_address,
+                      tpl_show_fbr_invoice_header, tpl_show_buyer_strn, tpl_show_status,
+                      tpl_show_po, tpl_show_dc, tpl_show_cnic, tpl_show_hs_code_buyer,
+                      tpl_show_product_code, tpl_show_hs_code, tpl_apply_further_tax,
+                      tpl_max_item_rows, tpl_fixed_tax_rate
+               FROM clients WHERE id = %s""", (client_id,)
         )
         client_row = cur.fetchone()
+        
+        # Get template configuration from database
+        client_template_type = client_row[2] if client_row and len(client_row) > 2 else 'default'
+        
+        # Build settings dict from individual columns (with defaults)
+        client_template_settings = {}
+        if client_row and len(client_row) > 3:
+            client_template_settings = {
+                'header_color': client_row[3] or 'dark',
+                'top_spacing': client_row[4] or 0,
+                'logo_width': client_row[5] or 220,
+                'show_seller_strn': client_row[6] if client_row[6] is not None else True,
+                'show_seller_ntn': client_row[7] if client_row[7] is not None else True,
+                'show_seller_address': client_row[8] if client_row[8] is not None else True,
+                'show_fbr_invoice_header': client_row[9] if client_row[9] is not None else True,
+                'show_buyer_strn': client_row[10] if client_row[10] is not None else False,
+                'show_status': client_row[11] if client_row[11] is not None else True,
+                'show_po': client_row[12] if client_row[12] is not None else False,
+                'show_dc': client_row[13] if client_row[13] is not None else False,
+                'show_cnic': client_row[14] if client_row[14] is not None else False,
+                'show_hs_code_buyer': client_row[15] if client_row[15] is not None else False,
+                'show_product_code': client_row[16] if client_row[16] is not None else False,
+                'show_hs_code': client_row[17] if client_row[17] is not None else False,
+                'apply_further_tax': client_row[18] if client_row[18] is not None else False,
+                'max_item_rows': client_row[19] or 6,
+                'fixed_tax_rate': client_row[20] or '18%',
+            }
 
         # Get client's STRN directly from clients table
         # First check if STRN is in the invoice_data directly
@@ -405,31 +439,50 @@ def generate_form_invoice():
             except Exception as e:
                 print(f"Error generating QR code: {str(e)}")
 
-        # Select the appropriate template based on username - expand with all your clients
-        print(f"Selecting template for username: {username}")
-        if username in ["4210111937929", "3520204956465", "3520270278447", "3520271603355", "3520299147319", "3520226953258", "3520266827067"]:
-            template_name = "invoice_template_nologo.html"  # Template for users without logo
-            print(f"Selected template: {template_name} for username {username} (no logo)")
-        elif username in {"H075895", "F667833", "infinityeng"}:
-            template_name = "invoice_innovative.html"
-            print(f"Selected template: {template_name} for username {username}")
-        elif username == "8974121":
-            template_name = "invoice_template.html"
-            print(f"Selected template: {template_name} for Computer Gold")
-        elif username == "7542425":
-            template_name = "invoice_template3.html"
-            print(f"Selected template: {template_name} for username 7542425")
-        elif username == "8255820":
-            template_name = "invoice_templatezahid.html"
-            print(f"Selected template: {template_name} for username 8255820")
-        elif username in ["3075270", "0946915", "7542425", "2853653", "B690329", "3556084", "3520229157309"]:
-            template_name = "invoice_template3.html"  # Shared template for these users
-            print(f"Selected template: {template_name} for username: {username}")
+        # Select the appropriate template
+        # Priority: 1) Database template_type, 2) Legacy username-based selection
+        print(f"Selecting template for username: {username}, template_type: {client_template_type}")
+        
+        # NEW: Check database template_type first (for new clients)
+        if client_template_type == 'universal':
+            template_name = "invoice_template_universal.html"
+            print(f"Selected template: {template_name} (universal template from database)")
+        # EXISTING: Preserve legacy username-based selection for existing clients
+        elif client_template_type == 'default':
+            # Legacy selection logic - keeps existing clients working unchanged
+            if username in ["4210111937929", "3520204956465", "3520270278447", "3520271603355", "3520299147319", "3520226953258", "3520266827067"]:
+                template_name = "invoice_template_nologo.html"
+                print(f"Selected template: {template_name} for username {username} (no logo)")
+            elif username in {"H075895", "F667833", "infinityeng"}:
+                template_name = "invoice_innovative.html"
+                print(f"Selected template: {template_name} for username {username}")
+            elif username == "8974121":
+                template_name = "invoice_template.html"
+                print(f"Selected template: {template_name} for Computer Gold")
+            elif username == "7542425":
+                template_name = "invoice_template3.html"
+                print(f"Selected template: {template_name} for username 7542425")
+            elif username == "8255820":
+                template_name = "invoice_templatezahid.html"
+                print(f"Selected template: {template_name} for username 8255820")
+            elif username in ["3075270", "0946915", "7542425", "2853653", "B690329", "3556084", "3520229157309"]:
+                template_name = "invoice_template3.html"
+                print(f"Selected template: {template_name} for username: {username}")
+            else:
+                template_name = "invoice_template2.html"
+                print(f"Selected default template: {template_name} for username: {username}")
         else:
-            template_name = "invoice_template2.html"
-            print(
-                f"Selected default template: {template_name} for username: {username}"
-            )
+            # Direct template type mapping (e.g., 'nologo', 'innovative', etc.)
+            template_mapping = {
+                'nologo': 'invoice_template_nologo.html',
+                'innovative': 'invoice_innovative.html',
+                'template1': 'invoice_template.html',
+                'template2': 'invoice_template2.html',
+                'template3': 'invoice_template3.html',
+                'zahid': 'invoice_templatezahid.html',
+            }
+            template_name = template_mapping.get(client_template_type, 'invoice_template_universal.html')
+            print(f"Selected template: {template_name} from template_type: {client_template_type}")
 
         # Store the current data in last_json_data with client_id for future reference
         clean_payload = json.loads(json.dumps(data))
@@ -452,6 +505,7 @@ def generate_form_invoice():
             client_logo_url=client_logo_url,
             fbr_logo_url=fbr_logo_url,
             username=username,
+            settings=client_template_settings,  # Pass template settings to universal template
         )
 
         # Generate PDF directly to a stream
@@ -753,7 +807,7 @@ def get_records():
 
     cur.execute(
         """
-        SELECT invoice_data, fbr_response, status, created_at
+        SELECT id, invoice_data, fbr_response, status, created_at
         FROM invoices
         WHERE client_id = %s AND env = %s
         ORDER BY created_at DESC
@@ -767,7 +821,7 @@ def get_records():
 
     records = []
     for idx, row in enumerate(rows, start=1):
-        invoice_data_raw, fbr_response_raw, status, created_at = row
+        invoice_id, invoice_data_raw, fbr_response_raw, status, created_at = row
 
         # Ensure parsed JSON objects
         try:
@@ -800,6 +854,7 @@ def get_records():
             )
 
             record = {
+                "id": invoice_id,
                 "sr": idx,
                 "invoiceReference": (
                     invoicedata.get("fbrInvoiceNumber")

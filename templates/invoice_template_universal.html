@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/taxlinkpro-favicon.svg') }}">
+    <style>
+        @page {
+            margin: 10mm 9mm 10mm 9mm;  /* Reduced margins: top right bottom left */
+        }
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 13px;
+            margin: 0px;
+            padding: 0px;
+        }
+        .container {
+            width: 100%;
+            padding: 0;
+            margin: 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+        }
+        th, td {
+            border: 1px solid #333;
+            padding: 6px;
+            text-align: center;
+        }
+        .no-border td {
+            border: none;
+            padding: 4px 6px;
+        }
+        /* Header colors - configurable via settings */
+        .section-header-dark {
+            background-color: #3d3c3c;
+            color: #ffffff;
+            font-weight: bold;
+            text-align: center;
+            padding: 8px;
+            border: 1px solid #3d3c3c;
+        }
+        .section-header-blue {
+            background-color: #a7c7e7;
+            color: #000000;
+            font-weight: bold;
+            text-align: center;
+            padding: 8px;
+            border: 1px solid #333;
+        }
+        .section-header-white {
+            background-color: #ffffff;
+            color: #000000;
+            font-weight: bold;
+            text-align: center;
+            padding: 8px;
+            border: 1px solid #333;
+        }
+        .bold {
+            font-weight: bold;
+        }
+        .right {
+            text-align: right;
+        }
+        .left {
+            text-align: left;
+        }
+        .center {
+            text-align: center;
+        }
+        .info-table td {
+            padding: 4px;
+            vertical-align: top;
+        }
+        .summary-table td {
+            border: none;
+            text-align: right;
+            padding: 4px;
+        }
+        .footer-note {
+            font-weight: bold;
+            margin-top: 2px;
+            text-align: left;
+        }
+
+        /* ========================================
+           INVOICE TITLE - Large text on left
+           ======================================== */
+        .invoice-title {
+            font-size: 30px;
+            font-weight: 300;
+            color: #4a5568;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* ========================================
+           SELLER INFO SECTION - Right aligned
+           ======================================== */
+        .seller-section {
+            text-align: right;
+        }
+        
+        .seller-business-name {
+            font-size: 16px;
+            font-weight: 700;
+            color: #2d3748;
+            margin-bottom: 1px;
+        }
+        
+        .seller-address {
+            font-size: 13px;
+            color: #4a4a4a;
+            margin-bottom: 0px;
+        }
+        
+        .seller-contact {
+            font-size: 12px;
+            color: #4a4a4a;
+            margin-bottom: 0px;
+        }
+        
+        .fbr-invoice-number {
+            font-size: 12px;
+            color: #4a4a4a;
+            margin-top: 5px;
+            letter-spacing: 0.5px;
+        }
+        
+        .seller-logo {
+            display: inline-block;
+            vertical-align: middle;
+            margin-left: 15px;
+        }
+        
+        .seller-logo img {
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        /* Company Info Section */
+        .company-info {
+            line-height: 1.7;
+            display: inline-block;
+            text-align: left;
+            color: #000000;
+        }
+        .company-info p {
+            margin: 2px 0;
+        }
+        .company-info .city {
+            font-size: 13px;
+            color: #4a4a4a;
+            margin-bottom: 2px;
+        }
+        .company-info .label {
+            font-weight: 700;
+            color: #2d2d2d;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    {# ============================================
+       COMPREHENSIVE SETTINGS - All configurable via database!
+       No hardcoded usernames anywhere.
+       ============================================ #}
+    {% set settings = settings or {} %}
+    
+    {# === HEADER SETTINGS === #}
+    {% set header_color = settings.get('header_color', 'dark') %}
+    {% set top_spacing = settings.get('top_spacing', 0) %}
+    {% set show_seller_info = settings.get('show_seller_info', true) %}
+    {% set show_seller_strn = settings.get('show_seller_strn', true) %}
+    {% set show_seller_ntn = settings.get('show_seller_ntn', true) %}
+    {% set show_seller_address = settings.get('show_seller_address', true) %}
+    {% set show_seller_name_with_logo = settings.get('show_seller_name_with_logo', false) %}
+    {% set show_fbr_invoice_header = settings.get('show_fbr_invoice_header', true) %}
+    {% set logo_width = settings.get('logo_width', 220) %}
+    {% set logo_height = settings.get('logo_height', none) %}
+    
+    {# === BUYER SECTION SETTINGS === #}
+    {% set show_buyer_strn = settings.get('show_buyer_strn', false) %}
+    {% set show_status = settings.get('show_status', true) %}
+    {% set show_fbr_invoice_buyer = settings.get('show_fbr_invoice_buyer', false) %}
+    {% set show_po = settings.get('show_po', false) %}
+    {% set show_dn = settings.get('show_dn', false) %}
+    {% set show_dc = settings.get('show_dc', false) %}
+    {% set show_cnic = settings.get('show_cnic', false) %}
+    {% set show_hs_code_buyer = settings.get('show_hs_code_buyer', false) %}
+    {% set show_purchase_order = settings.get('show_purchase_order', false) %}
+    {% set show_delivery_challan = settings.get('show_delivery_challan', false) %}
+    
+    {# === PRODUCTS TABLE SETTINGS === #}
+    {% set show_product_code = settings.get('show_product_code', false) %}
+    {% set show_hs_code = settings.get('show_hs_code', false) %}
+    {% set show_sales_tax_rate_column = settings.get('show_sales_tax_rate_column', false) %}
+    {% set apply_further_tax = settings.get('apply_further_tax', false) %}
+    {% set fixed_tax_rate = settings.get('fixed_tax_rate', '18%') %}
+    {% set max_item_rows = settings.get('max_item_rows', 6) %}
+    
+    {# === BORDER STYLE === #}
+    {% set border_color = settings.get('border_color', '#999999') %}
+
+    {# Calculate header class #}
+    {% if header_color == 'blue' %}
+        {% set header_class = 'section-header-blue' %}
+    {% elif header_color == 'white' %}
+        {% set header_class = 'section-header-white' %}
+    {% else %}
+        {% set header_class = 'section-header-dark' %}
+    {% endif %}
+
+    {# Top spacing if configured #}
+    {% if top_spacing > 0 %}
+        {% for i in range(top_spacing) %}<br>{% endfor %}
+    {% endif %}
+
+    <div class="container">
+
+    <!-- Header: INVOICE on left, Seller Info + Logo on right -->
+    <table class="no-border" style="width: 100%; margin-bottom: 10px;">
+        <tr>
+            <!-- Left: INVOICE title + FBR Invoice Number -->
+            <td style="width: 55%; vertical-align: bottom; text-align: left; padding: 0;">
+                <p class="invoice-title">INVOICE</p>
+                {% if data.fbrInvoiceNumber %}
+                <p class="fbr-invoice-number">{{ data.fbrInvoiceNumber }}</p>
+                {% endif %}
+            </td>
+
+            <!-- Right: Seller Info + Logo -->
+            <td style="width: 45%; vertical-align: top; text-align: right; padding: 0;">
+                <div class="seller-section">
+                    <!-- Seller details (inline with logo if exists) -->
+                    <div class="company-info" style="display: inline-block; vertical-align: middle;">
+                        {% if show_seller_info %}
+                            {# Always show seller business name #}
+                            {% if data.sellerBusinessName %}
+                                <p class="seller-business-name">{{ data.sellerBusinessName }}</p>
+                            {% endif %}
+                            
+                            {% if show_seller_address and data.sellerAddress %}
+                                <p class="seller-address">{{ data.sellerAddress }}</p>
+                            {% endif %}
+                            
+                            {% if show_seller_ntn and data.sellerNTNCNIC %}
+                                <p class="seller-contact"><span class="label">NTN:</span> {{ data.sellerNTNCNIC }}</p>
+                            {% endif %}
+                            
+                            {% if show_seller_strn and data.sellerSTRN %}
+                                <p class="seller-contact"><span class="label">STRN:</span> {{ data.sellerSTRN }}</p>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Logo (circular, on right of seller details) -->
+                    {% if client_logo_url %}
+                    <div class="seller-logo">
+                        <img src="{{ client_logo_url }}" alt="Logo" style="width: {{ logo_width }}px; height: {{ logo_width }}px;">
+                    </div>
+                    {% endif %}
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Invoice Title -->
+    <div class="{{ header_class }}" style="margin-top: 12px;">SALES TAX INVOICE</div>
+
+    <!-- Buyer and Invoice Info -->
+    <table style="width: 100%; border: 1px solid {{ border_color }};">
+        <tr>
+            <td style="width: 20%; font-weight: bold; border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left">BUYER NAME</td>
+            <td style="width: 45%; border: 1px solid {{ border_color }};" class="left">{{ data.buyerBusinessName }}</td>
+            <td style="width: 15%; font-weight: bold; border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left">DATE</td>
+            <td style="width: 20%; border: 1px solid {{ border_color }};" class="left">{{ data.invoiceDate | datetimeformat }}</td>
+        </tr>
+        <tr>
+            <td style="font-weight: bold; background-color: #f2f2f2; border: 1px solid {{ border_color }};" class="left">BUYER ADDRESS</td>
+            <td style="border: 1px solid {{ border_color }};" class="left">{{ data.buyerAddress }}</td>
+            <td style="font-weight: bold; background-color: #f2f2f2; border: 1px solid {{ border_color }};" class="left">INVOICE #</td>
+            <td style="border: 1px solid {{ border_color }};" class="left">{{ data.invoiceRefNo }}</td>
+        </tr>
+        <tr>
+            <td style="font-weight: bold; border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left">BUYER NTN/CNIC</td>
+            <td style="border: 1px solid {{ border_color }};" class="left">{{ data.buyerNTNCNIC }}</td>
+            {% if show_status %}
+                <td style="font-weight: bold; border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left">STATUS</td>
+                <td style="border: 1px solid {{ border_color }};" class="left">{% if data.buyerRegistrationType and (data.buyerRegistrationType|string).lower() in ['registered','r','yes','1'] %}Registered{% else %}Unregistered{% endif %}</td>
+            {% elif show_fbr_invoice_buyer %}
+                <td style="font-weight: bold; border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left">FBR INVOICE #</td>
+                <td style="border: 1px solid {{ border_color }};" class="left">{{ data.fbrInvoiceNumber or "" }}</td>
+            {% elif show_hs_code_buyer %}
+                <td style="font-weight: bold; border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left">HS CODE</td>
+                <td style="border: 1px solid {{ border_color }};" class="left">{% if data['items'] and data['items']|length > 0 %}{{ (data['items'][0].hs_code or data['items'][0].hsCode or '') }}{% endif %}</td>
+            {% else %}
+                <td style="border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left"></td>
+                <td style="border: 1px solid {{ border_color }};" class="left"></td>
+            {% endif %}
+        </tr>
+        
+        {# Row 4: P.O./DC + Buyer STRN - Fields start from left #}
+        {% if show_po or show_dc or show_buyer_strn %}
+        <tr>
+            {% if show_po %}
+                <td style="font-weight: bold; border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left">P.O #</td>
+                <td style="border: 1px solid {{ border_color }};" class="left">{{ data.PO or "" }}</td>
+            {% elif show_dc %}
+                <td style="font-weight: bold; border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left">DC #</td>
+                <td style="border: 1px solid {{ border_color }};" class="left">{{ data.DC or "" }}</td>
+            {% elif show_purchase_order %}
+                <td style="font-weight: bold; border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left">PURCHASE ORDER #</td>
+                <td style="border: 1px solid {{ border_color }};" class="left">{{ data.PO or "" }}</td>
+            {% else %}
+                <td style="border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left"></td>
+                <td style="border: 1px solid {{ border_color }};" class="left"></td>
+            {% endif %}
+            {% if show_buyer_strn %}
+                <td style="font-weight: bold; border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left">BUYER STRN</td>
+                <td style="border: 1px solid {{ border_color }};" class="left">{{ data.buyerSTRN or "" }}</td>
+            {% else %}
+                <td style="border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left"></td>
+                <td style="border: 1px solid {{ border_color }};" class="left"></td>
+            {% endif %}
+        </tr>
+        {% endif %}
+
+        {# Row 5: CNIC + DN/Delivery Challan #}
+        {% if show_cnic or show_dn or show_delivery_challan %}
+        <tr>
+            {% if show_cnic %}
+                <td style="font-weight: bold; border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left">CNIC</td>
+                <td style="border: 1px solid {{ border_color }};" class="left">{{ data.CNIC or "" }}</td>
+            {% else %}
+                <td style="border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left"></td>
+                <td style="border: 1px solid {{ border_color }};" class="left"></td>
+            {% endif %}
+            {% if show_dn %}
+                <td style="font-weight: bold; border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left">D.N. No.</td>
+                <td style="border: 1px solid {{ border_color }};" class="left">{{ data.DN or "" }}</td>
+            {% elif show_delivery_challan %}
+                <td style="font-weight: bold; border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left">DELIVERY CHALLAN #</td>
+                <td style="border: 1px solid {{ border_color }};" class="left">{{ data.CNIC or "" }}</td>
+            {% else %}
+                <td style="border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left"></td>
+                <td style="border: 1px solid {{ border_color }};" class="left"></td>
+            {% endif %}
+        </tr>
+        {% endif %}
+    </table>
+
+    <!-- Detail Section -->
+    <div class="{{ header_class }}" style="margin-top: 15px;">DETAILS</div>
+
+    {% set buyer_unregistered = (data.buyerRegistrationType or '')|lower == 'unregistered' %}
+    {% set show_further_tax = apply_further_tax and buyer_unregistered and data.showFurtherTax %}
+
+    <!-- Products Table -->
+    <table style="margin-bottom: 0; border-bottom: none; width: 100%; border-collapse: collapse; border: 1px solid {{ border_color }};">
+        <thead>
+            <tr style="background-color: #f2f2f2;">
+                <th style="width: 5%; border: 1px solid {{ border_color }};">Sr. No.</th>
+                <th style="{% if show_product_code or show_hs_code %}width: 18%;{% else %}width: 23%;{% endif %} border: 1px solid {{ border_color }};">Product Detail</th>
+                {% if show_product_code %}
+                    <th style="width: 12%; border: 1px solid {{ border_color }};">Product Code</th>
+                {% endif %}
+                {% if show_hs_code %}
+                    <th style="width: 10%; border: 1px solid {{ border_color }};">HS Code</th>
+                {% endif %}
+                <th style="width: 8%; border: 1px solid {{ border_color }};">Quantity</th>
+                <th style="width: 8%; border: 1px solid {{ border_color }};">Rate</th>
+                <th style="width: 11%; border: 1px solid {{ border_color }};">Value Excl. ST</th>
+                {% if show_sales_tax_rate_column %}
+                    <th style="width: 8%; border: 1px solid {{ border_color }};">Tax Rate</th>
+                    <th style="width: 8%; border: 1px solid {{ border_color }};">Sales Tax</th>
+                {% else %}
+                    <th style="width: 10%; border: 1px solid {{ border_color }};">Sales Tax ({{ fixed_tax_rate }})</th>
+                {% endif %}
+                {% if show_further_tax %}<th style="width: 9%; border: 1px solid {{ border_color }};">Further Tax (4%)</th>{% endif %}
+                <th style="width: 12%; border: 1px solid {{ border_color }};">Value Incl. ST</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in data["items"] %}
+            {% set further_tax_amount = item.furtherTaxAmount or 0 %}
+            <tr>
+                <td style="border: 1px solid {{ border_color }};">{{ loop.index }}</td>
+                <td class="left" style="border: 1px solid {{ border_color }};">{{ item.productDescription }}</td>
+                {% if show_product_code %}
+                    <td class="left" style="border: 1px solid {{ border_color }};">{{ item.product_code or "" }}</td>
+                {% endif %}
+                {% if show_hs_code %}
+                    <td class="left" style="border: 1px solid {{ border_color }};">{{ item.hs_code or item.hsCode or "" }}</td>
+                {% endif %}
+                <td style="border: 1px solid {{ border_color }};">{{ item.quantity }}</td>
+                <td style="border: 1px solid {{ border_color }};">{{ item.unitrate | comma_format }}</td>
+                <td style="border: 1px solid {{ border_color }};">{{ item.valueSalesExcludingST | comma_format }}</td>
+                {% if show_sales_tax_rate_column %}
+                    <td style="border: 1px solid {{ border_color }};">{{ item.rate }}</td>
+                    <td style="border: 1px solid {{ border_color }};">{{ item.salesTaxApplicable | comma_format }}</td>
+                {% else %}
+                    <td style="border: 1px solid {{ border_color }};">{{ item.salesTaxApplicable | comma_format }}</td>
+                {% endif %}
+                {% if show_further_tax %}<td style="border: 1px solid {{ border_color }};">{{ further_tax_amount | comma_format }}</td>{% endif %}
+                <td style="border: 1px solid {{ border_color }};">{{ (item.valueSalesExcludingST + item.salesTaxApplicable + (show_further_tax and further_tax_amount or 0)) | comma_format }}</td>
+            </tr>
+            {% endfor %}
+
+            {# Add empty rows to fill up to the configured max #}
+            {% set total_rows = data["items"]|length %}
+            {% set col_count = 7 %}
+            {% if show_product_code %}{% set col_count = col_count + 1 %}{% endif %}
+            {% if show_hs_code %}{% set col_count = col_count + 1 %}{% endif %}
+            {% if show_sales_tax_rate_column %}{% set col_count = col_count + 1 %}{% endif %}
+            {% if show_further_tax %}{% set col_count = col_count + 1 %}{% endif %}
+            
+            {% for i in range(total_rows + 1, max_item_rows) %}
+            <tr>
+                <td style="border: 1px solid {{ border_color }};">{{ i }}</td>
+                <td style="border: 1px solid {{ border_color }};"></td>
+                {% if show_product_code %}<td style="border: 1px solid {{ border_color }};"></td>{% endif %}
+                {% if show_hs_code %}<td style="border: 1px solid {{ border_color }};"></td>{% endif %}
+                <td style="border: 1px solid {{ border_color }};"></td>
+                <td style="border: 1px solid {{ border_color }};"></td>
+                <td style="border: 1px solid {{ border_color }};"></td>
+                {% if show_sales_tax_rate_column %}<td style="border: 1px solid {{ border_color }};"></td>{% endif %}
+                <td style="border: 1px solid {{ border_color }};"></td>
+                {% if show_further_tax %}<td style="border: 1px solid {{ border_color }};"></td>{% endif %}
+                <td style="border: 1px solid {{ border_color }};"></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Summary Section -->
+    <table class="no-border" style="width: 101.7%; margin-top: -3px; border-top: none;">
+        <tr>
+            <!-- Left: Amount in Words -->
+            <td style="width: 58%; border: none; vertical-align: top;">
+                <table style="width: 100%;">
+                    <tr>
+                        <td colspan="2" style="text-align: left;">
+                            <div style="font-weight: bold;">AMOUNT IN WORDS:</div>
+                            <div><i>{{ data.amountInWords }}</i></div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+
+            <!-- Right: Summary Table -->
+            <td style="width: 42%; border: none; vertical-align: top;">
+                <div style="margin-left: auto; width: 100%; margin-top: 10px;">
+                    <table style="width: 98%;">
+                        <tr>
+                            <td style="width: 56%; text-align: left; font-weight: bold; border: 1px solid {{ border_color }}; padding-left: 6px; background-color: #f2f2f2;">Value Exclusive of Sales Tax</td>
+                            <td style="width: 44%; text-align: center; font-weight: bold; border: 1px solid {{ border_color }}; padding-right: 6px;">Rs. {{ data.totalExcl | comma_format }}</td>
+                        </tr>
+                        <tr>
+                            <td style="text-align: left; font-weight: bold; border: 1px solid {{ border_color }}; height: 30px; padding-left: 6px; background-color: #f2f2f2;">Value of Sales Tax</td>
+                            <td style="text-align: center; font-weight: bold; border: 1px solid {{ border_color }}; height: 30px; padding-right: 6px;">Rs. {{ data.totalTax | comma_format }}</td>
+                        </tr>
+                        <tr>
+                            <td style="text-align: left; font-weight: bold; border: 1px solid {{ border_color }}; padding-left: 6px; background-color: #f2f2f2;">Value Inclusive of Sales Tax</td>
+                            <td style="text-align: center; font-weight: bold; border: 1px solid {{ border_color }}; padding-right: 6px;">Rs. {{ data.totalInclusive | comma_format }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Footer with Signature, FBR Logo and QR Code -->
+    <table class="no-border" style="width: 100%; margin-top: 50px;">
+        <tr>
+            <!-- Left: Authorized Signatory -->
+            <td style="width: 50%; vertical-align: bottom; text-align: left; border: none;">
+                <div class="footer-note">
+                    <hr style="width: 200px; margin-left: 0; border-top: 2px solid #000000;">
+                    <p style="margin-top: -5px;">AUTHORISED SIGNATORY</p>
+                </div>
+            </td>
+
+            <!-- Right: FBR Logo + QR Code side by side -->
+            <td style="width: 50%; text-align: right; vertical-align: middle; border: none;">
+                {% if fbr_logo_url %}
+                    <img src="{{ fbr_logo_url }}" style="width: 1in; height: auto; vertical-align: middle; margin-right: 15px;" alt="FBR Logo">
+                {% endif %}
+                {% if qr_base64 %}
+                    <img src="data:image/png;base64,{{ qr_base64 }}" style="width: 1in; height: 1in; vertical-align: middle;" alt="QR Code">
+                {% endif %}
+            </td>
+        </tr>
+    </table>
+
+    </div>
+</body>
+</html>
