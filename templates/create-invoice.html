@@ -1833,35 +1833,15 @@
         function syncFurtherTaxDefaults() {
             const furtherTaxInput = document.getElementById('product-further-tax');
             if (shouldApplyFurtherTax() && furtherTaxInput) {
-                const inputVal = parseFloat(furtherTaxInput.value);
-                if (!Number.isFinite(inputVal) || inputVal <= 0) {
+                // Only set default if field is truly empty (not when user explicitly set 0)
+                if (furtherTaxInput.value === '' || furtherTaxInput.value === null || furtherTaxInput.value === undefined) {
                     furtherTaxInput.value = '4';
                 }
                 furtherTaxInput.placeholder = '4';
             }
 
-            if (!shouldApplyFurtherTax()) {
-                return;
-            }
-
-            if (!state.productItems || state.productItems.length === 0) {
-                return;
-            }
-
-            let changed = false;
-            state.productItems = state.productItems.map((item) => {
-                const pct = getFurtherTaxPercent(item);
-                if (pct <= 0) {
-                    changed = true;
-                    return { ...item, furtherTax: 4 };
-                }
-                return item;
-            });
-
-            if (changed) {
-                updateTotals();
-                updateReviewSection();
-            }
+            // Note: We no longer force 4% on existing items - user's explicit 0 is respected
+            // This allows users to set 0% further tax when needed
         }
 
         // Notification system
@@ -2467,13 +2447,17 @@
                 formattedTaxRate = document.getElementById("product-tax-rate").options[document.getElementById("product-tax-rate").selectedIndex].textContent.trim();
             }
 
-            let furtherTaxPercent = parseFloat(document.getElementById('product-further-tax')?.value || 0);
-            if (shouldApplyFurtherTax() && (!Number.isFinite(furtherTaxPercent) || furtherTaxPercent <= 0)) {
-                furtherTaxPercent = 4;
-                const furtherTaxInput = document.getElementById('product-further-tax');
-                if (furtherTaxInput) {
-                    furtherTaxInput.value = '4';
+            const furtherTaxInputEl = document.getElementById('product-further-tax');
+            const furtherTaxInputValue = furtherTaxInputEl?.value;
+            // Only default to 4% if field is truly empty, respect explicit 0 from user
+            let furtherTaxPercent;
+            if (furtherTaxInputValue === '' || furtherTaxInputValue === null || furtherTaxInputValue === undefined) {
+                furtherTaxPercent = shouldApplyFurtherTax() ? 4 : 0;
+                if (shouldApplyFurtherTax() && furtherTaxInputEl) {
+                    furtherTaxInputEl.value = '4';
                 }
+            } else {
+                furtherTaxPercent = parseFloat(furtherTaxInputValue) || 0;
             }
 
             const furtherTaxAmount = shouldApplyFurtherTax()
