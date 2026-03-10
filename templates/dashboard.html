@@ -247,7 +247,7 @@
         /* Status message container */
         .status-container {
             position: relative;
-            min-height: 80px;
+            min-height: 60px;
             /* Fixed height for button + status area */
         }
 
@@ -464,52 +464,56 @@
             </div>
 
             <!-- Main content area -->
-            <main class="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 bg-gray-50">
+            <main class="flex-1 overflow-hidden p-3 sm:p-4 md:p-5 bg-gray-50">
                 <div id="dashboard-content" class="content-section">
-                    <!-- Dashboard Header with Stats -->
-                    <!-- Dashboard Header with Stats -->
-                    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-                        <h1 class="text-2xl font-bold text-gray-800">Dashboard Overview</h1>
-
-                        <!-- New Invoice Button -->
-                        <a href="/create-invoice"
-                            class="mt-3 md:mt-0 bg-primary-600 hover:bg-primary-700 text-white font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out flex items-center justify-center">
-                            <i class="fas fa-plus-circle mr-2"></i> Create New Invoice
-                        </a>
+                    <!-- Dashboard Header -->
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+                        <h1 class="text-xl font-bold text-gray-800">Dashboard Overview</h1>
+                        
+                        <!-- Bulk Action Bar (hidden by default) -->
+                        <div id="bulk-action-bar" class="hidden mt-2 md:mt-0 flex items-center gap-2 bg-primary-50 border border-primary-200 rounded-lg px-3 py-2">
+                            <span class="text-sm text-primary-700 font-medium"><span id="selected-count-display">0</span> selected</span>
+                            <button id="view-summary-btn" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium py-1.5 px-3 rounded-md transition flex items-center">
+                                <i class="fas fa-chart-pie mr-1.5"></i>View Summary
+                            </button>
+                            <button id="delete-selected-btn" class="bg-red-600 hover:bg-red-700 text-white text-sm font-medium py-1.5 px-3 rounded-md transition flex items-center">
+                                <i class="fas fa-trash-alt mr-1.5"></i>Delete Selected
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Summary Cards -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                        <div class="bg-white p-5 rounded-xl shadow-md stats-card border-l-4 border-primary-500 hover:border-primary-600">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                        <div class="bg-white p-4 rounded-xl shadow-md stats-card border-l-4 border-primary-500 hover:border-primary-600">
                             <div class="flex items-center">
-                                <div class="p-3 rounded-xl bg-gradient-to-br from-primary-100 to-primary-200 text-primary-600 mr-4">
-                                    <i class="fas fa-file-invoice text-xl"></i>
+                                <div class="p-2.5 rounded-xl bg-gradient-to-br from-primary-100 to-primary-200 text-primary-600 mr-3">
+                                    <i class="fas fa-file-invoice text-lg"></i>
                                 </div>
                                 <div>
-                                    <h3 class="text-gray-500 text-sm font-medium">Total Invoices</h3>
-                                    <p class="text-2xl font-bold text-gray-800" id="total-invoices-count">0</p>
+                                    <h3 class="text-gray-500 text-xs font-medium">Total Invoices</h3>
+                                    <p class="text-xl font-bold text-gray-800" id="total-invoices-count">0</p>
                                 </div>
                             </div>
                         </div>
-                        <div class="bg-white p-5 rounded-xl shadow-md stats-card border-l-4 border-green-500 hover:border-green-600">
+                        <div class="bg-white p-4 rounded-xl shadow-md stats-card border-l-4 border-green-500 hover:border-green-600">
                             <div class="flex items-center">
-                                <div class="p-3 rounded-xl bg-gradient-to-br from-green-100 to-green-200 text-green-600 mr-4">
-                                    <i class="fas fa-check-circle text-xl"></i>
+                                <div class="p-2.5 rounded-xl bg-gradient-to-br from-green-100 to-green-200 text-green-600 mr-3">
+                                    <i class="fas fa-check-circle text-lg"></i>
                                 </div>
                                 <div>
-                                    <h3 class="text-gray-500 text-sm font-medium">Successful Submissions</h3>
-                                    <p class="text-2xl font-bold text-gray-800" id="success-count">0</p>
+                                    <h3 class="text-gray-500 text-xs font-medium">Successful Submissions</h3>
+                                    <p class="text-xl font-bold text-gray-800" id="success-count">0</p>
                                 </div>
                             </div>
                         </div>
-                        <div class="bg-white p-5 rounded-xl shadow-md stats-card border-l-4 border-red-500 hover:border-red-600">
+                        <div class="bg-white p-4 rounded-xl shadow-md stats-card border-l-4 border-red-500 hover:border-red-600">
                             <div class="flex items-center">
-                                <div class="p-3 rounded-xl bg-gradient-to-br from-red-100 to-red-200 text-red-600 mr-4">
-                                    <i class="fas fa-exclamation-circle text-xl"></i>
+                                <div class="p-2.5 rounded-xl bg-gradient-to-br from-red-100 to-red-200 text-red-600 mr-3">
+                                    <i class="fas fa-exclamation-circle text-lg"></i>
                                 </div>
                                 <div>
-                                    <h3 class="text-gray-500 text-sm font-medium">Failed Submissions</h3>
-                                    <p class="text-2xl font-bold text-gray-800" id="failed-count">0</p>
+                                    <h3 class="text-gray-500 text-xs font-medium">Failed Submissions</h3>
+                                    <p class="text-xl font-bold text-gray-800" id="failed-count">0</p>
                                 </div>
                             </div>
                         </div>
@@ -521,39 +525,39 @@
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gradient-to-r from-primary-600 to-primary-700">
                                     <tr>
-                                        <th scope="col" class="px-4 py-4 text-center">
+                                        <th scope="col" class="px-3 py-2.5 text-center">
                                             <input type="checkbox" id="select-all-invoices" 
                                                 class="w-4 h-4 text-primary-600 bg-white border-gray-300 rounded focus:ring-primary-500 cursor-pointer">
                                         </th>
                                         <th scope="col"
-                                            class="px-4 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-primary-500/50 transition-colors"
+                                            class="px-3 py-2.5 text-left text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-primary-500/50 transition-colors"
                                             id="sort-sr">
                                             Sr # <i class="fas fa-sort ml-1 opacity-70"></i></th>
                                         <th scope="col"
-                                            class="px-3 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-primary-500/50 transition-colors"
+                                            class="px-3 py-2.5 text-left text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-primary-500/50 transition-colors"
                                             id="sort-number">
                                             Invoice Number <i class="fas fa-sort ml-1 opacity-70"></i></th>
                                         <th scope="col"
-                                            class="px-6 py-4 text-center text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-primary-500/50 transition-colors"
+                                            class="px-4 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-primary-500/50 transition-colors"
                                             id="sort-refno">
                                             Invoice Ref # <i class="fas fa-sort ml-1 opacity-70"></i></th>
                                         <th scope="col"
-                                            class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-primary-500/50 transition-colors"
+                                            class="px-4 py-2.5 text-left text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-primary-500/50 transition-colors"
                                             id="sort-date">
                                             Date <i class="fas fa-sort ml-1 opacity-70"></i></th>
                                         <th scope="col"
-                                            class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-primary-500/50 transition-colors"
+                                            class="px-4 py-2.5 text-left text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-primary-500/50 transition-colors"
                                             id="sort-buyer">
                                             Buyer <i class="fas fa-sort ml-1 opacity-70"></i></th>
                                         <th scope="col"
-                                            class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-primary-500/50 transition-colors"
+                                            class="px-4 py-2.5 text-left text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-primary-500/50 transition-colors"
                                             id="sort-value">
                                             Total Value <i class="fas fa-sort ml-1 opacity-70"></i></th>
                                         <th scope="col"
-                                            class="px-4 py-4 text-center text-xs font-semibold text-white uppercase tracking-wider">
+                                            class="px-3 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider">
                                             View</th>
                                         <th scope="col" id="status-column-header"
-                                            class="px-4 py-4 text-center text-xs font-semibold text-white uppercase tracking-wider">
+                                            class="px-3 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider">
                                             Delete</th>
                                     </tr>
                                 </thead>
@@ -565,44 +569,44 @@
                     </div>
 
                     <!-- Pagination -->
-                    <div id="records-pagination" class="flex justify-center items-center mt-6 space-x-2"></div>
+                    <div id="records-pagination" class="flex justify-center items-center mt-3 space-x-2"></div>
 
                     <!-- Action Buttons with Fixed Height Status Messages -->
-                    <div class="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                         <!-- Import Excel Button -->
                         <div class="status-container">
                             <button id="import-excel-btn"
-                                class="action-button w-full bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
-                                <i class="fas fa-file-excel mr-2 text-lg"></i> Import Excel
+                                class="action-button w-full bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white font-semibold py-2 px-3 rounded-xl transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                                <i class="fas fa-file-excel mr-2"></i> Import Excel
                             </button>
-                            <div id="excel-upload-status" class="status-message"></div>
+                            <div id="excel-upload-status" class="status-message text-sm"></div>
                         </div>
 
                         <!-- Validate JSON Button -->
                         <div class="status-container">
                             <button id="validate-json-btn"
-                                class="action-button w-full bg-gradient-to-r from-secondary-600 to-secondary-700 hover:from-secondary-700 hover:to-secondary-800 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
-                                <i class="fas fa-check-circle mr-2 text-lg"></i> Validate JSON
+                                class="action-button w-full bg-gradient-to-r from-secondary-600 to-secondary-700 hover:from-secondary-700 hover:to-secondary-800 text-white font-semibold py-2 px-3 rounded-xl transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                                <i class="fas fa-check-circle mr-2"></i> Validate JSON
                             </button>
-                            <div id="json-validate-status" class="status-message"></div>
+                            <div id="json-validate-status" class="status-message text-sm"></div>
                         </div>
 
                         <!-- Submit to FBR Button -->
                         <div class="status-container">
                             <button id="submit-fbr-btn"
-                                class="action-button w-full bg-gradient-to-r from-accent-600 to-accent-700 hover:from-accent-700 hover:to-accent-800 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
-                                <i class="fas fa-paper-plane mr-2 text-lg"></i> <span id="submit-btn-text">Submit to FBR</span>
+                                class="action-button w-full bg-gradient-to-r from-accent-600 to-accent-700 hover:from-accent-700 hover:to-accent-800 text-white font-semibold py-2 px-3 rounded-xl transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                                <i class="fas fa-paper-plane mr-2"></i> <span id="submit-btn-text">Submit to FBR</span>
                             </button>
-                            <div class="status-message"></div>
+                            <div class="status-message text-sm"></div>
                         </div>
 
                         <!-- Download PDF Button -->
                         <div class="status-container">
                             <button id="get-excel-btn"
-                                class="action-button w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold py-3 px-4 rounded-xl transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
-                                <i class="fas fa-file-pdf mr-2 text-lg"></i> Download PDF
+                                class="action-button w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold py-2 px-3 rounded-xl transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                                <i class="fas fa-file-pdf mr-2"></i> Download PDF
                             </button>
-                            <div class="status-message"></div>
+                            <div class="status-message text-sm"></div>
                         </div>
                     </div>
                 </div>
@@ -737,6 +741,58 @@
         </div>
     </div>
 
+    <!-- Bulk Delete Confirmation Modal -->
+    <div id="bulk-delete-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
+        <div class="modal-overlay absolute inset-0"></div>
+        <div class="bg-white rounded-lg shadow-xl z-50 w-full max-w-md">
+            <div class="p-6">
+                <div class="flex flex-col items-center mb-4">
+                    <div class="bg-red-100 p-3 rounded-full mb-4">
+                        <i class="fas fa-exclamation-triangle text-red-600 text-2xl"></i>
+                    </div>
+                    <h3 class="text-lg font-semibold text-gray-900">Delete Multiple Invoices</h3>
+                    <p class="mt-2 text-center text-gray-600">Are you sure you want to delete <span id="bulk-delete-count" class="font-bold">0</span> invoice(s)? This action cannot be undone.</p>
+                </div>
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button id="cancel-bulk-delete-btn"
+                        class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                        Cancel
+                    </button>
+                    <button id="confirm-bulk-delete-btn"
+                        class="px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700">
+                        Delete All
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Modal -->
+    <div id="summary-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
+        <div class="modal-overlay absolute inset-0"></div>
+        <div class="bg-white rounded-xl shadow-2xl z-50 w-full max-w-3xl max-h-[85vh] overflow-auto">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">
+                        <i class="fas fa-chart-pie text-primary-600 mr-2"></i>Selected Invoices Summary
+                    </h3>
+                    <button id="close-summary-modal" class="text-gray-400 hover:text-gray-500 p-2 hover:bg-gray-100 rounded-lg">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div id="summary-content">
+                    <!-- Summary content will be loaded here -->
+                </div>
+                <div class="mt-6 flex justify-end border-t pt-4">
+                    <button id="close-summary-modal-btn"
+                        class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Notification Component -->
     <div id="notification-container"
         class="fixed inset-0 flex items-center justify-center z-50 pointer-events-none hidden">
@@ -779,6 +835,9 @@
 
         // Store the invoice to be deleted
         let invoiceToDelete = null;
+
+        // Track selected invoices for bulk actions
+        let selectedInvoices = new Set();
 
         // Notification system
         function showNotification(type, title, message, duration = 3000) {
@@ -896,10 +955,10 @@
             if (records.length === 0) {
                 const emptyRow = document.createElement('tr');
                 emptyRow.innerHTML = `
-                    <td colspan="9" class="px-6 py-8 text-center">
+                    <td colspan="9" class="px-4 py-4 text-center">
                         <div class="flex flex-col items-center">
-                            <i class="fas fa-file-invoice text-gray-300 text-4xl mb-3"></i>
-                            <span class="text-gray-500 font-medium">No records found</span>
+                            <i class="fas fa-file-invoice text-gray-300 text-2xl mb-2"></i>
+                            <span class="text-gray-500 text-sm font-medium">No records found</span>
                         </div>
                     </td>
                 `;
@@ -915,38 +974,38 @@
                 row.className = 'hover:bg-primary-50/50 transition-all duration-200 border-b border-gray-50';
 
                 row.innerHTML = `
-                    <td class="px-4 py-4 text-center">
+                    <td class="px-3 py-2.5 text-center">
                         <input type="checkbox" class="invoice-select-checkbox w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 cursor-pointer" 
                             value="${record.invoiceReference}">
                     </td>
-                    <td class="px-4 py-4 whitespace-nowrap">
-                        <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-600 text-sm font-medium">${startSr + idx}</span>
+                    <td class="px-3 py-2.5 whitespace-nowrap">
+                        <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-100 text-gray-600 text-xs font-medium">${startSr + idx}</span>
                     </td>
-                    <td class="px-3 py-4 whitespace-nowrap">
+                    <td class="px-3 py-2.5 whitespace-nowrap">
                         <span class="text-sm font-semibold text-primary-700">${record.invoiceReference}</span>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-center">
+                    <td class="px-4 py-2.5 whitespace-nowrap text-center">
                         <span class="text-sm text-gray-600">${record.invoiceRefNo || 'N/A'}</span>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    <td class="px-4 py-2.5 whitespace-nowrap">
                         <span class="text-sm text-gray-500">${record.invoiceDate ? record.invoiceDate : ''}</span>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    <td class="px-4 py-2.5 whitespace-nowrap">
                         <span class="text-sm font-medium text-gray-700">${record.buyerName}</span>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap">
+                    <td class="px-4 py-2.5 whitespace-nowrap">
                         <span class="text-sm font-semibold text-green-600">PKR ${record.totalValue.toFixed(2)}</span>
                     </td>
-                    <td class="px-4 py-4 whitespace-nowrap text-center">
-                        <button class="view-invoice-btn inline-flex items-center justify-center w-9 h-9 rounded-lg bg-primary-100 text-primary-600 hover:bg-primary-200 hover:text-primary-700 transition-all duration-200 shadow-sm"
+                    <td class="px-3 py-2.5 whitespace-nowrap text-center">
+                        <button class="view-invoice-btn inline-flex items-center justify-center w-8 h-8 rounded-lg bg-primary-100 text-primary-600 hover:bg-primary-200 hover:text-primary-700 transition-all duration-200 shadow-sm"
                             data-invoice-id="${record.id}" title="View Invoice">
-                            <i class="fas fa-eye"></i>
+                            <i class="fas fa-eye text-sm"></i>
                         </button>
                     </td>
-                    <td class="px-4 py-4 whitespace-nowrap text-center">
-                        <button class="delete-invoice-btn inline-flex items-center justify-center w-9 h-9 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 hover:text-red-700 transition-all duration-200 shadow-sm"
+                    <td class="px-3 py-2.5 whitespace-nowrap text-center">
+                        <button class="delete-invoice-btn inline-flex items-center justify-center w-8 h-8 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 hover:text-red-700 transition-all duration-200 shadow-sm"
                             data-invoice-ref="${record.invoiceReference}" title="Delete Invoice">
-                            <i class="fas fa-trash-alt"></i>
+                            <i class="fas fa-trash-alt text-sm"></i>
                         </button>
                     </td>
                 `;
@@ -971,6 +1030,24 @@
 
             // Update select-all checkbox state
             updateSelectAllCheckbox();
+            
+            // Add event listeners to individual checkboxes for bulk actions
+            document.querySelectorAll('.invoice-select-checkbox').forEach(cb => {
+                // Restore checked state from selectedInvoices set
+                if (selectedInvoices.has(cb.value)) {
+                    cb.checked = true;
+                }
+                cb.addEventListener('change', function() {
+                    if (this.checked) {
+                        selectedInvoices.add(this.value);
+                    } else {
+                        selectedInvoices.delete(this.value);
+                    }
+                    updateSelectAllCheckbox();
+                    updateBulkActionBar();
+                });
+            });
+            updateBulkActionBar();
         }
 
         // Handle select all checkbox
@@ -979,7 +1056,15 @@
             if (selectAllCheckbox) {
                 selectAllCheckbox.addEventListener('change', function() {
                     const checkboxes = document.querySelectorAll('.invoice-select-checkbox');
-                    checkboxes.forEach(cb => cb.checked = this.checked);
+                    checkboxes.forEach(cb => {
+                        cb.checked = this.checked;
+                        if (this.checked) {
+                            selectedInvoices.add(cb.value);
+                        } else {
+                            selectedInvoices.delete(cb.value);
+                        }
+                    });
+                    updateBulkActionBar();
                 });
             }
         }
@@ -993,6 +1078,20 @@
                 const someChecked = Array.from(checkboxes).some(cb => cb.checked);
                 selectAllCheckbox.checked = allChecked;
                 selectAllCheckbox.indeterminate = someChecked && !allChecked;
+            }
+        }
+
+        // Update bulk action bar visibility
+        function updateBulkActionBar() {
+            const bar = document.getElementById('bulk-action-bar');
+            const countDisplay = document.getElementById('selected-count-display');
+            const count = selectedInvoices.size;
+            
+            if (count > 0) {
+                bar.classList.remove('hidden');
+                countDisplay.textContent = count;
+            } else {
+                bar.classList.add('hidden');
             }
         }
 
@@ -1496,7 +1595,195 @@
                     badge.classList.add('bg-red-600');
                 }
             });
+
+            // Setup bulk action buttons
+            setupBulkActions();
         });
+
+        // Setup bulk action event listeners
+        function setupBulkActions() {
+            // Delete selected button
+            document.getElementById('delete-selected-btn').addEventListener('click', function() {
+                if (selectedInvoices.size === 0) {
+                    showNotification('info', 'No Selection', 'Please select invoices to delete');
+                    return;
+                }
+                document.getElementById('bulk-delete-count').textContent = selectedInvoices.size;
+                document.getElementById('bulk-delete-modal').classList.remove('hidden');
+            });
+
+            // Confirm bulk delete
+            document.getElementById('confirm-bulk-delete-btn').addEventListener('click', function() {
+                bulkDeleteInvoices();
+            });
+
+            // Cancel bulk delete
+            document.getElementById('cancel-bulk-delete-btn').addEventListener('click', function() {
+                document.getElementById('bulk-delete-modal').classList.add('hidden');
+            });
+
+            // View summary button
+            document.getElementById('view-summary-btn').addEventListener('click', function() {
+                if (selectedInvoices.size === 0) {
+                    showNotification('info', 'No Selection', 'Please select invoices to view summary');
+                    return;
+                }
+                showSelectedSummary();
+            });
+
+            // Close summary modal
+            document.getElementById('close-summary-modal').addEventListener('click', function() {
+                document.getElementById('summary-modal').classList.add('hidden');
+            });
+            document.getElementById('close-summary-modal-btn').addEventListener('click', function() {
+                document.getElementById('summary-modal').classList.add('hidden');
+            });
+        }
+
+        // Bulk delete invoices
+        async function bulkDeleteInvoices() {
+            const invoiceRefs = Array.from(selectedInvoices);
+            let successCount = 0;
+            let failCount = 0;
+
+            document.getElementById('bulk-delete-modal').classList.add('hidden');
+
+            for (const invoiceRef of invoiceRefs) {
+                try {
+                    const response = await fetch(apiUrl(API_ENDPOINTS.DELETE_INVOICE), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ invoiceReference: invoiceRef })
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        successCount++;
+                        allRecords = allRecords.filter(record => record.invoiceReference !== invoiceRef);
+                    } else {
+                        failCount++;
+                    }
+                } catch (error) {
+                    console.error('Error deleting invoice:', invoiceRef, error);
+                    failCount++;
+                }
+            }
+
+            // Clear selection
+            selectedInvoices.clear();
+
+            // Re-render table
+            renderRecordsTable(getCurrentPageRecords());
+            renderPaginationControls();
+
+            // Update dashboard counters
+            const totalInvoices = allRecords.length;
+            const successCountStat = allRecords.filter(record => record.status && record.status.toLowerCase() === 'success').length;
+            const failedCount = totalInvoices - successCountStat;
+
+            document.getElementById('total-invoices-count').textContent = totalInvoices;
+            document.getElementById('success-count').textContent = successCountStat;
+            document.getElementById('failed-count').textContent = failedCount;
+
+            // Show result notification
+            if (failCount === 0) {
+                showNotification('success', 'Deleted Successfully', `${successCount} invoice(s) have been deleted.`);
+            } else {
+                showNotification('error', 'Partial Deletion', `${successCount} deleted, ${failCount} failed.`);
+            }
+        }
+
+        // Show summary of selected invoices
+        function showSelectedSummary() {
+            const invoiceRefs = Array.from(selectedInvoices);
+            const selectedRecords = allRecords.filter(record => invoiceRefs.includes(record.invoiceReference));
+
+            if (selectedRecords.length === 0) {
+                showNotification('info', 'No Data', 'No invoice data found for selected items');
+                return;
+            }
+
+            // Calculate summary statistics
+            const totalValue = selectedRecords.reduce((sum, r) => sum + (r.totalValue || 0), 0);
+            const uniqueBuyers = [...new Set(selectedRecords.map(r => r.buyerName))];
+            const dateRange = getInvoiceDateRange(selectedRecords);
+
+            // Build summary content
+            const contentDiv = document.getElementById('summary-content');
+            contentDiv.innerHTML = `
+                <div class="mb-4 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="text-center p-3 bg-white rounded-lg shadow-sm">
+                            <div class="text-2xl font-bold text-primary-600">${selectedRecords.length}</div>
+                            <div class="text-xs text-gray-500">Invoices Selected</div>
+                        </div>
+                        <div class="text-center p-3 bg-white rounded-lg shadow-sm">
+                            <div class="text-2xl font-bold text-green-600">${formatCurrency(totalValue)}</div>
+                            <div class="text-xs text-gray-500">Total Value</div>
+                        </div>
+                        <div class="text-center p-3 bg-white rounded-lg shadow-sm">
+                            <div class="text-2xl font-bold text-purple-600">${uniqueBuyers.length}</div>
+                            <div class="text-xs text-gray-500">Unique Buyers</div>
+                        </div>
+                        <div class="text-center p-3 bg-white rounded-lg shadow-sm">
+                            <div class="text-sm font-semibold text-gray-700">${dateRange}</div>
+                            <div class="text-xs text-gray-500">Date Range</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <h4 class="font-semibold text-gray-700 mb-2">Buyers</h4>
+                    <div class="flex flex-wrap gap-2">
+                        ${uniqueBuyers.map(buyer => `
+                            <span class="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm">${buyer}</span>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto rounded-lg border border-gray-200">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Invoice</th>
+                                <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Buyer</th>
+                                <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Date</th>
+                                <th class="px-4 py-2 text-right text-xs font-semibold text-gray-600 uppercase">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-100">
+                            ${selectedRecords.map(record => `
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-2 text-sm font-medium text-primary-700">${record.invoiceReference}</td>
+                                    <td class="px-4 py-2 text-sm text-gray-700">${record.buyerName}</td>
+                                    <td class="px-4 py-2 text-sm text-gray-500">${record.invoiceDate || 'N/A'}</td>
+                                    <td class="px-4 py-2 text-sm text-right font-semibold text-green-600">${formatCurrency(record.totalValue)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                        <tfoot class="bg-gray-50">
+                            <tr>
+                                <td colspan="3" class="px-4 py-2 text-sm font-semibold text-gray-700 text-right">Total:</td>
+                                <td class="px-4 py-2 text-sm text-right font-bold text-green-700">${formatCurrency(totalValue)}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            `;
+
+            document.getElementById('summary-modal').classList.remove('hidden');
+        }
+
+        // Helper function to get date range from invoice records
+        function getInvoiceDateRange(records) {
+            const dates = records
+                .map(r => r.invoiceDate)
+                .filter(d => d)
+                .sort();
+            
+            if (dates.length === 0) return 'N/A';
+            if (dates.length === 1) return dates[0];
+            return `${dates[0]} - ${dates[dates.length - 1]}`;
+        }
     </script>
 
 </body>
