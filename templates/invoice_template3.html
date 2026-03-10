@@ -63,13 +63,13 @@
 <body>
     <div class="container">
     <!-- Header with Logo and Seller Info -->
-<table class="no-border" style="width: 100%; margin-bottom: 2px;">
+<table class="no-border" style="width: 100%; margin-bottom: 0px;">
     <tr>
         <!-- Logo -->
         <td style="width: 50%; vertical-align: middle; text-align: left;">
             {% if client_logo_url %}
                 {% if username == 'B690329' %}
-                    <img src="{{ client_logo_url }}" alt="Client Logo" style="width: 230px; height: auto;">
+                    <img src="{{ client_logo_url }}" alt="Client Logo" style="width: 260px; height: auto;">
                 {% elif username in ['0946915', '2853653', '3520229157309'] %}
                     <img src="{{ client_logo_url }}" alt="Client Logo" style="width: 220px; height: auto;">
                 {% else %}
@@ -95,7 +95,7 @@
 
 
     <!-- Invoice Title -->
-    <div class="section-header" style="margin-top: 15px;">SALES TAX INVOICE</div>
+    <div class="section-header" style="margin-top: 5px;">SALES TAX INVOICE</div>
 
     <!-- Buyer and Invoice Info -->
     {% if username in ['3075270', '0946915', '2853653', '7542425', 'B690329', '3520271603355', '3556084', '3520229157309'] %}
