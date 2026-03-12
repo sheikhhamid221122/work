@@ -726,9 +726,281 @@ def _extract_fbr_error_message(res_json, fallback_text=""):
     return "Invoice rejected by FBR. Please review the values and try again."
 
 
+def generate_invoice_pdf_for_client(invoice_data_raw, client_id):
+    """Generate a PDF for an invoice using the client's assigned template.
+
+    Fetches the client's template_type and settings from the database,
+    selects the correct template, and renders the PDF.
+
+    Args:
+        invoice_data_raw: dict or JSON string of invoice data
+        client_id: the client's database ID
+
+    Returns:
+        bytes: PDF binary data, or None on error
+    """
+    try:
+        if isinstance(invoice_data_raw, str):
+            data = json.loads(invoice_data_raw)
+        else:
+            data = dict(invoice_data_raw)
+
+        # Flatten nested sellerData/buyerData if present
+        if "sellerData" in data:
+            seller = data["sellerData"]
+            for key in ("sellerBusinessName", "sellerAddress", "sellerProvince",
+                        "sellerNTNCNIC", "sellerSTRN"):
+                if key not in data or not data[key]:
+                    data[key] = seller.get(key, "")
+
+        if "buyerData" in data:
+            buyer = data["buyerData"]
+            for key in ("buyerBusinessName", "buyerAddress", "buyerProvince",
+                        "buyerNTNCNIC", "buyerSTRN", "buyerRegistrationType"):
+                if key not in data or not data[key]:
+                    data[key] = buyer.get(key, "")
+
+        # Fetch client configuration from database
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        cur.execute(
+            """SELECT strn, logo_url, template_type,
+                      tpl_header_color, tpl_top_spacing, tpl_logo_width,
+                      tpl_show_seller_strn, tpl_show_seller_ntn, tpl_show_seller_address,
+                      tpl_show_fbr_invoice_header, tpl_show_buyer_strn, tpl_show_status,
+                      tpl_show_po, tpl_show_dc, tpl_show_cnic, tpl_show_hs_code_buyer,
+                      tpl_show_product_code, tpl_show_hs_code, tpl_apply_further_tax,
+                      tpl_max_item_rows, tpl_fixed_tax_rate
+               FROM clients WHERE id = %s""",
+            (client_id,),
+        )
+        client_row = cur.fetchone()
+
+        client_template_type = client_row[2] if client_row and len(client_row) > 2 else "default"
+
+        client_template_settings = {}
+        if client_row and len(client_row) > 3:
+            client_template_settings = {
+                "header_color": client_row[3] or "dark",
+                "top_spacing": client_row[4] or 0,
+                "logo_width": client_row[5] or 220,
+                "show_seller_strn": client_row[6] if client_row[6] is not None else True,
+                "show_seller_ntn": client_row[7] if client_row[7] is not None else True,
+                "show_seller_address": client_row[8] if client_row[8] is not None else True,
+                "show_fbr_invoice_header": client_row[9] if client_row[9] is not None else True,
+                "show_buyer_strn": client_row[10] if client_row[10] is not None else False,
+                "show_status": client_row[11] if client_row[11] is not None else True,
+                "show_po": client_row[12] if client_row[12] is not None else False,
+                "show_dc": client_row[13] if client_row[13] is not None else False,
+                "show_cnic": client_row[14] if client_row[14] is not None else False,
+                "show_hs_code_buyer": client_row[15] if client_row[15] is not None else False,
+                "show_product_code": client_row[16] if client_row[16] is not None else False,
+                "show_hs_code": client_row[17] if client_row[17] is not None else False,
+                "apply_further_tax": client_row[18] if client_row[18] is not None else False,
+                "max_item_rows": client_row[19] or 6,
+                "fixed_tax_rate": client_row[20] or "18%",
+            }
+
+        client_logo_url = client_row[1] if client_row else None
+
+        # Get STRN from clients table if not in data
+        if not data.get("sellerSTRN") and client_row and client_row[0]:
+            data["sellerSTRN"] = client_row[0]
+
+        # Get username
+        cur.execute(
+            "SELECT u.username FROM users u JOIN clients c ON u.id = c.user_id WHERE c.id = %s",
+            (client_id,),
+        )
+        user_row = cur.fetchone()
+        username = str(user_row[0]).strip() if user_row and user_row[0] else None
+
+        # Get FBR logo
+        cur.execute("SELECT fbr_logo FROM fbr LIMIT 1")
+        fbr_row = cur.fetchone()
+        fbr_logo_url = fbr_row[0] if fbr_row else None
+
+        cur.close()
+        conn.close()
+
+        # Calculate totals
+        items = data.get("items", [])
+        total_excl = 0
+        total_tax = 0
+        total_further_tax = 0
+
+        buyer_reg = (
+            str(
+                data.get("buyerRegistrationType")
+                or (data.get("buyerData") or {}).get("buyerRegistrationType")
+                or (data.get("buyerData") or {}).get("registration_type")
+                or ""
+            )
+            .strip()
+            .lower()
+        )
+        apply_further_tax = username in {"0946915", "2853653"} and buyer_reg == "unregistered"
+
+        for item in items:
+            try:
+                excl = float(str(item.get("valueSalesExcludingST", 0)).replace(",", ""))
+                tax = float(str(item.get("salesTaxApplicable", 0)).replace(",", ""))
+                qty = float(str(item.get("quantity", 1)).replace(",", ""))
+
+                total_excl += excl
+                total_tax += tax
+
+                further_tax_amount = 0
+                if apply_further_tax:
+                    raw_ft_amount = item.get("furtherTaxAmount")
+                    raw_ft_pct = item.get("furtherTaxPercent")
+                    raw_ft = item.get("furtherTax")
+
+                    if raw_ft_amount is not None:
+                        try:
+                            further_tax_amount = float(str(raw_ft_amount).replace(",", ""))
+                        except Exception:
+                            further_tax_amount = 0
+                    else:
+                        if raw_ft_pct is not None:
+                            try:
+                                further_pct = float(str(raw_ft_pct).replace("%", ""))
+                            except Exception:
+                                further_pct = 0
+                            if further_pct > 0 and excl > 0:
+                                further_tax_amount = round((excl * further_pct) / 100, 2)
+                        else:
+                            try:
+                                further_tax_amount = (
+                                    float(str(raw_ft).replace(",", "")) if raw_ft is not None else 0
+                                )
+                            except Exception:
+                                further_tax_amount = 0
+
+                    item["furtherTaxAmount"] = further_tax_amount
+                    total_further_tax += further_tax_amount
+                else:
+                    item["furtherTaxAmount"] = 0
+
+                if "unitrate" not in item and qty > 0:
+                    item["unitrate"] = excl / qty
+            except Exception:
+                pass
+
+        data["totalExcl"] = round(total_excl, 2)
+        if apply_further_tax:
+            data["totalFurtherTax"] = round(total_further_tax, 2)
+            data["totalTax"] = round(total_tax + total_further_tax, 2)
+            data["totalInclusive"] = round(total_excl + total_tax + total_further_tax, 2)
+            data["showFurtherTax"] = data["totalFurtherTax"] > 0
+        else:
+            data["totalFurtherTax"] = 0
+            data["totalTax"] = round(total_tax, 2)
+            data["totalInclusive"] = round(total_excl + total_tax, 2)
+            data["showFurtherTax"] = False
+
+        # Amount in words
+        from num2words import num2words
+
+        total = round(data["totalInclusive"], 2)
+        amount_in_words = num2words(total, to="currency", lang="en", currency="USD")
+        amount_in_words = (
+            amount_in_words.replace("dollars", "rupees").replace("cents", "paisa")
+            + " only"
+        )
+        data["amountInWords"] = amount_in_words
+
+        # Ensure PO/DC/DN fields exist
+        if "PO" not in data:
+            data["PO"] = data.get("poNumber", "")
+        if "DC" not in data:
+            data["DC"] = data.get("dcNumber", "")
+        if "DN" not in data:
+            data["DN"] = data.get("dnNumber", "")
+        if "CNIC" not in data:
+            data["CNIC"] = ""
+
+        # Generate QR code
+        qr_base64 = ""
+        fbr_invoice = data.get("fbrInvoiceNumber", "")
+        if fbr_invoice:
+            try:
+                qr = qrcode.make(fbr_invoice)
+                with BytesIO() as buffer:
+                    qr.save(buffer)
+                    buffer.seek(0)
+                    qr_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+            except Exception as e:
+                print(f"Error generating QR code: {e}")
+
+        # Select template using database-aware logic (matches generate_form_invoice)
+        if client_template_type == "universal":
+            template_name = "invoice_template_universal.html"
+        elif client_template_type == "default":
+            # Legacy username-based selection for existing clients
+            if username in [
+                "4210111937929", "3520204956465", "3520270278447",
+                "3520271603355", "3520299147319", "3520226953258", "3520266827067",
+            ]:
+                template_name = "invoice_template_nologo.html"
+            elif username in {"H075895", "F667833", "infinityeng"}:
+                template_name = "invoice_innovative.html"
+            elif username == "8974121":
+                template_name = "invoice_template.html"
+            elif username == "5207949":
+                template_name = "invoice_zeeshanst.html"
+            elif username == "7542425":
+                template_name = "invoice_template3.html"
+            elif username == "8255820":
+                template_name = "invoice_templatezahid.html"
+            elif username in [
+                "3075270", "0946915", "2853653", "B690329", "3556084", "3520229157309",
+            ]:
+                template_name = "invoice_template3.html"
+            else:
+                template_name = "invoice_template2.html"
+        else:
+            template_mapping = {
+                "nologo": "invoice_template_nologo.html",
+                "innovative": "invoice_innovative.html",
+                "template1": "invoice_template.html",
+                "template2": "invoice_template2.html",
+                "template3": "invoice_template3.html",
+                "zahid": "invoice_templatezahid.html",
+                "zeeshanst": "invoice_zeeshanst.html",
+                "alraheem": "invoice_alraheem.html",
+            }
+            template_name = template_mapping.get(
+                client_template_type, "invoice_template_universal.html"
+            )
+
+        print(f"[generate_invoice_pdf_for_client] Template: {template_name}, Client: {client_id}")
+
+        rendered_html = render_template(
+            template_name,
+            data=data,
+            qr_base64=qr_base64,
+            client_logo_url=client_logo_url,
+            fbr_logo_url=fbr_logo_url,
+            username=username,
+            settings=client_template_settings,
+        )
+
+        pdf_stream = BytesIO()
+        HTML(string=rendered_html).write_pdf(pdf_stream)
+        return pdf_stream.getvalue()
+
+    except Exception as e:
+        print(f"Error in generate_invoice_pdf_for_client: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
 add_invoice_form_routes(app, get_db_connection, get_env)
 add_draft_invoice_routes(app, get_db_connection, get_env)
-add_reports_routes(app, get_db_connection, get_env)
+add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for_client)
 add_fbr_reference_routes(app, get_db_connection, get_env)
 
 # Store last uploaded file and last JSON per environment
@@ -1208,118 +1480,8 @@ def submit_fbr():
         status = "Success"
         date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # Generate PDF and store it (only for new invoices from now on)
-        pdf_binary = None
-        try:
-            # Generate PDF using same logic as generate-invoice-excel
-            data = json_data.copy()
-            items = data["items"]
-
-            # Transform form data structure to flat structure for template compatibility
-            # If data came from form (has nested sellerData/buyerData), flatten it
-            if "sellerData" in data:
-                seller_data = data["sellerData"]
-                data["sellerBusinessName"] = seller_data.get("sellerBusinessName", "")
-                data["sellerAddress"] = seller_data.get("sellerAddress", "")
-                data["sellerProvince"] = seller_data.get("sellerProvince", "")
-                data["sellerNTNCNIC"] = seller_data.get("sellerNTNCNIC", "")
-                data["sellerSTRN"] = seller_data.get("sellerSTRN", "")
-            
-            if "buyerData" in data:
-                buyer_data = data["buyerData"]
-                data["buyerBusinessName"] = buyer_data.get("buyerBusinessName", "")
-                data["buyerAddress"] = buyer_data.get("buyerAddress", "")
-                data["buyerProvince"] = buyer_data.get("buyerProvince", "")
-                data["buyerNTNCNIC"] = buyer_data.get("buyerNTNCNIC", "")
-                data["buyerSTRN"] = buyer_data.get("buyerSTRN", "")
-                data["buyerRegistrationType"] = buyer_data.get("buyerRegistrationType", "")
-
-            # Calculate totals and add unit rate for each item
-            total_excl = 0
-            total_tax = 0
-            for item in items:
-                excl = float(item.get("valueSalesExcludingST", 0))
-                tax = float(item.get("salesTaxApplicable", 0))
-                qty = float(item.get("quantity", 1))
-                
-                total_excl += excl
-                total_tax += tax
-                
-                # Calculate unit rate if not present
-                if "unitrate" not in item:
-                    item["unitrate"] = round(excl / qty, 2) if qty > 0 else 0
-            
-            data["totalExcl"] = round(total_excl, 2)
-            data["totalTax"] = round(total_tax, 2)
-            data["totalInclusive"] = round(total_excl + total_tax, 2)
-
-            # Convert to words
-            from num2words import num2words
-            total = round(data["totalInclusive"], 2)
-            amount_in_words = num2words(total, to="currency", lang="en", currency="USD")
-            amount_in_words = amount_in_words.replace("dollars", "rupees").replace("cents", "paisa") + " only"
-            data["amountInWords"] = amount_in_words
-
-            # Generate QR Code
-            import qrcode
-            import base64
-            fbr_invoice = data.get("fbrInvoiceNumber", "")
-            qr_base64 = ""
-            if fbr_invoice:
-                qr = qrcode.QRCode(version=1, box_size=10, border=2)
-                qr.add_data(fbr_invoice)
-                qr.make(fit=True)
-                img = qr.make_image(fill="black", back_color="white")
-                buffer = BytesIO()
-                img.save(buffer, format="PNG")
-                qr_base64 = base64.b64encode(buffer.getvalue()).decode()
-
-            # Get client logo and username for template selection
-            conn_temp = get_db_connection()
-            cur_temp = conn_temp.cursor()
-            cur_temp.execute("SELECT logo_url FROM clients WHERE id = %s", (client_id,))
-            client_row = cur_temp.fetchone()
-            client_logo_url = client_row[0] if client_row else None
-            
-            cur_temp.execute("SELECT u.username FROM users u JOIN clients c ON u.id = c.user_id WHERE c.id = %s", (client_id,))
-            user_row = cur_temp.fetchone()
-            username = str(user_row[0]).strip() if user_row and user_row[0] is not None else None
-            
-            cur_temp.execute("SELECT fbr_logo FROM fbr LIMIT 1")
-            fbr_row = cur_temp.fetchone()
-            fbr_logo_url = fbr_row[0] if fbr_row else None
-            cur_temp.close()
-            conn_temp.close()
-
-            # Select template
-            if username in ["8974121"]:
-                template_name = "invoice_template.html"
-            elif username == "5207949":
-                template_name = "invoice_zeeshanst.html"
-            elif username == "7542425":
-                template_name = "invoice_template3.html"
-            elif username in ["3075270", "0946915", "2853653", "B690329", "3556084", "3520229157309"]:
-                template_name = "invoice_template3.html"
-            else:
-                template_name = "invoice_template2.html"
-
-            # Render and generate PDF
-            rendered_html = render_template(
-                template_name,
-                data=data,
-                qr_base64=qr_base64,
-                client_logo_url=client_logo_url,
-                fbr_logo_url=fbr_logo_url,
-                username=username
-            )
-            pdf_stream = BytesIO()
-            HTML(string=rendered_html).write_pdf(pdf_stream)
-            pdf_binary = pdf_stream.getvalue()
-        except Exception as pdf_error:
-            print(f"Error generating PDF for storage: {pdf_error}")
-            import traceback
-            traceback.print_exc()
-            # Continue without PDF if generation fails
+        # Generate PDF using the client's assigned template
+        pdf_binary = generate_invoice_pdf_for_client(json_data, client_id)
 
         # Insert into invoices table - use try/finally to ensure connection is closed
         conn = None

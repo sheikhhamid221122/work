@@ -101,43 +101,46 @@
            ======================================== */
         .seller-section {
             text-align: right;
+            margin-top: 20px;
         }
         
         .seller-business-name {
-            font-size: 16px;
+            font-size: 20px;
             font-weight: 700;
             color: #2d3748;
+            margin-top: 10px;
             margin-bottom: 1px;
         }
         
         .seller-address {
-            font-size: 13px;
+            font-size: 13.5px;
             color: #4a4a4a;
+            margin-top: 0;
             margin-bottom: 0px;
         }
         
         .seller-contact {
-            font-size: 12px;
+            font-size: 13px;
             color: #4a4a4a;
+            margin-top: 0;
             margin-bottom: 0px;
         }
         
         .fbr-invoice-number {
             font-size: 12px;
             color: #4a4a4a;
-            margin-top: 5px;
+            margin-top: 0px;
             letter-spacing: 0.5px;
         }
         
         .seller-logo {
             display: inline-block;
             vertical-align: middle;
-            margin-left: 15px;
+            margin-left: 20px;
         }
         
         .seller-logo img {
-            border-radius: 50%;
-            object-fit: cover;
+            object-fit: contain;
         }
 
         /* Company Info Section */
@@ -178,7 +181,7 @@
     {% set show_seller_address = settings.get('show_seller_address', true) %}
     {% set show_seller_name_with_logo = settings.get('show_seller_name_with_logo', false) %}
     {% set show_fbr_invoice_header = settings.get('show_fbr_invoice_header', true) %}
-    {% set logo_width = settings.get('logo_width', 220) %}
+    {% set logo_width = settings.get('logo_width', 240) %}
     {% set logo_height = settings.get('logo_height', none) %}
     
     {# === BUYER SECTION SETTINGS === #}
@@ -220,55 +223,77 @@
 
     <div class="container">
 
-    <!-- Header: INVOICE on left, Seller Info + Logo on right -->
+    <!-- Header Section: Professional Layout -->
+    {% if client_logo_url %}
+    <!-- WITH LOGO: Logo on left, Seller details on right (matching template3 style) -->
+    <table class="no-border" style="width: 100%; margin-bottom: 0px;">
+        <tr>
+            <!-- Left: Logo, vertically centered, flush to left edge -->
+            <td style="width: 50%; vertical-align: middle; text-align: left; padding: 0 !important;">
+                <img src="{{ client_logo_url }}" alt="Logo" style="max-width: {{ logo_width }}px; max-height: 160px; width: auto; height: auto;">
+            </td>
+
+            <!-- Right: Seller Details, vertically centered, pushed to extreme right -->
+            <td style="width: 50%; vertical-align: middle; padding-right: 0 !important;">
+                <div style="line-height: 1.6; text-align: left; margin-left: auto; width: fit-content;">
+                    {% if show_seller_info %}
+                        {% if data.sellerBusinessName %}
+                            <p style="margin: 0; font-size: 15px; font-weight: bold;">{{ data.sellerBusinessName }}</p>
+                        {% endif %}
+                        {% if show_seller_address and data.sellerAddress %}
+                            <p style="margin: 0;">{{ data.sellerAddress }}</p>
+                        {% endif %}
+                        {% if show_seller_ntn and data.sellerNTNCNIC %}
+                            <p style="margin: 0;"><strong>NTN:</strong><span style="margin-left: 12px;">{{ data.sellerNTNCNIC }}</span></p>
+                        {% endif %}
+                        {% if show_seller_strn and data.sellerSTRN %}
+                            <p style="margin: 0;"><strong>STRN:</strong> {{ data.sellerSTRN }}</p>
+                        {% endif %}
+                    {% endif %}
+                    {% if data.fbrInvoiceNumber %}
+                        <p style="margin: 0;"><strong>FBR INVOICE #:</strong> {{ data.fbrInvoiceNumber }}</p>
+                    {% endif %}
+                </div>
+            </td>
+        </tr>
+    </table>
+    
+    {% else %}
+    <!-- WITHOUT LOGO: Original layout - INVOICE on left, Seller Info on right -->
     <table class="no-border" style="width: 100%; margin-bottom: 10px;">
         <tr>
-            <!-- Left: INVOICE title + FBR Invoice Number -->
             <td style="width: 55%; vertical-align: bottom; text-align: left; padding: 0;">
                 <p class="invoice-title">INVOICE</p>
                 {% if data.fbrInvoiceNumber %}
                 <p class="fbr-invoice-number">{{ data.fbrInvoiceNumber }}</p>
                 {% endif %}
             </td>
-
-            <!-- Right: Seller Info + Logo -->
             <td style="width: 45%; vertical-align: top; text-align: right; padding: 0;">
                 <div class="seller-section">
-                    <!-- Seller details (inline with logo if exists) -->
                     <div class="company-info" style="display: inline-block; vertical-align: middle;">
                         {% if show_seller_info %}
-                            {# Always show seller business name #}
                             {% if data.sellerBusinessName %}
                                 <p class="seller-business-name">{{ data.sellerBusinessName }}</p>
                             {% endif %}
-                            
                             {% if show_seller_address and data.sellerAddress %}
                                 <p class="seller-address">{{ data.sellerAddress }}</p>
                             {% endif %}
-                            
                             {% if show_seller_ntn and data.sellerNTNCNIC %}
                                 <p class="seller-contact"><span class="label">NTN:</span> {{ data.sellerNTNCNIC }}</p>
                             {% endif %}
-                            
                             {% if show_seller_strn and data.sellerSTRN %}
                                 <p class="seller-contact"><span class="label">STRN:</span> {{ data.sellerSTRN }}</p>
                             {% endif %}
                         {% endif %}
                     </div>
-                    
-                    <!-- Logo (circular, on right of seller details) -->
-                    {% if client_logo_url %}
-                    <div class="seller-logo">
-                        <img src="{{ client_logo_url }}" alt="Logo" style="width: {{ logo_width }}px; height: {{ logo_width }}px;">
-                    </div>
-                    {% endif %}
                 </div>
             </td>
         </tr>
     </table>
+    {% endif %}
 
     <!-- Invoice Title -->
-    <div class="{{ header_class }}" style="margin-top: 12px;">SALES TAX INVOICE</div>
+    <div class="{{ header_class }}" style="margin-top: 5px;">SALES TAX INVOICE</div>
 
     <!-- Buyer and Invoice Info -->
     <table style="width: 100%; border: 1px solid {{ border_color }};">

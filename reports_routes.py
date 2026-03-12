@@ -11,7 +11,7 @@ from io import BytesIO
 import zipfile
 
 
-def add_reports_routes(app, get_db_connection, get_env):
+def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for_client=None):
     def check_url_format():
         if "?" in request.query_string.decode("utf-8"):
             print(
@@ -1876,7 +1876,7 @@ def add_reports_routes(app, get_db_connection, get_env):
 
     @app.route("/api/reports/download-invoice/<invoice_id>", methods=["GET"])
     def download_single_invoice(invoice_id):
-        """Download a single invoice PDF"""
+        """Download a single invoice PDF, regenerated with the client's assigned template"""
         client_id = session.get("client_id")
         if not client_id:
             return jsonify({"error": "Unauthorized"}), 401
@@ -1888,7 +1888,7 @@ def add_reports_routes(app, get_db_connection, get_env):
             """
             SELECT pdf_data, invoice_data 
             FROM invoices 
-            WHERE id = %s AND client_id = %s AND pdf_data IS NOT NULL
+            WHERE id = %s AND client_id = %s
             """,
             (invoice_id, client_id),
         )
@@ -1898,26 +1898,38 @@ def add_reports_routes(app, get_db_connection, get_env):
         conn.close()
 
         if not row:
-            return jsonify({"error": "Invoice PDF not found"}), 404
+            return jsonify({"error": "Invoice not found"}), 404
 
-        pdf_data, invoice_data_raw = row
+        stored_pdf, invoice_data_raw = row
 
-        # Get invoice reference for filename
+        # Parse invoice data
         try:
             invoice_data = (
                 json.loads(invoice_data_raw)
                 if isinstance(invoice_data_raw, str)
                 else invoice_data_raw
             )
-            invoice_ref = (
-                invoice_data.get("invoiceRefNo")
-                or invoice_data.get("fbrInvoiceNumber")
-                or "invoice"
-            )
-        except:
-            invoice_ref = "invoice"
+        except Exception:
+            invoice_data = {}
 
-        # Send PDF
+        invoice_ref = (
+            invoice_data.get("invoiceRefNo")
+            or invoice_data.get("fbrInvoiceNumber")
+            or "invoice"
+        )
+
+        # Regenerate PDF using the client's assigned template
+        pdf_data = None
+        if generate_invoice_pdf_for_client and invoice_data:
+            pdf_data = generate_invoice_pdf_for_client(invoice_data, client_id)
+
+        # Fall back to stored PDF if regeneration fails
+        if not pdf_data:
+            if stored_pdf:
+                pdf_data = stored_pdf
+            else:
+                return jsonify({"error": "Invoice PDF not found"}), 404
+
         pdf_stream = BytesIO(pdf_data)
         pdf_stream.seek(0)
 
@@ -1930,7 +1942,7 @@ def add_reports_routes(app, get_db_connection, get_env):
 
     @app.route("/api/reports/download-invoices-bulk", methods=["POST"])
     def download_bulk_invoices():
-        """Download multiple invoices as a ZIP file"""
+        """Download multiple invoices as a ZIP file, regenerated with the client's assigned template"""
         client_id = session.get("client_id")
         if not client_id:
             return jsonify({"error": "Unauthorized"}), 401
@@ -1954,7 +1966,7 @@ def add_reports_routes(app, get_db_connection, get_env):
                     """
                     SELECT pdf_data, invoice_data 
                     FROM invoices 
-                    WHERE id = %s AND client_id = %s AND pdf_data IS NOT NULL
+                    WHERE id = %s AND client_id = %s
                     """,
                     (invoice_id, client_id),
                 )
@@ -1963,25 +1975,35 @@ def add_reports_routes(app, get_db_connection, get_env):
                 if not row:
                     continue
 
-                pdf_data, invoice_data_raw = row
+                stored_pdf, invoice_data_raw = row
 
-                # Get invoice reference for filename
+                # Parse invoice data
                 try:
                     invoice_data = (
                         json.loads(invoice_data_raw)
                         if isinstance(invoice_data_raw, str)
                         else invoice_data_raw
                     )
-                    invoice_ref = (
-                        invoice_data.get("invoiceRefNo")
-                        or invoice_data.get("fbrInvoiceNumber")
-                        or f"invoice_{invoice_id}"
-                    )
-                except:
-                    invoice_ref = f"invoice_{invoice_id}"
+                except Exception:
+                    invoice_data = {}
 
-                # Add PDF to ZIP
-                zip_file.writestr(f"{invoice_ref}.pdf", pdf_data)
+                invoice_ref = (
+                    invoice_data.get("invoiceRefNo")
+                    or invoice_data.get("fbrInvoiceNumber")
+                    or f"invoice_{invoice_id}"
+                )
+
+                # Regenerate PDF using the client's assigned template
+                pdf_data = None
+                if generate_invoice_pdf_for_client and invoice_data:
+                    pdf_data = generate_invoice_pdf_for_client(invoice_data, client_id)
+
+                # Fall back to stored PDF if regeneration fails
+                if not pdf_data:
+                    pdf_data = stored_pdf
+
+                if pdf_data:
+                    zip_file.writestr(f"{invoice_ref}.pdf", pdf_data)
 
         cur.close()
         conn.close()
