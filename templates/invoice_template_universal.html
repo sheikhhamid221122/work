@@ -402,7 +402,8 @@
                     <th style="width: 8%; border: 1px solid {{ border_color }};">Tax Rate</th>
                     <th style="width: 8%; border: 1px solid {{ border_color }};">Sales Tax</th>
                 {% else %}
-                    <th style="width: 10%; border: 1px solid {{ border_color }};">Sales Tax ({{ fixed_tax_rate }})</th>
+                    {% set first_item_rate = data["items"][0].rate if data["items"] else fixed_tax_rate %}
+                    <th style="width: 10%; border: 1px solid {{ border_color }};">Sales Tax ({{ first_item_rate }})</th>
                 {% endif %}
                 {% if show_further_tax %}<th style="width: 9%; border: 1px solid {{ border_color }};">Further Tax (4%)</th>{% endif %}
                 <th style="width: 12%; border: 1px solid {{ border_color }};">Value Incl. ST</th>
@@ -427,7 +428,7 @@
                     <td style="border: 1px solid {{ border_color }};">{{ item.rate }}</td>
                     <td style="border: 1px solid {{ border_color }};">{{ item.salesTaxApplicable | comma_format }}</td>
                 {% else %}
-                    <td style="border: 1px solid {{ border_color }};">{{ item.salesTaxApplicable | comma_format }}</td>
+                    <td style="border: 1px solid {{ border_color }};">{% if item.rate == 'Exempt' %}Exempt{% else %}{{ item.salesTaxApplicable | comma_format }}{% endif %}</td>
                 {% endif %}
                 {% if show_further_tax %}<td style="border: 1px solid {{ border_color }};">{{ further_tax_amount | comma_format }}</td>{% endif %}
                 <td style="border: 1px solid {{ border_color }};">{{ (item.valueSalesExcludingST + item.salesTaxApplicable + (show_further_tax and further_tax_amount or 0)) | comma_format }}</td>

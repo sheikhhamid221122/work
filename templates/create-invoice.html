@@ -2420,6 +2420,9 @@
             if (currentUsername === '3075270') {
                 sroScheduleNo = 'EIGHTH SCHEDULE Table 1';
                 sroItemSerialNo = '81';
+            } else if (currentUsername === '3520299316743' && scenarioId === 'SN006') {
+                sroScheduleNo = '6th Schd Table I';
+                sroItemSerialNo = '32';
             } else {
                 sroScheduleNo = document.getElementById('product-sro-schedule-no')?.value || '';
                 sroItemSerialNo = document.getElementById('product-sro-item-serial-no')?.value || '';
@@ -3307,8 +3310,10 @@
                 let taxRateStr = '';
                 let raw = item.taxRate ?? item.tax_rate ?? item.rateTax ?? '';
                 if (raw !== undefined && raw !== null && String(raw).toString().trim() !== '') {
-                    // Normalize to a string with % and two decimals
-                    if (typeof raw === 'number') {
+                    // Handle Exempt rate (no percentage conversion)
+                    if (String(raw).trim().toLowerCase() === 'exempt') {
+                        taxRateStr = 'Exempt';
+                    } else if (typeof raw === 'number') {
                         taxRateStr = `${raw.toFixed(2)}%`;
                     } else {
                         let s = String(raw).trim();
@@ -3846,6 +3851,8 @@
             if (scenarioSelect) {
                 scenarioSelect.addEventListener("change", function () {
                     syncSaleTypeWithScenario();
+                    // Auto-set Exempt tax rate, SRO fields for client 3520299316743 on SN006
+                    applyExemptDefaultsIfApplicable();
                 });
             }
 
@@ -3865,6 +3872,42 @@
         let useProductDropdown = true;
         let productList = [];
         let productMenuOpen = false;
+
+        // Auto-set Exempt defaults for client 3520299316743 when SN006 is selected
+        function applyExemptDefaultsIfApplicable() {
+            const scenarioSelect = document.getElementById("scenario-id");
+            const scenarioId = scenarioSelect ? scenarioSelect.value : "";
+            if (currentUsername === '3520299316743' && scenarioId === 'SN006') {
+                // Set tax rate to Exempt
+                const taxRateSelect = document.getElementById('product-tax-rate');
+                if (taxRateSelect) {
+                    // Add Exempt option if it doesn't exist
+                    let exemptExists = false;
+                    for (let i = 0; i < taxRateSelect.options.length; i++) {
+                        if (taxRateSelect.options[i].value === 'Exempt') {
+                            taxRateSelect.selectedIndex = i;
+                            exemptExists = true;
+                            break;
+                        }
+                    }
+                    if (!exemptExists) {
+                        const opt = document.createElement('option');
+                        opt.value = 'Exempt';
+                        opt.textContent = 'Exempt';
+                        taxRateSelect.appendChild(opt);
+                        taxRateSelect.value = 'Exempt';
+                    }
+                    // Set tax amount to 0
+                    const taxAmountEl = document.getElementById('product-tax-amount');
+                    if (taxAmountEl) taxAmountEl.value = '0.00';
+                }
+                // Set SRO fields
+                const schedEl = document.getElementById('product-sro-schedule-no');
+                const itemEl = document.getElementById('product-sro-item-serial-no');
+                if (schedEl) schedEl.value = '6th Schd Table I';
+                if (itemEl) itemEl.value = '32';
+            }
+        }
 
         // Ensure SRO defaults helper exists
         function setSRODefaults(username) {
