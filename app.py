@@ -450,7 +450,7 @@ def generate_form_invoice():
         # EXISTING: Preserve legacy username-based selection for existing clients
         elif client_template_type == 'default':
             # Legacy selection logic - keeps existing clients working unchanged
-            if username in ["4210111937929", "3520204956465", "3520270278447", "3520271603355", "3520299147319", "3520226953258", "3520266827067"]:
+            if username in ["4210111937929", "3520204956465", "3520270278447", "3520271603355", "3520299147319", "3520266827067"]:
                 template_name = "invoice_template_nologo.html"
                 print(f"Selected template: {template_name} for username {username} (no logo)")
             elif username in {"H075895", "F667833", "infinityeng"}:
@@ -941,7 +941,7 @@ def generate_invoice_pdf_for_client(invoice_data_raw, client_id):
             # Legacy username-based selection for existing clients
             if username in [
                 "4210111937929", "3520204956465", "3520270278447",
-                "3520271603355", "3520299147319", "3520226953258", "3520266827067",
+                "3520271603355", "3520299147319", "3520266827067",
             ]:
                 template_name = "invoice_template_nologo.html"
             elif username in {"H075895", "F667833", "infinityeng"}:
@@ -955,7 +955,7 @@ def generate_invoice_pdf_for_client(invoice_data_raw, client_id):
             elif username == "8255820":
                 template_name = "invoice_templatezahid.html"
             elif username in [
-                "3075270", "0946915", "2853653", "B690329", "3556084", "3520229157309",
+                "3075270", "0946915", "2853653", "B690329", "3556084", "3520229157309", "3520226953258"
             ]:
                 template_name = "invoice_template3.html"
             else:
@@ -1687,7 +1687,7 @@ def generate_invoice_excel():
                 conn.close()
 
         # Select the appropriate template based on username
-        if username in ["4210111937929", "3520204956465", "3520270278447", "3520271603355", "3520299147319", "3520226953258", "3520266827067"]:
+        if username in ["4210111937929", "3520204956465", "3520270278447", "3520271603355", "3520299147319", "3520266827067"]:
             template_name = "invoice_template_nologo.html"  # Template for users without logo
         elif username == "8974121":
             template_name = "invoice_template.html"
@@ -1695,7 +1695,7 @@ def generate_invoice_excel():
             template_name = "invoice_zeeshanst.html"
         elif username == "7542425":
             template_name = "invoice_template3.html"
-        elif username in ["3075270", "B690329", "3556084", "3520229157309"]:
+        elif username in ["3075270", "B690329", "3556084", "3520229157309", "3520226953258"]:
             template_name = "invoice_template3.html"  # Use appropriate template for Care Pharmaceuticals
         else:
             template_name = "invoice_template3.html"
