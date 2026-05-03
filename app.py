@@ -802,19 +802,35 @@ def generate_invoice_pdf_for_client(invoice_data_raw, client_id):
                 "fixed_tax_rate": client_row[20] or "18%",
             }
 
-        client_logo_url = client_row[1] if client_row else None
-
         # Get STRN from clients table if not in data
         if not data.get("sellerSTRN") and client_row and client_row[0]:
             data["sellerSTRN"] = client_row[0]
 
-        # Get username
+        # Get username and logo path (users.logo is e.g. /static/uploads/file.png)
         cur.execute(
-            "SELECT u.username FROM users u JOIN clients c ON u.id = c.user_id WHERE c.id = %s",
+            "SELECT u.username, u.logo FROM users u JOIN clients c ON u.id = c.user_id WHERE c.id = %s",
             (client_id,),
         )
         user_row = cur.fetchone()
         username = str(user_row[0]).strip() if user_row and user_row[0] else None
+
+        base_url = (os.getenv("BASE_URL") or "").strip().rstrip("/")
+        user_logo_path = (
+            str(user_row[1]).strip()
+            if user_row and len(user_row) > 1 and user_row[1] is not None and str(user_row[1]).strip()
+            else None
+        )
+        if user_logo_path and base_url:
+            client_logo_url = (
+                f"{base_url}{user_logo_path}"
+                if user_logo_path.startswith("/")
+                else f"{base_url}/{user_logo_path}"
+            )
+        else:
+            print(
+                "[generate_invoice_pdf_for_client] falling back to clients.logo_url for invoice logo"
+            )
+            client_logo_url = client_row[1] if client_row else None
 
         # Get FBR logo
         cur.execute("SELECT fbr_logo FROM fbr LIMIT 1")
