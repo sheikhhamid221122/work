@@ -79,10 +79,10 @@ def generate_form_invoice():
         conn = get_db_connection()
         cur = conn.cursor()
 
-        # Get username for the client - we'll need this for template selection and special field handling
+        # Get username + logo path from users (logo is often like /static/uploads/file.png)
         cur.execute(
             """
-            SELECT u.username 
+            SELECT u.username, u.logo
             FROM users u
             JOIN clients c ON u.id = c.user_id
             WHERE c.id = %s
@@ -92,6 +92,11 @@ def generate_form_invoice():
 
         user_row = cur.fetchone()
         username = str(user_row[0]).strip() if user_row and user_row[0] is not None else None
+        user_logo_path = (
+            str(user_row[1]).strip()
+            if user_row and len(user_row) > 1 and user_row[1] is not None and str(user_row[1]).strip()
+            else None
+        )
 
         print(f"Current username: {username}, client_id: {client_id}")  # Debugging log
 
@@ -215,7 +220,16 @@ def generate_form_invoice():
                 else:
                     data["sellerSTRN"] = ""
 
-        client_logo_url = client_row[1] if client_row else None
+        # Prefer users.logo over clients.logo_url (supports per-user logos)
+        base_url = (os.getenv("BASE_URL") or request.host_url or "").strip().rstrip("/")
+        if user_logo_path and base_url:
+            client_logo_url = (
+                f"{base_url}{user_logo_path}"
+                if user_logo_path.startswith("/")
+                else f"{base_url}/{user_logo_path}"
+            )
+        else:
+            client_logo_url = user_logo_path or client_row[1] if client_row else None
 
         # Get FBR logo URL
         cur.execute("SELECT fbr_logo FROM fbr LIMIT 1;")
