@@ -234,7 +234,19 @@ def generate_form_invoice():
         # Get FBR logo URL
         cur.execute("SELECT fbr_logo FROM fbr LIMIT 1;")
         fbr_row = cur.fetchone()
-        fbr_logo_url = fbr_row[0] if fbr_row else None
+        fbr_logo_path = (
+            str(fbr_row[0]).strip()
+            if fbr_row and fbr_row[0] is not None and str(fbr_row[0]).strip()
+            else None
+        )
+        if fbr_logo_path and base_url and not fbr_logo_path.lower().startswith(("http://", "https://")):
+            fbr_logo_url = (
+                f"{base_url}{fbr_logo_path}"
+                if fbr_logo_path.startswith("/")
+                else f"{base_url}/{fbr_logo_path}"
+            )
+        else:
+            fbr_logo_url = fbr_logo_path
 
                 # Make sure PO# is available
         # Make sure PO# is available - replace the existing code block with this
@@ -849,7 +861,19 @@ def generate_invoice_pdf_for_client(invoice_data_raw, client_id):
         # Get FBR logo
         cur.execute("SELECT fbr_logo FROM fbr LIMIT 1")
         fbr_row = cur.fetchone()
-        fbr_logo_url = fbr_row[0] if fbr_row else None
+        fbr_logo_path = (
+            str(fbr_row[0]).strip()
+            if fbr_row and fbr_row[0] is not None and str(fbr_row[0]).strip()
+            else None
+        )
+        if fbr_logo_path and base_url and not fbr_logo_path.lower().startswith(("http://", "https://")):
+            fbr_logo_url = (
+                f"{base_url}{fbr_logo_path}"
+                if fbr_logo_path.startswith("/")
+                else f"{base_url}/{fbr_logo_path}"
+            )
+        else:
+            fbr_logo_url = fbr_logo_path
 
         cur.close()
         conn.close()
