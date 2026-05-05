@@ -26,6 +26,10 @@ import datetime
 
 
 app = Flask(__name__)
+
+# Max custom (label/value) pairs per invoice — used by create-invoice UI and PDF layout.
+INVOICE_CUSTOM_FIELDS_MAX = 2
+
 CORS(
     app,
     supports_credentials=True,
@@ -60,7 +64,10 @@ def create_invoice_html():
         return redirect(url_for("index"))
 
     print("Access granted to create invoice page")
-    return render_template("create-invoice.html")
+    return render_template(
+        "create-invoice.html",
+        invoice_custom_fields_max=INVOICE_CUSTOM_FIELDS_MAX,
+    )
 
 
 @app.route("/api/generate-form-invoice", methods=["GET"])
@@ -248,7 +255,44 @@ def generate_form_invoice():
         else:
             fbr_logo_url = fbr_logo_path
 
-                # Make sure PO# is available
+        # Normalize custom fields for PDF template rendering.
+        # Accept top-level customFields, nested invoiceData.customFields,
+        # or complete_invoice_data.customFields, then keep only valid pairs.
+        raw_custom_fields = data.get("customFields")
+        if not isinstance(raw_custom_fields, list):
+            invoice_data_cf = data.get("invoiceData")
+            if isinstance(invoice_data_cf, str):
+                try:
+                    invoice_data_cf = json.loads(invoice_data_cf)
+                except Exception:
+                    invoice_data_cf = {}
+            if isinstance(invoice_data_cf, dict):
+                raw_custom_fields = invoice_data_cf.get("customFields")
+
+        if not isinstance(raw_custom_fields, list):
+            complete_invoice_data_cf = data.get("complete_invoice_data")
+            if isinstance(complete_invoice_data_cf, str):
+                try:
+                    complete_invoice_data_cf = json.loads(complete_invoice_data_cf)
+                except Exception:
+                    complete_invoice_data_cf = {}
+            if isinstance(complete_invoice_data_cf, dict):
+                raw_custom_fields = complete_invoice_data_cf.get("customFields")
+
+        if isinstance(raw_custom_fields, list):
+            normalized_custom_fields = []
+            for field in raw_custom_fields[:INVOICE_CUSTOM_FIELDS_MAX]:
+                if not isinstance(field, dict):
+                    continue
+                name = str(field.get("name", "")).strip()
+                value = str(field.get("value", "")).strip()
+                if name and value:
+                    normalized_custom_fields.append({"name": name, "value": value})
+            data["customFields"] = normalized_custom_fields
+        else:
+            data["customFields"] = []
+
+        # Make sure PO# is available
         # Make sure PO# is available - replace the existing code block with this
         if "PO" not in data or not data["PO"]:
             print(f"Debug - Trying to find PO number in data structure")
@@ -465,50 +509,10 @@ def generate_form_invoice():
             except Exception as e:
                 print(f"Error generating QR code: {str(e)}")
 
-        # Select the appropriate template
-        # Priority: 1) Database template_type, 2) Legacy username-based selection
-        print(f"Selecting template for username: {username}, template_type: {client_template_type}")
-        
-        # NEW: Check database template_type first (for new clients)
-        if client_template_type == 'universal':
-            template_name = "invoice_template_universal.html"
-            print(f"Selected template: {template_name} (universal template from database)")
-        # EXISTING: Preserve legacy username-based selection for existing clients
-        elif client_template_type == 'default':
-            # Legacy selection logic - keeps existing clients working unchanged
-            if username in ["4210111937929", "3520204956465", "3520270278447", "3520271603355", "3520299147319", "3520266827067"]:
-                template_name = "invoice_template_nologo.html"
-                print(f"Selected template: {template_name} for username {username} (no logo)")
-            elif username in {"H075895", "F667833", "infinityeng"}:
-                template_name = "invoice_innovative.html"
-                print(f"Selected template: {template_name} for username {username}")
-            elif username == "8974121":
-                template_name = "invoice_template.html"
-                print(f"Selected template: {template_name} for Computer Gold")
-            elif username == "7542425":
-                template_name = "invoice_template3.html"
-                print(f"Selected template: {template_name} for username 7542425")
-            elif username == "8255820":
-                template_name = "invoice_templatezahid.html"
-                print(f"Selected template: {template_name} for username 8255820")
-            elif username in ["3075270", "0946915", "7542425", "2853653", "B690329", "3556084", "3520229157309"]:
-                template_name = "invoice_template3.html"
-                print(f"Selected template: {template_name} for username: {username}")
-            else:
-                template_name = "invoice_template2.html"
-                print(f"Selected default template: {template_name} for username: {username}")
-        else:
-            # Direct template type mapping (e.g., 'nologo', 'innovative', etc.)
-            template_mapping = {
-                'nologo': 'invoice_template_nologo.html',
-                'innovative': 'invoice_innovative.html',
-                'template1': 'invoice_template.html',
-                'template2': 'invoice_template2.html',
-                'template3': 'invoice_template3.html',
-                'zahid': 'invoice_templatezahid.html',
-            }
-            template_name = template_mapping.get(client_template_type, 'invoice_template_universal.html')
-            print(f"Selected template: {template_name} from template_type: {client_template_type}")
+        # Select invoice template
+        # Always use the universal template; user-specific branching removed.
+        template_name = "invoice_template_universal.html"
+        print(f"Selected template: {template_name}")
 
         # Store the current data in last_json_data with client_id for future reference
         clean_payload = json.loads(json.dumps(data))
@@ -532,6 +536,7 @@ def generate_form_invoice():
             fbr_logo_url=fbr_logo_url,
             username=username,
             settings=client_template_settings,  # Pass template settings to universal template
+            invoice_custom_fields_max=INVOICE_CUSTOM_FIELDS_MAX,
         )
 
         # Generate PDF directly to a stream
@@ -988,46 +993,9 @@ def generate_invoice_pdf_for_client(invoice_data_raw, client_id):
             except Exception as e:
                 print(f"Error generating QR code: {e}")
 
-        # Select template using database-aware logic (matches generate_form_invoice)
-        if client_template_type == "universal":
-            template_name = "invoice_template_universal.html"
-        elif client_template_type == "default":
-            # Legacy username-based selection for existing clients
-            if username in [
-                "4210111937929", "3520204956465", "3520270278447",
-                "3520271603355", "3520299147319", "3520266827067",
-            ]:
-                template_name = "invoice_template_nologo.html"
-            elif username in {"H075895", "F667833", "infinityeng"}:
-                template_name = "invoice_innovative.html"
-            elif username == "8974121":
-                template_name = "invoice_template.html"
-            elif username == "5207949":
-                template_name = "invoice_zeeshanst.html"
-            elif username == "7542425":
-                template_name = "invoice_template3.html"
-            elif username == "8255820":
-                template_name = "invoice_templatezahid.html"
-            elif username in [
-                "3075270", "0946915", "2853653", "B690329", "3556084", "3520229157309", "3520226953258"
-            ]:
-                template_name = "invoice_template3.html"
-            else:
-                template_name = "invoice_template2.html"
-        else:
-            template_mapping = {
-                "nologo": "invoice_template_nologo.html",
-                "innovative": "invoice_innovative.html",
-                "template1": "invoice_template.html",
-                "template2": "invoice_template2.html",
-                "template3": "invoice_template3.html",
-                "zahid": "invoice_templatezahid.html",
-                "zeeshanst": "invoice_zeeshanst.html",
-                "alraheem": "invoice_alraheem.html",
-            }
-            template_name = template_mapping.get(
-                client_template_type, "invoice_template_universal.html"
-            )
+        # Select invoice template
+        # Always use the universal template; user-specific branching removed.
+        template_name = "invoice_template_universal.html"
 
         print(f"[generate_invoice_pdf_for_client] Template: {template_name}, Client: {client_id}")
 
@@ -1039,6 +1007,7 @@ def generate_invoice_pdf_for_client(invoice_data_raw, client_id):
             fbr_logo_url=fbr_logo_url,
             username=username,
             settings=client_template_settings,
+            invoice_custom_fields_max=INVOICE_CUSTOM_FIELDS_MAX,
         )
 
         pdf_stream = BytesIO()
@@ -1815,4 +1784,4 @@ def logout():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5001)
+    app.run(debug=True, port=5000)

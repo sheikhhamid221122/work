@@ -1161,6 +1161,17 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         seller["sellerAddress"] = seller_address
         buyer["buyerAddress"] = buyer_address
 
+        # Custom fields: keep only valid non-empty name/value pairs.
+        # Limit is aligned with app.py INVOICE_CUSTOM_FIELDS_MAX.
+        custom_fields = []
+        for field in (data.get("customFields") or [])[:2]:
+            if not isinstance(field, dict):
+                continue
+            name = sanitize_string(field.get("name", ""))
+            value = sanitize_string(field.get("value", ""))
+            if name and value:
+                custom_fields.append({"name": name, "value": value})
+
         invoice_json = {
             "invoiceType": sanitize_string(data["invoiceType"]),
             "invoiceDate": data["invoiceDate"],
@@ -1175,6 +1186,7 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             "buyerAddress": buyer_address,
             "buyerRegistrationType": buyer.get("buyerRegistrationType", "Unregistered"),
             "buyerSTRN": buyer.get("buyerSTRN", ""),
+            "customFields": custom_fields,
         }
 
         if username == "8974121" and data.get("CNIC"):
@@ -1332,6 +1344,7 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                 "sellerData": seller,
                 "buyerData": buyer,
                 "items": data["items"],
+                "customFields": custom_fields,
                 "client_id": client_id,
                 "created_env": env,
                 "totalAmount": sum(i["totalValues"] for i in items_list),

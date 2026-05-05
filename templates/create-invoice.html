@@ -622,10 +622,15 @@
                                 placeholder="Enter reference number" required />
                         </div>
                         <div>
-                            <label for="po-number" class="block text-gray-700 font-medium mb-2">PO#</label>
-                            <input type="text" id="po-number"
-                                class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
-                                placeholder="Enter purchase order number" />
+                            <label class="block text-gray-700 font-medium mb-2">Custom Fields</label>
+                            <div class="space-y-2">
+                                <div id="custom-fields-container" class="space-y-2"></div>
+                                <button id="add-custom-field-btn" type="button"
+                                    class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out">
+                                    Add custom field
+                                </button>
+                                <p class="text-xs text-gray-500" id="custom-fields-max-hint"></p>
+                            </div>
                         </div>
                         <div id="dc-number-container" class="hidden">
                             <label for="dc-number" class="block text-gray-700 font-medium mb-2">DC #</label>
@@ -1148,10 +1153,6 @@
                                         <span class="font-semibold">Invoice Ref No:</span>
                                         <span id="review-invoice-ref"></span>
                                     </p>
-                                    <p>
-                                        <span class="font-semibold">PO#:</span>
-                                        <span id="review-po-number"></span>
-                                    </p>
                                     <p id="review-delivery-challan-container" class="hidden">
                                         <span class="font-semibold">Delivery Challan #:</span>
                                         <span id="review-delivery-challan"></span>
@@ -1164,6 +1165,10 @@
                                         <span class="font-semibold">Scenario ID:</span>
                                         <span id="review-scenario-id"></span>
                                     </p>
+                                    <div id="review-custom-fields-container" class="hidden mt-2">
+                                        <p class="font-semibold">Custom Fields:</p>
+                                        <div id="review-custom-fields-list" class="mt-1 space-y-1"></div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -1521,6 +1526,8 @@
         // Get environment from session variable, if available, otherwise default to URL param or 'production'
         const ENV = "{{ session.get('env', '') }}" || new URLSearchParams(window.location.search).get('env') || 'production';
         console.log('Current environment:', ENV);
+        /** Mirrors app.py INVOICE_CUSTOM_FIELDS_MAX (single source: app.py). */
+        const MAX_CUSTOM_FIELDS = Number("{{ invoice_custom_fields_max | default(2) }}") || 2;
 
         function apiUrl(endpoint) {
             // Always use URL parameter first, then fall back to ENV constant
@@ -1541,6 +1548,125 @@
             productItems: [],
             draft_id: null, // Store draft ID if loaded from a draft
         };
+
+        function normalizeCustomFieldsDraft(fields) {
+            if (!Array.isArray(fields)) return [];
+            return fields
+                .map((f) => ({
+                    name: (f && f.name != null ? String(f.name) : "").trim(),
+                    value: (f && f.value != null ? String(f.value) : "").trim(),
+                }))
+                .slice(0, MAX_CUSTOM_FIELDS);
+        }
+
+        function sanitizeCustomFields(fields) {
+            return normalizeCustomFieldsDraft(fields).filter((f) => f.name && f.value);
+        }
+
+        function readCustomFieldsFromDOM() {
+            const container = document.getElementById("custom-fields-container");
+            if (!container) return [];
+
+            const rows = Array.from(container.querySelectorAll("[data-custom-field-row='1']"));
+            const raw = rows.map((row) => {
+                const nameEl = row.querySelector("input[data-custom-field-name='1']");
+                const valueEl = row.querySelector("input[data-custom-field-value='1']");
+                return {
+                    name: nameEl ? nameEl.value : "",
+                    value: valueEl ? valueEl.value : "",
+                };
+            });
+            return normalizeCustomFieldsDraft(raw);
+        }
+
+        function getCustomFieldsFromDOM() {
+            return sanitizeCustomFields(readCustomFieldsFromDOM());
+        }
+
+        function renderReviewCustomFields() {
+            const container = document.getElementById("review-custom-fields-container");
+            const list = document.getElementById("review-custom-fields-list");
+            if (!container || !list) return;
+
+            const fields = sanitizeCustomFields((state.invoiceData || {}).customFields || []);
+            if (!fields.length) {
+                list.innerHTML = "";
+                container.classList.add("hidden");
+                return;
+            }
+
+            list.innerHTML = fields
+                .map(
+                    (field) =>
+                        `<p><span class="font-semibold">${field.name}:</span> <span>${field.value}</span></p>`
+                )
+                .join("");
+            container.classList.remove("hidden");
+        }
+
+        function renderCustomFields() {
+            const container = document.getElementById("custom-fields-container");
+            const addBtn = document.getElementById("add-custom-field-btn");
+            const hintEl = document.getElementById("custom-fields-max-hint");
+            if (!container || !addBtn) return;
+
+            const current = normalizeCustomFieldsDraft((state.invoiceData || {}).customFields || []);
+            state.invoiceData = state.invoiceData || {};
+            state.invoiceData.customFields = current;
+
+            if (hintEl) {
+                hintEl.textContent =
+                    MAX_CUSTOM_FIELDS === 1
+                        ? "Up to 1 custom field."
+                        : `Up to ${MAX_CUSTOM_FIELDS} custom fields.`;
+            }
+
+            container.innerHTML = "";
+
+            current.forEach((field, idx) => {
+                const row = document.createElement("div");
+                row.dataset.customFieldRow = "1";
+                row.className = "flex flex-col gap-2 md:flex-row md:items-center";
+                row.innerHTML = `
+                    <input data-custom-field-name="1" type="text" class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500" placeholder="Field name" value="${field.name.replace(/"/g, "&quot;")}" />
+                    <input data-custom-field-value="1" type="text" class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500" placeholder="Field value" value="${field.value.replace(/"/g, "&quot;")}" />
+                    <button type="button" class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out" data-remove-custom-field="${idx}">
+                        Remove
+                    </button>
+                `;
+                container.appendChild(row);
+
+                const removeBtn = row.querySelector(`[data-remove-custom-field="${idx}"]`);
+                if (removeBtn) {
+                    removeBtn.addEventListener("click", () => {
+                        const draft = readCustomFieldsFromDOM();
+                        const next = draft.filter((_, i) => i !== idx);
+                        state.invoiceData.customFields = next;
+                        renderCustomFields();
+                    });
+                }
+            });
+
+            addBtn.disabled = current.length >= MAX_CUSTOM_FIELDS;
+            addBtn.classList.toggle("opacity-50", addBtn.disabled);
+            addBtn.classList.toggle("cursor-not-allowed", addBtn.disabled);
+        }
+
+        function initCustomFieldsUI() {
+            const addBtn = document.getElementById("add-custom-field-btn");
+            if (!addBtn) return;
+
+            addBtn.addEventListener("click", () => {
+                const current = readCustomFieldsFromDOM();
+                if (current.length >= MAX_CUSTOM_FIELDS) {
+                    renderCustomFields();
+                    return;
+                }
+                state.invoiceData = state.invoiceData || {};
+                state.invoiceData.customFields = [...current, { name: "", value: "" }];
+                renderCustomFields();
+            });
+        }
 
         document.addEventListener('DOMContentLoaded', () => {
             const env = getUrlParameter('env') || ENV || 'production';
@@ -1937,10 +2063,12 @@
                     invoiceType: invoiceData.invoiceType || 'Sale Invoice',
                     invoiceDate: invoiceData.invoiceDate || '',
                     invoiceRefNo: invoiceData.invoiceRefNo || invoiceData.invoice_ref_no || '',
-                    poNumber: invoiceData.poNumber || invoiceData.PO || '',
                     DC: invoiceData.DC || invoiceData.dcNumber || '',
                     dnNumber: invoiceData.dnNumber || '',
                     scenarioId: invoiceData.scenarioId || '',
+                    customFields: sanitizeCustomFields(
+                        Array.isArray(invoiceData.customFields) ? invoiceData.customFields : []
+                    ),
                 };
 
                 // Populate seller data
@@ -1964,11 +2092,11 @@
                 // Correct field id for reference number
                 const invoiceRefEl = document.getElementById('invoice-ref-no');
                 if (invoiceRefEl) invoiceRefEl.value = invoiceData.invoiceRefNo || invoiceData.invoice_ref_no || '';
-                document.getElementById('po-number').value = invoiceData.poNumber || invoiceData.PO || '';
                 const dcInput = document.getElementById('dc-number');
                 if (dcInput) dcInput.value = invoiceData.DC || invoiceData.dcNumber || '';
                 const dnInput = document.getElementById('dn-number');
                 if (dnInput) dnInput.value = invoiceData.dnNumber || '';
+                renderCustomFields();
 
                 // Only set scenario if available and in sandbox environment
                 if (ENV === 'sandbox' && invoiceData.scenarioId) {
@@ -2778,8 +2906,7 @@
                         state.invoiceData.invoiceDate || "";
                     document.getElementById("review-invoice-ref").textContent =
                         state.invoiceData.invoiceRefNo || "";
-                    document.getElementById("review-po-number").textContent =
-                        state.invoiceData.poNumber || state.invoiceData.PO || "";
+                    renderReviewCustomFields();
                 }
 
                 // Validate product items to ensure they have required properties
@@ -3033,7 +3160,7 @@
                         invoiceType: document.getElementById("invoice-type-hidden").value, // "Sale Invoice"
                         invoiceDate: invoiceDate,
                         invoiceRefNo: document.getElementById("invoice-ref-no").value,
-                        poNumber: document.getElementById("po-number").value,
+                        customFields: getCustomFieldsFromDOM(),
                     };
 
                     // Add delivery challan for specific user
@@ -3146,12 +3273,12 @@
                     invoiceType: state.invoiceData.invoiceType,
                     invoiceDate: state.invoiceData.invoiceDate,
                     invoiceRefNo: state.invoiceData.invoiceRefNo,
-                    poNumber: state.invoiceData.poNumber,
                     sellerData: state.sellerData,
                     buyerData: state.buyerData,
                     items: preparedItems,
                     saveDraft: saveDraft,
                     submit: !saveDraft,
+                    customFields: sanitizeCustomFields(state.invoiceData.customFields || []),
                 };
 
                 if (isH075895User()) {
@@ -3449,6 +3576,10 @@
                 disableMobile: false,
                 theme: "airbnb"
             });
+
+            // Custom fields UI (max from app INVOICE_CUSTOM_FIELDS_MAX)
+            initCustomFieldsUI();
+            renderCustomFields();
 
             // Debug logging for URL parameters and environment
             console.log('URL parameters:', window.location.search);

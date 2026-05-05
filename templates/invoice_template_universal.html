@@ -375,6 +375,30 @@
             {% endif %}
         </tr>
         {% endif %}
+
+        {% set _cf_max = invoice_custom_fields_max | default(2) %}
+        {% set _custom_fields = (data.customFields or [])[:_cf_max] %}
+        {% if _custom_fields and (_custom_fields|length > 0) %}
+            {% if _custom_fields|length == 1 %}
+            <tr>
+                <td style="font-weight: bold; background-color: #f2f2f2; border: 1px solid {{ border_color }};" class="left">{{ _custom_fields[0].name or "" }}</td>
+                <td colspan="3" style="border: 1px solid {{ border_color }};" class="left">{{ _custom_fields[0].value or "" }}</td>
+            </tr>
+            {% else %}
+                {% for chunk in _custom_fields|batch(2) %}
+                <tr>
+                    {% for field in chunk %}
+                    <td style="font-weight: bold; background-color: #f2f2f2; border: 1px solid {{ border_color }};" class="left">{{ field.name or "" }}</td>
+                    <td style="border: 1px solid {{ border_color }};" class="left">{{ field.value or "" }}</td>
+                    {% endfor %}
+                    {% if chunk|length < 2 %}
+                        <td style="border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left"></td>
+                        <td style="border: 1px solid {{ border_color }};" class="left"></td>
+                    {% endif %}
+                </tr>
+                {% endfor %}
+            {% endif %}
+        {% endif %}
     </table>
 
     <!-- Detail Section -->
