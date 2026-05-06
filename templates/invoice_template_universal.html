@@ -190,7 +190,6 @@
     {% set show_fbr_invoice_buyer = settings.get('show_fbr_invoice_buyer', false) %}
     {% set show_po = settings.get('show_po', false) %}
     {% set show_dn = settings.get('show_dn', false) %}
-    {% set show_dc = settings.get('show_dc', false) %}
     {% set show_cnic = settings.get('show_cnic', false) %}
     {% set show_hs_code_buyer = settings.get('show_hs_code_buyer', false) %}
     {% set show_purchase_order = settings.get('show_purchase_order', false) %}
@@ -327,15 +326,12 @@
             {% endif %}
         </tr>
         
-        {# Row 4: P.O./DC + Buyer STRN - Fields start from left #}
-        {% if show_po or show_dc or show_buyer_strn %}
+        {# Row 4: P.O. + Buyer STRN - Fields start from left #}
+        {% if show_po or show_buyer_strn %}
         <tr>
             {% if show_po %}
                 <td style="font-weight: bold; border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left">P.O #</td>
                 <td style="border: 1px solid {{ border_color }};" class="left">{{ data.PO or "" }}</td>
-            {% elif show_dc %}
-                <td style="font-weight: bold; border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left">DC #</td>
-                <td style="border: 1px solid {{ border_color }};" class="left">{{ data.DC or "" }}</td>
             {% elif show_purchase_order %}
                 <td style="font-weight: bold; border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left">PURCHASE ORDER #</td>
                 <td style="border: 1px solid {{ border_color }};" class="left">{{ data.PO or "" }}</td>

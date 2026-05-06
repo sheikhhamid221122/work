@@ -1196,8 +1196,6 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         if data.get("poNumber"):
             invoice_json["PO"] = data["poNumber"]
             invoice_json["poNumber"] = data["poNumber"]
-        if is_special_user and ("DC" in data or "dcNumber" in data):
-            invoice_json["DC"] = data.get("DC") or data.get("dcNumber") or ""
         if data.get("dnNumber"):
             invoice_json["DN"] = data["dnNumber"]
             invoice_json["dnNumber"] = data["dnNumber"]
@@ -1339,7 +1337,6 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                 "scenarioId": data.get("scenarioId", ""),
                 "poNumber": data.get("poNumber", ""),
                 "PO": data.get("poNumber", ""),
-                "DC": data.get("DC") or data.get("dcNumber") or "",
                 "dnNumber": data.get("dnNumber", ""),
                 "sellerData": seller,
                 "buyerData": buyer,
@@ -1349,9 +1346,6 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                 "created_env": env,
                 "totalAmount": sum(i["totalValues"] for i in items_list),
             }
-
-            if not is_special_user and "DC" in complete_invoice_data:
-                complete_invoice_data.pop("DC")
 
             if data.get("draft_id"):
                 cur.execute(

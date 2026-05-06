@@ -632,12 +632,6 @@
                                 <p class="text-xs text-gray-500" id="custom-fields-max-hint"></p>
                             </div>
                         </div>
-                        <div id="dc-number-container" class="hidden">
-                            <label for="dc-number" class="block text-gray-700 font-medium mb-2">DC #</label>
-                            <input type="text" id="dc-number"
-                                class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
-                                placeholder="Enter delivery challan number" />
-                        </div>
                         <div id="dn-number-container" class="hidden">
                             <label for="dn-number" class="block text-gray-700 font-medium mb-2">DN#</label>
                             <input type="text" id="dn-number"
@@ -1839,22 +1833,6 @@
 
             const enabled = isH075895User(username);
 
-            const dcContainer = document.getElementById('dc-number-container');
-            if (dcContainer) {
-                dcContainer.classList.toggle('hidden', !enabled);
-                const dcInput = document.getElementById('dc-number');
-                if (!enabled) {
-                    if (dcInput) {
-                        dcInput.value = '';
-                    }
-                    if (state && state.invoiceData) {
-                        delete state.invoiceData.DC;
-                    }
-                } else if (dcInput && state && state.invoiceData && typeof state.invoiceData.DC === 'string') {
-                    dcInput.value = state.invoiceData.DC;
-                }
-            }
-
             const productCodeWrapper = document.getElementById('product-code-wrapper');
             if (productCodeWrapper) {
                 productCodeWrapper.classList.toggle('hidden', !enabled);
@@ -2063,7 +2041,6 @@
                     invoiceType: invoiceData.invoiceType || 'Sale Invoice',
                     invoiceDate: invoiceData.invoiceDate || '',
                     invoiceRefNo: invoiceData.invoiceRefNo || invoiceData.invoice_ref_no || '',
-                    DC: invoiceData.DC || invoiceData.dcNumber || '',
                     dnNumber: invoiceData.dnNumber || '',
                     scenarioId: invoiceData.scenarioId || '',
                     customFields: sanitizeCustomFields(
@@ -2092,8 +2069,6 @@
                 // Correct field id for reference number
                 const invoiceRefEl = document.getElementById('invoice-ref-no');
                 if (invoiceRefEl) invoiceRefEl.value = invoiceData.invoiceRefNo || invoiceData.invoice_ref_no || '';
-                const dcInput = document.getElementById('dc-number');
-                if (dcInput) dcInput.value = invoiceData.DC || invoiceData.dcNumber || '';
                 const dnInput = document.getElementById('dn-number');
                 if (dnInput) dnInput.value = invoiceData.dnNumber || '';
                 renderCustomFields();
@@ -3174,13 +3149,6 @@
                             document.getElementById("scenario-id").value;
                     }
 
-                    if (isH075895User()) {
-                        const dcInput = document.getElementById("dc-number");
-                        state.invoiceData.DC = dcInput ? dcInput.value.trim() : "";
-                    } else if (state.invoiceData) {
-                        delete state.invoiceData.DC;
-                    }
-
                     // Capture DN# for user 3520299147319
                     if (currentUsername === '3520299147319') {
                         const dnInput = document.getElementById("dn-number");
@@ -3280,10 +3248,6 @@
                     submit: !saveDraft,
                     customFields: sanitizeCustomFields(state.invoiceData.customFields || []),
                 };
-
-                if (isH075895User()) {
-                    invoiceData.DC = state.invoiceData.DC || "";
-                }
 
                 // Include DN# for user 3520299147319
                 if (currentUsername === '3520299147319') {

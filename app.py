@@ -318,42 +318,6 @@ def generate_form_invoice():
             
             print(f"Debug - Final PO value: {data.get('PO', 'Not set')}")
 
-        # Ensure DC (delivery challan) value is present in data for downstream templates
-        if not data.get("DC"):
-            dc_value = data.get("dcNumber")
-
-            invoice_data = data.get("invoiceData")
-            if not dc_value and invoice_data:
-                if isinstance(invoice_data, str):
-                    try:
-                        invoice_data = json.loads(invoice_data)
-                    except Exception:
-                        invoice_data = {}
-                if isinstance(invoice_data, dict):
-                    dc_value = (
-                        invoice_data.get("DC")
-                        or invoice_data.get("dcNumber")
-                        or dc_value
-                    )
-
-            complete_invoice_data = data.get("complete_invoice_data")
-            if not dc_value and complete_invoice_data:
-                if isinstance(complete_invoice_data, str):
-                    try:
-                        complete_invoice_data = json.loads(complete_invoice_data)
-                    except Exception:
-                        complete_invoice_data = {}
-                if isinstance(complete_invoice_data, dict):
-                    dc_value = (
-                        complete_invoice_data.get("DC")
-                        or complete_invoice_data.get("dcNumber")
-                        or dc_value
-                    )
-
-            data["DC"] = dc_value or ""
-        else:
-            data["DC"] = data.get("DC", "")
-
         # Ensure DN (delivery note) value is present in data for user 3520299147319
         if not data.get("DN"):
             dn_value = data.get("dnNumber")
@@ -970,11 +934,9 @@ def generate_invoice_pdf_for_client(invoice_data_raw, client_id):
         )
         data["amountInWords"] = amount_in_words
 
-        # Ensure PO/DC/DN fields exist
+        # Ensure PO/DN fields exist
         if "PO" not in data:
             data["PO"] = data.get("poNumber", "")
-        if "DC" not in data:
-            data["DC"] = data.get("dcNumber", "")
         if "DN" not in data:
             data["DN"] = data.get("dnNumber", "")
         if "CNIC" not in data:
