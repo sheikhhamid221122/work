@@ -17,6 +17,7 @@ from weasyprint import HTML
 import math
 import base64
 import psycopg2
+from psycopg2.extras import DictCursor
 from flask_cors import CORS
 from dotenv import load_dotenv
 from io import BytesIO
@@ -84,7 +85,7 @@ def generate_form_invoice():
         # instead of relying on possibly stale data in last_json_data
         data = None
         conn = get_db_connection()
-        cur = conn.cursor()
+        cur = conn.cursor(cursor_factory=DictCursor)
 
         # Get username + logo path from users (logo is often like /static/uploads/file.png)
         cur.execute(
@@ -174,28 +175,70 @@ def generate_form_invoice():
         client_template_type = client_row[2] if client_row and len(client_row) > 2 else 'default'
         
         # Build settings dict from individual columns (with defaults)
-        client_template_settings = {}
-        if client_row and len(client_row) > 3:
-            client_template_settings = {
-                'header_color': client_row[3] or 'dark',
-                'top_spacing': client_row[4] or 0,
-                'logo_width': client_row[5] or 220,
-                'show_seller_strn': client_row[6] if client_row[6] is not None else True,
-                'show_seller_ntn': client_row[7] if client_row[7] is not None else True,
-                'show_seller_address': client_row[8] if client_row[8] is not None else True,
-                'show_fbr_invoice_header': client_row[9] if client_row[9] is not None else True,
-                'show_buyer_strn': client_row[10] if client_row[10] is not None else False,
-                'show_status': client_row[11] if client_row[11] is not None else True,
-                'show_po': client_row[12] if client_row[12] is not None else False,
-                'show_dc': client_row[13] if client_row[13] is not None else False,
-                'show_cnic': client_row[14] if client_row[14] is not None else False,
-                'show_hs_code_buyer': client_row[15] if client_row[15] is not None else False,
-                'show_product_code': client_row[16] if client_row[16] is not None else False,
-                'show_hs_code': client_row[17] if client_row[17] is not None else False,
-                'apply_further_tax': client_row[18] if client_row[18] is not None else False,
-                'max_item_rows': client_row[19] or 6,
-                'fixed_tax_rate': client_row[20] or '18%',
-            }
+        client_template_type = client_row.get('template_type', 'default')
+
+        client_template_settings = {
+            'header_color': client_row.get('tpl_header_color') or 'dark',
+            'top_spacing': client_row.get('tpl_top_spacing') or 0,
+            'logo_width': client_row.get('tpl_logo_width') or 220,
+
+            'show_seller_strn':
+                True if client_row.get('tpl_show_seller_strn') is None
+                else client_row['tpl_show_seller_strn'],
+
+            'show_seller_ntn':
+                True if client_row.get('tpl_show_seller_ntn') is None
+                else client_row['tpl_show_seller_ntn'],
+
+            'show_seller_address':
+                True if client_row.get('tpl_show_seller_address') is None
+                else client_row['tpl_show_seller_address'],
+
+            'show_fbr_invoice_header':
+                True if client_row.get('tpl_show_fbr_invoice_header') is None
+                else client_row['tpl_show_fbr_invoice_header'],
+
+            'show_buyer_strn':
+                False if client_row.get('tpl_show_buyer_strn') is None
+                else client_row['tpl_show_buyer_strn'],
+
+            'show_status':
+                True if client_row.get('tpl_show_status') is None
+                else client_row['tpl_show_status'],
+
+            'show_po':
+                False if client_row.get('tpl_show_po') is None
+                else client_row['tpl_show_po'],
+
+            'show_dc':
+                False if client_row.get('tpl_show_dc') is None
+                else client_row['tpl_show_dc'],
+
+            'show_cnic':
+                False if client_row.get('tpl_show_cnic') is None
+                else client_row['tpl_show_cnic'],
+
+            'show_hs_code_buyer':
+                False if client_row.get('tpl_show_hs_code_buyer') is None
+                else client_row['tpl_show_hs_code_buyer'],
+
+            'show_product_code':
+                False if client_row.get('tpl_show_product_code') is None
+                else client_row['tpl_show_product_code'],
+
+            'show_hs_code':
+                False if client_row.get('tpl_show_hs_code') is None
+                else client_row['tpl_show_hs_code'],
+
+            'apply_further_tax':
+                False if client_row.get('tpl_apply_further_tax') is None
+                else client_row['tpl_apply_further_tax'],
+
+            'max_item_rows': client_row.get('tpl_max_item_rows') or 6,
+            'fixed_tax_rate': client_row.get('tpl_fixed_tax_rate') or '18%',
+        }
+
+        print("client_template_settings: ", client_template_settings);
 
         # Get client's STRN directly from clients table
         # First check if STRN is in the invoice_data directly

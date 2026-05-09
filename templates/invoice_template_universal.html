@@ -308,93 +308,44 @@
             <td style="font-weight: bold; background-color: #f2f2f2; border: 1px solid {{ border_color }};" class="left">INVOICE #</td>
             <td style="border: 1px solid {{ border_color }};" class="left">{{ data.invoiceRefNo }}</td>
         </tr>
-        <tr>
-            <td style="font-weight: bold; border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left">BUYER NTN/CNIC</td>
-            <td style="border: 1px solid {{ border_color }};" class="left">{{ data.buyerNTNCNIC }}</td>
-            {% if show_status %}
-                <td style="font-weight: bold; border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left">STATUS</td>
-                <td style="border: 1px solid {{ border_color }};" class="left">{% if data.buyerRegistrationType and (data.buyerRegistrationType|string).lower() in ['registered','r','yes','1'] %}Registered{% else %}Unregistered{% endif %}</td>
-            {% elif show_fbr_invoice_buyer %}
-                <td style="font-weight: bold; border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left">FBR INVOICE #</td>
-                <td style="border: 1px solid {{ border_color }};" class="left">{{ data.fbrInvoiceNumber or "" }}</td>
-            {% elif show_hs_code_buyer %}
-                <td style="font-weight: bold; border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left">HS CODE</td>
-                <td style="border: 1px solid {{ border_color }};" class="left">{% if data['items'] and data['items']|length > 0 %}{{ (data['items'][0].hs_code or data['items'][0].hsCode or '') }}{% endif %}</td>
-            {% else %}
-                <td style="border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left"></td>
-                <td style="border: 1px solid {{ border_color }};" class="left"></td>
-            {% endif %}
-        </tr>
-        
-        {# Row 4: P.O. + Buyer STRN - Fields start from left #}
-        {% if show_po or show_buyer_strn %}
-        <tr>
-            {% if show_po %}
-                <td style="font-weight: bold; border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left">P.O #</td>
-                <td style="border: 1px solid {{ border_color }};" class="left">{{ data.PO or "" }}</td>
-            {% elif show_purchase_order %}
-                <td style="font-weight: bold; border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left">PURCHASE ORDER #</td>
-                <td style="border: 1px solid {{ border_color }};" class="left">{{ data.PO or "" }}</td>
-            {% else %}
-                <td style="border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left"></td>
-                <td style="border: 1px solid {{ border_color }};" class="left"></td>
-            {% endif %}
-            {% if show_buyer_strn %}
-                <td style="font-weight: bold; border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left">BUYER STRN</td>
-                <td style="border: 1px solid {{ border_color }};" class="left">{{ data.buyerSTRN or "" }}</td>
-            {% else %}
-                <td style="border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left"></td>
-                <td style="border: 1px solid {{ border_color }};" class="left"></td>
-            {% endif %}
-        </tr>
+        {% set _info_fields = namespace(items=[]) %}
+        {% set _ = _info_fields.items.append({'label': 'BUYER NTN/CNIC', 'value': data.buyerNTNCNIC or ""}) %}
+        {% if show_status %}
+            {% set _status_value = 'Registered' if (data.buyerRegistrationType and (data.buyerRegistrationType|string).lower() in ['registered','r','yes','1']) else 'Unregistered' %}
+            {% set _ = _info_fields.items.append({'label': 'STATUS', 'value': _status_value}) %}
+        {% elif show_fbr_invoice_buyer %}
+            {% set _ = _info_fields.items.append({'label': 'FBR INVOICE #', 'value': data.fbrInvoiceNumber or ""}) %}
         {% endif %}
-
-        {# Row 5: CNIC + DN/Delivery Challan #}
-        {% if show_cnic or show_dn or show_delivery_challan %}
-        <tr>
-            {% if show_cnic %}
-                <td style="font-weight: bold; border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left">CNIC</td>
-                <td style="border: 1px solid {{ border_color }};" class="left">{{ data.CNIC or "" }}</td>
-            {% else %}
-                <td style="border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left"></td>
-                <td style="border: 1px solid {{ border_color }};" class="left"></td>
-            {% endif %}
-            {% if show_dn %}
-                <td style="font-weight: bold; border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left">D.N. No.</td>
-                <td style="border: 1px solid {{ border_color }};" class="left">{{ data.DN or "" }}</td>
-            {% elif show_delivery_challan %}
-                <td style="font-weight: bold; border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left">DELIVERY CHALLAN #</td>
-                <td style="border: 1px solid {{ border_color }};" class="left">{{ data.CNIC or "" }}</td>
-            {% else %}
-                <td style="border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left"></td>
-                <td style="border: 1px solid {{ border_color }};" class="left"></td>
-            {% endif %}
-        </tr>
+        {% if show_buyer_strn %}
+            {% set _ = _info_fields.items.append({'label': 'BUYER STRN', 'value': data.buyerSTRN or ""}) %}
         {% endif %}
-
+        {% if show_hs_code_buyer %}
+            {% set _hs_code_value = '' %}
+            {% if data['items'] and data['items']|length > 0 %}
+                {% set _hs_code_value = data['items'][0].hs_code or data['items'][0].hsCode or '' %}
+            {% endif %}
+            {% set _ = _info_fields.items.append({'label': 'HS CODE', 'value': _hs_code_value}) %}
+        {% endif %}
+        {% if show_cnic %}
+            {% set _ = _info_fields.items.append({'label': 'CNIC', 'value': data.CNIC or ""}) %}
+        {% endif %}
+        {% if show_dn %}
+            {% set _ = _info_fields.items.append({'label': 'D.N. No.', 'value': data.DN or ""}) %}
+        {% elif show_delivery_challan %}
+            {% set _ = _info_fields.items.append({'label': 'DELIVERY CHALLAN #', 'value': data.CNIC or ""}) %}
+        {% endif %}
         {% set _cf_max = invoice_custom_fields_max | default(2) %}
-        {% set _custom_fields = (data.customFields or [])[:_cf_max] %}
-        {% if _custom_fields and (_custom_fields|length > 0) %}
-            {% if _custom_fields|length == 1 %}
-            <tr>
-                <td style="font-weight: bold; background-color: #f2f2f2; border: 1px solid {{ border_color }};" class="left">{{ _custom_fields[0].name or "" }}</td>
-                <td colspan="3" style="border: 1px solid {{ border_color }};" class="left">{{ _custom_fields[0].value or "" }}</td>
-            </tr>
-            {% else %}
-                {% for chunk in _custom_fields|batch(2) %}
-                <tr>
-                    {% for field in chunk %}
-                    <td style="font-weight: bold; background-color: #f2f2f2; border: 1px solid {{ border_color }};" class="left">{{ field.name or "" }}</td>
-                    <td style="border: 1px solid {{ border_color }};" class="left">{{ field.value or "" }}</td>
-                    {% endfor %}
-                    {% if chunk|length < 2 %}
-                        <td style="border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left"></td>
-                        <td style="border: 1px solid {{ border_color }};" class="left"></td>
-                    {% endif %}
-                </tr>
-                {% endfor %}
-            {% endif %}
-        {% endif %}
+        {% for _cf in (data.customFields or [])[:_cf_max] %}
+            {% set _ = _info_fields.items.append({'label': _cf.name or "", 'value': _cf.value or ""}) %}
+        {% endfor %}
+        {% for _field_row in _info_fields.items|batch(2) %}
+        <tr>
+            {% for _field in _field_row %}
+                <td style="font-weight: bold; border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left">{{ _field.label }}</td>
+                <td {% if loop.first and _field_row|length == 1 %}colspan="3"{% endif %} style="border: 1px solid {{ border_color }};" class="left">{{ _field.value }}</td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
     </table>
 
     <!-- Detail Section -->
