@@ -621,17 +621,6 @@
                                 class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
                                 placeholder="Enter reference number" required />
                         </div>
-                        <div>
-                            <label class="block text-gray-700 font-medium">Custom Fields</label>
-                            <div>
-                                <div id="custom-fields-container" class="space-y-2 mt-2"></div>
-                                <button id="add-custom-field-btn" type="button"
-                                    class=" mt-2 border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out">
-                                    Add custom field
-                                </button>
-                                <p class="text-xs text-gray-500 mt-2" id="custom-fields-max-hint"></p>
-                            </div>
-                        </div>
                         <div id="dn-number-container" class="hidden">
                             <label for="dn-number" class="block text-gray-700 font-medium mb-2">DN#</label>
                             <input type="text" id="dn-number"
@@ -655,6 +644,51 @@
                                 <option value="">-- Select Scenario ID --</option>
                             </select>
                         </div>
+                    </div>
+
+                    <!-- Full-width blocks below the grid so custom rows stack vertically -->
+                    <div class="mt-8 space-y-8 border-t border-gray-100 pt-8">
+                        <section aria-labelledby="custom-fields-heading">
+                            <h3 id="custom-fields-heading" class="block text-gray-700 font-medium mb-3">Custom fields</h3>
+                            <div id="custom-fields-container" class="space-y-3"></div>
+                            <button id="add-custom-field-btn" type="button"
+                                class="mt-3 border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out">
+                                Add custom field
+                            </button>
+                            <p class="text-xs text-gray-500 mt-2" id="custom-fields-max-hint"></p>
+                        </section>
+
+                        <section aria-labelledby="signature-note-heading" class="rounded-lg border border-gray-200 bg-gray-50/80 p-4">
+                            <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                                <div class="flex-1">
+                                    <h3 id="signature-note-heading" class="text-gray-800 font-medium">Signature area note</h3>
+                                    <p class="text-sm text-gray-600 mt-1">Optional text printed above the authorised signatory line on the PDF invoice.</p>
+                                </div>
+                                <label class="inline-flex items-center cursor-pointer shrink-0 gap-3 select-none">
+                                    <input id="signature-note-enabled" type="checkbox" autocomplete="off"
+                                        class="sr-only peer">
+                                    <span class="relative h-7 w-12 shrink-0 rounded-full bg-gray-300 transition peer-checked:bg-primary-600 after:absolute after:top-0.5 after:left-0.5 after:h-6 after:w-6 after:rounded-full after:bg-white after:shadow after:transition peer-checked:after:translate-x-5"
+                                        aria-hidden="true"></span>
+                                    <span class="text-sm font-medium text-gray-700">Show text on signature area</span>
+                                </label>
+                            </div>
+                            <div id="signature-note-options-panel" class="hidden mt-4 pt-4 border-t border-gray-200 space-y-3">
+                                <label for="signature-note-source" class="block text-sm font-medium text-gray-700">Note content</label>
+                                <select id="signature-note-source"
+                                    class="form-input w-full max-w-lg px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 bg-white">
+                                    <option value="company">Company name (seller)</option>
+                                    <option value="fbr_generated_copy">FBR generated copy (standard wording)</option>
+                                    <option value="custom">Custom text</option>
+                                </select>
+                                <div id="signature-note-custom-wrap" class="hidden">
+                                    <label for="signature-note-custom-text" class="block text-sm font-medium text-gray-700 mb-1">Custom wording</label>
+                                    <textarea id="signature-note-custom-text" rows="2" maxlength="500"
+                                        class="form-input w-full max-w-lg px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 bg-white"
+                                        placeholder="Enter the line to show above the signature"></textarea>
+                                    <p class="text-xs text-gray-500 mt-1">Maximum 500 characters.</p>
+                                </div>
+                            </div>
+                        </section>
                     </div>
 
                     <!-- Navigation Buttons -->
@@ -1163,6 +1197,10 @@
                                         <p class="font-semibold">Custom Fields:</p>
                                         <div id="review-custom-fields-list" class="mt-1 space-y-1"></div>
                                     </div>
+                                    <div id="review-signature-note-container" class="hidden mt-2">
+                                        <p class="font-semibold">Signature area note:</p>
+                                        <p id="review-signature-note-text" class="mt-1 text-gray-700 whitespace-pre-wrap"></p>
+                                    </div>
                                 </div>
                             </div>
 
@@ -1575,6 +1613,107 @@
 
         function getCustomFieldsFromDOM() {
             return sanitizeCustomFields(readCustomFieldsFromDOM());
+        }
+
+        const SIGNATURE_NOTE_SOURCES = ["company", "fbr_generated_copy", "custom"];
+        const SIGNATURE_NOTE_FBR_STANDARD =
+            "This is an FBR-generated copy; no signature required.";
+
+        function normalizeSignatureArea(raw) {
+            const src =
+                raw &&
+                raw.source &&
+                SIGNATURE_NOTE_SOURCES.includes(String(raw.source))
+                    ? String(raw.source)
+                    : "company";
+            const text =
+                raw && raw.customText != null ? String(raw.customText) : "";
+            return {
+                enabled: !!(raw && raw.enabled),
+                source: src,
+                customText: text.trim().slice(0, 500),
+            };
+        }
+
+        function previewSignatureNoteText(sa, sellerBusinessName) {
+            const n = normalizeSignatureArea(sa);
+            if (!n.enabled) return "";
+            if (n.source === "company") {
+                return (sellerBusinessName || "").trim();
+            }
+            if (n.source === "fbr_generated_copy") {
+                return SIGNATURE_NOTE_FBR_STANDARD;
+            }
+            return n.customText;
+        }
+
+        function syncSignatureAreaDependentUI() {
+            const enabledEl = document.getElementById("signature-note-enabled");
+            const panel = document.getElementById("signature-note-options-panel");
+            const sourceEl = document.getElementById("signature-note-source");
+            const customWrap = document.getElementById("signature-note-custom-wrap");
+            if (!enabledEl || !panel || !sourceEl || !customWrap) return;
+
+            const on = enabledEl.checked;
+            panel.classList.toggle("hidden", !on);
+            customWrap.classList.toggle("hidden", !on || sourceEl.value !== "custom");
+        }
+
+        function readSignatureAreaFromDOM() {
+            const enabledEl = document.getElementById("signature-note-enabled");
+            const sourceEl = document.getElementById("signature-note-source");
+            const customEl = document.getElementById("signature-note-custom-text");
+            return normalizeSignatureArea({
+                enabled: enabledEl ? enabledEl.checked : false,
+                source: sourceEl ? sourceEl.value : "company",
+                customText: customEl ? customEl.value : "",
+            });
+        }
+
+        function applySignatureAreaToDOM(sa) {
+            const normalized = normalizeSignatureArea(sa);
+            const enabledEl = document.getElementById("signature-note-enabled");
+            const sourceEl = document.getElementById("signature-note-source");
+            const customEl = document.getElementById("signature-note-custom-text");
+            if (enabledEl) enabledEl.checked = normalized.enabled;
+            if (sourceEl) sourceEl.value = normalized.source;
+            if (customEl) customEl.value = normalized.customText;
+            syncSignatureAreaDependentUI();
+        }
+
+        function initSignatureAreaUI() {
+            const enabledEl = document.getElementById("signature-note-enabled");
+            const sourceEl = document.getElementById("signature-note-source");
+            const customEl = document.getElementById("signature-note-custom-text");
+            if (!enabledEl || !sourceEl) return;
+
+            enabledEl.addEventListener("change", syncSignatureAreaDependentUI);
+            sourceEl.addEventListener("change", syncSignatureAreaDependentUI);
+            if (customEl) {
+                customEl.addEventListener("input", () => {
+                    customEl.value = customEl.value.slice(0, 500);
+                });
+            }
+            syncSignatureAreaDependentUI();
+        }
+
+        function renderReviewSignatureNote() {
+            const wrap = document.getElementById("review-signature-note-container");
+            const textEl = document.getElementById("review-signature-note-text");
+            if (!wrap || !textEl) return;
+
+            const sa = (state.invoiceData || {}).signatureArea;
+            const preview = previewSignatureNoteText(
+                sa,
+                state.sellerData && state.sellerData.sellerBusinessName
+            );
+            if (!preview) {
+                textEl.textContent = "";
+                wrap.classList.add("hidden");
+                return;
+            }
+            textEl.textContent = preview;
+            wrap.classList.remove("hidden");
         }
 
         function renderReviewCustomFields() {
@@ -2046,6 +2185,7 @@
                     customFields: sanitizeCustomFields(
                         Array.isArray(invoiceData.customFields) ? invoiceData.customFields : []
                     ),
+                    signatureArea: normalizeSignatureArea(invoiceData.signatureArea),
                 };
 
                 // Populate seller data
@@ -2072,6 +2212,7 @@
                 const dnInput = document.getElementById('dn-number');
                 if (dnInput) dnInput.value = invoiceData.dnNumber || '';
                 renderCustomFields();
+                applySignatureAreaToDOM(state.invoiceData.signatureArea);
 
                 // Only set scenario if available and in sandbox environment
                 if (ENV === 'sandbox' && invoiceData.scenarioId) {
@@ -2830,6 +2971,9 @@
             state.currentStep = step;
 
             // Perform step-specific actions
+            if (step === 2) {
+                applySignatureAreaToDOM((state.invoiceData || {}).signatureArea);
+            }
             if (step === 4) {
                 syncSaleTypeWithScenario();
             }
@@ -2882,6 +3026,7 @@
                     document.getElementById("review-invoice-ref").textContent =
                         state.invoiceData.invoiceRefNo || "";
                     renderReviewCustomFields();
+                    renderReviewSignatureNote();
                 }
 
                 // Validate product items to ensure they have required properties
@@ -3136,6 +3281,7 @@
                         invoiceDate: invoiceDate,
                         invoiceRefNo: document.getElementById("invoice-ref-no").value,
                         customFields: getCustomFieldsFromDOM(),
+                        signatureArea: readSignatureAreaFromDOM(),
                     };
 
                     // Add delivery challan for specific user
@@ -3247,6 +3393,9 @@
                     saveDraft: saveDraft,
                     submit: !saveDraft,
                     customFields: sanitizeCustomFields(state.invoiceData.customFields || []),
+                    signatureArea: normalizeSignatureArea(
+                        (state.invoiceData || {}).signatureArea
+                    ),
                 };
 
                 // Include DN# for user 3520299147319
@@ -3543,6 +3692,7 @@
 
             // Custom fields UI (max from app INVOICE_CUSTOM_FIELDS_MAX)
             initCustomFieldsUI();
+            initSignatureAreaUI();
             renderCustomFields();
 
             // Debug logging for URL parameters and environment

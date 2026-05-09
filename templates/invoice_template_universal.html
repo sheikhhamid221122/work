@@ -475,6 +475,11 @@
             <!-- Left: Authorized Signatory -->
             <td style="width: 50%; vertical-align: bottom; text-align: left; border: none;">
                 <div class="footer-note">
+                    {% if signature_note_above_authorised %}
+                    <p style="margin: 0 0 10px 0; font-size: 10pt; max-width: 280px; line-height: 1.35;">
+                        {{ signature_note_above_authorised }}
+                    </p>
+                    {% endif %}
                     <hr style="width: 200px; margin-left: 0; border-top: 2px solid #000000;">
                     <p style="margin-top: -5px;">AUTHORISED SIGNATORY</p>
                 </div>

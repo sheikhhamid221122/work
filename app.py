@@ -31,6 +31,24 @@ app = Flask(__name__)
 # Max custom (label/value) pairs per invoice — used by create-invoice UI and PDF layout.
 INVOICE_CUSTOM_FIELDS_MAX = 2
 
+
+def resolve_signature_note_above_authorised(data):
+    """Text shown above the authorised signatory line on the PDF only (not sent to FBR)."""
+    if not isinstance(data, dict):
+        return ""
+    sa = data.get("signatureArea")
+    if not isinstance(sa, dict) or not sa.get("enabled"):
+        return ""
+    source = str(sa.get("source") or "company").strip().lower()
+    if source == "company":
+        return str(data.get("sellerBusinessName") or "").strip()
+    if source == "fbr_generated_copy":
+        return "This is an FBR-generated copy; no signature required."
+    if source == "custom":
+        return str(sa.get("customText") or "").strip()
+    return ""
+
+
 CORS(
     app,
     supports_credentials=True,
@@ -544,6 +562,7 @@ def generate_form_invoice():
             username=username,
             settings=client_template_settings,  # Pass template settings to universal template
             invoice_custom_fields_max=INVOICE_CUSTOM_FIELDS_MAX,
+            signature_note_above_authorised=resolve_signature_note_above_authorised(data),
         )
 
         # Generate PDF directly to a stream
@@ -1013,6 +1032,7 @@ def generate_invoice_pdf_for_client(invoice_data_raw, client_id):
             username=username,
             settings=client_template_settings,
             invoice_custom_fields_max=INVOICE_CUSTOM_FIELDS_MAX,
+            signature_note_above_authorised=resolve_signature_note_above_authorised(data),
         )
 
         pdf_stream = BytesIO()
@@ -1414,6 +1434,8 @@ def submit_fbr():
 
     # Use a separate variable and clear global variable to save memory
     json_data = last_json_data[env].copy()
+    # PDF-only meta — FBR schema must not receive unknown keys
+    _signature_area_pdf_only = json_data.pop("signatureArea", None)
 
     # Helper to sanitize any string value - removes control characters that break JSON
     import re
@@ -1486,6 +1508,8 @@ def submit_fbr():
 
         invoice_no = res_json.get("invoiceNumber", "N/A")
         json_data["fbrInvoiceNumber"] = invoice_no
+        if _signature_area_pdf_only is not None:
+            json_data["signatureArea"] = _signature_area_pdf_only
         last_json_data[env]["fbrInvoiceNumber"] = invoice_no
         is_success = bool(invoice_no and invoice_no != "N/A")
 

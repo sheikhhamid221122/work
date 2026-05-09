@@ -1172,6 +1172,18 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             if name and value:
                 custom_fields.append({"name": name, "value": value})
 
+        sig_raw = data.get("signatureArea")
+        if not isinstance(sig_raw, dict):
+            sig_raw = {}
+        sig_source = str(sig_raw.get("source") or "company").strip().lower()
+        if sig_source not in ("company", "fbr_generated_copy", "custom"):
+            sig_source = "company"
+        signature_area = {
+            "enabled": bool(sig_raw.get("enabled")),
+            "source": sig_source,
+            "customText": sanitize_string(str(sig_raw.get("customText") or "")[:500]),
+        }
+
         invoice_json = {
             "invoiceType": sanitize_string(data["invoiceType"]),
             "invoiceDate": data["invoiceDate"],
@@ -1187,6 +1199,7 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             "buyerRegistrationType": buyer.get("buyerRegistrationType", "Unregistered"),
             "buyerSTRN": buyer.get("buyerSTRN", ""),
             "customFields": custom_fields,
+            "signatureArea": signature_area,
         }
 
         if username == "8974121" and data.get("CNIC"):
@@ -1342,6 +1355,7 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                 "buyerData": buyer,
                 "items": data["items"],
                 "customFields": custom_fields,
+                "signatureArea": signature_area,
                 "client_id": client_id,
                 "created_env": env,
                 "totalAmount": sum(i["totalValues"] for i in items_list),
