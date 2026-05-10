@@ -292,7 +292,7 @@
     {% endif %}
 
     <!-- Invoice Title -->
-    <div class="{{ header_class }}" style="margin-top: 5px;">SALES TAX INVOICE</div>
+    <div class="{{ header_class }} mt-6" >SALES TAX INVOICE</div>
 
     <!-- Buyer and Invoice Info -->
     <table style="width: 100%; border: 1px solid {{ border_color }};">
@@ -473,18 +473,7 @@
     <table class="no-border" style="width: 100%; margin-top: 50px;">
         <tr>
             <!-- Left: Authorized Signatory -->
-            <td style="width: 50%; vertical-align: bottom; text-align: left; border: none;">
-                <div class="footer-note">
-                    {% if signature_note_above_authorised %}
-                    <p style="margin: 0 0 10px 0; font-size: 10pt; max-width: 280px; line-height: 1.35;">
-                        {{ signature_note_above_authorised }}
-                    </p>
-                    {% endif %}
-                    <hr style="width: 200px; margin-left: 0; border-top: 2px solid #000000;">
-                    <p style="margin-top: -5px;">AUTHORISED SIGNATORY</p>
-                </div>
-            </td>
-
+            <td style="width: 50%;vertical-align: bottom; text-align: left; border: none;"></td>
             <!-- Right: FBR Logo + QR Code side by side -->
             <td style="width: 50%; text-align: right; vertical-align: middle; border: none;">
                 {% if fbr_logo_url %}
@@ -494,6 +483,20 @@
                     <img src="data:image/png;base64,{{ qr_base64 }}" style="width: 1in; height: 1in; vertical-align: middle;" alt="QR Code">
                 {% endif %}
             </td>
+        </tr>
+        <tr>
+            <td colspan="2" style="vertical-align: bottom; text-align: left; border: none;">
+                <div class="footer-note">
+                    {% if signature_note_above_authorised %}
+                    <p style="margin: 0 0 10px 0; font-size: 10pt; line-height: 1.35;">
+                        {{ signature_note_above_authorised }}
+                    </p>
+                    {% endif %}
+                    <hr style="width: 200px; margin-left: 0; border-top: 2px solid #000000;">
+                    <p style="margin-top: -5px;">AUTHORISED SIGNATORY</p>
+                </div>
+            </td>
+
         </tr>
     </table>
 
