@@ -323,11 +323,11 @@
                 {% set _status_value = 'Registered' if (data.buyerRegistrationType and (data.buyerRegistrationType|string).lower() in ['registered','r','yes','1']) else 'Unregistered' %}
                 {% set _ = _info_fields.items.append({'label': 'STATUS', 'value': _status_value}) %}
             {% endif %}
-            {% if show_fbr_invoice_buyer %}
-                {% set _ = _info_fields.items.append({'label': 'FBR INVOICE #', 'value': data.fbrInvoiceNumber or ""}) %}
-            {% endif %}
             {% if show_buyer_strn %}
                 {% set _ = _info_fields.items.append({'label': 'BUYER STRN', 'value': data.buyerSTRN or ""}) %}
+            {% endif %}
+            {% if show_fbr_invoice_buyer %}
+                {% set _ = _info_fields.items.append({'label': 'FBR INVOICE #', 'value': data.fbrInvoiceNumber or ""}) %}
             {% endif %}
             {% if show_hs_code_buyer %}
                 {% set _hs_code_value = '' %}
