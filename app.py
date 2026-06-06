@@ -184,7 +184,8 @@ def generate_form_invoice():
                       tpl_show_fbr_invoice_header, tpl_show_buyer_strn, tpl_show_status,
                       tpl_show_po, tpl_show_dc, tpl_show_cnic, tpl_show_hs_code_buyer,
                       tpl_show_product_code, tpl_show_hs_code, tpl_apply_further_tax,
-                      tpl_max_item_rows, tpl_fixed_tax_rate, tpl_show_top_header
+                      tpl_max_item_rows, tpl_fixed_tax_rate, tpl_show_top_header,
+                      tpl_show_fbr_invoice_buyer
                FROM clients WHERE id = %s""", (client_id,)
         )
         client_row = cur.fetchone()
@@ -223,6 +224,10 @@ def generate_form_invoice():
             'show_status':
                 True if client_row.get('tpl_show_status') is None
                 else client_row['tpl_show_status'],
+
+            'show_fbr_invoice_buyer':
+                False if client_row.get('tpl_show_fbr_invoice_buyer') is None
+                else client_row['tpl_show_fbr_invoice_buyer'],
 
             'show_po':
                 False if client_row.get('tpl_show_po') is None
@@ -831,7 +836,8 @@ def generate_invoice_pdf_for_client(invoice_data_raw, client_id):
                       tpl_show_fbr_invoice_header, tpl_show_buyer_strn, tpl_show_status,
                       tpl_show_po, tpl_show_dc, tpl_show_cnic, tpl_show_hs_code_buyer,
                       tpl_show_product_code, tpl_show_hs_code, tpl_apply_further_tax,
-                      tpl_max_item_rows, tpl_fixed_tax_rate, tpl_show_top_header
+                      tpl_max_item_rows, tpl_fixed_tax_rate, tpl_show_top_header,
+                      tpl_show_fbr_invoice_buyer
                FROM clients WHERE id = %s""",
             (client_id,),
         )
@@ -861,6 +867,7 @@ def generate_invoice_pdf_for_client(invoice_data_raw, client_id):
                 "max_item_rows": client_row[19] or 6,
                 "fixed_tax_rate": client_row[20] or "18%",
                 "show_top_header": client_row[21] if client_row[21] is not None else True,
+                "show_fbr_invoice_buyer": client_row[22] if client_row[22] is not None else False,
             }
 
         # Get STRN from clients table if not in data

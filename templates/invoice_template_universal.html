@@ -292,6 +292,12 @@
             </tr>
         </table>
         {% endif %}
+
+
+        {% else %}
+        
+        <div style="width: 100%; margin-bottom: 10px; margin-top: 164px;"></div>
+        
         {% endif %}
 
         <!-- Invoice Title -->
@@ -316,7 +322,8 @@
             {% if show_status %}
                 {% set _status_value = 'Registered' if (data.buyerRegistrationType and (data.buyerRegistrationType|string).lower() in ['registered','r','yes','1']) else 'Unregistered' %}
                 {% set _ = _info_fields.items.append({'label': 'STATUS', 'value': _status_value}) %}
-            {% elif show_fbr_invoice_buyer %}
+            {% endif %}
+            {% if show_fbr_invoice_buyer %}
                 {% set _ = _info_fields.items.append({'label': 'FBR INVOICE #', 'value': data.fbrInvoiceNumber or ""}) %}
             {% endif %}
             {% if show_buyer_strn %}
