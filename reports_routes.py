@@ -11,7 +11,7 @@ from io import BytesIO
 import zipfile
 
 
-def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for_client=None):
+def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for_client=None, storage=None):
     def check_url_format():
         if "?" in request.query_string.decode("utf-8"):
             print(
@@ -1791,7 +1791,7 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
         cur = conn.cursor()
 
         # Build query
-        where_conditions = ["client_id = %s", "pdf_data IS NOT NULL", "status = 'Success'"]
+        where_conditions = ["client_id = %s", "pdf_url IS NOT NULL", "status = 'Success'"]
         params = [client_id]
 
         # Environment filter
@@ -1814,7 +1814,7 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
                 created_at,
                 invoice_data,
                 env,
-                LENGTH(pdf_data) as pdf_size
+                pdf_url
             FROM invoices
             WHERE {where_clause}
             ORDER BY created_at DESC
@@ -1824,7 +1824,7 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
 
         invoices = []
         for row in cur.fetchall():
-            invoice_id, created_at, invoice_data_raw, env, pdf_size = row
+            invoice_id, created_at, invoice_data_raw, env, pdf_url = row
 
             try:
                 invoice_data = (
@@ -1865,7 +1865,7 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
                     "total_amount": round(total_amount, 2),
                     "env": env,
                     "created_at": created_at.isoformat(),
-                    "pdf_size_kb": round(pdf_size / 1024, 2) if pdf_size else 0,
+                    "pdf_url": pdf_url,
                 }
             )
 
@@ -1886,7 +1886,7 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
 
         cur.execute(
             """
-            SELECT pdf_data, invoice_data 
+            SELECT pdf_url, invoice_data 
             FROM invoices 
             WHERE id = %s AND client_id = %s
             """,
@@ -1900,7 +1900,7 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
         if not row:
             return jsonify({"error": "Invoice not found"}), 404
 
-        stored_pdf, invoice_data_raw = row
+        stored_pdf_url, invoice_data_raw = row
 
         # Parse invoice data
         try:
@@ -1919,18 +1919,22 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
         )
 
         # Regenerate PDF using the client's assigned template
-        pdf_data = None
-        if generate_invoice_pdf_for_client and invoice_data:
-            pdf_data = generate_invoice_pdf_for_client(invoice_data, client_id)
+        pdf_bytes = None
+        # if generate_invoice_pdf_for_client and invoice_data:
+        #     pdf_bytes = generate_invoice_pdf_for_client(invoice_data, client_id)
 
-        # Fall back to stored PDF if regeneration fails
-        if not pdf_data:
-            if stored_pdf:
-                pdf_data = stored_pdf
-            else:
+        # Fall back to configured storage if regeneration fails.
+        if not pdf_bytes:
+            if stored_pdf_url and storage:
+                try:
+                    print(f"Attempting to read stored PDF from URL: {stored_pdf_url}")
+                    pdf_bytes = storage.get(stored_pdf_url)
+                except Exception as storage_error:
+                    print(f"Error reading stored invoice PDF: {storage_error}")
+            if not pdf_bytes:
                 return jsonify({"error": "Invoice PDF not found"}), 404
 
-        pdf_stream = BytesIO(pdf_data)
+        pdf_stream = BytesIO(pdf_bytes)
         pdf_stream.seek(0)
 
         return send_file(
@@ -1964,7 +1968,7 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
             for invoice_id in invoice_ids:
                 cur.execute(
                     """
-                    SELECT pdf_data, invoice_data 
+                    SELECT pdf_url, invoice_data 
                     FROM invoices 
                     WHERE id = %s AND client_id = %s
                     """,
@@ -1975,7 +1979,7 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
                 if not row:
                     continue
 
-                stored_pdf, invoice_data_raw = row
+                stored_pdf_url, invoice_data_raw = row
 
                 # Parse invoice data
                 try:
@@ -1994,16 +1998,20 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
                 )
 
                 # Regenerate PDF using the client's assigned template
-                pdf_data = None
+                pdf_bytes = None
                 if generate_invoice_pdf_for_client and invoice_data:
-                    pdf_data = generate_invoice_pdf_for_client(invoice_data, client_id)
+                    pdf_bytes = generate_invoice_pdf_for_client(invoice_data, client_id)
 
-                # Fall back to stored PDF if regeneration fails
-                if not pdf_data:
-                    pdf_data = stored_pdf
+                # Fall back to configured storage if regeneration fails.
+                if not pdf_bytes:
+                    if stored_pdf_url and storage:
+                        try:
+                            pdf_bytes = storage.get(stored_pdf_url)
+                        except Exception as storage_error:
+                            print(f"Error reading stored invoice PDF: {storage_error}")
 
-                if pdf_data:
-                    zip_file.writestr(f"{invoice_ref}.pdf", pdf_data)
+                if pdf_bytes:
+                    zip_file.writestr(f"{invoice_ref}.pdf", pdf_bytes)
 
         cur.close()
         conn.close()

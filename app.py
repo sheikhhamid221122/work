@@ -21,6 +21,7 @@ from psycopg2.extras import DictCursor
 from flask_cors import CORS
 from dotenv import load_dotenv
 from io import BytesIO
+from storage import get_storage
 
 load_dotenv()
 import datetime
@@ -56,6 +57,17 @@ CORS(
 )
 app.config["UPLOAD_FOLDER"] = "uploads"
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+storage = get_storage()
+
+
+def save_invoice_pdf(pdf_binary, invoice_data=None):
+    invoice_data = invoice_data if isinstance(invoice_data, dict) else {}
+    invoice_ref = (
+        invoice_data.get("invoiceRefNo")
+        or invoice_data.get("fbrInvoiceNumber")
+        or f"invoice_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    )
+    return storage.save(pdf_binary, f"{invoice_ref}.pdf")
 
 
 # Update session configuration
@@ -579,24 +591,25 @@ def generate_form_invoice():
         pdf_binary = pdf_stream.getvalue()
         pdf_stream.seek(0)
 
-        # Store PDF in database if this invoice was successfully submitted
+        # Store PDF in configured storage and persist only its URL/path.
         try:
+            pdf_url = save_invoice_pdf(pdf_binary, data)
             # Find the most recent invoice for this client/env to update with PDF
             cur.execute(
                 """UPDATE invoices 
-                   SET pdf_data = %s 
+                   SET pdf_url = %s 
                    WHERE id = (
                        SELECT id FROM invoices
                        WHERE client_id = %s AND env = %s AND status = 'Success' 
-                       AND pdf_data IS NULL
+                       AND pdf_url IS NULL
                        ORDER BY created_at DESC 
                        LIMIT 1
                    )""",
-                (pdf_binary, client_id, env)
+                (pdf_url, client_id, env)
             )
             conn.commit()
         except Exception as update_error:
-            print(f"Error updating PDF data: {update_error}")
+            print(f"Error updating PDF URL: {update_error}")
             import traceback
             traceback.print_exc()
             # Continue even if PDF storage fails
@@ -1059,7 +1072,7 @@ def generate_invoice_pdf_for_client(invoice_data_raw, client_id):
 
 add_invoice_form_routes(app, get_db_connection, get_env)
 add_draft_invoice_routes(app, get_db_connection, get_env)
-add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for_client)
+add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for_client, storage)
 add_fbr_reference_routes(app, get_db_connection, get_env)
 
 # Store last uploaded file and last JSON per environment
@@ -1250,7 +1263,7 @@ def delete_invoice():
         # Find invoices matching the reference, client ID, and environment
         cur.execute(
             """
-            SELECT id FROM invoices 
+            SELECT id, pdf_url FROM invoices 
             WHERE client_id = %s AND env = %s AND 
             (
                 (invoice_data::jsonb->>'fbrInvoiceNumber' = %s) OR
@@ -1268,10 +1281,13 @@ def delete_invoice():
             return jsonify({"success": False, "error": "Invoice not found"}), 404
 
         invoice_id = row[0]
+        pdf_url = row[1] if len(row) > 1 else None
 
         # Delete the invoice
         cur.execute("DELETE FROM invoices WHERE id = %s", (invoice_id,))
         conn.commit()
+        if pdf_url:
+            storage.delete(pdf_url)
 
         cur.close()
         conn.close()
@@ -1545,6 +1561,7 @@ def submit_fbr():
 
         # Generate PDF using the client's assigned template
         pdf_binary = generate_invoice_pdf_for_client(json_data, client_id)
+        pdf_url = save_invoice_pdf(pdf_binary, json_data) if pdf_binary else None
 
         # Insert into invoices table - use try/finally to ensure connection is closed
         conn = None
@@ -1554,10 +1571,10 @@ def submit_fbr():
             cur = conn.cursor()
             cur.execute(
                 """
-                INSERT INTO invoices (client_id, env, invoice_data, fbr_response, status, created_at, pdf_data)
+                INSERT INTO invoices (client_id, env, invoice_data, fbr_response, status, created_at, pdf_url)
                 VALUES (%s, %s, %s, %s, %s, NOW(), %s)
             """,
-                (client_id, env, json.dumps(json_data), json.dumps(res_json), status, pdf_binary),
+                (client_id, env, json.dumps(json_data), json.dumps(res_json), status, pdf_url),
             )
             conn.commit()
         finally:
