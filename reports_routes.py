@@ -1920,14 +1920,13 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
 
         # Regenerate PDF using the client's assigned template
         pdf_bytes = None
-        # if generate_invoice_pdf_for_client and invoice_data:
-        #     pdf_bytes = generate_invoice_pdf_for_client(invoice_data, client_id)
+        if generate_invoice_pdf_for_client and invoice_data:
+            pdf_bytes = generate_invoice_pdf_for_client(invoice_data, client_id)
 
         # Fall back to configured storage if regeneration fails.
         if not pdf_bytes:
             if stored_pdf_url and storage:
                 try:
-                    print(f"Attempting to read stored PDF from URL: {stored_pdf_url}")
                     pdf_bytes = storage.get(stored_pdf_url)
                 except Exception as storage_error:
                     print(f"Error reading stored invoice PDF: {storage_error}")
