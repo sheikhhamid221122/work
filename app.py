@@ -191,7 +191,7 @@ def generate_form_invoice():
         # Fetch client row including template settings (individual columns)
         cur.execute(
             """SELECT strn, logo_url, template_type,
-                      tpl_header_color, tpl_top_spacing, tpl_logo_width,
+                      tpl_header_color, tpl_top_spacing, tpl_logo_width, tpl_logo_height,
                       tpl_show_seller_strn, tpl_show_seller_ntn, tpl_show_seller_address,
                       tpl_show_fbr_invoice_header, tpl_show_buyer_strn, tpl_show_status,
                       tpl_show_po, tpl_show_dc, tpl_show_cnic, tpl_show_hs_code_buyer,
@@ -212,6 +212,7 @@ def generate_form_invoice():
             'header_color': client_row.get('tpl_header_color') or 'dark',
             'top_spacing': client_row.get('tpl_top_spacing') or 0,
             'logo_width': client_row.get('tpl_logo_width') or 220,
+            'logo_height': client_row.get('tpl_logo_height'),
 
             'show_seller_strn':
                 True if client_row.get('tpl_show_seller_strn') is None
@@ -844,7 +845,7 @@ def generate_invoice_pdf_for_client(invoice_data_raw, client_id):
 
         cur.execute(
             """SELECT strn, logo_url, template_type,
-                      tpl_header_color, tpl_top_spacing, tpl_logo_width,
+                      tpl_header_color, tpl_top_spacing, tpl_logo_width, tpl_logo_height,
                       tpl_show_seller_strn, tpl_show_seller_ntn, tpl_show_seller_address,
                       tpl_show_fbr_invoice_header, tpl_show_buyer_strn, tpl_show_status,
                       tpl_show_po, tpl_show_dc, tpl_show_cnic, tpl_show_hs_code_buyer,
@@ -864,23 +865,24 @@ def generate_invoice_pdf_for_client(invoice_data_raw, client_id):
                 "header_color": client_row[3] or "dark",
                 "top_spacing": client_row[4] or 0,
                 "logo_width": client_row[5] or 220,
-                "show_seller_strn": client_row[6] if client_row[6] is not None else True,
-                "show_seller_ntn": client_row[7] if client_row[7] is not None else True,
-                "show_seller_address": client_row[8] if client_row[8] is not None else True,
-                "show_fbr_invoice_header": client_row[9] if client_row[9] is not None else True,
-                "show_buyer_strn": client_row[10] if client_row[10] is not None else False,
-                "show_status": client_row[11] if client_row[11] is not None else True,
-                "show_po": client_row[12] if client_row[12] is not None else False,
-                "show_dc": client_row[13] if client_row[13] is not None else False,
-                "show_cnic": client_row[14] if client_row[14] is not None else False,
-                "show_hs_code_buyer": client_row[15] if client_row[15] is not None else False,
-                "show_product_code": client_row[16] if client_row[16] is not None else False,
-                "show_hs_code": client_row[17] if client_row[17] is not None else False,
-                "apply_further_tax": client_row[18] if client_row[18] is not None else False,
-                "max_item_rows": client_row[19] or 6,
-                "fixed_tax_rate": client_row[20] or "18%",
-                "show_top_header": client_row[21] if client_row[21] is not None else True,
-                "show_fbr_invoice_buyer": client_row[22] if client_row[22] is not None else False,
+                "logo_height": client_row[6],
+                "show_seller_strn": client_row[7] if client_row[7] is not None else True,
+                "show_seller_ntn": client_row[8] if client_row[8] is not None else True,
+                "show_seller_address": client_row[9] if client_row[9] is not None else True,
+                "show_fbr_invoice_header": client_row[10] if client_row[10] is not None else True,
+                "show_buyer_strn": client_row[11] if client_row[11] is not None else False,
+                "show_status": client_row[12] if client_row[12] is not None else True,
+                "show_po": client_row[13] if client_row[13] is not None else False,
+                "show_dc": client_row[14] if client_row[14] is not None else False,
+                "show_cnic": client_row[15] if client_row[15] is not None else False,
+                "show_hs_code_buyer": client_row[16] if client_row[16] is not None else False,
+                "show_product_code": client_row[17] if client_row[17] is not None else False,
+                "show_hs_code": client_row[18] if client_row[18] is not None else False,
+                "apply_further_tax": client_row[19] if client_row[19] is not None else False,
+                "max_item_rows": client_row[20] or 6,
+                "fixed_tax_rate": client_row[21] or "18%",
+                "show_top_header": client_row[22] if client_row[22] is not None else True,
+                "show_fbr_invoice_buyer": client_row[23] if client_row[23] is not None else False,
             }
 
         # Get STRN from clients table if not in data

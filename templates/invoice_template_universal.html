@@ -182,7 +182,7 @@
     {% set show_seller_name_with_logo = settings.get('show_seller_name_with_logo', false) %}
     {% set show_fbr_invoice_header = settings.get('show_fbr_invoice_header', true) %}
     {% set show_top_header = settings.get('show_top_header', true) %}
-    {% set logo_width = settings.get('logo_width', 240) %}
+    {% set logo_width = settings.get('logo_width', 220) %}
     {% set logo_height = settings.get('logo_height', none) %}
     
     {# === BUYER SECTION SETTINGS === #}
@@ -227,11 +227,11 @@
         {% if show_top_header %}
         {% if client_logo_url %}
         <!-- WITH LOGO: Logo on left, Seller details on right (matching template3 style) -->
-        <table class="no-border" style="width: 100%; margin-bottom: 0px;">
+        <table class="no-border" style="width: 100%; margin-bottom: 8px;">
             <tr>
                 <!-- Left: Logo, vertically centered, flush to left edge -->
                 <td style="width: 50%; vertical-align: middle; text-align: left; padding: 0 !important;">
-                    <img src="{{ client_logo_url }}" alt="Logo" style="max-width: {{ logo_width }}px; max-height: 160px; width: auto; height: auto;">
+                    <img src="{{ client_logo_url }}" alt="Logo" style="width: {{ logo_width }}px; height: {% if logo_height %}{{ logo_height }}px{% else %}auto{% endif %}; object-fit: contain;">
                 </td>
 
                 <!-- Right: Seller Details, vertically centered, pushed to extreme right -->
