@@ -16,6 +16,10 @@ ALTER TABLE clients ADD COLUMN IF NOT EXISTS tpl_logo_width INTEGER DEFAULT 220;
 
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS tpl_logo_height INTEGER;
 -- Logo height in pixels (NULL means auto)
+
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS invoice_custom_field_names JSONB DEFAULT '[]'::jsonb;
+-- Default reusable custom field labels for create-invoice form
+
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS tpl_show_seller_strn BOOLEAN DEFAULT true;
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS tpl_show_seller_ntn BOOLEAN DEFAULT true;
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS tpl_show_seller_address BOOLEAN DEFAULT true;
@@ -47,6 +51,7 @@ COMMENT ON COLUMN clients.tpl_header_color IS 'Header color: dark, blue, or whit
 COMMENT ON COLUMN clients.tpl_top_spacing IS 'Line breaks before content (0-5) for letterhead';
 COMMENT ON COLUMN clients.tpl_logo_width IS 'Logo width in pixels';
 COMMENT ON COLUMN clients.tpl_logo_height IS 'Logo height in pixels; NULL means auto';
+COMMENT ON COLUMN clients.invoice_custom_field_names IS 'Default reusable custom field labels for the create invoice form';
 COMMENT ON COLUMN clients.tpl_show_seller_strn IS 'Show STRN in header';
 COMMENT ON COLUMN clients.tpl_show_seller_ntn IS 'Show NTN in header';
 COMMENT ON COLUMN clients.tpl_show_seller_address IS 'Show address in header';

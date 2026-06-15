@@ -5,8 +5,10 @@ from flask import request, jsonify, session
 import json
 from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
+from psycopg2.extras import Json
 
 SPECIAL_USERNAMES = {"H075895", "F667833", "infinityeng"}
+INVOICE_CUSTOM_FIELDS_MAX = 2
 
 
 def _is_special_username(username):
@@ -32,6 +34,28 @@ def _require_valid_tax_id(value, label):
     if len(normalized) == 7 and normalized.isalnum():
         return normalized
     raise ValueError(f"{label} must be 7 characters (NTN) or 13 digits (CNIC)")
+
+
+def _normalize_custom_field_names(fields):
+    names = []
+    seen = set()
+    if isinstance(fields, str):
+        try:
+            fields = json.loads(fields)
+        except Exception:
+            fields = []
+    source = fields if isinstance(fields, list) else []
+    for field in source[:INVOICE_CUSTOM_FIELDS_MAX]:
+        if isinstance(field, dict):
+            name = field.get("name", "")
+        else:
+            name = field
+        name = str(name or "").strip()
+        key = name.lower()
+        if name and key not in seen:
+            names.append(name[:80])
+            seen.add(key)
+    return names
 
 
 # Business Profiles / Buyers / Products / Invoice APIs
@@ -844,6 +868,73 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         # Enabled for all users
         return jsonify({"useProductDropdown": True, "username": username})
 
+    # ---------------- Invoice Custom Field Defaults ----------------
+    @app.route("/api/invoice-custom-field-defaults", methods=["GET"])
+    def get_invoice_custom_field_defaults():
+        client_id = session.get("client_id")
+        if not client_id:
+            return jsonify({"error": "No client ID in session"}), 401
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                """
+                SELECT invoice_custom_field_names
+                FROM clients
+                WHERE id = %s
+                """,
+                (client_id,),
+            )
+            row = cur.fetchone()
+            names = _normalize_custom_field_names(row[0] if row else [])
+            return jsonify({
+                "customFieldNames": names,
+                "customFields": [{"name": name, "value": ""} for name in names],
+            })
+        finally:
+            cur.close()
+            conn.close()
+
+    @app.route("/api/invoice-custom-field-defaults", methods=["PUT"])
+    def update_invoice_custom_field_defaults():
+        client_id = session.get("client_id")
+        if not client_id:
+            return jsonify({"error": "No client ID in session"}), 401
+
+        data = request.get_json() or {}
+        names = _normalize_custom_field_names(
+            data.get("customFieldNames") or data.get("customFields") or []
+        )
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        try:
+            cur.execute(
+                """
+                UPDATE clients
+                SET invoice_custom_field_names = %s
+                WHERE id = %s
+                RETURNING id
+                """,
+                (Json(names), client_id),
+            )
+            if not cur.fetchone():
+                conn.rollback()
+                return jsonify({"error": "Client not found"}), 404
+            conn.commit()
+            return jsonify({
+                "success": True,
+                "customFieldNames": names,
+                "customFields": [{"name": name, "value": ""} for name in names],
+            })
+        except Exception as e:
+            conn.rollback()
+            return jsonify({"error": f"Failed to save custom field defaults: {str(e)}"}), 500
+        finally:
+            cur.close()
+            conn.close()
+
     # ---------------- Form Options ----------------
     @app.route("/api/form-options", methods=["GET"])
     def get_form_options():
@@ -1164,7 +1255,7 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         # Custom fields: keep only valid non-empty name/value pairs.
         # Limit is aligned with app.py INVOICE_CUSTOM_FIELDS_MAX.
         custom_fields = []
-        for field in (data.get("customFields") or [])[:2]:
+        for field in (data.get("customFields") or [])[:INVOICE_CUSTOM_FIELDS_MAX]:
             if not isinstance(field, dict):
                 continue
             name = sanitize_string(field.get("name", ""))

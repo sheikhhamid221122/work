@@ -656,6 +656,11 @@
                                 Add custom field
                             </button>
                             <p class="text-xs text-gray-500 mt-2" id="custom-fields-max-hint"></p>
+                            <label class="mt-4 inline-flex items-center gap-2 text-sm text-gray-700 select-none">
+                                <input id="save-custom-fields-defaults" type="checkbox"
+                                    class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500">
+                                <span>Save these field names for future invoices</span>
+                            </label>
                         </section>
 
                         <section aria-labelledby="signature-note-heading" class="rounded-lg border border-gray-200 bg-gray-50/80 p-4">
@@ -1595,6 +1600,28 @@
             return normalizeCustomFieldsDraft(fields).filter((f) => f.name && f.value);
         }
 
+        function customFieldNames(fields) {
+            const seen = new Set();
+            return normalizeCustomFieldsDraft(fields)
+                .map((field) => field.name.trim())
+                .filter((name) => {
+                    const key = name.toLowerCase();
+                    if (!name || seen.has(key)) return false;
+                    seen.add(key);
+                    return true;
+                });
+        }
+
+        function escapeHtml(value) {
+            return String(value == null ? "" : value).replace(/[&<>"']/g, (ch) => ({
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#39;",
+            }[ch]));
+        }
+
         function readCustomFieldsFromDOM() {
             const container = document.getElementById("custom-fields-container");
             if (!container) return [];
@@ -1731,7 +1758,7 @@
             list.innerHTML = fields
                 .map(
                     (field) =>
-                        `<p><span class="font-semibold">${field.name}:</span> <span>${field.value}</span></p>`
+                        `<p><span class="font-semibold">${escapeHtml(field.name)}:</span> <span>${escapeHtml(field.value)}</span></p>`
                 )
                 .join("");
             container.classList.remove("hidden");
@@ -1761,8 +1788,8 @@
                 row.dataset.customFieldRow = "1";
                 row.className = "flex flex-col gap-2 md:flex-row md:items-center";
                 row.innerHTML = `
-                    <input data-custom-field-name="1" type="text" class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500" placeholder="Field name" value="${field.name.replace(/"/g, "&quot;")}" />
-                    <input data-custom-field-value="1" type="text" class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500" placeholder="Field value" value="${field.value.replace(/"/g, "&quot;")}" />
+                    <input data-custom-field-name="1" type="text" class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500" placeholder="Field name" value="${escapeHtml(field.name)}" />
+                    <input data-custom-field-value="1" type="text" class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500" placeholder="Field value" value="${escapeHtml(field.value)}" />
                     <button type="button" class="border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 font-medium py-2 px-4 rounded-md transition duration-150 ease-in-out" data-remove-custom-field="${idx}">
                         Remove
                     </button>
@@ -1799,6 +1826,49 @@
                 state.invoiceData.customFields = [...current, { name: "", value: "" }];
                 renderCustomFields();
             });
+        }
+
+        async function loadCustomFieldDefaults() {
+            try {
+                const response = await fetch(apiUrl("/api/invoice-custom-field-defaults"));
+                if (!response.ok) throw new Error("Failed to load custom field defaults");
+                const data = await response.json();
+                const defaults = normalizeCustomFieldsDraft(data.customFields || []);
+
+                if (!state.draft_id && !(state.invoiceData.customFields || []).length && defaults.length) {
+                    state.invoiceData.customFields = defaults;
+                    renderCustomFields();
+                }
+            } catch (error) {
+                console.warn("Custom field defaults unavailable:", error);
+            }
+        }
+
+        async function saveCustomFieldDefaultsIfChecked() {
+            const checkbox = document.getElementById("save-custom-fields-defaults");
+            if (!checkbox || !checkbox.checked) return;
+
+            const names = customFieldNames(readCustomFieldsFromDOM());
+            if (!names.length) {
+                checkbox.checked = false;
+                return;
+            }
+
+            try {
+                const response = await fetch(apiUrl("/api/invoice-custom-field-defaults"), {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ customFieldNames: names }),
+                });
+                const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(result.error || "Failed to save custom field defaults");
+                }
+                checkbox.checked = false;
+                showNotification("success", "Saved", "Custom field names saved for future invoices");
+            } catch (error) {
+                showNotification("error", "Error", error.message || "Failed to save custom field defaults");
+            }
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -3694,6 +3764,7 @@
             initCustomFieldsUI();
             initSignatureAreaUI();
             renderCustomFields();
+            loadCustomFieldDefaults();
 
             // Debug logging for URL parameters and environment
             console.log('URL parameters:', window.location.search);
@@ -3866,8 +3937,9 @@
 
             document
                 .getElementById("step2-next")
-                .addEventListener("click", function () {
+                .addEventListener("click", async function () {
                     if (validateStep(2)) {
+                        await saveCustomFieldDefaultsIfChecked();
                         goToStep(3);
                     }
                 });
