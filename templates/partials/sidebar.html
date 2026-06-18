@@ -1,0 +1,131 @@
+{% set current_page = active_page|default('dashboard') %}
+{% set sidebar_print_class = ' no-print' if sidebar_no_print|default(false) else '' %}
+{% set company_name = session.get('name', 'Company') %}
+{% set environment_name = session.get('env', '') %}
+
+<!-- Sidebar -->
+<div class="hidden md:flex md:flex-shrink-0{{ sidebar_print_class }}">
+    <div class="flex flex-col sidebar">
+        <div class="flex flex-col items-center justify-center pt-5 pb-2">
+            <div class="sidebar-logo w-32 mb-4">
+                <img src="{{ url_for('static', filename='uploads/logo.png') }}"
+                    alt="TaxLink Pro Logo" class="w-full h-auto" />
+            </div>
+
+            <div class="w-full px-6">
+                <div class="border-b border-blue-400 opacity-50"></div>
+            </div>
+
+            <div class="flex items-center justify-center mt-4 mb-2 px-4 sidebar-user-info">
+                <div class="flex items-center">
+                    <span class="text-white font-medium">{{ company_name }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex flex-col flex-grow pt-4 pb-4 overflow-y-auto">
+            <nav class="flex-1 space-y-2 px-2">
+                <a href="/dashboard" id="dashboard-tab"
+                    class="sidebar-item {% if current_page == 'dashboard' %}active {% endif %}flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
+                    <i class="fas fa-tachometer-alt mr-3"></i>
+                    Dashboard
+                </a>
+                <a href="/create-invoice" id="create-invoice-tab"
+                    class="sidebar-item {% if current_page == 'create-invoice' %}active {% endif %}flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
+                    <i class="fas fa-file-invoice mr-3"></i>
+                    Create Invoice
+                </a>
+                <a href="/draft-invoices" id="draft-invoices-tab"
+                    class="sidebar-item {% if current_page == 'draft-invoices' %}active {% endif %}flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
+                    <i class="fas fa-file-alt mr-3"></i>
+                    Draft Invoices
+                </a>
+                <a href="/reports" id="reports-tab"
+                    class="sidebar-item {% if current_page == 'reports' %}active {% endif %}flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
+                    <i class="fas fa-chart-bar mr-3"></i>
+                    Reports & Analytics
+                </a>
+            </nav>
+
+            <div class="px-4 py-4 text-center">
+                <span
+                    class="env-badge bg-primary-400 text-white text-sm font-bold px-4 py-2 rounded-full shadow-md inline-flex items-center">
+                    <span class="sidebar-company-name">{{ company_name }}</span>
+                    <span class="sidebar-env-name"><i class="fas fa-cube mr-2 text-base"></i>{{ environment_name }}</span>
+                </span>
+            </div>
+
+            <div class="px-2 mt-auto text-center">
+                <a href="/logout"
+                    class="sidebar-item flex items-center justify-center px-4 py-3 text-sm font-medium rounded-md text-white">
+                    <i class="fas fa-sign-out-alt mr-3"></i>
+                    Logout
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Mobile Header -->
+<div class="md:hidden bg-primary-700 text-white p-4 flex items-center justify-between{{ sidebar_print_class }}">
+    <div class="flex items-center">
+        <img src="{{ url_for('static', filename='uploads/logo.png') }}"
+            alt="TaxLink Pro Logo" class="h-8 mr-2" />
+        <span class="font-semibold text-lg">TaxLink Pro</span>
+    </div>
+    <button id="mobile-menu-button" class="focus:outline-none" type="button">
+        <i class="fas fa-bars text-xl"></i>
+    </button>
+</div>
+
+<!-- Mobile Menu -->
+<div id="mobile-menu" class="fixed inset-0 z-40 md:hidden hidden{{ sidebar_print_class }}">
+    <div class="absolute inset-0 bg-black opacity-50"></div>
+    <div class="absolute inset-y-0 left-0 max-w-xs w-full bg-primary-800 text-white shadow-xl flex flex-col">
+        <div class="flex items-center justify-between p-4 border-b border-primary-700">
+            <img src="{{ url_for('static', filename='uploads/logo.png') }}"
+                alt="TaxLink Pro Logo" class="h-8" />
+            <button id="close-mobile-menu" class="text-white focus:outline-none" type="button">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <div class="p-4 border-b border-primary-700">
+            <div class="flex items-center">
+                <div
+                    class="w-8 h-8 bg-blue-300 rounded-full flex items-center justify-center text-primary-800 font-bold mr-2">
+                    {{ company_name[:1] }}
+                </div>
+                <span class="text-white font-medium">{{ company_name }}</span>
+            </div>
+        </div>
+        <nav class="flex-1 p-4">
+            <a href="/dashboard"
+                class="block py-2 px-4 text-white {% if current_page == 'dashboard' %}bg-primary-700 {% else %}hover:bg-primary-700 {% endif %}rounded-md">
+                <i class="fas fa-tachometer-alt mr-3"></i> Dashboard
+            </a>
+            <a href="/create-invoice"
+                class="block py-2 px-4 text-white {% if current_page == 'create-invoice' %}bg-primary-700 {% else %}hover:bg-primary-700 {% endif %}rounded-md">
+                <i class="fas fa-file-invoice mr-3"></i> Create Invoice
+            </a>
+            <a href="/draft-invoices"
+                class="block py-2 px-4 text-white {% if current_page == 'draft-invoices' %}bg-primary-700 {% else %}hover:bg-primary-700 {% endif %}rounded-md">
+                <i class="fas fa-file-alt mr-3"></i> Draft Invoices
+            </a>
+            <a href="/reports"
+                class="block py-2 px-4 text-white {% if current_page == 'reports' %}bg-primary-700 {% else %}hover:bg-primary-700 {% endif %}rounded-md">
+                <i class="fas fa-chart-bar mr-3"></i> Reports & Analytics
+            </a>
+        </nav>
+        <div class="p-4 border-t border-primary-700">
+            <span
+                class="bg-primary-400 text-white text-sm font-bold px-4 py-2 rounded-full shadow-md inline-flex items-center">
+                <i class="fas fa-cube mr-2 text-base"></i>{{ environment_name }}
+            </span>
+        </div>
+        <div class="p-4 border-t border-primary-700">
+            <a href="/logout" class="block py-2 px-4 text-white hover:bg-primary-700 rounded-md">
+                <i class="fas fa-sign-out-alt mr-3"></i> Logout
+            </a>
+        </div>
+    </div>
+</div>

@@ -36,6 +36,19 @@ body > .flex.h-screen {
   background: var(--tlp-bg);
 }
 
+body.dashboard-page,
+body.create-invoice-page,
+body.draft-invoices-page,
+body.reports-page,
+body.dashboard-page > .flex.h-screen,
+body.create-invoice-page > .flex.h-screen,
+body.draft-invoices-page > .flex.h-screen,
+body.reports-page > .flex.h-screen {
+  height: 100vh !important;
+  min-height: 100vh;
+  overflow: hidden !important;
+}
+
 .sidebar {
   position: relative;
   width: var(--tlp-sidebar) !important;
@@ -170,12 +183,24 @@ body > .flex.h-screen {
 }
 
 .sidebar .env-badge::before {
-  content: "SELLER COMPANY NAME";
+  content: none;
+}
+
+.sidebar .sidebar-company-name {
   display: block;
   color: #000;
   font-size: 14px;
   font-weight: 500;
   line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar .sidebar-env-name {
+  display: block;
+  color: #757575;
+  margin-top: 2px;
 }
 
 .sidebar .px-4.py-4.text-center {
@@ -200,6 +225,36 @@ body > .flex.h-screen {
 main {
   background: var(--tlp-bg) !important;
   padding: 40px 30px 78px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+body.dashboard-page main {
+  height: 100%;
+  overflow: hidden !important;
+  padding: 30px !important;
+}
+
+body.dashboard-page #dashboard-content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+body.create-invoice-page > .flex.h-screen > .flex.flex-col.flex-1,
+body.draft-invoices-page > .flex.h-screen > .flex.flex-col.flex-1,
+body.reports-page > .flex.h-screen > .flex.flex-col.flex-1 {
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden !important;
+}
+
+body.create-invoice-page main,
+body.draft-invoices-page main,
+body.reports-page main {
+  height: 100%;
+  min-height: 0;
   overflow-y: auto !important;
   overflow-x: hidden !important;
 }
@@ -316,7 +371,6 @@ main .stat-card {
 
 #dashboard-content > .grid,
 #reports-content .tab-content.active > .grid:first-child {
-  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   background: var(--tlp-card);
   border-radius: 30px;
   box-shadow: var(--tlp-shadow);
@@ -326,7 +380,6 @@ main .stat-card {
 
 #dashboard-content > .grid > div,
 #reports-content .tab-content.active > .grid:first-child > div {
-  padding: 0 !important;
   border-left: 1px solid var(--tlp-line) !important;
 }
 
@@ -347,9 +400,26 @@ main .stat-card {
 .stats-card .p-2\.5 {
   width: 84px !important;
   height: 84px !important;
+  flex: 0 0 84px;
   border-radius: 999px !important;
   background: linear-gradient(201deg, #d3ffe7 0%, #effff6 100%) !important;
   color: var(--tlp-green) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  margin-right: 0 !important;
+}
+
+.stats-card i,
+.stat-card i {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1em;
+  height: 1em;
+  font-size: 30px !important;
+  line-height: 1 !important;
 }
 
 .stats-card h3,
@@ -389,6 +459,39 @@ main .overflow-x-auto {
   display: block;
   overflow-x: auto !important;
   overflow-y: hidden;
+}
+
+body.dashboard-page #dashboard-content > .bg-white {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+body.dashboard-page #dashboard-content > .bg-white > .overflow-x-auto {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto !important;
+}
+
+#dashboard-content button,
+#dashboard-content a[role="button"],
+#dashboard-content .action-button {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px;
+  min-height: 36px;
+  line-height: 1.2 !important;
+  white-space: nowrap;
+  text-align: center;
+}
+
+#dashboard-content button i,
+#dashboard-content a[role="button"] i,
+#dashboard-content .action-button i {
+  margin-right: 0 !important;
+  line-height: 1 !important;
 }
 
 main table {
@@ -468,7 +571,6 @@ nav[aria-label="Pagination"] .bg-primary-600 {
 
 #create-invoice-content > .mb-8 .flex.items-center {
   overflow-x: auto;
-  padding-bottom: 8px;
 }
 
 #create-invoice-content > .mb-8 .flex-col.items-center {
@@ -602,9 +704,44 @@ body > .login-container,
     overflow: visible !important;
   }
 
+  body.dashboard-page > .flex.h-screen {
+    height: 100vh !important;
+    overflow: hidden !important;
+  }
+
+  body.create-invoice-page > .flex.h-screen {
+    height: 100vh !important;
+    overflow: hidden !important;
+  }
+
+  body.draft-invoices-page > .flex.h-screen,
+  body.reports-page > .flex.h-screen {
+    height: 100vh !important;
+    overflow: hidden !important;
+  }
+
   body > .flex.h-screen > .flex.flex-col.flex-1 {
     min-height: 100vh;
     overflow: visible !important;
+  }
+
+  body.dashboard-page > .flex.h-screen > .flex.flex-col.flex-1 {
+    height: calc(100vh - 64px);
+    min-height: 0;
+    overflow: hidden !important;
+  }
+
+  body.create-invoice-page > .flex.h-screen > .flex.flex-col.flex-1 {
+    height: calc(100vh - 64px);
+    min-height: 0;
+    overflow: hidden !important;
+  }
+
+  body.draft-invoices-page > .flex.h-screen > .flex.flex-col.flex-1,
+  body.reports-page > .flex.h-screen > .flex.flex-col.flex-1 {
+    height: calc(100vh - 64px);
+    min-height: 0;
+    overflow: hidden !important;
   }
 
   .md\:hidden.bg-primary-700 {
@@ -694,6 +831,7 @@ body > .login-container,
   .stats-card .p-2\.5 {
     width: 68px !important;
     height: 68px !important;
+    flex-basis: 68px;
   }
 
   .stats-card p,

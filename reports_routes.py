@@ -9,6 +9,19 @@ from dateutil.relativedelta import relativedelta
 import pandas as pd  # Add this import
 from io import BytesIO
 import zipfile
+import builtins
+import errno
+
+
+def print(*args, **kwargs):
+    """Best-effort debug output that must never break a web request."""
+    try:
+        builtins.print(*args, **kwargs)
+    except OSError as exc:
+        if getattr(exc, "errno", None) != errno.EINVAL:
+            raise
+    except ValueError:
+        pass
 
 
 def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for_client=None, storage=None):

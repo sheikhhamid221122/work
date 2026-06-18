@@ -22,9 +22,23 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 from io import BytesIO
 from storage import get_storage
+import builtins
+import errno
 
 load_dotenv()
 import datetime
+
+
+def print(*args, **kwargs):
+    """Best-effort debug output that must never break a web request."""
+    try:
+        builtins.print(*args, **kwargs)
+    except OSError as exc:
+        if getattr(exc, "errno", None) != errno.EINVAL:
+            raise
+    except ValueError:
+        # stdout/stderr can be closed by the Windows debug reloader/terminal.
+        pass
 
 
 app = Flask(__name__)
