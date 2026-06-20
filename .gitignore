@@ -1,6 +1,7 @@
 # Temporary files
 tmpclaude-*
 tempCodeRunnerFile.*
+local_invoice_preview.py
 
 # Python
 __pycache__/
