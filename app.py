@@ -1091,6 +1091,14 @@ add_draft_invoice_routes(app, get_db_connection, get_env)
 add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for_client, storage)
 add_fbr_reference_routes(app, get_db_connection, get_env)
 
+try:
+    from local_invoice_preview import register_local_invoice_preview
+
+    register_local_invoice_preview(app)
+except ModuleNotFoundError as exc:
+    if exc.name != "local_invoice_preview":
+        raise
+
 # Store last uploaded file and last JSON per environment
 last_uploaded_file = {}
 last_json_data = {}
