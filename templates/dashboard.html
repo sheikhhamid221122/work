@@ -180,12 +180,11 @@
             }
         }
 
-        /* Responsive table */
+        /* Responsive table — keep table layout; horizontal scroll via wrapper */
         @media (max-width: 768px) {
-            table {
-                display: block;
+            #dashboard-content .overflow-x-auto {
                 overflow-x: auto;
-                white-space: nowrap;
+                -webkit-overflow-scrolling: touch;
             }
         }
 
@@ -346,7 +345,7 @@
         <!-- Main content -->
         <div class="flex flex-col flex-1 overflow-hidden">
             <!-- Main content area -->
-            <main class="flex-1 overflow-hidden p-3 sm:p-4 md:p-5 bg-gray-50">
+            <main class="flex-1 overflow-y-auto min-h-0 p-3 sm:p-4 md:p-5 bg-gray-50">
                 <div id="dashboard-content" class="content-section">
                     <!-- Dashboard Header -->
                     <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
