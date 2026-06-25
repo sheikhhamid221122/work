@@ -444,21 +444,11 @@
                                     <table class="min-w-full divide-y divide-gray-200">
                                         <thead class="bg-gray-50">
                                             <tr>
-                                                <th
-                                                    class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                                                    Period</th>
-                                                <th
-                                                    class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                                    Invoices</th>
-                                                <th
-                                                    class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                                    Sales (PKR)</th>
-                                                <th
-                                                    class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                                    Tax (PKR)</th>
-                                                <th
-                                                    class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                                    Sales Excl. Tax</th>
+                                                <th class="px-4 py-2 text-left !text-sm font-medium text-gray-500 uppercase whitespace-nowrap">Period</th>
+                                                <th class="px-4 py-2 text-right !text-sm font-medium text-gray-500 uppercase whitespace-nowrap">Invoices</th>
+                                                <th class="px-4 py-2 text-right !text-sm font-medium text-gray-500 uppercase whitespace-nowrap">Sales (PKR)</th>
+                                                <th class="px-4 py-2 text-right !text-sm font-medium text-gray-500 uppercase whitespace-nowrap">Tax (PKR)</th>
+                                                <th class="px-4 py-2 text-right !text-sm font-medium text-gray-500 uppercase whitespace-nowrap">Sales Excl. Tax</th>
                                             </tr>
                                         </thead>
                                         <tbody id="sales-table-body" class="bg-white divide-y divide-gray-200"></tbody>
@@ -477,21 +467,11 @@
                                     <table class="min-w-full divide-y divide-gray-200">
                                         <thead class="bg-gray-50">
                                             <tr>
-                                                <th
-                                                    class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                                                    Product</th>
-                                                <th
-                                                    class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                                    Qty</th>
-                                                <th
-                                                    class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                                    Sales (PKR)</th>
-                                                <th
-                                                    class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                                    Tax (PKR)</th>
-                                                <th
-                                                    class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                                    Sales Excl. Tax</th>
+                                                <th class="px-4 py-2 text-left !text-sm font-medium text-gray-500 uppercase whitespace-nowrap">Product</th>
+                                                <th class="px-4 py-2 text-right !text-sm font-medium text-gray-500 uppercase whitespace-nowrap">Qty</th>
+                                                <th class="px-4 py-2 text-right !text-sm font-medium text-gray-500 uppercase whitespace-nowrap">Sales (PKR)</th>
+                                                <th class="px-4 py-2 text-right !text-sm font-medium text-gray-500 uppercase whitespace-nowrap">Tax (PKR)</th>
+                                                <th class="px-4 py-2 text-right !text-sm font-medium text-gray-500 uppercase whitespace-nowrap">Sales Excl. Tax</th>
                                             </tr>
                                         </thead>
                                         <tbody id="top-products-body" class="bg-white divide-y divide-gray-200"></tbody>
@@ -512,21 +492,11 @@
                                     <table class="min-w-full divide-y divide-gray-200">
                                         <thead class="bg-gray-50">
                                             <tr>
-                                                <th
-                                                    class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
-                                                    Buyer</th>
-                                                <th
-                                                    class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                                    Invoices</th>
-                                                <th
-                                                    class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                                    Total Purchase (PKR)</th>
-                                                <th
-                                                    class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                                    Tax (PKR)</th>
-                                                <th
-                                                    class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">
-                                                    Avg Purchase</th>
+                                                <th class="px-4 py-2 text-left !text-sm font-medium text-gray-500 uppercase whitespace-nowrap">Buyer</th>
+                                                <th class="px-4 py-2 text-right !text-sm font-medium text-gray-500 uppercase whitespace-nowrap">Invoices</th>
+                                                <th class="px-4 py-2 text-right !text-sm font-medium text-gray-500 uppercase whitespace-nowrap">Total Purchase (PKR)</th>
+                                                <th class="px-4 py-2 text-right !text-sm font-medium text-gray-500 uppercase whitespace-nowrap">Tax (PKR)</th>
+                                                <th class="px-4 py-2 text-right !text-sm font-medium text-gray-500 uppercase whitespace-nowrap">Avg Purchase</th>
                                             </tr>
                                         </thead>
                                         <tbody id="top-buyers-body" class="bg-white divide-y divide-gray-200"></tbody>
@@ -1592,7 +1562,7 @@
             const tbody = document.getElementById('sales-table-body');
             tbody.innerHTML = '';
             if (!timeSeriesData || timeSeriesData.length === 0) {
-                tbody.innerHTML = '<tr><td class="px-4 py-4 text-center" colspan="5">No data</td></tr>';
+                tbody.innerHTML = '<tr><td class="px-4 py-4 text-center text-gray-500" colspan="5">No data</td></tr>';
                 return;
             }
 
@@ -1600,11 +1570,11 @@
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-gray-50';
                 tr.innerHTML = `
-                    <td class="px-4 py-3 text-sm text-gray-700">${row.period}</td>
-                    <td class="px-4 py-3 text-sm text-right text-gray-900">${row.invoice_count}</td>
-                    <td class="px-4 py-3 text-sm text-right text-gray-900">${formatCurrency(row.total_sales)}</td>
-                    <td class="px-4 py-3 text-sm text-right text-gray-900">${formatCurrency(row.total_tax)}</td>
-                    <td class="px-4 py-3 text-sm text-right text-gray-900">${formatCurrency(row.sales_excluding_tax)}</td>
+                    <td class="px-4 py-3 !text-sm text-gray-700 whitespace-nowrap">${row.period}</td>
+                    <td class="px-4 py-3 !text-sm text-right text-gray-900 whitespace-nowrap">${row.invoice_count}</td>
+                    <td class="px-4 py-3 !text-sm text-right text-gray-900 whitespace-nowrap">${formatCurrency(row.total_sales)}</td>
+                    <td class="px-4 py-3 !text-sm text-right text-gray-900 whitespace-nowrap">${formatCurrency(row.total_tax)}</td>
+                    <td class="px-4 py-3 !text-sm text-right text-gray-900 whitespace-nowrap">${formatCurrency(row.sales_excluding_tax)}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -1615,7 +1585,7 @@
             const tbody = document.getElementById('top-products-body');
             tbody.innerHTML = '';
             if (!products || products.length === 0) {
-                tbody.innerHTML = '<tr><td class="px-4 py-4 text-center" colspan="5">No data</td></tr>';
+                tbody.innerHTML = '<tr><td class="px-4 py-4 text-center text-gray-500" colspan="5">No data</td></tr>';
                 return;
             }
 
@@ -1623,11 +1593,11 @@
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-gray-50 cursor-pointer';
                 tr.innerHTML = `
-                    <td class="px-4 py-3 text-sm text-gray-700">${p.product_name}</td>
-                    <td class="px-4 py-3 text-sm text-right text-gray-900">${p.quantity}</td>
-                    <td class="px-4 py-3 text-sm text-right text-gray-900">${formatCurrency(p.total_sales)}</td>
-                    <td class="px-4 py-3 text-sm text-right text-gray-900">${formatCurrency(p.total_tax)}</td>
-                    <td class="px-4 py-3 text-sm text-right text-gray-900">${formatCurrency(p.sales_excluding_tax)}</td>
+                    <td class="px-4 py-3 !text-sm text-gray-700 whitespace-nowrap">${p.product_name}</td>
+                    <td class="px-4 py-3 !text-sm text-right text-gray-900 whitespace-nowrap">${p.quantity}</td>
+                    <td class="px-4 py-3 !text-sm text-right text-gray-900 whitespace-nowrap">${formatCurrency(p.total_sales)}</td>
+                    <td class="px-4 py-3 !text-sm text-right text-gray-900 whitespace-nowrap">${formatCurrency(p.total_tax)}</td>
+                    <td class="px-4 py-3 !text-sm text-right text-gray-900 whitespace-nowrap">${formatCurrency(p.sales_excluding_tax)}</td>
                 `;
                 tr.addEventListener('click', () => {
                     // Open products tab and prefill search
@@ -1646,7 +1616,7 @@
             const tbody = document.getElementById('top-buyers-body');
             tbody.innerHTML = '';
             if (!buyers || buyers.length === 0) {
-                tbody.innerHTML = '<tr><td class="px-4 py-4 text-center" colspan="5">No data</td></tr>';
+                tbody.innerHTML = '<tr><td class="px-4 py-4 text-center text-gray-500" colspan="5">No data</td></tr>';
                 return;
             }
 
@@ -1654,11 +1624,11 @@
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-gray-50 cursor-pointer';
                 tr.innerHTML = `
-                    <td class="px-4 py-3 text-sm text-gray-700">${b.buyer_name}</td>
-                    <td class="px-4 py-3 text-sm text-right text-gray-900">${b.invoice_count}</td>
-                    <td class="px-4 py-3 text-sm text-right text-gray-900">${formatCurrency(b.total_purchase)}</td>
-                    <td class="px-4 py-3 text-sm text-right text-gray-900">${formatCurrency(b.total_tax)}</td>
-                    <td class="px-4 py-3 text-sm text-right text-gray-900">${formatCurrency(b.average_purchase)}</td>
+                    <td class="px-4 py-3 !text-sm text-gray-700 whitespace-nowrap">${b.buyer_name}</td>
+                    <td class="px-4 py-3 !text-sm text-right text-gray-900 whitespace-nowrap">${b.invoice_count}</td>
+                    <td class="px-4 py-3 !text-sm text-right text-gray-900 whitespace-nowrap">${formatCurrency(b.total_purchase)}</td>
+                    <td class="px-4 py-3 !text-sm text-right text-gray-900 whitespace-nowrap">${formatCurrency(b.total_tax)}</td>
+                    <td class="px-4 py-3 !text-sm text-right text-gray-900 whitespace-nowrap">${formatCurrency(b.average_purchase)}</td>
                 `;
                 tr.addEventListener('click', () => {
                     // Open buyers tab and prefill search
