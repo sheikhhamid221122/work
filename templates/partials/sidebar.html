@@ -1,131 +1,293 @@
-{% set current_page = active_page|default('dashboard') %}
-{% set sidebar_print_class = ' no-print' if sidebar_no_print|default(false) else '' %}
-{% set company_name = session.get('name', 'Company') %}
-{% set environment_name = session.get('env', '') %}
-
-<!-- Sidebar -->
-<div class="hidden md:flex md:flex-shrink-0{{ sidebar_print_class }}">
-    <div class="flex flex-col sidebar">
-        <div class="flex flex-col items-center justify-center pt-5 pb-2">
-            <div class="sidebar-logo w-32 mb-4">
-                <img src="{{ url_for('static', filename='uploads/logo.png') }}"
-                    alt="TaxLink Pro Logo" class="w-full h-auto" />
-            </div>
-
-            <div class="w-full px-6">
-                <div class="border-b border-blue-400 opacity-50"></div>
-            </div>
-
-            <div class="flex items-center justify-center mt-4 mb-2 px-4 sidebar-user-info">
-                <div class="flex items-center">
-                    <span class="text-white font-medium">{{ company_name }}</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="flex flex-col flex-grow pt-4 pb-4 overflow-y-auto">
-            <nav class="flex-1 space-y-2 px-2">
-                <a href="/dashboard" id="dashboard-tab"
-                    class="sidebar-item {% if current_page == 'dashboard' %}active {% endif %}flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
-                    <i class="fas fa-tachometer-alt mr-3"></i>
-                    Dashboard
-                </a>
-                <a href="/create-invoice" id="create-invoice-tab"
-                    class="sidebar-item {% if current_page == 'create-invoice' %}active {% endif %}flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
-                    <i class="fas fa-file-invoice mr-3"></i>
-                    Create Invoice
-                </a>
-                <a href="/draft-invoices" id="draft-invoices-tab"
-                    class="sidebar-item {% if current_page == 'draft-invoices' %}active {% endif %}flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
-                    <i class="fas fa-file-alt mr-3"></i>
-                    Draft Invoices
-                </a>
-                <a href="/reports" id="reports-tab"
-                    class="sidebar-item {% if current_page == 'reports' %}active {% endif %}flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
-                    <i class="fas fa-chart-bar mr-3"></i>
-                    Reports & Analytics
-                </a>
-            </nav>
-
-            <div class="px-4 py-4 text-center">
-                <span
-                    class="env-badge bg-primary-400 text-white text-sm font-bold px-4 py-2 rounded-full shadow-md inline-flex items-center">
-                    <span class="sidebar-company-name">{{ company_name }}</span>
-                    <span class="sidebar-env-name"><i class="fas fa-cube mr-2 text-base"></i>{{ environment_name }}</span>
-                </span>
-            </div>
-
-            <div class="px-2 mt-auto text-center">
-                <a href="/logout"
-                    class="sidebar-item flex items-center justify-center px-4 py-3 text-sm font-medium rounded-md text-white">
-                    <i class="fas fa-sign-out-alt mr-3"></i>
-                    Logout
-                </a>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Mobile Header -->
-<div class="md:hidden bg-primary-700 text-white p-4 flex items-center justify-between{{ sidebar_print_class }}">
-    <div class="flex items-center">
-        <img src="{{ url_for('static', filename='uploads/logo.png') }}"
-            alt="TaxLink Pro Logo" class="h-8 mr-2" />
-        <span class="font-semibold text-lg">TaxLink Pro</span>
-    </div>
-    <button id="mobile-menu-button" class="focus:outline-none" type="button">
-        <i class="fas fa-bars text-xl"></i>
-    </button>
-</div>
-
-<!-- Mobile Menu -->
-<div id="mobile-menu" class="fixed inset-0 z-40 md:hidden hidden{{ sidebar_print_class }}">
-    <div class="absolute inset-0 bg-black opacity-50"></div>
-    <div class="absolute inset-y-0 left-0 max-w-xs w-full bg-primary-800 text-white shadow-xl flex flex-col">
-        <div class="flex items-center justify-between p-4 border-b border-primary-700">
-            <img src="{{ url_for('static', filename='uploads/logo.png') }}"
-                alt="TaxLink Pro Logo" class="h-8" />
-            <button id="close-mobile-menu" class="text-white focus:outline-none" type="button">
-                <i class="fas fa-times text-xl"></i>
-            </button>
-        </div>
-        <div class="p-4 border-b border-primary-700">
-            <div class="flex items-center">
-                <div
-                    class="w-8 h-8 bg-blue-300 rounded-full flex items-center justify-center text-primary-800 font-bold mr-2">
-                    {{ company_name[:1] }}
-                </div>
-                <span class="text-white font-medium">{{ company_name }}</span>
-            </div>
-        </div>
-        <nav class="flex-1 p-4">
-            <a href="/dashboard"
-                class="block py-2 px-4 text-white {% if current_page == 'dashboard' %}bg-primary-700 {% else %}hover:bg-primary-700 {% endif %}rounded-md">
-                <i class="fas fa-tachometer-alt mr-3"></i> Dashboard
-            </a>
-            <a href="/create-invoice"
-                class="block py-2 px-4 text-white {% if current_page == 'create-invoice' %}bg-primary-700 {% else %}hover:bg-primary-700 {% endif %}rounded-md">
-                <i class="fas fa-file-invoice mr-3"></i> Create Invoice
-            </a>
-            <a href="/draft-invoices"
-                class="block py-2 px-4 text-white {% if current_page == 'draft-invoices' %}bg-primary-700 {% else %}hover:bg-primary-700 {% endif %}rounded-md">
-                <i class="fas fa-file-alt mr-3"></i> Draft Invoices
-            </a>
-            <a href="/reports"
-                class="block py-2 px-4 text-white {% if current_page == 'reports' %}bg-primary-700 {% else %}hover:bg-primary-700 {% endif %}rounded-md">
-                <i class="fas fa-chart-bar mr-3"></i> Reports & Analytics
-            </a>
-        </nav>
-        <div class="p-4 border-t border-primary-700">
-            <span
-                class="bg-primary-400 text-white text-sm font-bold px-4 py-2 rounded-full shadow-md inline-flex items-center">
-                <i class="fas fa-cube mr-2 text-base"></i>{{ environment_name }}
-            </span>
-        </div>
-        <div class="p-4 border-t border-primary-700">
-            <a href="/logout" class="block py-2 px-4 text-white hover:bg-primary-700 rounded-md">
-                <i class="fas fa-sign-out-alt mr-3"></i> Logout
-            </a>
-        </div>
-    </div>
-</div>
+{% set current_page = active_page|default('dashboard') %}
+{% set sidebar_print_class = ' no-print' if sidebar_no_print|default(false) else '' %}
+{% set company_name = session.get('name', 'Company') %}
+{% set environment_name = session.get('env', 'sandbox') %}
+
+<!-- Sidebar -->
+<div class="hidden md:flex md:flex-shrink-0{{ sidebar_print_class }}">
+    <div class="flex flex-col sidebar">
+        <div class="flex flex-col items-center justify-center pt-5 pb-2">
+            <div class="sidebar-logo w-32 mb-4">
+                <img src="{{ url_for('static', filename='uploads/logo.png') }}"
+                    alt="TaxLink Pro Logo" class="w-full h-auto" />
+            </div>
+
+            <div class="w-full px-6">
+                <div class="border-b border-blue-400 opacity-50"></div>
+            </div>
+
+            <div class="flex items-center justify-center mt-4 mb-2 px-4 sidebar-user-info">
+                <div class="flex items-center">
+                    <span class="text-white font-medium">{{ company_name }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex flex-col flex-grow pt-4 pb-4 overflow-y-auto">
+            <nav class="flex-1 space-y-2 px-2">
+                <a href="/dashboard" id="dashboard-tab"
+                    class="sidebar-item {% if current_page == 'dashboard' %}active {% endif %}flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
+                    <i class="fas fa-tachometer-alt mr-3"></i>
+                    Dashboard
+                </a>
+                <a href="/create-invoice" id="create-invoice-tab"
+                    class="sidebar-item {% if current_page == 'create-invoice' %}active {% endif %}flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
+                    <i class="fas fa-file-invoice mr-3"></i>
+                    Create Invoice
+                </a>
+                <a href="/draft-invoices" id="draft-invoices-tab"
+                    class="sidebar-item {% if current_page == 'draft-invoices' %}active {% endif %}flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
+                    <i class="fas fa-file-alt mr-3"></i>
+                    Draft Invoices
+                </a>
+                <a href="/reports" id="reports-tab"
+                    class="sidebar-item {% if current_page == 'reports' %}active {% endif %}flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
+                    <i class="fas fa-chart-bar mr-3"></i>
+                    Reports & Analytics
+                </a>
+            </nav>
+
+            <div class="px-4 py-4 text-center">
+                <div
+                    class="env-badge bg-primary-400 text-white text-sm font-bold px-4 py-2 rounded-full shadow-md inline-flex items-center">
+                    <span class="sidebar-company-name">{{ company_name }}</span>
+                    <label class="sidebar-env-name block w-full text-left">
+                        <span class="sr-only">Environment</span>
+                        <select class="env-switcher sidebar-env-switcher" data-current-env="{{ environment_name }}"
+                            aria-label="Switch environment">
+                            <option value="sandbox" {% if environment_name == 'sandbox' %}selected{% endif %}>Sandbox</option>
+                            <option value="production" {% if environment_name == 'production' %}selected{% endif %}>Production</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
+
+            <div class="px-2 mt-auto text-center">
+                <a href="/logout"
+                    class="sidebar-item flex items-center justify-center px-4 py-3 text-sm font-medium rounded-md text-white">
+                    <i class="fas fa-sign-out-alt mr-3"></i>
+                    Logout
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Mobile Header -->
+<div class="md:hidden bg-primary-700 text-white p-4 flex items-center justify-between{{ sidebar_print_class }}">
+    <div class="flex items-center">
+        <img src="{{ url_for('static', filename='uploads/logo.png') }}"
+            alt="TaxLink Pro Logo" class="h-8 mr-2" />
+        <span class="font-semibold text-lg">TaxLink Pro</span>
+    </div>
+    <button id="mobile-menu-button" class="focus:outline-none" type="button">
+        <i class="fas fa-bars text-xl"></i>
+    </button>
+</div>
+
+<!-- Mobile Menu -->
+<div id="mobile-menu" class="fixed inset-0 z-40 md:hidden hidden{{ sidebar_print_class }}">
+    <div class="absolute inset-0 bg-black opacity-50"></div>
+    <div class="absolute inset-y-0 left-0 max-w-xs w-full bg-primary-800 text-white shadow-xl flex flex-col">
+        <div class="flex items-center justify-between p-4 border-b border-primary-700">
+            <img src="{{ url_for('static', filename='uploads/logo.png') }}"
+                alt="TaxLink Pro Logo" class="h-8" />
+            <button id="close-mobile-menu" class="text-white focus:outline-none" type="button">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <div class="p-4 border-b border-primary-700">
+            <div class="flex items-center">
+                <div
+                    class="w-8 h-8 bg-blue-300 rounded-full flex items-center justify-center text-primary-800 font-bold mr-2">
+                    {{ company_name[:1] }}
+                </div>
+                <span class="text-white font-medium">{{ company_name }}</span>
+            </div>
+        </div>
+        <nav class="flex-1 p-4">
+            <a href="/dashboard"
+                class="block py-2 px-4 text-white {% if current_page == 'dashboard' %}bg-primary-700 {% else %}hover:bg-primary-700 {% endif %}rounded-md">
+                <i class="fas fa-tachometer-alt mr-3"></i> Dashboard
+            </a>
+            <a href="/create-invoice"
+                class="block py-2 px-4 text-white {% if current_page == 'create-invoice' %}bg-primary-700 {% else %}hover:bg-primary-700 {% endif %}rounded-md">
+                <i class="fas fa-file-invoice mr-3"></i> Create Invoice
+            </a>
+            <a href="/draft-invoices"
+                class="block py-2 px-4 text-white {% if current_page == 'draft-invoices' %}bg-primary-700 {% else %}hover:bg-primary-700 {% endif %}rounded-md">
+                <i class="fas fa-file-alt mr-3"></i> Draft Invoices
+            </a>
+            <a href="/reports"
+                class="block py-2 px-4 text-white {% if current_page == 'reports' %}bg-primary-700 {% else %}hover:bg-primary-700 {% endif %}rounded-md">
+                <i class="fas fa-chart-bar mr-3"></i> Reports & Analytics
+            </a>
+        </nav>
+        <div class="p-4 border-t border-primary-700">
+            <label for="mobile-env-switcher" class="block text-xs text-primary-200 mb-2 uppercase tracking-wide">Environment</label>
+            <select id="mobile-env-switcher" class="env-switcher mobile-env-switcher w-full" data-current-env="{{ environment_name }}"
+                aria-label="Switch environment">
+                <option value="sandbox" {% if environment_name == 'sandbox' %}selected{% endif %}>Sandbox</option>
+                <option value="production" {% if environment_name == 'production' %}selected{% endif %}>Production</option>
+            </select>
+        </div>
+        <div class="p-4 border-t border-primary-700">
+            <a href="/logout" class="block py-2 px-4 text-white hover:bg-primary-700 rounded-md">
+                <i class="fas fa-sign-out-alt mr-3"></i> Logout
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Environment switch confirmation modal -->
+<div id="env-switch-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog"
+    aria-modal="true" aria-labelledby="env-switch-modal-title">
+    <div class="absolute inset-0 bg-black bg-opacity-50" id="env-switch-modal-backdrop"></div>
+    <div class="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+        <h3 id="env-switch-modal-title" class="text-lg font-semibold text-gray-900 mb-2">Confirm environment switch</h3>
+        <p id="env-switch-modal-message" class="text-sm text-gray-600 mb-4">
+            Enter your password to switch environments.
+        </p>
+        <p id="env-switch-error" class="hidden text-sm text-red-600 mb-3"></p>
+        <form id="env-switch-form">
+            <label for="env-switch-password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <input type="password" id="env-switch-password" name="password" required autocomplete="current-password"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+                placeholder="Enter your password">
+            <div class="flex justify-end gap-3">
+                <button type="button" id="env-switch-cancel"
+                    class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md">
+                    Cancel
+                </button>
+                <button type="submit" id="env-switch-confirm"
+                    class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md">
+                    Switch
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+(function () {
+    if (window.__envSwitcherInitialized) return;
+    window.__envSwitcherInitialized = true;
+
+    const modal = document.getElementById('env-switch-modal');
+    const modalMessage = document.getElementById('env-switch-modal-message');
+    const errorEl = document.getElementById('env-switch-error');
+    const form = document.getElementById('env-switch-form');
+    const passwordInput = document.getElementById('env-switch-password');
+    const cancelBtn = document.getElementById('env-switch-cancel');
+    const backdrop = document.getElementById('env-switch-modal-backdrop');
+    const confirmBtn = document.getElementById('env-switch-confirm');
+
+    let pendingEnv = null;
+    let activeSelect = null;
+
+    function envLabel(env) {
+        return env === 'production' ? 'Production' : 'Sandbox';
+    }
+
+    function closeModal() {
+        modal.classList.add('hidden');
+        errorEl.classList.add('hidden');
+        errorEl.textContent = '';
+        passwordInput.value = '';
+        pendingEnv = null;
+        activeSelect = null;
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = 'Switch';
+    }
+
+    function openModal(newEnv, selectEl) {
+        pendingEnv = newEnv;
+        activeSelect = selectEl;
+        modalMessage.textContent = 'Enter your password to switch to ' + envLabel(newEnv) + '.';
+        modal.classList.remove('hidden');
+        passwordInput.focus();
+    }
+
+    function resetSelect(selectEl) {
+        const currentEnv = selectEl.dataset.currentEnv;
+        if (currentEnv) {
+            selectEl.value = currentEnv;
+        }
+    }
+
+    document.querySelectorAll('.env-switcher').forEach(function (selectEl) {
+        selectEl.addEventListener('change', function () {
+            const currentEnv = this.dataset.currentEnv;
+            const newEnv = this.value;
+
+            if (!newEnv || newEnv === currentEnv) {
+                resetSelect(this);
+                return;
+            }
+
+            openModal(newEnv, this);
+            resetSelect(this);
+        });
+    });
+
+    cancelBtn.addEventListener('click', closeModal);
+    backdrop.addEventListener('click', closeModal);
+
+    form.addEventListener('submit', function (event) {
+        event.preventDefault();
+
+        if (!pendingEnv) {
+            closeModal();
+            return;
+        }
+
+        const password = passwordInput.value.trim();
+        if (!password) {
+            errorEl.textContent = 'Password is required.';
+            errorEl.classList.remove('hidden');
+            return;
+        }
+
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Switching...';
+        errorEl.classList.add('hidden');
+
+        fetch('/switch-environment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                environment: pendingEnv,
+                password: password
+            })
+        })
+            .then(function (response) {
+                return response.json().then(function (data) {
+                    return { ok: response.ok, data: data };
+                });
+            })
+            .then(function (result) {
+                if (!result.ok) {
+                    throw new Error(result.data.error || 'Failed to switch environment');
+                }
+
+                if (activeSelect) {
+                    activeSelect.dataset.currentEnv = pendingEnv;
+                }
+
+                document.querySelectorAll('.env-switcher').forEach(function (selectEl) {
+                    selectEl.value = pendingEnv;
+                    selectEl.dataset.currentEnv = pendingEnv;
+                });
+
+                window.location.reload();
+            })
+            .catch(function (error) {
+                errorEl.textContent = error.message;
+                errorEl.classList.remove('hidden');
+                confirmBtn.disabled = false;
+                confirmBtn.textContent = 'Switch';
+            });
+    });
+})();
+</script>
+

@@ -716,7 +716,12 @@ def get_db_connection():
 
 
 def get_env():
-    env = request.args.get("env") or request.headers.get("X-ERP-ENV") or "sandbox"
+    env = (
+        request.args.get("env")
+        or request.headers.get("X-ERP-ENV")
+        or session.get("env")
+        or "sandbox"
+    )
     return env if env in ["sandbox", "production"] else "sandbox"
 
 
@@ -1856,6 +1861,41 @@ def dashboard_html():
 
     print("Access granted to dashboard")
     return render_template("dashboard.html")
+
+
+@app.route("/switch-environment", methods=["POST"])
+def switch_environment():
+    if "user_id" not in session:
+        return jsonify({"error": "Not authenticated"}), 401
+
+    payload = request.get_json(silent=True) or {}
+    password = payload.get("password") or request.form.get("password")
+    new_env = payload.get("environment") or request.form.get("environment")
+
+    if new_env not in ("sandbox", "production"):
+        return jsonify({"error": "Invalid environment"}), 400
+
+    if not password:
+        return jsonify({"error": "Password is required"}), 400
+
+    if new_env == session.get("env"):
+        return jsonify({"success": True, "env": new_env})
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id FROM users WHERE id = %s AND password_hash = %s",
+        (session["user_id"], password),
+    )
+    user = cur.fetchone()
+    cur.close()
+    conn.close()
+
+    if not user:
+        return jsonify({"error": "Invalid password"}), 401
+
+    session["env"] = new_env
+    return jsonify({"success": True, "env": new_env})
 
 
 @app.route("/logout")
