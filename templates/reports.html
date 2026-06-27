@@ -364,7 +364,7 @@
                     </div>
 
                     <!-- Dashboard Tab Content -->
-                    <div id="dashboard-tab" class="tab-content active print-container">
+                    <div id="reports-dashboard-tab" class="tab-content active print-container">
                         <!-- Title for Print -->
                         <div class="hidden print:block mb-6">
                             <h1 class="text-3xl font-bold text-center">TaxLink Pro Analytics Dashboard</h1>
@@ -1294,7 +1294,7 @@
 
                     // Show corresponding tab content
                     const tabId = this.getAttribute('data-tab');
-                    document.getElementById(`${tabId}-tab`).classList.add('active');
+                    getTabPanel(tabId).classList.add('active');
 
                     // Load data for the selected tab if not loaded already
                     loadTabData(tabId);
@@ -1446,6 +1446,12 @@
             });
         });
 
+        // Resolve tab panel element (dashboard panel id differs from sidebar link id)
+        function getTabPanel(tabId) {
+            const panelId = tabId === 'dashboard' ? 'reports-dashboard-tab' : `${tabId}-tab`;
+            return document.getElementById(panelId);
+        }
+
         // Load tab data based on selected tab
         function loadTabData(tabId) {
             switch (tabId) {
@@ -1578,6 +1584,7 @@
                     }
 
                     renderTopBuyersTable(data.top_buyers);
+
                 })
                 .catch(error => {
                     document.getElementById('loading-indicator').classList.add('hidden');
