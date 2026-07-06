@@ -2579,6 +2579,104 @@
             );
         }
 
+        function roundMoney2(amount) {
+            return Math.round((Number(amount) + Number.EPSILON) * 100) / 100;
+        }
+
+        function parseItemTaxRatePercent(item) {
+            const raw = String(item?.taxRate ?? "").trim();
+            if (!raw) {
+                return null;
+            }
+            const lowered = raw.toLowerCase();
+            if (
+                lowered.includes("exempt") ||
+                lowered.includes("zero-rate") ||
+                lowered === "0" ||
+                lowered === "0%"
+            ) {
+                return 0;
+            }
+            const numeric = parseFloat(raw.replace("%", "").replace(/[^\d.]/g, ""));
+            return Number.isNaN(numeric) ? null : numeric;
+        }
+
+        function expectedSalesTaxForLine(valueExcl, taxRatePercent) {
+            if (!taxRatePercent || taxRatePercent <= 0) {
+                return 0;
+            }
+            return roundMoney2(valueExcl * (taxRatePercent / 100));
+        }
+
+        function validateItemTaxMath(item, lineNo) {
+            const valueExcl = parseFloat(item?.valueSalesExcludingST) || 0;
+            const salesTax = parseFloat(item?.salesTaxApplicable) || 0;
+            const taxRatePercent = parseItemTaxRatePercent(item);
+            const label = lineNo ? `Line ${lineNo}` : "Line item";
+            const description = item?.productDescription || "item";
+
+            if (valueExcl <= 0) {
+                return {
+                    ok: false,
+                    message: `${label}: value excluding sales tax must be greater than zero.`,
+                };
+            }
+
+            if (taxRatePercent === null) {
+                return { ok: true };
+            }
+
+            const expectedTax = expectedSalesTaxForLine(valueExcl, taxRatePercent);
+
+            if (taxRatePercent > 0 && expectedTax <= 0) {
+                return {
+                    ok: false,
+                    message:
+                        `${label} ("${description}"): value ${valueExcl.toFixed(2)} is too small for ` +
+                        `${taxRatePercent}% tax (rounded tax would be 0.00). Use a larger value ` +
+                        `(e.g. 0.50 with 18% → 0.09 tax).`,
+                };
+            }
+
+            if (Math.abs(salesTax - expectedTax) > 0.01) {
+                return {
+                    ok: false,
+                    message:
+                        `${label} ("${description}"): sales tax ${salesTax.toFixed(2)} does not match ` +
+                        `${taxRatePercent}% of ${valueExcl.toFixed(2)} (expected ${expectedTax.toFixed(2)}).`,
+                };
+            }
+
+            const furtherTax = parseFloat(item?.furtherTax) || 0;
+            const totalValues = parseFloat(item?.totalValues ?? item?.total);
+            const expectedTotal = roundMoney2(valueExcl + salesTax + furtherTax);
+            if (
+                !Number.isNaN(totalValues) &&
+                totalValues > 0 &&
+                Math.abs(totalValues - expectedTotal) > 0.02
+            ) {
+                return {
+                    ok: false,
+                    message:
+                        `${label}: total ${totalValues.toFixed(2)} should be ${expectedTotal.toFixed(2)} ` +
+                        `(value + sales tax${furtherTax ? " + further tax" : ""}).`,
+                };
+            }
+
+            return { ok: true };
+        }
+
+        function validateAllProductItemsTaxMath() {
+            const items = state.productItems || [];
+            for (let i = 0; i < items.length; i++) {
+                const result = validateItemTaxMath(items[i], i + 1);
+                if (!result.ok) {
+                    return result;
+                }
+            }
+            return { ok: true };
+        }
+
         function clearLinkedSaleInvoiceMeta() {
             state.linkedSaleInvoiceMeta = null;
             updateDebitNoteProductsHint();
@@ -2630,6 +2728,9 @@
 
             lines.push(
                 "Example: if you under-billed by 100, add one line with value <strong>100</strong> and tax at the correct rate — not the original full amount again."
+            );
+            lines.push(
+                "Values that are too small (e.g. 0.01 at 18%) round to <strong>0.00</strong> tax and will be blocked — use at least <strong>0.50</strong> with <strong>0.09</strong> tax at 18%."
             );
             body.innerHTML = lines.join("<br>");
         }
@@ -2998,14 +3099,28 @@
                 return;
             }
 
-            // Calculate total
-            const total = valueExcl + taxAmount;
-
             // Get tax rate as displayed in the UI (with % symbol)
             let formattedTaxRate = taxRate;
             if (taxRate && document.getElementById("product-tax-rate").selectedIndex > 0) {
                 formattedTaxRate = document.getElementById("product-tax-rate").options[document.getElementById("product-tax-rate").selectedIndex].textContent.trim();
             }
+
+            const taxCheck = validateItemTaxMath(
+                {
+                    productDescription: description,
+                    valueSalesExcludingST: valueExcl,
+                    salesTaxApplicable: taxAmount,
+                    taxRate: formattedTaxRate,
+                },
+                null
+            );
+            if (!taxCheck.ok) {
+                showNotification("error", "Tax Calculation Error", taxCheck.message);
+                return;
+            }
+
+            // Calculate total
+            const total = valueExcl + taxAmount;
 
             const furtherTaxInputEl = document.getElementById('product-further-tax');
             const furtherTaxInputValue = furtherTaxInputEl?.value;
@@ -3818,6 +3933,12 @@
                         }
                     }
 
+                    const taxMath = validateAllProductItemsTaxMath();
+                    if (!taxMath.ok) {
+                        showNotification("error", "Tax Calculation Error", taxMath.message);
+                        return false;
+                    }
+
                     return true;
 
                 default:
@@ -4139,6 +4260,28 @@
             }, 800);
         });        // Auto-calculate rate when quantity or value excluding sales tax changes
 
+        function recalculateTaxFromValueExcl() {
+            const valueEl = document.getElementById("product-value-excl");
+            const taxRateSelect = document.getElementById("product-tax-rate");
+            const taxAmtEl = document.getElementById("product-tax-amount");
+            if (!valueEl || !taxRateSelect || !taxAmtEl) {
+                return;
+            }
+
+            const valueExcl = parseFloat(valueEl.value) || 0;
+            if (valueExcl <= 0) {
+                taxAmtEl.value = "";
+                return;
+            }
+
+            let taxPercent = 0;
+            if (taxRateSelect.selectedIndex > 0) {
+                const optText = taxRateSelect.options[taxRateSelect.selectedIndex].textContent.trim();
+                taxPercent = parseFloat(optText.replace("%", "")) || 0;
+            }
+            taxAmtEl.value = expectedSalesTaxForLine(valueExcl, taxPercent).toFixed(2);
+        }
+
         function calculateValueAndTax() {
             const qtyEl = document.getElementById('product-quantity'); const rateEl = document.getElementById('product-rate'); const valueEl = document.getElementById('product-value-excl'); const taxRateSelect = document.getElementById('product-tax-rate'); const taxAmtEl = document.getElementById('product-tax-amount');
             if (!qtyEl || !rateEl || !valueEl || !taxRateSelect || !taxAmtEl) return;
@@ -4155,13 +4298,7 @@
                 return;
             }
 
-            let taxPercent = 0;
-            if (taxRateSelect.selectedIndex > 0) {
-                const optText = taxRateSelect.options[taxRateSelect.selectedIndex].textContent.trim();
-                taxPercent = parseFloat(optText.replace('%', '')) || 0;
-            }
-            const taxAmount = valueExcl * (taxPercent / 100);
-            taxAmtEl.value = taxAmount.toFixed(2);
+            recalculateTaxFromValueExcl();
         }
 
 
@@ -4353,6 +4490,7 @@
             // Real-time recalculation when typing quantity or rate, or changing tax rate
             const qtyInput = document.getElementById('product-quantity');
             const rateInput = document.getElementById('product-rate');
+            const valueExclInput = document.getElementById('product-value-excl');
             const taxRateSelect = document.getElementById('product-tax-rate');
             if (qtyInput) {
                 qtyInput.addEventListener('input', () => { calculateValueAndTax(); });
@@ -4360,8 +4498,17 @@
             if (rateInput) {
                 rateInput.addEventListener('input', () => { calculateValueAndTax(); });
             }
+            if (valueExclInput) {
+                valueExclInput.addEventListener('input', () => { recalculateTaxFromValueExcl(); });
+            }
             if (taxRateSelect) {
-                taxRateSelect.addEventListener('input', () => { calculateValueAndTax(); });
+                taxRateSelect.addEventListener('input', () => {
+                    if (valueExclInput?.value) {
+                        recalculateTaxFromValueExcl();
+                    } else {
+                        calculateValueAndTax();
+                    }
+                });
             }
 
             // Navigation buttons

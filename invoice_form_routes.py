@@ -78,6 +78,64 @@ def _parse_invoice_json(raw):
         return {}
 
 
+def _parse_tax_rate_percent(tax_rate):
+    raw = str(tax_rate or "").strip()
+    if not raw:
+        return None
+    lowered = raw.lower()
+    if (
+        "exempt" in lowered
+        or "zero-rate" in lowered
+        or lowered in ("0", "0%")
+    ):
+        return 0.0
+    numeric = raw.replace("%", "").strip()
+    try:
+        return float(numeric)
+    except (TypeError, ValueError):
+        return None
+
+
+def _expected_sales_tax(value_excl, tax_rate_percent):
+    if not tax_rate_percent or tax_rate_percent <= 0:
+        return 0.0
+    return float(
+        Decimal(str(value_excl * (tax_rate_percent / 100))).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
+    )
+
+
+def _validate_item_tax_math(item_data, line_no):
+    value_excl = float(item_data.get("valueSalesExcludingST", 0) or 0)
+    sales_tax = float(item_data.get("salesTaxApplicable", 0) or 0)
+    tax_rate_percent = _parse_tax_rate_percent(item_data.get("taxRate"))
+    description = str(item_data.get("productDescription") or "item").strip()
+    label = f"Line {line_no}"
+
+    if value_excl <= 0:
+        return f"{label}: value excluding sales tax must be greater than zero."
+
+    if tax_rate_percent is None:
+        return None
+
+    expected_tax = _expected_sales_tax(value_excl, tax_rate_percent)
+    if tax_rate_percent > 0 and expected_tax <= 0:
+        return (
+            f'{label} ("{description}"): value {value_excl:.2f} is too small for '
+            f"{tax_rate_percent:g}% tax (rounded tax would be 0.00). "
+            "Use a larger value."
+        )
+
+    if sales_tax - expected_tax > 0.01 or expected_tax - sales_tax > 0.01:
+        return (
+            f'{label} ("{description}"): sales tax {sales_tax:.2f} does not match '
+            f"{tax_rate_percent:g}% of {value_excl:.2f} (expected {expected_tax:.2f})."
+        )
+
+    return None
+
+
 def _get_fbr_invoice_number(invoice_data, fbr_response):
     invoice_data = invoice_data or {}
     fbr_response = fbr_response or {}
@@ -1629,8 +1687,12 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         def q2(val):
             return float(Decimal(str(val)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
 
-        for item_data in data["items"]:
+        for index, item_data in enumerate(data["items"], start=1):
             try:
+                tax_error = _validate_item_tax_math(item_data, index)
+                if tax_error and not data.get("saveDraft"):
+                    return jsonify({"error": tax_error}), 400
+
                 value_excl = q2(item_data["valueSalesExcludingST"])
                 sales_tax = q2(item_data["salesTaxApplicable"])
                 total_values = item_data.get("totalValues")
