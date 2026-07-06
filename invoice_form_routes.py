@@ -3,7 +3,7 @@ API routes to support the form-based invoice creation
 """
 from flask import request, jsonify, session
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from psycopg2.extras import Json
 
@@ -56,6 +56,83 @@ def _normalize_custom_field_names(fields):
             names.append(name[:80])
             seen.add(key)
     return names
+
+
+DEBIT_NOTE_REASONS = [
+    {"value": "Price adjustment", "label": "Price adjustment"},
+    {"value": "Additional charges", "label": "Additional charges"},
+    {"value": "Quantity adjustment", "label": "Quantity adjustment"},
+    {"value": "Tax correction", "label": "Tax correction"},
+    {"value": "Others", "label": "Others"},
+]
+
+
+def _parse_invoice_json(raw):
+    if not raw:
+        return {}
+    if isinstance(raw, dict):
+        return raw
+    try:
+        return json.loads(raw)
+    except Exception:
+        return {}
+
+
+def _get_fbr_invoice_number(invoice_data, fbr_response):
+    invoice_data = invoice_data or {}
+    fbr_response = fbr_response or {}
+    return (
+        invoice_data.get("fbrInvoiceNumber")
+        or (fbr_response.get("invoiceNumber") if isinstance(fbr_response, dict) else None)
+        or ""
+    )
+
+
+def _invoice_items_total(invoice_data):
+    items = invoice_data.get("items") or []
+    value_excl = sum(float(item.get("valueSalesExcludingST", 0) or 0) for item in items)
+    sales_tax = sum(float(item.get("salesTaxApplicable", 0) or 0) for item in items)
+    return value_excl, sales_tax, value_excl + sales_tax
+
+
+def _load_sale_invoice_row(cur, client_id, env, invoice_id):
+    cur.execute(
+        """
+        SELECT id, invoice_data, fbr_response, status, created_at
+        FROM invoices
+        WHERE id = %s AND client_id = %s AND env = %s
+        """,
+        (invoice_id, client_id, env),
+    )
+    row = cur.fetchone()
+    if not row:
+        return None
+
+    invoice_data = _parse_invoice_json(row[1])
+    fbr_response = _parse_invoice_json(row[2])
+    invoice_type = (invoice_data.get("invoiceType") or "Sale Invoice").strip()
+    if invoice_type != "Sale Invoice":
+        return None
+
+    fbr_number = _get_fbr_invoice_number(invoice_data, fbr_response)
+    if not fbr_number or fbr_number == "N/A":
+        return None
+
+    value_excl, sales_tax, total = _invoice_items_total(invoice_data)
+    return {
+        "id": row[0],
+        "invoice_data": invoice_data,
+        "fbr_response": fbr_response,
+        "status": row[3],
+        "created_at": row[4],
+        "fbr_invoice_number": fbr_number,
+        "invoice_date": invoice_data.get("invoiceDate", ""),
+        "buyer_name": invoice_data.get("buyerBusinessName", ""),
+        "internal_ref_no": invoice_data.get("internalRefNo") or invoice_data.get("invoiceRefNo", ""),
+        "value_sales_excluding_st": value_excl,
+        "sales_tax_applicable": sales_tax,
+        "total_value": total,
+    }
 
 
 # Business Profiles / Buyers / Products / Invoice APIs
@@ -982,9 +1059,9 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             {
                 "invoiceTypes": [
                     {"value": "Sale Invoice", "label": "Sale Invoice"},
-                    {"value": "Credit Note", "label": "Credit Note"},
                     {"value": "Debit Note", "label": "Debit Note"},
                 ],
+                "debitNoteReasons": DEBIT_NOTE_REASONS,
                 "provinces": provinces_data,
                 # Registration types per FBR doc - only 2 valid values for buyerRegistrationType
                 "registrationTypes": [
@@ -1174,6 +1251,153 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             }
         )
 
+    # ---------------- Sale Invoice Lookup (for Debit Notes) ----------------
+    @app.route("/api/invoices/sale-invoices", methods=["GET"])
+    def list_sale_invoices():
+        client_id = session.get("client_id")
+        env = get_env()
+        if not client_id:
+            return jsonify({"error": "No client ID in session"}), 401
+
+        search = (request.args.get("search") or "").strip()
+        limit = min(int(request.args.get("limit", 50)), 100)
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT id, invoice_data, fbr_response, status, created_at
+            FROM invoices
+            WHERE client_id = %s AND env = %s AND status = 'Success'
+            ORDER BY created_at DESC
+            LIMIT 500
+            """,
+            (client_id, env),
+        )
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+
+        results = []
+        for row in rows:
+            invoice_data = _parse_invoice_json(row[1])
+            fbr_response = _parse_invoice_json(row[2])
+            invoice_type = (invoice_data.get("invoiceType") or "Sale Invoice").strip()
+            if invoice_type != "Sale Invoice":
+                continue
+
+            fbr_number = _get_fbr_invoice_number(invoice_data, fbr_response)
+            if not fbr_number or fbr_number == "N/A":
+                continue
+
+            buyer_name = invoice_data.get("buyerBusinessName", "")
+            internal_ref = invoice_data.get("internalRefNo") or invoice_data.get("invoiceRefNo", "")
+            invoice_date = invoice_data.get("invoiceDate", "")
+            value_excl, sales_tax, total = _invoice_items_total(invoice_data)
+
+            haystack = " ".join(
+                [
+                    str(fbr_number),
+                    str(internal_ref),
+                    str(buyer_name),
+                    str(invoice_date),
+                ]
+            ).lower()
+            if search and search.lower() not in haystack:
+                continue
+
+            results.append(
+                {
+                    "id": str(row[0]),
+                    "fbrInvoiceNumber": fbr_number,
+                    "invoiceDate": invoice_date,
+                    "buyerBusinessName": buyer_name,
+                    "internalRefNo": internal_ref,
+                    "valueSalesExcludingST": value_excl,
+                    "salesTaxApplicable": sales_tax,
+                    "totalValue": total,
+                    "createdAt": row[4].strftime("%Y-%m-%d %H:%M:%S") if row[4] else "",
+                }
+            )
+            if len(results) >= limit:
+                break
+
+        return jsonify(results)
+
+    @app.route("/api/invoices/sale-invoices/<invoice_id>", methods=["GET"])
+    def get_sale_invoice_for_debit(invoice_id):
+        client_id = session.get("client_id")
+        env = get_env()
+        if not client_id:
+            return jsonify({"error": "No client ID in session"}), 401
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        sale = _load_sale_invoice_row(cur, client_id, env, invoice_id)
+        cur.close()
+        conn.close()
+
+        if not sale:
+            return jsonify({"error": "Sale invoice not found"}), 404
+
+        invoice_data = sale["invoice_data"]
+        seller_data = {
+            "sellerBusinessName": invoice_data.get("sellerBusinessName", ""),
+            "sellerNTNCNIC": invoice_data.get("sellerNTNCNIC", ""),
+            "sellerSTRN": invoice_data.get("sellerSTRN", ""),
+            "sellerProvince": invoice_data.get("sellerProvince", ""),
+            "sellerAddress": invoice_data.get("sellerAddress", ""),
+        }
+        buyer_data = {
+            "buyerBusinessName": invoice_data.get("buyerBusinessName", ""),
+            "buyerNTNCNIC": invoice_data.get("buyerNTNCNIC", ""),
+            "buyerSTRN": invoice_data.get("buyerSTRN", ""),
+            "buyerProvince": invoice_data.get("buyerProvince", ""),
+            "buyerAddress": invoice_data.get("buyerAddress", ""),
+            "buyerRegistrationType": invoice_data.get("buyerRegistrationType", "Unregistered"),
+        }
+
+        items = []
+        for item in invoice_data.get("items") or []:
+            items.append(
+                {
+                    "hsCode": item.get("hsCode", ""),
+                    "productDescription": item.get("productDescription", ""),
+                    "quantity": item.get("quantity", 1),
+                    "uoM": item.get("uoM", ""),
+                    "taxRate": item.get("rate", item.get("taxRate", "0%")),
+                    "rate": item.get("rate", item.get("taxRate", "0%")),
+                    "valueSalesExcludingST": item.get("valueSalesExcludingST", 0),
+                    "salesTaxApplicable": item.get("salesTaxApplicable", 0),
+                    "totalValues": item.get("totalValues", 0),
+                    "fixedNotifiedValueOrRetailPrice": item.get("fixedNotifiedValueOrRetailPrice", 0),
+                    "salesTaxWithheldAtSource": item.get("salesTaxWithheldAtSource", 0),
+                    "extraTax": item.get("extraTax", ""),
+                    "furtherTax": item.get("furtherTax", 0),
+                    "sroScheduleNo": item.get("sroScheduleNo", ""),
+                    "fedPayable": item.get("fedPayable", 0),
+                    "discount": item.get("discount", 0),
+                    "saleType": item.get("saleType", "Goods at standard rate (default)"),
+                    "sroItemSerialNo": item.get("sroItemSerialNo", ""),
+                }
+            )
+
+        return jsonify(
+            {
+                "id": str(sale["id"]),
+                "fbrInvoiceNumber": sale["fbr_invoice_number"],
+                "invoiceDate": sale["invoice_date"],
+                "internalRefNo": sale["internal_ref_no"],
+                "scenarioId": invoice_data.get("scenarioId", ""),
+                "sellerData": seller_data,
+                "buyerData": buyer_data,
+                "items": items,
+                "valueSalesExcludingST": sale["value_sales_excluding_st"],
+                "salesTaxApplicable": sale["sales_tax_applicable"],
+                "totalValue": sale["total_value"],
+            }
+        )
+
     # ---------------- Invoice Creation ----------------
     @app.route("/api/invoice/create", methods=["POST"])
     def create_invoice_from_form():
@@ -1210,6 +1434,83 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
 
         if not data["items"]:
             return jsonify({"error": "At least one item is required"}), 400
+
+        invoice_type_raw = str(data.get("invoiceType") or "Sale Invoice").strip()
+        is_debit_note = invoice_type_raw == "Debit Note"
+        linked_sale_invoice = None
+
+        if is_debit_note:
+            original_fbr_invoice_no = str(
+                data.get("originalFbrInvoiceNo") or data.get("invoiceRefNo") or ""
+            ).strip()
+            reason = str(data.get("reason") or "").strip()
+            reason_remarks = str(data.get("reasonRemarks") or "").strip()
+
+            if not original_fbr_invoice_no:
+                return jsonify({"error": "Original FBR Invoice No. is required for debit notes"}), 400
+            if not reason:
+                return jsonify({"error": "Reason is required for debit notes"}), 400
+            if reason.lower() == "others" and not reason_remarks:
+                return jsonify(
+                    {"error": "Reason remarks are required when reason is Others"}
+                ), 400
+
+            linked_sale_invoice_id = data.get("linkedSaleInvoiceId")
+            if linked_sale_invoice_id:
+                linked_sale_invoice_id = str(linked_sale_invoice_id).strip()
+                if not linked_sale_invoice_id:
+                    return jsonify({"error": "Invalid linked sale invoice id"}), 400
+                conn = get_db_connection()
+                cur = conn.cursor()
+                linked_sale_invoice = _load_sale_invoice_row(
+                    cur, client_id, env, linked_sale_invoice_id
+                )
+                cur.close()
+                conn.close()
+                if not linked_sale_invoice:
+                    return jsonify({"error": "Linked sale invoice not found"}), 400
+
+                if linked_sale_invoice["fbr_invoice_number"] != original_fbr_invoice_no:
+                    return jsonify(
+                        {
+                            "error": "Original FBR Invoice No. does not match the selected sale invoice"
+                        }
+                    ), 400
+
+                try:
+                    original_date = datetime.strptime(
+                        linked_sale_invoice["invoice_date"], "%Y-%m-%d"
+                    ).date()
+                    debit_date = datetime.strptime(data["invoiceDate"], "%Y-%m-%d").date()
+                except ValueError:
+                    return jsonify({"error": "Invalid invoice date format"}), 400
+
+                if debit_date < original_date:
+                    return jsonify(
+                        {
+                            "error": "Debit note date must be on or after the original sale invoice date"
+                        }
+                    ), 400
+
+                if debit_date > original_date + timedelta(days=180):
+                    return jsonify(
+                        {
+                            "error": "Debit note must be created within 180 days of the original sale invoice"
+                        }
+                    ), 400
+
+                original_sales_tax = linked_sale_invoice["sales_tax_applicable"]
+                debit_sales_tax = sum(
+                    float(item.get("salesTaxApplicable", 0) or 0) for item in data["items"]
+                )
+                if debit_sales_tax > original_sales_tax + 0.01:
+                    return jsonify(
+                        {
+                            "error": "Sales tax on debit note cannot exceed the original sale invoice sales tax"
+                        }
+                    ), 400
+        elif invoice_type_raw not in ("Sale Invoice",):
+            return jsonify({"error": f"Unsupported invoice type: {invoice_type_raw}"}), 400
 
         conn = get_db_connection()
         cur = conn.cursor()
@@ -1295,7 +1596,22 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
 
         if username == "8974121" and data.get("CNIC"):
             invoice_json["CNIC"] = data["CNIC"]
-        if data.get("invoiceRefNo"):
+
+        if is_debit_note:
+            original_fbr_invoice_no = str(
+                data.get("originalFbrInvoiceNo") or data.get("invoiceRefNo") or ""
+            ).strip()
+            invoice_json["invoiceRefNo"] = original_fbr_invoice_no
+            invoice_json["reason"] = str(data.get("reason") or "").strip()
+            reason_remarks = str(data.get("reasonRemarks") or "").strip()
+            if reason_remarks:
+                invoice_json["reasonRemarks"] = reason_remarks
+            internal_ref_no = str(data.get("internalRefNo") or "").strip()
+            if internal_ref_no:
+                invoice_json["internalRefNo"] = internal_ref_no
+            if data.get("linkedSaleInvoiceId"):
+                invoice_json["linkedSaleInvoiceId"] = data.get("linkedSaleInvoiceId")
+        elif data.get("invoiceRefNo"):
             invoice_json["invoiceRefNo"] = data["invoiceRefNo"]
         if data.get("poNumber"):
             invoice_json["PO"] = data["poNumber"]
@@ -1438,6 +1754,11 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                 "invoiceType": data["invoiceType"],
                 "invoiceDate": data["invoiceDate"],
                 "invoiceRefNo": data.get("invoiceRefNo", ""),
+                "originalFbrInvoiceNo": data.get("originalFbrInvoiceNo", ""),
+                "internalRefNo": data.get("internalRefNo", ""),
+                "reason": data.get("reason", ""),
+                "reasonRemarks": data.get("reasonRemarks", ""),
+                "linkedSaleInvoiceId": data.get("linkedSaleInvoiceId"),
                 "scenarioId": data.get("scenarioId", ""),
                 "poNumber": data.get("poNumber", ""),
                 "PO": data.get("poNumber", ""),
@@ -1530,6 +1851,11 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         if data.get("submit"):
             from app import submit_fbr  # local import
             return submit_fbr()
+
+        # Validate with FBR without persisting
+        if data.get("validate"):
+            from app import validate_fbr  # local import
+            return validate_fbr()
 
         return jsonify(
             {

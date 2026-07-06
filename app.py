@@ -663,6 +663,220 @@ def comma_format(value):
         return value
 
 
+def get_validate_api_url(post_url):
+    """Derive FBR validate endpoint from the configured post endpoint."""
+    if not post_url:
+        return post_url
+    return (
+        post_url.replace("postinvoicedata_sb", "validateinvoicedata_sb")
+        .replace("postinvoicedata", "validateinvoicedata")
+    )
+
+
+def _sanitize_fbr_string(val):
+    import re
+
+    if not val:
+        return ""
+    s = str(val)
+    s = s.replace('"', "'")
+    s = s.replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
+    s = s.replace("\\r\\n", " ").replace("\\n", " ").replace("\\r", " ")
+    s = s.replace("\t", " ")
+    s = re.sub(r"[\x00-\x1f\x7f]", "", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+
+_FBR_HEADER_KEYS = {
+    "invoiceType",
+    "invoiceDate",
+    "sellerNTNCNIC",
+    "sellerBusinessName",
+    "sellerProvince",
+    "sellerAddress",
+    "buyerNTNCNIC",
+    "buyerBusinessName",
+    "buyerProvince",
+    "buyerAddress",
+    "buyerRegistrationType",
+    "invoiceRefNo",
+    "scenarioId",
+    "reason",
+    "reasonRemarks",
+}
+
+_FBR_ITEM_KEYS = {
+    "hsCode",
+    "productDescription",
+    "rate",
+    "uoM",
+    "quantity",
+    "totalValues",
+    "valueSalesExcludingST",
+    "fixedNotifiedValueOrRetailPrice",
+    "salesTaxApplicable",
+    "salesTaxWithheldAtSource",
+    "extraTax",
+    "furtherTax",
+    "sroScheduleNo",
+    "fedPayable",
+    "discount",
+    "saleType",
+    "sroItemSerialNo",
+}
+
+_FBR_ERROR_HINTS = {
+    "0510": (
+        "FBR internal/validation exception — common causes: reference invoice not found in FBR "
+        "(invoiceRefNo must be a real FBR sandbox sale invoice number), invalid reason value, "
+        "or unexpected fields in the payload."
+    ),
+    "0026": "Invoice reference number (original FBR sale invoice) is required for debit/credit notes.",
+    "0027": "Reason is required — must be a valid reason per FBR reference API.",
+    "0028": "Reason remarks are required when reason is Others.",
+    "0029": "Debit note date must be on or after the original sale invoice date.",
+    "0034": "Debit note must be within 180 days of the original sale invoice.",
+    "0057": "Reference sale invoice does not exist in FBR for the given invoiceRefNo.",
+    "0067": "Debit note sales tax cannot exceed the original sale invoice sales tax.",
+}
+
+
+def _prepare_fbr_payload(json_data):
+    """Return a sanitized FBR-only payload; strips app-only and unknown fields."""
+    raw = json_data.copy() if isinstance(json_data, dict) else {}
+
+    removed_header = sorted(
+        key for key in raw.keys() if key not in _FBR_HEADER_KEYS and key != "items"
+    )
+
+    payload = {}
+    for key in _FBR_HEADER_KEYS:
+        if key not in raw:
+            continue
+        value = raw[key]
+        if value is None:
+            continue
+        if isinstance(value, str) and not value.strip() and key not in (
+            "invoiceRefNo",
+            "reason",
+            "reasonRemarks",
+            "scenarioId",
+        ):
+            continue
+        payload[key] = value
+
+    cleaned_items = []
+    removed_item_keys = set()
+    for item in raw.get("items") or []:
+        if not isinstance(item, dict):
+            continue
+        cleaned_item = {}
+        for key in _FBR_ITEM_KEYS:
+            if key not in item:
+                continue
+            cleaned_item[key] = item[key]
+        for key in item.keys():
+            if key not in _FBR_ITEM_KEYS:
+                removed_item_keys.add(key)
+        cleaned_items.append(cleaned_item)
+    if cleaned_items:
+        payload["items"] = cleaned_items
+
+    string_fields = [
+        "sellerAddress",
+        "buyerAddress",
+        "sellerBusinessName",
+        "buyerBusinessName",
+        "sellerProvince",
+        "buyerProvince",
+        "invoiceType",
+        "reason",
+        "reasonRemarks",
+        "invoiceRefNo",
+    ]
+    for field in string_fields:
+        if field in payload:
+            payload[field] = _sanitize_fbr_string(payload[field])
+
+    if "items" in payload:
+        for item in payload["items"]:
+            if "productDescription" in item:
+                item["productDescription"] = _sanitize_fbr_string(item["productDescription"])
+            if "hsCode" in item:
+                item["hsCode"] = _sanitize_fbr_string(item["hsCode"])
+            if "uoM" in item:
+                item["uoM"] = _sanitize_fbr_string(item["uoM"])
+            if "saleType" in item:
+                item["saleType"] = _sanitize_fbr_string(item["saleType"])
+
+    payload["_debug_removed_header_keys"] = removed_header
+    payload["_debug_removed_item_keys"] = sorted(removed_item_keys)
+    return payload
+
+
+def _log_fbr_exchange(action, env, api_url, payload, response_status, response_json):
+    """Print a structured debug block for FBR post/validate calls."""
+    import json as json_module
+
+    debug_payload = {
+        key: value
+        for key, value in payload.items()
+        if not str(key).startswith("_debug_")
+    }
+    removed_header = payload.get("_debug_removed_header_keys", [])
+    removed_item_keys = payload.get("_debug_removed_item_keys", [])
+    validation = (response_json or {}).get("validationResponse") or {}
+    error_code = str(validation.get("errorCode") or "").strip()
+
+    print("=" * 72)
+    print(f"FBR {action.upper()} DEBUG | env={env}")
+    print(f"URL: {api_url}")
+    print(
+        f"Header: type={debug_payload.get('invoiceType')} | "
+        f"date={debug_payload.get('invoiceDate')} | "
+        f"scenarioId={debug_payload.get('scenarioId')}"
+    )
+    ref_no = debug_payload.get("invoiceRefNo") or ""
+    print(
+        f"Reference: invoiceRefNo={ref_no!r} (len={len(str(ref_no))}) | "
+        f"reason={debug_payload.get('reason')!r} | "
+        f"reasonRemarks={debug_payload.get('reasonRemarks')!r}"
+    )
+    print(
+        f"Buyer: {debug_payload.get('buyerBusinessName')} | "
+        f"province={debug_payload.get('buyerProvince')!r} | "
+        f"address={debug_payload.get('buyerAddress')!r}"
+    )
+    print(f"Items: {len(debug_payload.get('items') or [])}")
+    if removed_header:
+        print(f"Stripped non-FBR header fields: {removed_header}")
+    if removed_item_keys:
+        print(f"Stripped non-FBR item fields: {removed_item_keys}")
+    print("FBR payload JSON:")
+    print(json_module.dumps(debug_payload, indent=2, default=str))
+    print(f"FBR HTTP status: {response_status}")
+    print(f"FBR response JSON: {response_json}")
+    if error_code:
+        hint = _FBR_ERROR_HINTS.get(error_code, "")
+        print(f"FBR errorCode: {error_code} | {validation.get('error')}")
+        if hint:
+            print(f"Hint: {hint}")
+    source_invoice_no = (response_json or {}).get("sourceInvoiceNo")
+    if source_invoice_no is not None:
+        print(f"FBR sourceInvoiceNo: {source_invoice_no!r}")
+    print("=" * 72)
+
+
+def _payload_for_fbr_request(payload):
+    """Remove internal debug keys before sending to FBR."""
+    return {
+        key: value
+        for key, value in payload.items()
+        if not str(key).startswith("_debug_")
+    }
+
+
 def get_client_config(client_id, env):
     try:
         conn = get_db_connection()
@@ -801,7 +1015,28 @@ def _extract_fbr_error_message(res_json, fallback_text=""):
 
     prioritized_message = search_invoice_status_error(res_json)
     if prioritized_message:
-        return clean_text(prioritized_message)
+        message = clean_text(prioritized_message)
+    else:
+        message = None
+
+    error_code = ""
+    if isinstance(res_json, dict):
+        validation = res_json.get("validationResponse")
+        if isinstance(validation, dict):
+            error_code = str(validation.get("errorCode") or "").strip()
+            if not message:
+                err_text = str(validation.get("error") or "").strip()
+                if err_text and err_text.lower() not in {"invalid", "valid"}:
+                    message = clean_text(err_text)
+
+    if message and error_code:
+        hint = _FBR_ERROR_HINTS.get(error_code)
+        if hint:
+            return f"[FBR {error_code}] {message}. {hint}"
+        return f"[FBR {error_code}] {message}"
+
+    if message:
+        return message
 
     sources = []
     if isinstance(res_json, dict):
@@ -1488,48 +1723,11 @@ def submit_fbr():
     if env not in last_json_data:
         return jsonify({"error": "No JSON to submit"}), 400
 
-    # Use a separate variable and clear global variable to save memory
     json_data = last_json_data[env].copy()
-    # PDF-only meta — FBR schema must not receive unknown keys
     _signature_area_pdf_only = json_data.pop("signatureArea", None)
+    json_data = _prepare_fbr_payload(json_data)
+    fbr_request_body = _payload_for_fbr_request(json_data)
 
-    # Helper to sanitize any string value - removes control characters that break JSON
-    import re
-    def sanitize_string(val):
-        if not val:
-            return ""
-        s = str(val)
-        # Replace double quotes with single quotes (FBR API doesn't handle escaped quotes well)
-        s = s.replace('"', "'")
-        # Remove/replace all control characters and problematic whitespace
-        s = s.replace("\r\n", " ").replace("\n", " ").replace("\r", " ")
-        s = s.replace("\\r\\n", " ").replace("\\n", " ").replace("\\r", " ")
-        s = s.replace("\t", " ")
-        # Remove any other control characters (ASCII 0-31 except space)
-        s = re.sub(r'[\x00-\x1f\x7f]', '', s)
-        # Collapse multiple spaces into single space
-        s = re.sub(r'\s+', ' ', s).strip()
-        return s
-
-    # Sanitize all string fields that could contain control characters
-    string_fields = ["sellerAddress", "buyerAddress", "sellerBusinessName", "buyerBusinessName", 
-                     "sellerProvince", "buyerProvince", "invoiceType"]
-    for field in string_fields:
-        if field in json_data:
-            json_data[field] = sanitize_string(json_data[field])
-    
-    # Sanitize items
-    if "items" in json_data:
-        for item in json_data["items"]:
-            if "productDescription" in item:
-                item["productDescription"] = sanitize_string(item["productDescription"])
-            if "hsCode" in item:
-                item["hsCode"] = sanitize_string(item["hsCode"])
-            if "uoM" in item:
-                item["uoM"] = sanitize_string(item["uoM"])
-            if "saleType" in item:
-                item["saleType"] = sanitize_string(item["saleType"])
-        
     try:
         client_id = session.get("client_id")
         if not client_id:
@@ -1539,45 +1737,41 @@ def submit_fbr():
         api_url = config["api_url"]
         api_token = config["api_token"]
 
-        print(f"API URL: {api_url}")  # Logging API URL (without token for security)
-
         headers = {
             "Authorization": f"Bearer {api_token}",
             "Content-Type": "application/json",
         }
 
-        # Log request data (excluding sensitive info)
-        print(f"Submitting data to FBR, env: {env}")
+        response = requests.post(api_url, headers=headers, json=fbr_request_body, timeout=180)
 
-        # Send request to FBR with timeout to prevent worker hanging
-        response = requests.post(api_url, headers=headers, json=json_data, timeout=180)
-        print(f"FBR API Response status: {response.status_code}")
-
-        # Parse response
         try:
             res_json = response.json()
-            print(f"FBR API Response: {res_json}")
         except Exception as e:
             print(f"Failed to parse response as JSON: {str(e)}")
             print(f"Response text: {response.text}")
             res_json = {}
 
+        _log_fbr_exchange("submit", env, api_url, json_data, response.status_code, res_json)
+
         invoice_no = res_json.get("invoiceNumber", "N/A")
-        json_data["fbrInvoiceNumber"] = invoice_no
+        stored_json = last_json_data[env].copy()
+        stored_json["fbrInvoiceNumber"] = invoice_no
         if _signature_area_pdf_only is not None:
-            json_data["signatureArea"] = _signature_area_pdf_only
+            stored_json["signatureArea"] = _signature_area_pdf_only
         last_json_data[env]["fbrInvoiceNumber"] = invoice_no
         is_success = bool(invoice_no and invoice_no != "N/A")
 
         # If failed, return error without inserting into DB
         if not is_success:
             friendly_error = _extract_fbr_error_message(res_json, response.text)
+            validation = res_json.get("validationResponse") or {}
             return (
                 jsonify(
                     {
                         "status": "Failed",
                         "status_code": response.status_code,
                         "error": friendly_error,
+                        "error_code": validation.get("errorCode", ""),
                         "response_text": response.text,
                     }
                 ),
@@ -1589,8 +1783,8 @@ def submit_fbr():
         date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         # Generate PDF using the client's assigned template
-        pdf_binary = generate_invoice_pdf_for_client(json_data, client_id)
-        pdf_url = save_invoice_pdf(pdf_binary, json_data) if pdf_binary else None
+        pdf_binary = generate_invoice_pdf_for_client(stored_json, client_id)
+        pdf_url = save_invoice_pdf(pdf_binary, stored_json) if pdf_binary else None
 
         # Insert into invoices table - use try/finally to ensure connection is closed
         conn = None
@@ -1603,7 +1797,7 @@ def submit_fbr():
                 INSERT INTO invoices (client_id, env, invoice_data, fbr_response, status, created_at, pdf_url)
                 VALUES (%s, %s, %s, %s, %s, NOW(), %s)
             """,
-                (client_id, env, json.dumps(json_data), json.dumps(res_json), status, pdf_url),
+                (client_id, env, json.dumps(stored_json), json.dumps(res_json), status, pdf_url),
             )
             conn.commit()
         finally:
@@ -1656,6 +1850,75 @@ def submit_fbr():
         return jsonify({"error": "Failed to connect to FBR API server"}), 503
     except Exception as e:
         print(f"Error in submit_fbr: {str(e)}")
+        import traceback
+
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/validate-fbr", methods=["POST"])
+def validate_fbr():
+    env = get_env()
+    if env not in last_json_data:
+        return jsonify({"error": "No JSON to validate"}), 400
+
+    json_data = _prepare_fbr_payload(last_json_data[env].copy())
+    fbr_request_body = _payload_for_fbr_request(json_data)
+
+    try:
+        client_id = session.get("client_id")
+        if not client_id:
+            return jsonify({"error": "No client ID in session"}), 400
+
+        config = get_client_config(client_id, env)
+        api_url = get_validate_api_url(config["api_url"])
+        api_token = config["api_token"]
+
+        headers = {
+            "Authorization": f"Bearer {api_token}",
+            "Content-Type": "application/json",
+        }
+
+        response = requests.post(api_url, headers=headers, json=fbr_request_body, timeout=180)
+
+        try:
+            res_json = response.json()
+        except Exception:
+            res_json = {"error": response.text}
+
+        _log_fbr_exchange("validate", env, api_url, json_data, response.status_code, res_json)
+
+        validation = res_json.get("validationResponse") or {}
+        status_code = str(validation.get("statusCode", ""))
+        status_text = str(validation.get("status", "")).lower()
+        is_valid = status_code == "00" and status_text == "valid"
+
+        if not is_valid:
+            friendly_error = _extract_fbr_error_message(res_json, response.text)
+            return jsonify(
+                {
+                    "status": "Invalid",
+                    "valid": False,
+                    "error": friendly_error,
+                    "validationResponse": validation,
+                    "response": res_json,
+                }
+            ), 400
+
+        return jsonify(
+            {
+                "status": "Valid",
+                "valid": True,
+                "validationResponse": validation,
+                "response": res_json,
+            }
+        )
+    except requests.Timeout:
+        return jsonify({"error": "Request to FBR API timed out"}), 504
+    except requests.ConnectionError:
+        return jsonify({"error": "Failed to connect to FBR API server"}), 503
+    except Exception as e:
+        print(f"Error in validate_fbr: {str(e)}")
         import traceback
 
         traceback.print_exc()

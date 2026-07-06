@@ -441,7 +441,7 @@
                                         full</button>
                                 </div>
                                 <div class="overflow-x-auto">
-                                    <table class="min-w-full divide-y divide-gray-200">
+                                    <table class="divide-y divide-gray-200">
                                         <thead class="bg-gray-50">
                                             <tr>
                                                 <th class="px-4 py-2 text-left !text-sm font-medium text-gray-500 uppercase whitespace-nowrap">Period</th>
@@ -464,7 +464,7 @@
                                         id="open-products-full">View full</button>
                                 </div>
                                 <div class="overflow-x-auto">
-                                    <table class="min-w-full divide-y divide-gray-200">
+                                    <table class="divide-y divide-gray-200">
                                         <thead class="bg-gray-50">
                                             <tr>
                                                 <th class="px-4 py-2 text-left !text-sm font-medium text-gray-500 uppercase whitespace-nowrap">Product</th>
@@ -533,7 +533,7 @@
 
                         <!-- Filters for Invoice List -->
                         <div class="bg-white p-4 rounded-lg shadow mb-6 no-print">
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                                 <div>
                                     <label for="buyer-filter"
                                         class="block text-sm font-medium text-gray-700 mb-1">Buyer</label>
@@ -545,6 +545,16 @@
                                         class="block text-sm font-medium text-gray-700 mb-1">Invoice Reference</label>
                                     <input type="text" id="invoice-ref-filter" placeholder="Filter by invoice number"
                                         class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500">
+                                </div>
+                                <div>
+                                    <label for="invoice-type-filter"
+                                        class="block text-sm font-medium text-gray-700 mb-1">Document Type</label>
+                                    <select id="invoice-type-filter"
+                                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500">
+                                        <option value="">All Types</option>
+                                        <option value="Sale Invoice">Sale Invoice</option>
+                                        <option value="Debit Note">Debit Note</option>
+                                    </select>
                                 </div>
                                 <div>
                                     <label for="invoice-date-filter"
@@ -581,6 +591,10 @@
                                                 class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
                                                 data-sort="invoice_ref">
                                                 Invoice # <i class="fas fa-sort ml-1 sort-icon"></i>
+                                            </th>
+                                            <th scope="col"
+                                                class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Type
                                             </th>
                                             <th scope="col"
                                                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
@@ -675,6 +689,7 @@
                                         <!-- Invoice details will be loaded here -->
                                     </div>
                                     <div class="mt-6 flex justify-end">
+                                        <div id="invoice-details-actions" class="mr-auto"></div>
                                         <button id="close-invoice-details-btn"
                                             class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50">
                                             Close
@@ -801,7 +816,7 @@
                                     <thead class="bg-gray-50">
                                         <tr>
                                             <th scope="col"
-                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cell-name">
                                                 Product Name
                                             </th>
                                             <th scope="col"
@@ -914,7 +929,7 @@
                                     <thead class="bg-gray-50">
                                         <tr>
                                             <th scope="col"
-                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cell-name">
                                                 Buyer Name
                                             </th>
                                             <th scope="col"
@@ -1183,7 +1198,8 @@
                 filters: {
                     buyerName: '',
                     invoiceRef: '',
-                    invoiceDate: ''
+                    invoiceDate: '',
+                    invoiceType: ''
                 }
             },
             products: {
@@ -1328,6 +1344,7 @@
                 state.invoices.filters.buyerName = document.getElementById('buyer-filter').value;
                 state.invoices.filters.invoiceRef = document.getElementById('invoice-ref-filter').value;
                 state.invoices.filters.invoiceDate = document.getElementById('invoice-date-filter').value;
+                state.invoices.filters.invoiceType = document.getElementById('invoice-type-filter').value;
                 state.invoices.page = 1; // Reset to first page
                 loadInvoiceList();
             });
@@ -1339,6 +1356,8 @@
                 state.invoices.filters.buyerName = '';
                 state.invoices.filters.invoiceRef = '';
                 state.invoices.filters.invoiceDate = '';
+                state.invoices.filters.invoiceType = '';
+                document.getElementById('invoice-type-filter').value = '';
                 state.invoices.page = 1; // Reset to first page
                 loadInvoiceList();
             });
@@ -1600,7 +1619,7 @@
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-gray-50 cursor-pointer';
                 tr.innerHTML = `
-                    <td class="px-4 py-3 !text-sm text-gray-700 whitespace-nowrap">${p.product_name}</td>
+                    <td class="px-4 py-3 !text-sm text-gray-700 cell-name">${p.product_name}</td>
                     <td class="px-4 py-3 !text-sm text-right text-gray-900 whitespace-nowrap">${p.quantity}</td>
                     <td class="px-4 py-3 !text-sm text-right text-gray-900 whitespace-nowrap">${formatCurrency(p.total_sales)}</td>
                     <td class="px-4 py-3 !text-sm text-right text-gray-900 whitespace-nowrap">${formatCurrency(p.total_tax)}</td>
@@ -1631,7 +1650,7 @@
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-gray-50 cursor-pointer';
                 tr.innerHTML = `
-                    <td class="px-4 py-3 !text-sm text-gray-700 whitespace-nowrap">${b.buyer_name}</td>
+                    <td class="px-4 py-3 !text-sm text-gray-700 cell-name">${b.buyer_name}</td>
                     <td class="px-4 py-3 !text-sm text-right text-gray-900 whitespace-nowrap">${b.invoice_count}</td>
                     <td class="px-4 py-3 !text-sm text-right text-gray-900 whitespace-nowrap">${formatCurrency(b.total_purchase)}</td>
                     <td class="px-4 py-3 !text-sm text-right text-gray-900 whitespace-nowrap">${formatCurrency(b.total_tax)}</td>
@@ -1687,6 +1706,23 @@
         });
 
         // Load Invoice List
+        function getInvoiceTypeBadge(type) {
+            const docType = type || 'Sale Invoice';
+            if (docType === 'Debit Note') {
+                return '<span class="inline-flex px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-100 text-amber-800">Debit Note</span>';
+            }
+            return '<span class="inline-flex px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">Sale Invoice</span>';
+        }
+
+        function buildCreateDebitNoteLink(invoiceId, invoiceType) {
+            if ((invoiceType || 'Sale Invoice') !== 'Sale Invoice' || !invoiceId) return '';
+            const env = new URLSearchParams(window.location.search).get('env') || 'production';
+            return `<a href="/create-invoice?type=debit&fromInvoice=${invoiceId}&env=${env}"
+                class="inline-flex items-center px-3 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-md text-sm font-medium mr-3">
+                <i class="fas fa-file-invoice mr-2"></i>Create Debit Note
+            </a>`;
+        }
+
         function loadInvoiceList() {
             document.getElementById('loading-indicator').classList.remove('hidden');
 
@@ -1708,6 +1744,10 @@
 
             if (state.invoices.filters.invoiceRef) {
                 params.append('invoice_ref', state.invoices.filters.invoiceRef);
+            }
+
+            if (state.invoices.filters.invoiceType) {
+                params.append('invoice_type', state.invoices.filters.invoiceType);
             }
 
             // If an exact invoice date filter is provided, use it (exact match)
@@ -1758,12 +1798,13 @@
                         row.innerHTML = `
                             <td class="px-4 py-4"><input type="checkbox" class="invoice-select-checkbox" value="${invoice.id}" ${checkedAttr} /></td>
                             <td class="px-4 py-4 whitespace-nowrap text-sm font-medium text-primary-600">${invoice.invoice_ref}</td>
+                            <td class="px-4 py-4 whitespace-nowrap text-sm">${getInvoiceTypeBadge(invoice.invoice_type)}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(invoice.invoice_date)}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${invoice.buyer_name}</td>
+                            <td class="px-6 py-4 cell-name text-sm text-gray-900">${invoice.buyer_name}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(invoice.total_value_excl)}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(invoice.total_tax)}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${formatCurrency(invoice.total_amount)}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium no-print">
+                            <td class="px-6 py-4 text-right text-sm font-medium no-print">
                                 <button class="view-invoice-btn text-primary-600 hover:text-primary-900" data-invoice-id="${invoice.id}">
                                     <i class="fas fa-eye mr-1"></i> View
                                 </button>
@@ -1975,12 +2016,16 @@
                 .then(data => {
                     document.getElementById('loading-indicator').classList.add('hidden');
 
-                    // Populate invoice details modal with compact important fields only
                     const contentDiv = document.getElementById('invoice-details-content');
-
                     const invoiceRef = data.invoice_details.invoice_ref || 'N/A';
+                    const invoiceType = data.invoice_details.invoice_type || 'Sale Invoice';
                     const buyerName = data.buyer_info && data.buyer_info.name ? data.buyer_info.name : 'Unknown Buyer';
                     const items = data.items || [];
+
+                    const actionsDiv = document.getElementById('invoice-details-actions');
+                    if (actionsDiv) {
+                        actionsDiv.innerHTML = buildCreateDebitNoteLink(invoiceId, invoiceType);
+                    }
 
                     let html = `
                 <div class="mb-4">
@@ -1988,8 +2033,11 @@
                         <div>
                             <h3 class="text-sm text-gray-500">Invoice</h3>
                             <div class="text-lg font-semibold">${invoiceRef}</div>
+                            <div class="mt-1">${getInvoiceTypeBadge(invoiceType)}</div>
                             <div class="text-sm text-gray-600">Buyer: <span class="font-medium">${buyerName}</span></div>
                             <div class="text-sm text-gray-500">Ref #: ${data.invoice_details.invoice_ref_no || 'N/A'}</div>
+                            ${invoiceType === 'Debit Note' && data.invoice_details.original_fbr_invoice_no ? `<div class="text-sm text-gray-500">Original FBR #: ${data.invoice_details.original_fbr_invoice_no}</div>` : ''}
+                            ${invoiceType === 'Debit Note' && data.invoice_details.reason ? `<div class="text-sm text-gray-500">Reason: ${data.invoice_details.reason}${data.invoice_details.reason_remarks ? ` (${data.invoice_details.reason_remarks})` : ''}</div>` : ''}
                             <div class="text-sm text-gray-500">Date: ${data.invoice_details.invoice_date || 'N/A'}</div>
                         </div>
                         <div class="text-right text-sm text-gray-600">
@@ -2004,21 +2052,21 @@
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
-                                <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Qty</th>
-                                <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Value Excl.</th>
-                                <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Tax</th>
-                                <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Total</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase cell-name">Product</th>
+                                <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Qty</th>
+                                <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Value Excl.</th>
+                                <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Tax</th>
+                                <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Total</th>
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
                             ${items.map(item => `
                                 <tr>
-                                    <td class="px-4 py-2 text-sm text-gray-700">${item.description || ''}</td>
-                                    <td class="px-4 py-2 text-sm text-right text-gray-900">${item.quantity || 0}</td>
-                                    <td class="px-4 py-2 text-sm text-right text-gray-900">${formatCurrency(item.value_excl || 0)}</td>
-                                    <td class="px-4 py-2 text-sm text-right text-gray-900">${formatCurrency(item.tax || 0)}</td>
-                                    <td class="px-4 py-2 text-sm text-right font-medium text-gray-900">${formatCurrency(item.total || 0)}</td>
+                                    <td class="px-4 py-2 text-sm text-gray-700 cell-name">${item.description || ''}</td>
+                                    <td class="px-4 py-2 text-sm text-right text-gray-900 whitespace-nowrap">${item.quantity || 0}</td>
+                                    <td class="px-4 py-2 text-sm text-right text-gray-900 whitespace-nowrap">${formatCurrency(item.value_excl || 0)}</td>
+                                    <td class="px-4 py-2 text-sm text-right text-gray-900 whitespace-nowrap">${formatCurrency(item.tax || 0)}</td>
+                                    <td class="px-4 py-2 text-sm text-right font-medium text-gray-900 whitespace-nowrap">${formatCurrency(item.total || 0)}</td>
                                 </tr>
                             `).join('')}
                         </tbody>
@@ -2089,7 +2137,7 @@
                         row.className = 'hover:bg-gray-50';
 
                         row.innerHTML = `
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary-600">${product.product_name}</td>
+                            <td class="px-6 py-4 cell-name text-sm font-medium text-primary-600">${product.product_name}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${product.total_quantity.toFixed(2)}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(product.total_value_excl)}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(product.total_tax)}</td>
@@ -2305,13 +2353,13 @@
                         row.className = 'hover:bg-gray-50';
 
                         row.innerHTML = `
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary-600">${buyer.buyer_name}</td>
+                            <td class="px-6 py-4 cell-name text-sm font-medium text-primary-600">${buyer.buyer_name}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${buyer.invoice_count}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(buyer.total_value_excl)}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(buyer.total_tax)}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${formatCurrency(buyer.total_purchase)}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatCurrency(buyer.average_purchase)}</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <td class="px-6 py-4 text-sm text-gray-500">
                                 ${formatDate(buyer.last_purchase)}
                                 <span class="text-xs text-gray-400 ml-1">(${buyer.days_since_last_purchase} days ago)</span>
                             </td>
@@ -2676,13 +2724,13 @@
                     const productRow = document.createElement('tr');
                     productRow.className = 'hover:bg-gray-50';
                     productRow.innerHTML = `
-                        <td class="border px-4 py-2 text-sm">${item.description}</td>
-                        <td class="border px-4 py-2 text-sm">${item.invoice_ref}</td>
-                        <td class="border px-4 py-2 text-sm text-right">${quantity.toFixed(2)}</td>
-                        <td class="border px-4 py-2 text-sm text-right">${formatCurrency(calculatedRate)}</td>
-                        <td class="border px-4 py-2 text-sm text-right">${formatCurrency(valueExcl)}</td>
-                        <td class="border px-4 py-2 text-sm text-right">${formatCurrency(item.tax)}</td>
-                        <td class="border px-4 py-2 text-sm text-right">${formatCurrency(item.total)}</td>
+                        <td class="border px-4 py-2 text-sm cell-name">${item.description}</td>
+                        <td class="border px-4 py-2 text-sm whitespace-nowrap">${item.invoice_ref}</td>
+                        <td class="border px-4 py-2 text-sm text-right whitespace-nowrap">${quantity.toFixed(2)}</td>
+                        <td class="border px-4 py-2 text-sm text-right whitespace-nowrap">${formatCurrency(calculatedRate)}</td>
+                        <td class="border px-4 py-2 text-sm text-right whitespace-nowrap">${formatCurrency(valueExcl)}</td>
+                        <td class="border px-4 py-2 text-sm text-right whitespace-nowrap">${formatCurrency(item.tax)}</td>
+                        <td class="border px-4 py-2 text-sm text-right whitespace-nowrap">${formatCurrency(item.total)}</td>
                     `;
                     salesBody.appendChild(productRow);
                 });
@@ -2792,21 +2840,21 @@
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
                                     <tr>
-                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Product</th>
-                                        <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Qty</th>
-                                        <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Value Excl.</th>
-                                        <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Tax</th>
-                                        <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Total</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase cell-name">Product</th>
+                                        <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Qty</th>
+                                        <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Value Excl.</th>
+                                        <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Tax</th>
+                                        <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Total</th>
                                     </tr>
                                 </thead>
                                 <tbody class="bg-white divide-y divide-gray-200">
                                     ${items.map(item => `
                                         <tr>
-                                            <td class="px-4 py-2 text-sm text-gray-700">${item.description || item.productDescription || ''}</td>
-                                            <td class="px-4 py-2 text-sm text-right text-gray-900">${item.quantity || 0}</td>
-                                            <td class="px-4 py-2 text-sm text-right text-gray-900">${formatCurrency(item.value_excl || item.value || 0)}</td>
-                                            <td class="px-4 py-2 text-sm text-right text-gray-900">${formatCurrency(item.tax || 0)}</td>
-                                            <td class="px-4 py-2 text-sm text-right font-medium text-gray-900">${formatCurrency(item.total || item.total_value || 0)}</td>
+                                            <td class="px-4 py-2 text-sm text-gray-700 cell-name">${item.description || item.productDescription || ''}</td>
+                                            <td class="px-4 py-2 text-sm text-right text-gray-900 whitespace-nowrap">${item.quantity || 0}</td>
+                                            <td class="px-4 py-2 text-sm text-right text-gray-900 whitespace-nowrap">${formatCurrency(item.value_excl || item.value || 0)}</td>
+                                            <td class="px-4 py-2 text-sm text-right text-gray-900 whitespace-nowrap">${formatCurrency(item.tax || 0)}</td>
+                                            <td class="px-4 py-2 text-sm text-right font-medium text-gray-900 whitespace-nowrap">${formatCurrency(item.total || item.total_value || 0)}</td>
                                         </tr>
                                     `).join('')}
                                 </tbody>
@@ -2902,12 +2950,12 @@
                         <input type="checkbox" class="download-checkbox rounded border-gray-300 text-primary-600 focus:ring-primary-500" data-invoice-id="${invoice.id}">
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${invoice.invoice_ref}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${invoice.buyer_name}</td>
+                    <td class="px-6 py-4 cell-name text-sm text-gray-900">${invoice.buyer_name}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(invoice.invoice_date)}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${formatCurrency(invoice.total_amount)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm">${envBadge}</td>
+                    <td class="px-6 py-4 text-sm">${envBadge}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(invoice.created_at)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-center text-sm">
+                    <td class="px-6 py-4 text-center text-sm">
                         <button onclick="downloadSingleInvoice('${invoice.id}')" class="bg-primary-600 hover:bg-primary-700 text-white font-medium py-1 px-3 rounded transition">
                             <i class="fas fa-download mr-1"></i>Download
                         </button>

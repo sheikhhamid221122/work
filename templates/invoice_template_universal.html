@@ -301,7 +301,10 @@
         {% endif %}
 
         <!-- Invoice Title -->
-        <div class="{{ header_class }} mt-6" >SALES TAX INVOICE</div>
+        {% set doc_type = (data.invoiceType or 'Sale Invoice')|string %}
+        <div class="{{ header_class }} mt-6" >
+            {% if doc_type == 'Debit Note' %}DEBIT NOTE{% else %}SALES TAX INVOICE{% endif %}
+        </div>
 
         <!-- Buyer and Invoice Info -->
         <table style="width: 100%; border: 1px solid {{ border_color }};">
@@ -314,9 +317,29 @@
             <tr>
                 <td style="font-weight: bold; background-color: #f2f2f2; border: 1px solid {{ border_color }};" class="left">BUYER ADDRESS</td>
                 <td style="border: 1px solid {{ border_color }};" class="left">{{ data.buyerAddress }}</td>
-                <td style="font-weight: bold; background-color: #f2f2f2; border: 1px solid {{ border_color }};" class="left">INVOICE #</td>
-                <td style="border: 1px solid {{ border_color }};" class="left">{{ data.invoiceRefNo }}</td>
+                <td style="font-weight: bold; background-color: #f2f2f2; border: 1px solid {{ border_color }};" class="left">{% if doc_type == 'Debit Note' %}DEBIT NOTE #{% else %}INVOICE #{% endif %}</td>
+                <td style="border: 1px solid {{ border_color }};" class="left">
+                    {% if doc_type == 'Debit Note' %}
+                        {{ data.fbrInvoiceNumber or data.invoiceRefNo }}
+                    {% else %}
+                        {{ data.invoiceRefNo }}
+                    {% endif %}
+                </td>
             </tr>
+            {% if doc_type == 'Debit Note' %}
+            <tr>
+                <td style="font-weight: bold; background-color: #f2f2f2; border: 1px solid {{ border_color }};" class="left">ORIGINAL INVOICE #</td>
+                <td style="border: 1px solid {{ border_color }};" class="left">{{ data.invoiceRefNo }}</td>
+                <td style="font-weight: bold; background-color: #f2f2f2; border: 1px solid {{ border_color }};" class="left">REASON</td>
+                <td style="border: 1px solid {{ border_color }};" class="left">{{ data.reason or "" }}{% if data.reasonRemarks %} - {{ data.reasonRemarks }}{% endif %}</td>
+            </tr>
+            {% if data.internalRefNo %}
+            <tr>
+                <td style="font-weight: bold; background-color: #f2f2f2; border: 1px solid {{ border_color }};" class="left">INTERNAL REF #</td>
+                <td colspan="3" style="border: 1px solid {{ border_color }};" class="left">{{ data.internalRefNo }}</td>
+            </tr>
+            {% endif %}
+            {% endif %}
             {% set _info_fields = namespace(items=[]) %}
             {% set _ = _info_fields.items.append({'label': 'BUYER NTN/CNIC', 'value': data.buyerNTNCNIC or ""}) %}
             {% if show_status %}

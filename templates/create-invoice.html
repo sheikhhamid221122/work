@@ -482,23 +482,59 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <label for="invoice-type" class="block text-gray-700 font-medium mb-2">Invoice Type*</label>
-                            <input type="text" id="invoice-type" value="Sale Invoice"
-                                class="form-input w-full px-4 py-2 border border-gray-300 rounded-md bg-gray-100 text-gray-700 cursor-not-allowed"
-                                readonly disabled>
-                            <!-- Hidden field to ensure the value is still submitted with the form -->
+                            <select id="invoice-type"
+                                class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500">
+                                <option value="">-- Select Type --</option>
+                            </select>
                             <input type="hidden" id="invoice-type-hidden" value="Sale Invoice">
                         </div>
                         <div>
-                            <label for="invoice-date" class="block text-gray-700 font-medium mb-2">Invoice Date*</label>
+                            <label for="invoice-date" class="block text-gray-700 font-medium mb-2"><span id="invoice-date-label">Invoice Date</span>*</label>
                             <input type="date" id="invoice-date"
                                 class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500" />
                         </div>
-                        <div>
+                        <div id="sale-invoice-ref-container">
                             <label for="invoice-ref-no" class="block text-gray-700 font-medium mb-2">Invoice Reference
                                 No.*</label>
                             <input type="text" id="invoice-ref-no"
                                 class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
                                 placeholder="Enter reference number" required />
+                        </div>
+                        <div id="debit-note-fields-container" class="hidden md:col-span-2">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label for="original-fbr-invoice-no" class="block text-gray-700 font-medium mb-2">Original FBR Invoice No.*</label>
+                                    <div class="flex gap-2">
+                                        <input type="text" id="original-fbr-invoice-no"
+                                            class="form-input flex-1 px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
+                                            placeholder="22 or 28 digit FBR invoice number" />
+                                        <button type="button" id="search-sale-invoice-btn"
+                                            class="bg-secondary-600 hover:bg-secondary-700 text-white px-4 py-2 rounded-md whitespace-nowrap">
+                                            <i class="fas fa-search mr-1"></i> Search
+                                        </button>
+                                    </div>
+                                    <input type="hidden" id="linked-sale-invoice-id" value="">
+                                </div>
+                                <div>
+                                    <label for="internal-ref-no" class="block text-gray-700 font-medium mb-2">Internal Reference No.</label>
+                                    <input type="text" id="internal-ref-no"
+                                        class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
+                                        placeholder="Optional internal reference" />
+                                </div>
+                                <div>
+                                    <label for="debit-note-reason" class="block text-gray-700 font-medium mb-2">Reason*</label>
+                                    <select id="debit-note-reason"
+                                        class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500">
+                                        <option value="">-- Select Reason --</option>
+                                    </select>
+                                </div>
+                                <div id="reason-remarks-container" class="hidden">
+                                    <label for="reason-remarks" class="block text-gray-700 font-medium mb-2">Reason Remarks*</label>
+                                    <input type="text" id="reason-remarks"
+                                        class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
+                                        placeholder="Provide remarks for Others" />
+                                </div>
+                            </div>
                         </div>
                         <div id="dn-number-container" class="hidden">
                             <label for="dn-number" class="block text-gray-700 font-medium mb-2">DN#</label>
@@ -1062,8 +1098,24 @@
                                         <span id="review-invoice-date"></span>
                                     </p>
                                     <p>
-                                        <span class="font-semibold">Invoice Ref No:</span>
+                                        <span class="font-semibold" id="review-ref-label">Invoice Ref No:</span>
                                         <span id="review-invoice-ref"></span>
+                                    </p>
+                                    <p id="review-original-fbr-container" class="hidden">
+                                        <span class="font-semibold">Original FBR Invoice No:</span>
+                                        <span id="review-original-fbr-invoice"></span>
+                                    </p>
+                                    <p id="review-internal-ref-container" class="hidden">
+                                        <span class="font-semibold">Internal Ref No:</span>
+                                        <span id="review-internal-ref"></span>
+                                    </p>
+                                    <p id="review-reason-container" class="hidden">
+                                        <span class="font-semibold">Reason:</span>
+                                        <span id="review-reason"></span>
+                                    </p>
+                                    <p id="review-reason-remarks-container" class="hidden">
+                                        <span class="font-semibold">Reason Remarks:</span>
+                                        <span id="review-reason-remarks"></span>
                                     </p>
                                     <p id="review-delivery-challan-container" class="hidden">
                                         <span class="font-semibold">Delivery Challan #:</span>
@@ -1193,6 +1245,10 @@
                             <button id="view-json-btn"
                                 class="bg-secondary-600 hover:bg-secondary-700 text-white font-medium py-2 px-6 rounded-md transition duration-150 ease-in-out flex items-center">
                                 <i class="fas fa-code mr-2"></i> View JSON
+                            </button>
+                            <button id="validate-fbr-btn"
+                                class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-md transition duration-150 ease-in-out flex items-center">
+                                <i class="fas fa-check-circle mr-2"></i> Validate with FBR
                             </button>
                             <button id="submit-invoice-btn"
                                 class="bg-accent-600 hover:bg-accent-700 text-white font-medium py-2 px-6 rounded-md transition duration-150 ease-in-out flex items-center">
@@ -1463,6 +1519,7 @@
             invoiceData: {},
             productItems: [],
             draft_id: null, // Store draft ID if loaded from a draft
+            pendingDebitFromInvoice: null,
         };
 
         function normalizeCustomFieldsDraft(fields) {
@@ -2129,6 +2186,11 @@
                     invoiceType: invoiceData.invoiceType || 'Sale Invoice',
                     invoiceDate: invoiceData.invoiceDate || '',
                     invoiceRefNo: invoiceData.invoiceRefNo || invoiceData.invoice_ref_no || '',
+                    originalFbrInvoiceNo: invoiceData.originalFbrInvoiceNo || '',
+                    internalRefNo: invoiceData.internalRefNo || '',
+                    reason: invoiceData.reason || '',
+                    reasonRemarks: invoiceData.reasonRemarks || '',
+                    linkedSaleInvoiceId: invoiceData.linkedSaleInvoiceId || null,
                     dnNumber: invoiceData.dnNumber || '',
                     scenarioId: invoiceData.scenarioId || '',
                     customFields: sanitizeCustomFields(
@@ -2154,10 +2216,21 @@
                 const invTypeHiddenEl = document.getElementById('invoice-type-hidden');
                 if (invTypeEl) invTypeEl.value = invType;
                 if (invTypeHiddenEl) invTypeHiddenEl.value = invType;
+                onInvoiceTypeChange(false);
                 document.getElementById('invoice-date').value = invoiceData.invoiceDate || '';
-                // Correct field id for reference number
                 const invoiceRefEl = document.getElementById('invoice-ref-no');
                 if (invoiceRefEl) invoiceRefEl.value = invoiceData.invoiceRefNo || invoiceData.invoice_ref_no || '';
+                const originalFbrEl = document.getElementById('original-fbr-invoice-no');
+                if (originalFbrEl) originalFbrEl.value = invoiceData.originalFbrInvoiceNo || invoiceData.invoiceRefNo || '';
+                const internalRefEl = document.getElementById('internal-ref-no');
+                if (internalRefEl) internalRefEl.value = invoiceData.internalRefNo || '';
+                const reasonEl = document.getElementById('debit-note-reason');
+                if (reasonEl) reasonEl.value = invoiceData.reason || '';
+                const remarksEl = document.getElementById('reason-remarks');
+                if (remarksEl) remarksEl.value = invoiceData.reasonRemarks || '';
+                const linkedIdEl = document.getElementById('linked-sale-invoice-id');
+                if (linkedIdEl) linkedIdEl.value = invoiceData.linkedSaleInvoiceId || '';
+                toggleReasonRemarks();
                 const dnInput = document.getElementById('dn-number');
                 if (dnInput) dnInput.value = invoiceData.dnNumber || '';
                 renderCustomFields();
@@ -2301,6 +2374,14 @@
                 state.formOptions = await response.json();
                 populateFormOptions();
 
+                if (state.pendingDebitFromInvoice) {
+                    const typeEl = document.getElementById("invoice-type");
+                    if (typeEl) typeEl.value = "Debit Note";
+                    onInvoiceTypeChange(false);
+                    await applySaleInvoicePrefill(state.pendingDebitFromInvoice);
+                    state.pendingDebitFromInvoice = null;
+                }
+
                 // Show scenario ID field only in sandbox environment
                 if (ENV === "sandbox") {
                     document
@@ -2408,9 +2489,30 @@
             const buyerRegType = document.getElementById("buyer-registration-type");
             populateSelect(buyerRegType, state.formOptions.registrationTypes);
 
-            // No longer need to populate invoice type as it's now locked
-            // const invoiceType = document.getElementById("invoice-type");
-            // populateSelect(invoiceType, state.formOptions.invoiceTypes);
+            const invoiceType = document.getElementById("invoice-type");
+            if (invoiceType && state.formOptions.invoiceTypes) {
+                const urlWantsDebit = (getUrlParameter("type") || "").toLowerCase() === "debit";
+                const preservedType =
+                    invoiceType.value
+                        ? invoiceType.value
+                        : urlWantsDebit
+                          ? "Debit Note"
+                          : "Sale Invoice";
+                populateSelect(
+                    invoiceType,
+                    state.formOptions.invoiceTypes.filter(
+                        (opt) => opt.value === "Sale Invoice" || opt.value === "Debit Note"
+                    )
+                );
+                invoiceType.value = preservedType;
+            }
+
+            const debitReason = document.getElementById("debit-note-reason");
+            if (debitReason && state.formOptions.debitNoteReasons) {
+                populateSelect(debitReason, state.formOptions.debitNoteReasons);
+            }
+
+            onInvoiceTypeChange(false);
 
             // Populate scenario ID if in sandbox with custom behavior
             // Shows description in dropdown, but only ID when selected
@@ -2447,6 +2549,159 @@
                     }
                 }
             }
+        }
+
+        function isDebitNoteType(type) {
+            return (type || "").trim() === "Debit Note";
+        }
+
+        function getSelectedInvoiceType() {
+            const select = document.getElementById("invoice-type");
+            return select ? select.value : "Sale Invoice";
+        }
+
+        function onInvoiceTypeChange(resetDebitFields = true) {
+            const invoiceType = getSelectedInvoiceType();
+            const hiddenType = document.getElementById("invoice-type-hidden");
+            if (hiddenType) hiddenType.value = invoiceType;
+
+            const isDebit = isDebitNoteType(invoiceType);
+            const saleRefContainer = document.getElementById("sale-invoice-ref-container");
+            const debitContainer = document.getElementById("debit-note-fields-container");
+            const dateLabel = document.getElementById("invoice-date-label");
+            const step2Title = document.querySelector("#step-2 h2");
+
+            if (saleRefContainer) saleRefContainer.classList.toggle("hidden", isDebit);
+            if (debitContainer) debitContainer.classList.toggle("hidden", !isDebit);
+            if (dateLabel) dateLabel.textContent = isDebit ? "Debit Note Date" : "Invoice Date";
+            if (step2Title) step2Title.textContent = isDebit ? "Debit Note Details" : "Invoice Details";
+
+            const invoiceRefInput = document.getElementById("invoice-ref-no");
+            if (invoiceRefInput) invoiceRefInput.required = !isDebit;
+
+            const originalFbrInput = document.getElementById("original-fbr-invoice-no");
+            if (originalFbrInput) originalFbrInput.required = isDebit;
+
+            if (resetDebitFields && !isDebit) {
+                const linkedId = document.getElementById("linked-sale-invoice-id");
+                if (linkedId) linkedId.value = "";
+                if (originalFbrInput) originalFbrInput.value = "";
+                const internalRef = document.getElementById("internal-ref-no");
+                if (internalRef) internalRef.value = "";
+                const reason = document.getElementById("debit-note-reason");
+                if (reason) reason.value = "";
+                const remarks = document.getElementById("reason-remarks");
+                if (remarks) remarks.value = "";
+                toggleReasonRemarks();
+            }
+        }
+
+        function toggleReasonRemarks() {
+            const reason = document.getElementById("debit-note-reason");
+            const container = document.getElementById("reason-remarks-container");
+            const remarks = document.getElementById("reason-remarks");
+            if (!reason || !container || !remarks) return;
+            const show = reason.value === "Others";
+            container.classList.toggle("hidden", !show);
+            remarks.required = show;
+        }
+
+        async function loadSaleInvoices(search = "") {
+            const list = document.getElementById("sale-invoice-list");
+            if (!list) return;
+            list.innerHTML = '<p class="text-gray-500 text-center py-8">Loading sale invoices...</p>';
+            try {
+                const params = new URLSearchParams();
+                if (search) params.set("search", search);
+                const response = await fetch(apiUrl(`/api/invoices/sale-invoices?${params.toString()}`));
+                if (!response.ok) throw new Error("Failed to load sale invoices");
+                const invoices = await response.json();
+                if (!invoices.length) {
+                    list.innerHTML = '<p class="text-gray-500 text-center py-8">No sale invoices found.</p>';
+                    return;
+                }
+                list.innerHTML = invoices.map((inv) => `
+                    <button type="button" class="sale-invoice-pick w-full text-left border border-gray-200 rounded-lg p-4 hover:bg-primary-50 hover:border-primary-300 transition"
+                        data-invoice-id="${inv.id}">
+                        <div class="flex justify-between gap-4">
+                            <div>
+                                <p class="font-semibold text-gray-800">${escapeHtml(inv.fbrInvoiceNumber)}</p>
+                                <p class="text-sm text-gray-600">${escapeHtml(inv.buyerBusinessName || "Unknown buyer")}</p>
+                                <p class="text-xs text-gray-500">Date: ${escapeHtml(inv.invoiceDate || "N/A")}${inv.internalRefNo ? ` | Ref: ${escapeHtml(inv.internalRefNo)}` : ""}</p>
+                            </div>
+                            <div class="text-right text-sm">
+                                <p class="font-medium">PKR ${Number(inv.totalValue || 0).toFixed(2)}</p>
+                            </div>
+                        </div>
+                    </button>
+                `).join("");
+                list.querySelectorAll(".sale-invoice-pick").forEach((btn) => {
+                    btn.addEventListener("click", () => {
+                        applySaleInvoicePrefill(btn.dataset.invoiceId);
+                    });
+                });
+            } catch (error) {
+                console.error(error);
+                list.innerHTML = '<p class="text-red-500 text-center py-8">Failed to load sale invoices.</p>';
+            }
+        }
+
+        async function applySaleInvoicePrefill(invoiceId) {
+            try {
+                const response = await fetch(apiUrl(`/api/invoices/sale-invoices/${invoiceId}`));
+                if (!response.ok) throw new Error("Failed to load sale invoice");
+                const sale = await response.json();
+
+                document.getElementById("original-fbr-invoice-no").value = sale.fbrInvoiceNumber || "";
+                document.getElementById("linked-sale-invoice-id").value = sale.id || "";
+                if (sale.internalRefNo) {
+                    document.getElementById("internal-ref-no").value = sale.internalRefNo;
+                }
+
+                if (sale.sellerData) {
+                    state.sellerData = { ...sale.sellerData };
+                    document.getElementById("seller-business-name").value = sale.sellerData.sellerBusinessName || "";
+                    document.getElementById("seller-ntn-cnic").value = sale.sellerData.sellerNTNCNIC || "";
+                    document.getElementById("seller-strn").value = sale.sellerData.sellerSTRN || "";
+                    document.getElementById("seller-province").value = sale.sellerData.sellerProvince || "";
+                    document.getElementById("seller-address").value = sale.sellerData.sellerAddress || "";
+                }
+
+                if (sale.buyerData) {
+                    state.buyerData = { ...sale.buyerData };
+                    document.getElementById("buyer-business-name").value = sale.buyerData.buyerBusinessName || "";
+                    document.getElementById("buyer-ntn-cnic").value = sale.buyerData.buyerNTNCNIC || "";
+                    document.getElementById("buyer-strn").value = sale.buyerData.buyerSTRN || "";
+                    document.getElementById("buyer-province").value = sale.buyerData.buyerProvince || "";
+                    document.getElementById("buyer-address").value = sale.buyerData.buyerAddress || "";
+                    document.getElementById("buyer-registration-type").value = sale.buyerData.buyerRegistrationType || "Unregistered";
+                }
+
+                state.productItems = (sale.items || []).map((item) => ({
+                    ...item,
+                    taxRate: item.taxRate || item.rate || "0%",
+                    rate: item.rate || item.taxRate || "0%",
+                }));
+                renderProductItems();
+
+                if (ENV === "sandbox" && sale.scenarioId) {
+                    const scenarioId = document.getElementById("scenario-id");
+                    if (scenarioId) scenarioId.value = sale.scenarioId;
+                }
+
+                document.getElementById("sale-invoice-modal").classList.add("hidden");
+                showNotification("success", "Sale Invoice Loaded", "Seller, buyer, and line items were pre-filled from the selected invoice.");
+            } catch (error) {
+                console.error(error);
+                showNotification("error", "Load Failed", error.message || "Could not load sale invoice");
+            }
+        }
+
+        function openSaleInvoiceModal() {
+            const modal = document.getElementById("sale-invoice-modal");
+            if (!modal) return;
+            modal.classList.remove("hidden");
+            loadSaleInvoices(document.getElementById("sale-invoice-search")?.value || "");
         }
 
         // Helper function to populate select elements
@@ -2968,12 +3223,50 @@
 
                 // Invoice details
                 if (state.invoiceData) {
+                    const isDebit = isDebitNoteType(state.invoiceData.invoiceType);
                     document.getElementById("review-invoice-type").textContent =
                         state.invoiceData.invoiceType || "Sale Invoice";
                     document.getElementById("review-invoice-date").textContent =
                         state.invoiceData.invoiceDate || "";
-                    document.getElementById("review-invoice-ref").textContent =
-                        state.invoiceData.invoiceRefNo || "";
+
+                    const refLabel = document.getElementById("review-ref-label");
+                    const reviewRef = document.getElementById("review-invoice-ref");
+                    const originalContainer = document.getElementById("review-original-fbr-container");
+                    const internalContainer = document.getElementById("review-internal-ref-container");
+                    const reasonContainer = document.getElementById("review-reason-container");
+                    const remarksContainer = document.getElementById("review-reason-remarks-container");
+
+                    if (isDebit) {
+                        if (refLabel) refLabel.parentElement.classList.add("hidden");
+                        if (originalContainer) {
+                            originalContainer.classList.remove("hidden");
+                            document.getElementById("review-original-fbr-invoice").textContent =
+                                state.invoiceData.originalFbrInvoiceNo || state.invoiceData.invoiceRefNo || "";
+                        }
+                        if (internalContainer) {
+                            internalContainer.classList.toggle("hidden", !state.invoiceData.internalRefNo);
+                            document.getElementById("review-internal-ref").textContent =
+                                state.invoiceData.internalRefNo || "";
+                        }
+                        if (reasonContainer) {
+                            reasonContainer.classList.remove("hidden");
+                            document.getElementById("review-reason").textContent =
+                                state.invoiceData.reason || "";
+                        }
+                        if (remarksContainer) {
+                            remarksContainer.classList.toggle("hidden", !state.invoiceData.reasonRemarks);
+                            document.getElementById("review-reason-remarks").textContent =
+                                state.invoiceData.reasonRemarks || "";
+                        }
+                    } else {
+                        if (refLabel) refLabel.parentElement.classList.remove("hidden");
+                        if (reviewRef) reviewRef.textContent = state.invoiceData.invoiceRefNo || "";
+                        originalContainer?.classList.add("hidden");
+                        internalContainer?.classList.add("hidden");
+                        reasonContainer?.classList.add("hidden");
+                        remarksContainer?.classList.add("hidden");
+                    }
+
                     renderReviewCustomFields();
                     renderReviewSignatureNote();
                 }
@@ -3191,7 +3484,17 @@
                 case 2:
                     // Validate invoice details
                     const invoiceDate = document.getElementById("invoice-date").value;
-                    const invoiceRefNo = document.getElementById("invoice-ref-no").value;
+                    const invoiceType = getSelectedInvoiceType();
+                    const isDebit = isDebitNoteType(invoiceType);
+
+                    if (!invoiceType) {
+                        showNotification(
+                            "error",
+                            "Validation Error",
+                            "Please select an invoice type"
+                        );
+                        return false;
+                    }
 
                     if (!invoiceDate) {
                         showNotification(
@@ -3202,13 +3505,45 @@
                         return false;
                     }
 
-                    if (!invoiceRefNo) {
-                        showNotification(
-                            "error",
-                            "Validation Error",
-                            "Please fill in the Invoice Reference No."
-                        );
-                        return false;
+                    if (isDebit) {
+                        const originalFbrInvoiceNo = document.getElementById("original-fbr-invoice-no").value.trim();
+                        const reason = document.getElementById("debit-note-reason").value.trim();
+                        const reasonRemarks = document.getElementById("reason-remarks").value.trim();
+
+                        if (!originalFbrInvoiceNo) {
+                            showNotification(
+                                "error",
+                                "Validation Error",
+                                "Please provide the Original FBR Invoice No."
+                            );
+                            return false;
+                        }
+                        if (!reason) {
+                            showNotification(
+                                "error",
+                                "Validation Error",
+                                "Please select a reason for the debit note"
+                            );
+                            return false;
+                        }
+                        if (reason === "Others" && !reasonRemarks) {
+                            showNotification(
+                                "error",
+                                "Validation Error",
+                                "Please provide reason remarks when reason is Others"
+                            );
+                            return false;
+                        }
+                    } else {
+                        const invoiceRefNo = document.getElementById("invoice-ref-no").value;
+                        if (!invoiceRefNo) {
+                            showNotification(
+                                "error",
+                                "Validation Error",
+                                "Please fill in the Invoice Reference No."
+                            );
+                            return false;
+                        }
                     }
 
                     // Validate Scenario ID in sandbox environment
@@ -3224,11 +3559,24 @@
                         }
                     }
 
-                    // Update state - use hidden field value for invoice type
+                    // Update state
                     state.invoiceData = {
-                        invoiceType: document.getElementById("invoice-type-hidden").value, // "Sale Invoice"
+                        invoiceType: invoiceType,
                         invoiceDate: invoiceDate,
-                        invoiceRefNo: document.getElementById("invoice-ref-no").value,
+                        invoiceRefNo: isDebit
+                            ? document.getElementById("original-fbr-invoice-no").value.trim()
+                            : document.getElementById("invoice-ref-no").value,
+                        originalFbrInvoiceNo: isDebit
+                            ? document.getElementById("original-fbr-invoice-no").value.trim()
+                            : "",
+                        internalRefNo: isDebit
+                            ? document.getElementById("internal-ref-no").value.trim()
+                            : "",
+                        reason: isDebit ? document.getElementById("debit-note-reason").value.trim() : "",
+                        reasonRemarks: isDebit ? document.getElementById("reason-remarks").value.trim() : "",
+                        linkedSaleInvoiceId: isDebit
+                            ? document.getElementById("linked-sale-invoice-id").value || null
+                            : null,
                         customFields: getCustomFieldsFromDOM(),
                         signatureArea: readSignatureAreaFromDOM(),
                     };
@@ -3340,12 +3688,23 @@
                     buyerData: state.buyerData,
                     items: preparedItems,
                     saveDraft: saveDraft,
-                    submit: !saveDraft,
+                    submit: !saveDraft && !extraOptions.validate,
+                    validate: !!extraOptions.validate,
                     customFields: sanitizeCustomFields(state.invoiceData.customFields || []),
                     signatureArea: normalizeSignatureArea(
                         (state.invoiceData || {}).signatureArea
                     ),
                 };
+
+                if (isDebitNoteType(state.invoiceData.invoiceType)) {
+                    invoiceData.originalFbrInvoiceNo = state.invoiceData.originalFbrInvoiceNo || state.invoiceData.invoiceRefNo;
+                    invoiceData.internalRefNo = state.invoiceData.internalRefNo || "";
+                    invoiceData.reason = state.invoiceData.reason || "";
+                    invoiceData.reasonRemarks = state.invoiceData.reasonRemarks || "";
+                    if (state.invoiceData.linkedSaleInvoiceId) {
+                        invoiceData.linkedSaleInvoiceId = state.invoiceData.linkedSaleInvoiceId;
+                    }
+                }
 
                 // Include DN# for user 3520299147319
                 if (currentUsername === '3520299147319') {
@@ -3381,6 +3740,15 @@
 
                 if (!response.ok) {
                     throw new Error(result.error || "Failed to submit invoice");
+                }
+
+                if (extraOptions.validate) {
+                    showNotification(
+                        "success",
+                        "Validation Successful",
+                        "FBR accepted this invoice payload"
+                    );
+                    return result;
                 }
 
                 if (saveDraft) {
@@ -3487,6 +3855,13 @@
                 "buyerRegistrationType": state.buyerData.buyerRegistrationType || "Registered",
                 "invoiceRefNo": state.invoiceData.invoiceRefNo || "",
             };
+
+            if (isDebitNoteType(state.invoiceData.invoiceType)) {
+                invoiceData.reason = state.invoiceData.reason || "";
+                if (state.invoiceData.reasonRemarks) {
+                    invoiceData.reasonRemarks = state.invoiceData.reasonRemarks;
+                }
+            }
 
             // Add scenario ID if in sandbox
             if (ENV === "sandbox") {
@@ -3660,6 +4035,32 @@
             fetchBusinessProfiles();
             fetchBuyers();
             initUserSpecificFields();
+
+            const invoiceTypeSelect = document.getElementById("invoice-type");
+            if (invoiceTypeSelect) {
+                invoiceTypeSelect.addEventListener("change", () => onInvoiceTypeChange(true));
+            }
+            document.getElementById("debit-note-reason")?.addEventListener("change", toggleReasonRemarks);
+            document.getElementById("search-sale-invoice-btn")?.addEventListener("click", openSaleInvoiceModal);
+            document.getElementById("close-sale-invoice-modal")?.addEventListener("click", () => {
+                document.getElementById("sale-invoice-modal")?.classList.add("hidden");
+            });
+            let saleInvoiceSearchTimer;
+            document.getElementById("sale-invoice-search")?.addEventListener("input", (e) => {
+                clearTimeout(saleInvoiceSearchTimer);
+                saleInvoiceSearchTimer = setTimeout(() => loadSaleInvoices(e.target.value), 300);
+            });
+
+            const debitTypeFromUrl = (getUrlParameter("type") || "").toLowerCase();
+            const fromInvoiceId = getUrlParameter("fromInvoice");
+            if (debitTypeFromUrl === "debit") {
+                const typeEl = document.getElementById("invoice-type");
+                if (typeEl) typeEl.value = "Debit Note";
+                onInvoiceTypeChange(false);
+                if (fromInvoiceId) {
+                    state.pendingDebitFromInvoice = fromInvoiceId;
+                }
+            }
 
             // If draft ID is present, load the draft after other initializations are done
             if (draftIdFromUrl) {
@@ -3858,7 +4259,6 @@
                     goToStep(4);
                 });
 
-            // Submit button handler - Only include ONE submit button handler
             document.getElementById("submit-invoice-btn").addEventListener("click", function () {
                 // Store original button content and disable button
                 const submitBtn = this;
@@ -3967,6 +4367,20 @@
                         // Reset button state
                         submitBtn.innerHTML = originalContent;
                         submitBtn.disabled = false;
+                    });
+            });
+
+            document.getElementById("validate-fbr-btn")?.addEventListener("click", function () {
+                const validateBtn = this;
+                const originalContent = validateBtn.innerHTML;
+                validateBtn.innerHTML = `<i class="fas fa-circle-notch fa-spin mr-2"></i>Validating...`;
+                validateBtn.disabled = true;
+
+                submitInvoice(false, { validate: true })
+                    .catch(() => {})
+                    .finally(() => {
+                        validateBtn.innerHTML = originalContent;
+                        validateBtn.disabled = false;
                     });
             });
 
@@ -4691,6 +5105,23 @@
             fetchProducts();
         });
     </script>
+    <!-- Sale Invoice Search Modal (Debit Note) -->
+    <div id="sale-invoice-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
+        <div class="modal-overlay absolute inset-0"></div>
+        <div class="bg-white rounded-lg shadow-xl z-50 w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="p-6 border-b flex justify-between items-center">
+                <h3 class="text-lg font-semibold text-gray-900">Select Original Sale Invoice</h3>
+                <button id="close-sale-invoice-modal" class="text-gray-400 hover:text-gray-500"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="p-6 border-b">
+                <input type="text" id="sale-invoice-search" placeholder="Search by FBR number, buyer, or internal ref..."
+                    class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500" />
+            </div>
+            <div id="sale-invoice-list" class="flex-1 overflow-y-auto p-4 space-y-2">
+                <p class="text-gray-500 text-center py-8">Loading sale invoices...</p>
+            </div>
+        </div>
+    </div>
     <!-- Save Draft Modal -->
     <div id="save-draft-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
         <div class="modal-overlay absolute inset-0"></div>

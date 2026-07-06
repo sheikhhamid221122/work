@@ -106,6 +106,9 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
 
         # Common date filter condition
         date_condition = ""
+        sale_invoice_type_condition = (
+            "AND COALESCE(invoice_data::jsonb->>'invoiceType', 'Sale Invoice') = 'Sale Invoice'"
+        )
         params = [client_id, env]
 
         if start_date and end_date:
@@ -159,6 +162,7 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
                     WHERE client_id = %s 
                     AND env = %s 
                     AND status = 'Success'
+                    {sale_invoice_type_condition}
                     {date_condition}
                 )
                 SELECT COALESCE(SUM(val), 0) FROM extracted_values
@@ -189,6 +193,7 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
                     WHERE client_id = %s 
                     AND env = %s 
                     AND status = 'Success'
+                    {sale_invoice_type_condition}
                     {date_condition}
                 )
                 SELECT COALESCE(SUM(val), 0) FROM extracted_values
@@ -584,6 +589,7 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
         buyer_name = request.args.get("buyer_name", "").strip()
         invoice_ref = request.args.get("invoice_ref", "").strip()
         product_name = request.args.get("product_name", "").strip()
+        invoice_type_filter = request.args.get("invoice_type", "").strip()
 
         # Sorting parameters
         sort_field = request.args.get("sort_field", "created_at")
@@ -666,6 +672,12 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
             """
             )
             params.append(f"%{product_name}%")
+
+        if invoice_type_filter:
+            where_conditions.append(
+                "COALESCE(invoice_data::jsonb->>'invoiceType', 'Sale Invoice') = %s"
+            )
+            params.append(invoice_type_filter)
 
         # Construct the WHERE clause
         where_clause = " AND ".join(where_conditions)
@@ -769,13 +781,20 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
             except Exception:
                 fbr_response = {}
 
-            # Extract invoice reference number - prefer invoiceRefNo
-            invoice_ref = (
-                invoice_data.get("invoiceRefNo")
-                or invoice_data.get("fbrInvoiceNumber")
-                or fbr_response.get("invoiceNumber")
-                or "N/A"
+            # Extract invoice reference number
+            invoice_type = (invoice_data.get("invoiceType") or "Sale Invoice").strip()
+            fbr_number = (
+                invoice_data.get("fbrInvoiceNumber")
+                or (fbr_response.get("invoiceNumber") if isinstance(fbr_response, dict) else None)
             )
+            if invoice_type == "Debit Note":
+                invoice_ref = fbr_number or "N/A"
+            else:
+                invoice_ref = (
+                    invoice_data.get("invoiceRefNo")
+                    or fbr_number
+                    or "N/A"
+                )
 
             # Extract buyer name
             buyer_name = "Unknown Buyer"
@@ -850,6 +869,7 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
             invoice_obj = {
                 "id": id,
                 "invoice_ref": invoice_ref,
+                "invoice_type": invoice_type,
                 "buyer_name": buyer_name,
                 "seller_name": seller_name,
                 "invoice_date": invoice_date,
@@ -935,13 +955,20 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
         except Exception:
             fbr_response = {}
 
-        # Extract all available invoice details - prefer invoiceRefNo, fall back to fbrInvoiceNumber then fbr response
-        invoice_ref = (
-            invoice_data.get("invoiceRefNo")
-            or invoice_data.get("fbrInvoiceNumber")
-            or fbr_response.get("invoiceNumber")
-            or "N/A"
+        # Extract all available invoice details
+        invoice_type = (invoice_data.get("invoiceType") or "Sale Invoice").strip()
+        fbr_number = (
+            invoice_data.get("fbrInvoiceNumber")
+            or (fbr_response.get("invoiceNumber") if isinstance(fbr_response, dict) else None)
         )
+        if invoice_type == "Debit Note":
+            invoice_ref = fbr_number or invoice_data.get("invoiceRefNo") or "N/A"
+        else:
+            invoice_ref = (
+                invoice_data.get("invoiceRefNo")
+                or fbr_number
+                or "N/A"
+            )
 
         # Process seller information
         seller_info = {}
@@ -1012,13 +1039,18 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
 
         # Process invoice details
         invoice_details = {
+            "id": id,
             "invoice_ref": invoice_ref,
-            "invoice_type": invoice_data.get("invoiceType", ""),
+            "invoice_type": invoice_type,
             "invoice_date": invoice_data.get("invoiceDate", ""),
             "created_at": created_at.isoformat(),
             "po_number": invoice_data.get("poNumber", invoice_data.get("PO", "")),
             "delivery_challan": invoice_data.get("CNIC", ""),
             "invoice_ref_no": invoice_data.get("invoiceRefNo", ""),
+            "internal_ref_no": invoice_data.get("internalRefNo", ""),
+            "original_fbr_invoice_no": invoice_data.get("invoiceRefNo", "") if invoice_type == "Debit Note" else "",
+            "reason": invoice_data.get("reason", ""),
+            "reason_remarks": invoice_data.get("reasonRemarks", ""),
         }
 
         # Process items and calculate totals

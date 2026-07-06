@@ -553,6 +553,15 @@ main table {
   padding-bottom: 1rem !important;
 }
 
+body.reports-page table th.cell-name,
+body.reports-page table td.cell-name {
+  max-width: 300px;
+  width: 300px;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
 main thead {
   border-bottom: 1px solid var(--tlp-line);
 }

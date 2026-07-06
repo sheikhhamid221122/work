@@ -419,6 +419,9 @@
                                             id="sort-number">
                                             Invoice Number <i class="fas fa-sort ml-1 opacity-70"></i></th>
                                         <th scope="col"
+                                            class="px-3 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider">
+                                            Type</th>
+                                        <th scope="col"
                                             class="px-4 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-primary-500/50 transition-colors"
                                             id="sort-refno">
                                             Invoice Ref # <i class="fas fa-sort ml-1 opacity-70"></i></th>
@@ -613,6 +616,7 @@
                     <!-- Invoice details will be loaded here -->
                 </div>
                 <div class="mt-6 flex justify-end border-t pt-4">
+                    <div id="invoice-details-actions" class="mr-auto"></div>
                     <button id="close-invoice-details-btn"
                         class="px-5 py-2.5 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 font-medium transition-colors">
                         Close
@@ -828,6 +832,22 @@
             return allRecords.slice(start, start + pageSize);
         }
 
+        function getInvoiceTypeBadge(type) {
+            const docType = type || 'Sale Invoice';
+            if (docType === 'Debit Note') {
+                return '<span class="inline-flex px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-100 text-amber-800">Debit Note</span>';
+            }
+            return '<span class="inline-flex px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">Sale Invoice</span>';
+        }
+
+        function buildCreateDebitNoteButton(invoiceId, invoiceType) {
+            if ((invoiceType || 'Sale Invoice') !== 'Sale Invoice' || !invoiceId) return '';
+            return `<a href="/create-invoice?type=debit&fromInvoice=${invoiceId}&env=${ENV}"
+                class="inline-flex items-center px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium transition-colors mr-3">
+                <i class="fas fa-file-invoice mr-2"></i>Create Debit Note
+            </a>`;
+        }
+
         // Update renderRecordsTable to only render the records passed in
         function renderRecordsTable(records) {
             const tableBody = document.getElementById('records-table-body');
@@ -836,7 +856,7 @@
             if (records.length === 0) {
                 const emptyRow = document.createElement('tr');
                 emptyRow.innerHTML = `
-                    <td colspan="9" class="px-4 py-4 text-center">
+                    <td colspan="10" class="px-4 py-4 text-center">
                         <div class="flex flex-col items-center">
                             <i class="fas fa-file-invoice text-gray-300 text-2xl mb-2"></i>
                             <span class="text-gray-500 text-sm font-medium">No records found</span>
@@ -864,6 +884,9 @@
                     </td>
                     <td class="px-3 py-2.5 whitespace-nowrap">
                         <span class="text-sm font-semibold text-primary-700">${record.invoiceReference}</span>
+                    </td>
+                    <td class="px-3 py-2.5 whitespace-nowrap text-center">
+                        ${getInvoiceTypeBadge(record.invoiceType)}
                     </td>
                     <td class="px-4 py-2.5 whitespace-nowrap text-center">
                         <span class="text-sm text-gray-600">${record.invoiceRefNo || 'N/A'}</span>
@@ -1003,8 +1026,14 @@
                 })
                 .then(data => {
                     const invoiceRef = data.invoice_details.invoice_ref || 'N/A';
+                    const invoiceType = data.invoice_details.invoice_type || 'Sale Invoice';
                     const buyerName = data.buyer_info && data.buyer_info.name ? data.buyer_info.name : 'Unknown Buyer';
                     const items = data.items || [];
+
+                    const actionsDiv = document.getElementById('invoice-details-actions');
+                    if (actionsDiv) {
+                        actionsDiv.innerHTML = buildCreateDebitNoteButton(invoiceId, invoiceType);
+                    }
 
                     let html = `
                         <div class="mb-6 p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl">
