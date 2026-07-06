@@ -514,6 +514,7 @@
                                         </button>
                                     </div>
                                     <input type="hidden" id="linked-sale-invoice-id" value="">
+                                    <p class="text-xs text-gray-500 mt-1">Use Search to link a sale invoice. Line items are not copied — you will enter the additional amount only in Step 4.</p>
                                 </div>
                                 <div>
                                     <label for="internal-ref-no" class="block text-gray-700 font-medium mb-2">Internal Reference No.</label>
@@ -715,6 +716,14 @@
                 <!-- Step 4: Products (Initially Hidden) -->
                 <div id="step-4" class="bg-white p-6 rounded-lg shadow hidden">
                     <h2 class="text-lg font-semibold mb-4">Product Items</h2>
+
+                    <div id="debit-note-products-hint" class="hidden mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900" role="note">
+                        <p class="font-semibold mb-1">
+                            <i class="fas fa-info-circle mr-1" aria-hidden="true"></i>
+                            Debit note — additional charges only
+                        </p>
+                        <p id="debit-note-products-hint-body" class="text-amber-800 leading-relaxed"></p>
+                    </div>
 
                     <!-- Product Item Form -->
                     <div class="bg-gray-50 p-4 rounded-md mb-6">
@@ -1520,6 +1529,7 @@
             productItems: [],
             draft_id: null, // Store draft ID if loaded from a draft
             pendingDebitFromInvoice: null,
+            linkedSaleInvoiceMeta: null,
         };
 
         function normalizeCustomFieldsDraft(fields) {
@@ -2555,6 +2565,75 @@
             return (type || "").trim() === "Debit Note";
         }
 
+        function sumProductItemsSalesTax() {
+            return (state.productItems || []).reduce(
+                (sum, item) => sum + (parseFloat(item.salesTaxApplicable) || 0),
+                0
+            );
+        }
+
+        function sumProductItemsValueExcl() {
+            return (state.productItems || []).reduce(
+                (sum, item) => sum + (parseFloat(item.valueSalesExcludingST) || 0),
+                0
+            );
+        }
+
+        function clearLinkedSaleInvoiceMeta() {
+            state.linkedSaleInvoiceMeta = null;
+            updateDebitNoteProductsHint();
+        }
+
+        function updateDebitNoteProductsHint() {
+            const hint = document.getElementById("debit-note-products-hint");
+            const body = document.getElementById("debit-note-products-hint-body");
+            if (!hint || !body) return;
+
+            const isDebit = isDebitNoteType(getSelectedInvoiceType());
+            if (!isDebit) {
+                hint.classList.add("hidden");
+                return;
+            }
+
+            hint.classList.remove("hidden");
+            const meta = state.linkedSaleInvoiceMeta;
+
+            if (!meta) {
+                body.innerHTML =
+                    "Link a sale invoice in Step 2, then add line items for the <strong>extra amount only</strong> " +
+                    "(do not copy the full original invoice again).";
+                return;
+            }
+
+            const lines = [];
+            lines.push(
+                `Original FBR invoice: <strong>${escapeHtml(meta.fbrInvoiceNumber || "")}</strong>` +
+                    (meta.invoiceDate ? ` &middot; dated ${escapeHtml(meta.invoiceDate)}` : "")
+            );
+            lines.push(
+                `Original sales tax: <strong>${(meta.salesTaxApplicable || 0).toFixed(2)}</strong> ` +
+                    `(your debit note tax must be greater than 0 and not exceed this).`
+            );
+
+            const refs = meta.referenceItems || [];
+            if (refs.length) {
+                const refText = refs
+                    .map((item) => {
+                        const desc = item.productDescription || "Item";
+                        const hs = item.hsCode || "";
+                        const uom = item.uoM || "";
+                        return `${escapeHtml(desc)}${hs ? ` (HS ${escapeHtml(hs)}` + (uom ? `, ${escapeHtml(uom)}` : "") + ")" : ""}`;
+                    })
+                    .join("; ");
+                lines.push(`Use the same HS code / UoM / sale type as the original where applicable: ${refText}.`);
+            }
+
+            lines.push(
+                "Example: if you under-billed by 100, add one line with value <strong>100</strong> and tax at the correct rate — not the original full amount again."
+            );
+            body.innerHTML = lines.join("<br>");
+        }
+
         function getSelectedInvoiceType() {
             const select = document.getElementById("invoice-type");
             return select ? select.value : "Sale Invoice";
@@ -2593,7 +2672,10 @@
                 const remarks = document.getElementById("reason-remarks");
                 if (remarks) remarks.value = "";
                 toggleReasonRemarks();
+                state.linkedSaleInvoiceMeta = null;
             }
+
+            updateDebitNoteProductsHint();
         }
 
         function toggleReasonRemarks() {
@@ -2677,20 +2759,47 @@
                     document.getElementById("buyer-registration-type").value = sale.buyerData.buyerRegistrationType || "Unregistered";
                 }
 
-                state.productItems = (sale.items || []).map((item) => ({
-                    ...item,
-                    taxRate: item.taxRate || item.rate || "0%",
-                    rate: item.rate || item.taxRate || "0%",
-                }));
+                state.linkedSaleInvoiceMeta = {
+                    id: sale.id,
+                    fbrInvoiceNumber: sale.fbrInvoiceNumber || "",
+                    invoiceDate: sale.invoiceDate || "",
+                    salesTaxApplicable: parseFloat(sale.salesTaxApplicable) || 0,
+                    valueSalesExcludingST: parseFloat(sale.valueSalesExcludingST) || 0,
+                    referenceItems: (sale.items || []).map((item) => ({
+                        productDescription: item.productDescription || "",
+                        hsCode: item.hsCode || "",
+                        uoM: item.uoM || "",
+                        saleType: item.saleType || "",
+                        taxRate: item.taxRate || item.rate || "0%",
+                    })),
+                };
+
+                // Debit notes bill only the additional amount — do not copy original line items.
+                state.productItems = [];
                 renderProductItems();
+
+                const invoiceDateEl = document.getElementById("invoice-date");
+                if (invoiceDateEl && sale.invoiceDate) {
+                    const today = new Date().toISOString().slice(0, 10);
+                    invoiceDateEl.value = today >= sale.invoiceDate ? today : sale.invoiceDate;
+                }
 
                 if (ENV === "sandbox" && sale.scenarioId) {
                     const scenarioId = document.getElementById("scenario-id");
-                    if (scenarioId) scenarioId.value = sale.scenarioId;
+                    if (scenarioId) {
+                        scenarioId.value = sale.scenarioId;
+                        syncSaleTypeWithScenario();
+                    }
                 }
 
+                updateDebitNoteProductsHint();
+
                 document.getElementById("sale-invoice-modal").classList.add("hidden");
-                showNotification("success", "Sale Invoice Loaded", "Seller, buyer, and line items were pre-filled from the selected invoice.");
+                showNotification(
+                    "success",
+                    "Sale Invoice Linked",
+                    "Seller, buyer, and reference details were loaded. Add line items for the additional amount only."
+                );
             } catch (error) {
                 console.error(error);
                 showNotification("error", "Load Failed", error.message || "Could not load sale invoice");
@@ -3180,6 +3289,7 @@
             }
             if (step === 4) {
                 syncSaleTypeWithScenario();
+                updateDebitNoteProductsHint();
             }
             if (step === 5) {
                 updateReviewSection();
@@ -3649,9 +3759,63 @@
                         showNotification(
                             "error",
                             "Validation Error",
-                            "Please add at least one product"
+                            isDebitNoteType(getSelectedInvoiceType())
+                                ? "Add at least one line item for the additional amount on this debit note"
+                                : "Please add at least one product"
                         );
                         return false;
+                    }
+
+                    if (isDebitNoteType(getSelectedInvoiceType())) {
+                        const originalFbrInvoiceNo = document
+                            .getElementById("original-fbr-invoice-no")
+                            ?.value.trim();
+                        if (!originalFbrInvoiceNo) {
+                            showNotification(
+                                "error",
+                                "Validation Error",
+                                "Link a sale invoice or enter the Original FBR Invoice No. in Step 2"
+                            );
+                            return false;
+                        }
+
+                        const debitTax = sumProductItemsSalesTax();
+                        const debitValue = sumProductItemsValueExcl();
+                        if (debitTax <= 0 && debitValue <= 0) {
+                            showNotification(
+                                "error",
+                                "Validation Error",
+                                "Enter the additional value and sales tax — not zero"
+                            );
+                            return false;
+                        }
+
+                        const meta = state.linkedSaleInvoiceMeta;
+                        if (meta) {
+                            const origTax = parseFloat(meta.salesTaxApplicable) || 0;
+                            const origValue = parseFloat(meta.valueSalesExcludingST) || 0;
+                            if (debitTax > origTax + 0.01) {
+                                showNotification(
+                                    "error",
+                                    "Validation Error",
+                                    `Sales tax on this debit note (${debitTax.toFixed(2)}) cannot exceed the original sale invoice (${origTax.toFixed(2)})`
+                                );
+                                return false;
+                            }
+                            if (
+                                origTax > 0 &&
+                                origValue > 0 &&
+                                Math.abs(debitTax - origTax) < 0.01 &&
+                                Math.abs(debitValue - origValue) < 0.01
+                            ) {
+                                showNotification(
+                                    "error",
+                                    "Validation Error",
+                                    "These amounts match the original invoice. Enter only the extra charge, not the full original amounts again."
+                                );
+                                return false;
+                            }
+                        }
                     }
 
                     return true;
