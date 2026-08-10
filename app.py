@@ -100,6 +100,26 @@ app.config.update(
 )
 
 
+@app.url_defaults
+def add_static_cache_buster(endpoint, values):
+    """Stamp every static URL with the file's mtime, e.g. /static/css/x.css?v=1754...
+
+    nginx serves /static without a Cache-Control header, so browsers fall back to
+    heuristic caching — roughly 10% of the file's age. A stylesheet untouched for
+    months therefore looks fresh for weeks, and clients keep using the old copy
+    long after a deploy. Changing the URL on every change sidesteps that entirely.
+    """
+    if endpoint != "static" or "filename" not in values:
+        return
+    try:
+        values["v"] = int(
+            os.path.getmtime(os.path.join(app.static_folder, values["filename"]))
+        )
+    except OSError:
+        # Missing file: fall through to an unversioned URL rather than 500 a page.
+        pass
+
+
 @app.route("/create-invoice")
 @app.route("/create-invoice.html")
 def create_invoice_html():
