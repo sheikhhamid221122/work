@@ -62,7 +62,16 @@
                 </div>
             </div>
 
-            <div class="px-2 mt-auto text-center">
+            <div class="px-2 mt-auto">
+                <button type="button" id="theme-toggle"
+                    class="theme-toggle sidebar-item flex items-center w-full px-4 py-3 text-sm font-medium rounded-md"
+                    aria-pressed="false">
+                    <i id="theme-toggle-icon" class="fas fa-moon mr-3"></i>
+                    <span id="theme-toggle-label">Dark mode</span>
+                </button>
+            </div>
+
+            <div class="px-2 text-center">
                 <a href="/logout"
                     class="sidebar-item flex items-center justify-center px-4 py-3 text-sm font-medium rounded-md text-white">
                     <i class="fas fa-sign-out-alt mr-3"></i>
@@ -291,3 +300,44 @@
 })();
 </script>
 
+<script>
+    // Theme toggle. No stored preference means "follow the OS", which the
+    // stylesheet handles via prefers-color-scheme; clicking stores an explicit
+    // choice that wins from then on. The pre-paint script in each page <head>
+    // applies the stored value before first paint so there is no flash.
+    (function () {
+        var btn = document.getElementById("theme-toggle");
+        if (!btn) return;
+        var icon = document.getElementById("theme-toggle-icon");
+        var label = document.getElementById("theme-toggle-label");
+        var media = window.matchMedia("(prefers-color-scheme: dark)");
+
+        function effectiveTheme() {
+            var explicit = document.documentElement.getAttribute("data-theme");
+            if (explicit === "dark" || explicit === "light") return explicit;
+            return media.matches ? "dark" : "light";
+        }
+
+        function paint() {
+            var isDark = effectiveTheme() === "dark";
+            // The button advertises the theme you would switch TO.
+            icon.className = (isDark ? "fas fa-sun" : "fas fa-moon") + " mr-3";
+            label.textContent = isDark ? "Light mode" : "Dark mode";
+            btn.setAttribute("aria-pressed", String(isDark));
+        }
+
+        btn.addEventListener("click", function () {
+            var next = effectiveTheme() === "dark" ? "light" : "dark";
+            document.documentElement.setAttribute("data-theme", next);
+            try { localStorage.setItem("tlp-theme", next); } catch (e) { /* private mode */ }
+            paint();
+        });
+
+        // Follow OS changes only while the user has made no explicit choice.
+        media.addEventListener("change", function () {
+            if (!document.documentElement.getAttribute("data-theme")) paint();
+        });
+
+        paint();
+    })();
+</script>

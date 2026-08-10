@@ -1,20 +1,149 @@
 @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap");
 
+/* ---------------------------------------------------------------------------
+   Theme tokens.
+
+   Light is the base palette on :root. Dark is applied two ways, and both must
+   exist: [data-theme="dark"] for an explicit user choice, and the media query
+   for "follow my OS" (guarded with :not([data-theme="light"]) so an explicit
+   light choice still wins on a dark-OS machine).
+
+   Every colour used anywhere in this file resolves to one of these tokens —
+   a raw hex in a rule below would survive into dark mode and break it.
+   --------------------------------------------------------------------------- */
+
 :root {
-  --tlp-bg: #fafbff;
+  color-scheme: light;
+
+  /* Surfaces — canvas is tinted so white cards lift off it. */
+  --tlp-bg: #eef1f7;
   --tlp-card: #ffffff;
-  --tlp-text: #030303;
-  --tlp-muted: #9197b3;
-  --tlp-muted-2: #b5b7c0;
-  --tlp-soft: #f9fbff;
-  --tlp-line: #eeeeee;
+  --tlp-surface-2: #f4f6fa;
+  --tlp-sidebar-bg: #ffffff;
+
+  /* Text — every value below clears WCAG AA (4.5:1) on its own surface. */
+  --tlp-text: #1e2432;          /* 15.5:1 on card — headings, primary copy */
+  --tlp-heading: #151a26;
+  --tlp-muted: #4a5169;         /* 7.9:1  — labels, secondary copy */
+  --tlp-muted-2: #5c6480;       /* 5.9:1  — table headers, captions */
+  --tlp-on-accent: #ffffff;
+
+  /* Form controls — a visible border is what separates a field from the card. */
+  --tlp-soft: #f7f9fc;
+  --tlp-input-bg: #f7f9fc;
+  --tlp-input-text: #1e2432;
+  --tlp-input-border: #d5dbe7;
+  --tlp-input-border-focus: #5932ea;
+  --tlp-placeholder: #7a8299;
+
+  /* Lines and chrome */
+  --tlp-line: #e2e6ef;
+  --tlp-line-strong: #d5dbe7;
+  --tlp-scrollbar: #c2cadb;
+  --tlp-overlay: rgba(15, 19, 25, 0.45);
+  --tlp-th-bg: #ffffff;
+  --tlp-row-hover: #f4f6fa;
+  --tlp-chip-bg: #f0f2f7;
+  --tlp-chip-text: #3d4459;
+
+  /* Brand + status */
   --tlp-purple: #5932ea;
   --tlp-purple-hover: #6842f4;
   --tlp-green: #00ac4f;
   --tlp-green-soft: #d3ffe7;
+  --tlp-green-soft-2: #effff6;
   --tlp-red: #d0004a;
+
+  --tlp-focus-ring: rgba(89, 50, 234, 0.35);
   --tlp-shadow: 0 10px 60px rgba(226, 236, 249, 0.5);
   --tlp-sidebar: 306px;
+}
+
+/* Explicit dark choice. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --tlp-bg: #0f1319;
+  --tlp-card: #171c26;
+  --tlp-surface-2: #1e2530;
+  --tlp-sidebar-bg: #141922;
+
+  --tlp-text: #e8ecf5;          /* 14.5:1 on card */
+  --tlp-heading: #f2f5fa;
+  --tlp-muted: #a8b0c5;         /* 7.9:1 */
+  --tlp-muted-2: #8f98b0;       /* 5.9:1 */
+  --tlp-on-accent: #ffffff;
+
+  --tlp-soft: #1e2530;
+  --tlp-input-bg: #1e2530;
+  --tlp-input-text: #e8ecf5;
+  --tlp-input-border: #363f52;
+  --tlp-input-border-focus: #8b6dff;
+  --tlp-placeholder: #78829a;
+
+  --tlp-line: #2a3240;
+  --tlp-line-strong: #363f52;
+  --tlp-scrollbar: #3a4356;
+  --tlp-overlay: rgba(0, 0, 0, 0.6);
+  --tlp-th-bg: #171c26;
+  --tlp-row-hover: #1e2530;
+  --tlp-chip-bg: #232b38;
+  --tlp-chip-text: #c3cade;
+
+  /* Brand purple is lifted for legibility on dark surfaces. */
+  --tlp-purple: #7c5cff;
+  --tlp-purple-hover: #8b6dff;
+  --tlp-green: #34d399;
+  --tlp-green-soft: #123a2c;
+  --tlp-green-soft-2: #0e2a20;
+  --tlp-red: #ff5c8a;
+
+  --tlp-focus-ring: rgba(124, 92, 255, 0.45);
+  --tlp-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+}
+
+/* "Follow my OS" — same values, only when the user has not chosen light. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --tlp-bg: #0f1319;
+    --tlp-card: #171c26;
+    --tlp-surface-2: #1e2530;
+    --tlp-sidebar-bg: #141922;
+
+    --tlp-text: #e8ecf5;
+    --tlp-heading: #f2f5fa;
+    --tlp-muted: #a8b0c5;
+    --tlp-muted-2: #8f98b0;
+    --tlp-on-accent: #ffffff;
+
+    --tlp-soft: #1e2530;
+    --tlp-input-bg: #1e2530;
+    --tlp-input-text: #e8ecf5;
+    --tlp-input-border: #363f52;
+    --tlp-input-border-focus: #8b6dff;
+    --tlp-placeholder: #78829a;
+
+    --tlp-line: #2a3240;
+    --tlp-line-strong: #363f52;
+    --tlp-scrollbar: #3a4356;
+    --tlp-overlay: rgba(0, 0, 0, 0.6);
+    --tlp-th-bg: #171c26;
+    --tlp-row-hover: #1e2530;
+    --tlp-chip-bg: #232b38;
+    --tlp-chip-text: #c3cade;
+
+    --tlp-purple: #7c5cff;
+    --tlp-purple-hover: #8b6dff;
+    --tlp-green: #34d399;
+    --tlp-green-soft: #123a2c;
+    --tlp-green-soft-2: #0e2a20;
+    --tlp-red: #ff5c8a;
+
+    --tlp-focus-ring: rgba(124, 92, 255, 0.45);
+  --tlp-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+  }
 }
 
 * {
@@ -55,9 +184,9 @@ body.reports-page > .flex.h-screen {
   min-width: var(--tlp-sidebar) !important;
   max-width: var(--tlp-sidebar) !important;
   min-height: 100vh;
-  background: var(--tlp-card) !important;
+  background: var(--tlp-sidebar-bg) !important;
   box-shadow: none !important;
-  border-right: 0 !important;
+  border-right: 1px solid var(--tlp-line) !important;
   color: var(--tlp-muted);
 }
 
@@ -100,7 +229,7 @@ body.reports-page > .flex.h-screen {
   position: absolute;
   left: 46px;
   top: 2px;
-  color: #000;
+  color: var(--tlp-heading);
   font-size: 26px;
   font-weight: 600;
   line-height: 34px;
@@ -151,14 +280,23 @@ body.reports-page > .flex.h-screen {
   color: currentColor;
 }
 
-.sidebar .sidebar-item[href="/logout"]::after {
+.sidebar .sidebar-item[href="/logout"]::after,
+.sidebar .theme-toggle::after {
   content: "";
+}
+
+.sidebar .theme-toggle {
+  width: 100%;
+  border: 0 !important;
+  background: transparent !important;
+  text-align: left;
+  cursor: pointer;
 }
 
 .sidebar .sidebar-item.active,
 .sidebar .sidebar-item:hover {
   background: var(--tlp-purple) !important;
-  color: #fff !important;
+  color: var(--tlp-on-accent) !important;
 }
 
 .sidebar .env-badge {
@@ -169,7 +307,7 @@ body.reports-page > .flex.h-screen {
   background: transparent !important;
   border-radius: 0 !important;
   box-shadow: none !important;
-  color: #757575 !important;
+  color: var(--tlp-muted) !important;
   display: block !important;
   text-align: left;
   text-transform: uppercase;
@@ -188,7 +326,7 @@ body.reports-page > .flex.h-screen {
 
 .sidebar .sidebar-company-name {
   display: block;
-  color: #000;
+  color: var(--tlp-heading);
   font-size: 14px;
   font-weight: 500;
   line-height: 1.35;
@@ -199,7 +337,7 @@ body.reports-page > .flex.h-screen {
 
 .sidebar .sidebar-env-name {
   display: block;
-  color: #757575;
+  color: var(--tlp-muted);
   margin-top: 2px;
 }
 
@@ -208,10 +346,10 @@ body.reports-page > .flex.h-screen {
   width: 100%;
   margin-top: 4px;
   padding: 6px 28px 6px 10px;
-  border: 1px solid rgba(148, 163, 184, 0.45);
+  border: 1px solid var(--tlp-input-border);
   border-radius: 9999px;
-  background-color: rgba(255, 255, 255, 0.95);
-  color: #334155;
+  background-color: var(--tlp-input-bg);
+  color: var(--tlp-input-text);
   font-size: 12px;
   font-weight: 600;
   text-transform: capitalize;
@@ -224,9 +362,9 @@ body.reports-page > .flex.h-screen {
 }
 
 .mobile-env-switcher {
-  background-color: rgba(30, 41, 59, 0.85);
-  border-color: rgba(148, 163, 184, 0.35);
-  color: #fff;
+  background-color: var(--tlp-input-bg);
+  border-color: var(--tlp-input-border);
+  color: var(--tlp-input-text);
   border-radius: 0.5rem;
   font-size: 14px;
   padding: 8px 32px 8px 12px;
@@ -236,7 +374,7 @@ body.reports-page > .flex.h-screen {
 .sidebar .sidebar-env-switcher:focus,
 .mobile-env-switcher:focus {
   outline: none;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.35);
+  box-shadow: 0 0 0 2px var(--tlp-focus-ring);
 }
 
 .sidebar .px-4.py-4.text-center {
@@ -301,7 +439,7 @@ main > .content-section {
 }
 
 main h1 {
-  color: #000 !important;
+  color: var(--tlp-heading) !important;
   font-size: 24px !important;
   font-weight: 500 !important;
   line-height: 1.3 !important;
@@ -311,27 +449,120 @@ main h1 + * {
   color: var(--tlp-muted);
 }
 
+/* A visible border is what separates a field from the card it sits on — the
+   previous `1px solid transparent` left near-white inputs on white cards. */
 main input,
 main select,
-main textarea {
+main textarea,
+.fixed input,
+.fixed select,
+.fixed textarea {
   min-height: 38px;
-  border: 1px solid transparent !important;
-  background-color: var(--tlp-soft) !important;
+  border: 1px solid var(--tlp-input-border) !important;
+  background-color: var(--tlp-input-bg) !important;
   border-radius: 10px !important;
-  color: #292d32 !important;
+  color: var(--tlp-input-text) !important;
   box-shadow: none !important;
 }
 
+main input:focus,
+main select:focus,
+main textarea:focus,
+.fixed input:focus,
+.fixed select:focus,
+.fixed textarea:focus {
+  border-color: var(--tlp-input-border-focus) !important;
+  box-shadow: 0 0 0 3px var(--tlp-focus-ring) !important;
+  outline: none !important;
+}
+
+main input:disabled,
+main select:disabled,
+main textarea:disabled,
+main input[readonly],
+main textarea[readonly] {
+  background-color: var(--tlp-surface-2) !important;
+  color: var(--tlp-muted) !important;
+}
+
 main input::placeholder,
-main textarea::placeholder {
+main textarea::placeholder,
+.fixed input::placeholder,
+.fixed textarea::placeholder {
+  color: var(--tlp-placeholder) !important;
+}
+
+/* ---------------------------------------------------------------------------
+   Tailwind neutral utilities -> theme tokens.
+
+   The CRM markup is built from Tailwind CDN utilities whose colours are baked
+   in at the class level. Left alone they stay light-on-light in dark mode, and
+   several of them (text-gray-400/500) already sit below WCAG AA in light mode.
+   Mapping them onto tokens fixes both problems at once.
+
+   text-white and bg-black are deliberately NOT remapped: they sit on accent
+   fills and modal overlays that keep their colour in both themes.
+   --------------------------------------------------------------------------- */
+
+.bg-white {
+  background-color: var(--tlp-card) !important;
+}
+
+.bg-gray-50,
+.bg-gray-100 {
+  background-color: var(--tlp-surface-2) !important;
+}
+
+.bg-gray-200 {
+  background-color: var(--tlp-chip-bg) !important;
+}
+
+.bg-gray-300 {
+  background-color: var(--tlp-line-strong) !important;
+}
+
+.text-gray-400 {
   color: var(--tlp-muted-2) !important;
 }
 
 main label,
-main .text-gray-500,
-main .text-gray-600,
-main .text-gray-700 {
+.text-gray-500,
+.text-gray-600,
+.text-gray-700 {
   color: var(--tlp-muted) !important;
+}
+
+.text-gray-800 {
+  color: var(--tlp-text) !important;
+}
+
+.text-gray-900 {
+  color: var(--tlp-heading) !important;
+}
+
+.border-gray-100,
+.border-gray-200 {
+  border-color: var(--tlp-line) !important;
+}
+
+.border-gray-300 {
+  border-color: var(--tlp-input-border) !important;
+}
+
+.divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+.divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--tlp-line) !important;
+}
+
+/* Section headings inside content and modals ("Add Product Item", "Seller
+   Information"). These carry Tailwind gray classes that were too light to read. */
+main h2,
+main h3,
+main h4,
+.fixed h2,
+.fixed h3,
+.fixed h4 {
+  color: var(--tlp-heading) !important;
 }
 
 main button,
@@ -438,7 +669,7 @@ main .stat-card {
   height: 84px !important;
   flex: 0 0 84px;
   border-radius: 999px !important;
-  background: linear-gradient(201deg, #d3ffe7 0%, #effff6 100%) !important;
+  background: linear-gradient(201deg, var(--tlp-green-soft) 0%, var(--tlp-green-soft-2) 100%) !important;
   color: var(--tlp-green) !important;
   display: inline-flex !important;
   align-items: center !important;
@@ -462,12 +693,12 @@ main .stat-card {
 .stat-card h3 {
   font-size: 14px !important;
   font-weight: 400 !important;
-  color: #acacac !important;
+  color: var(--tlp-muted-2) !important;
 }
 
 .stats-card p,
 .stat-card p {
-  color: #333 !important;
+  color: var(--tlp-text) !important;
   font-size: 30px !important;
   font-weight: 600 !important;
 }
@@ -475,7 +706,7 @@ main .stat-card {
 main .overflow-x-auto,
 main .overflow-auto {
   scrollbar-width: thin;
-  scrollbar-color: #d8dbe8 transparent;
+  scrollbar-color: var(--tlp-scrollbar) transparent;
 }
 
 main .overflow-x-auto::-webkit-scrollbar,
@@ -486,7 +717,7 @@ main .overflow-auto::-webkit-scrollbar {
 
 main .overflow-x-auto::-webkit-scrollbar-thumb,
 main .overflow-auto::-webkit-scrollbar-thumb {
-  background: #d8dbe8;
+  background: var(--tlp-scrollbar);
   border-radius: 999px;
 }
 
@@ -562,18 +793,18 @@ main th {
   font-size: 13px !important;
   font-weight: 500 !important;
   text-transform: none !important;
-  background: #fff !important;
+  background: var(--tlp-card) !important;
 }
 
 main td {
-  color: #292d32 !important;
+  color: var(--tlp-input-text) !important;
   font-size: 13px !important;
   font-weight: 500 !important;
   border-color: var(--tlp-line) !important;
 }
 
 main tbody tr:hover {
-  background: #fafbff !important;
+  background: var(--tlp-row-hover) !important;
 }
 
 #records-pagination button,
@@ -582,10 +813,10 @@ nav[aria-label="Pagination"] a,
 nav[aria-label="Pagination"] button {
   min-width: 26px;
   height: 24px;
-  border: 1px solid #eeeeee !important;
+  border: 1px solid var(--tlp-line) !important;
   border-radius: 4px !important;
-  background: #f5f5f5 !important;
-  color: #404b52 !important;
+  background: var(--tlp-chip-bg) !important;
+  color: var(--tlp-chip-text) !important;
   font-size: 12px !important;
 }
 
@@ -594,7 +825,7 @@ nav[aria-label="Pagination"] button {
 nav[aria-label="Pagination"] .bg-primary-600 {
   background: var(--tlp-purple) !important;
   border-color: var(--tlp-purple) !important;
-  color: #fff !important;
+  color: var(--tlp-on-accent) !important;
 }
 
 .tab-link {
@@ -655,7 +886,7 @@ nav[aria-label="Pagination"] .bg-primary-600 {
 }
 
 .modal-overlay {
-  background: rgba(3, 3, 3, 0.28) !important;
+  background: var(--tlp-overlay) !important;
 }
 
 .notification {
@@ -665,7 +896,7 @@ nav[aria-label="Pagination"] .bg-primary-600 {
 
 body > .login-container,
 .login-container {
-  background: #fff !important;
+  background: var(--tlp-card) !important;
   border: 0 !important;
   border-radius: 30px !important;
   box-shadow: var(--tlp-shadow) !important;
@@ -677,8 +908,8 @@ body > .login-container,
 }
 
 .login-container > .bg-gradient-to-r {
-  background: #fff !important;
-  color: #000 !important;
+  background: var(--tlp-card) !important;
+  color: var(--tlp-heading) !important;
   padding-top: 34px !important;
 }
 
@@ -696,7 +927,7 @@ body > .login-container,
   background-color: var(--tlp-soft) !important;
   border: 1px solid transparent !important;
   border-radius: 10px !important;
-  color: #292d32 !important;
+  color: var(--tlp-input-text) !important;
 }
 
 .login-container button[type="submit"] {
@@ -841,15 +1072,15 @@ body > .login-container,
     position: sticky;
     top: 0;
     z-index: 30;
-    background: #fff !important;
-    color: #000 !important;
+    background: var(--tlp-card) !important;
+    color: var(--tlp-heading) !important;
     box-shadow: var(--tlp-shadow);
   }
 
   #mobile-menu .bg-primary-800,
   #mobile-menu .absolute.inset-y-0 {
-    background: #fff !important;
-    color: #000 !important;
+    background: var(--tlp-card) !important;
+    color: var(--tlp-heading) !important;
   }
 
   #mobile-menu a {
@@ -859,7 +1090,7 @@ body > .login-container,
   #mobile-menu a.bg-primary-700,
   #mobile-menu a:hover {
     background: var(--tlp-purple) !important;
-    color: #fff !important;
+    color: var(--tlp-on-accent) !important;
   }
 
   main {

@@ -150,6 +150,18 @@
         }
     </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/taxlink-theme.css') }}">
+  <script>
+    // Applied before first paint so a dark-mode user never sees a light flash.
+    // No stored value falls through to prefers-color-scheme in taxlink-theme.css.
+    (function () {
+      try {
+        var t = localStorage.getItem("tlp-theme");
+        if (t === "dark" || t === "light") {
+          document.documentElement.setAttribute("data-theme", t);
+        }
+      } catch (e) { /* storage blocked; fall back to the OS preference */ }
+    })();
+  </script>
 </head>
 
 <body class="bg-gray-50 font-sans draft-invoices-page">

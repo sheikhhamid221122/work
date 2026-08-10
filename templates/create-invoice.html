@@ -317,6 +317,18 @@
         }
     </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/taxlink-theme.css') }}">
+  <script>
+    // Applied before first paint so a dark-mode user never sees a light flash.
+    // No stored value falls through to prefers-color-scheme in taxlink-theme.css.
+    (function () {
+      try {
+        var t = localStorage.getItem("tlp-theme");
+        if (t === "dark" || t === "light") {
+          document.documentElement.setAttribute("data-theme", t);
+        }
+      } catch (e) { /* storage blocked; fall back to the OS preference */ }
+    })();
+  </script>
 </head>
 
 <body class="bg-gray-50 font-sans create-invoice-page">
@@ -929,7 +941,7 @@
                                         Total
                                     </th>
                                     <th scope="col"
-                                        class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                                        class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase">
                                         Actions
                                     </th>
                                 </tr>
@@ -937,7 +949,7 @@
                             <tbody id="product-items-table" class="bg-white divide-y divide-gray-200">
                                 <!-- No products message -->
                                 <tr id="no-products-row">
-                                    <td id="product-no-items-cell" colspan="10"
+                                    <td id="product-no-items-cell" colspan="9"
                                         class="px-6 py-4 text-center text-gray-500">
                                         No products added yet. Add products using the form
                                         above.
@@ -946,8 +958,10 @@
                             </tbody>
                             <!-- Totals row -->
                             <tfoot class="bg-gray-50">
+                                <!-- Cell count must track the header: the label cell's colspan and the
+                                     further-tax spacer are kept in sync by updateProductTable(). -->
                                 <tr>
-                                    <td colspan="6" class="px-6 py-3 text-right font-medium">
+                                    <td id="totals-label-cell" colspan="5" class="px-6 py-3 text-right font-medium">
                                         Totals:
                                     </td>
                                     <td class="px-3 py-3 font-medium" id="total-value-excl">
@@ -956,6 +970,8 @@
                                     <td class="px-3 py-3 font-medium" id="total-tax-amount">
                                         0.00
                                     </td>
+                                    <!-- Spacer only: further tax is already folded into total-tax-amount. -->
+                                    <td class="px-3 py-3 font-medium hidden" id="total-further-tax-spacer"></td>
                                     <td class="px-3 py-3 font-medium" id="grand-total">
                                         0.00
                                     </td>
@@ -2763,6 +2779,19 @@
                 }
             }
 
+            // Keep the totals row aligned with the header. The label cell spans every
+            // column up to (but excluding) "Value Excl.", and the further-tax spacer
+            // only exists while that column is visible — otherwise the grand total
+            // drifts right and lands under "Actions".
+            const totalsLabelCell = document.getElementById("totals-label-cell");
+            if (totalsLabelCell) {
+                totalsLabelCell.setAttribute("colspan", String(5 + (showProductCode ? 1 : 0)));
+            }
+            const furtherTaxSpacer = document.getElementById("total-further-tax-spacer");
+            if (furtherTaxSpacer) {
+                furtherTaxSpacer.classList.toggle("hidden", !showFT);
+            }
+
             if (state.productItems.length > 0) {
                 // Hide "no products" row
                 if (noProductsRow) {
@@ -2804,8 +2833,8 @@
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${salesTax.toFixed(2)}</td>
                 ${showFT ? `<td class=\"px-3 py-4 whitespace-nowrap text-sm text-gray-500\">${furtherTax.toFixed(2)}</td>` : ``}
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${totalValue.toFixed(2)}</td>
-                <td class="px-3 py-4 whitespace-nowrap text-right text-sm">
-                    <button class="delete-product-btn text-red-600 hover:text-red-900" data-index="${index}">
+                <td class="px-3 py-4 whitespace-nowrap text-center text-sm">
+                    <button class="delete-product-btn text-red-600 hover:text-red-900" data-index="${index}" aria-label="Remove item" title="Remove item">
                         <i class="fas fa-trash"></i>
                     </button>
                 </td>
