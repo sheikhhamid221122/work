@@ -401,6 +401,11 @@ main {
   padding: 40px 30px 78px !important;
   overflow-y: auto !important;
   overflow-x: hidden !important;
+  /* Reserve the scrollbar track even when the page doesn't scroll. Without this
+     a short wizard step (no scrollbar) and a tall one (scrollbar) render at
+     different widths, so the whole form jumps sideways as you move between
+     steps. Reserving the gutter keeps the measure fixed. */
+  scrollbar-gutter: stable;
 }
 
 body.dashboard-page main {
@@ -433,8 +438,14 @@ body.reports-page main {
   overflow-x: hidden !important;
 }
 
+/* Cap the content column. `margin: 0 auto` alone did nothing without a
+   max-width, so forms and tables stretched the full width of the monitor —
+   the main reason the pages read as unpolished on a wide screen. 1440px keeps
+   the wide invoice tables comfortable while giving the page real margins. */
 main > div[id$="-content"],
 main > .content-section {
+  width: 100%;
+  max-width: 1440px;
   margin: 0 auto;
 }
 
@@ -540,9 +551,16 @@ main label,
   color: var(--tlp-heading) !important;
 }
 
+.border-gray-50,
 .border-gray-100,
 .border-gray-200 {
   border-color: var(--tlp-line) !important;
+}
+
+/* Oversized empty-state glyphs. Decorative rather than text, so they track the
+   divider tone: a soft placeholder in light, a muted one in dark. */
+.text-gray-300 {
+  color: var(--tlp-line-strong) !important;
 }
 
 .border-gray-300 {
@@ -552,6 +570,30 @@ main label,
 .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
 .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
   border-color: var(--tlp-line) !important;
+}
+
+/* Hover variants are separate Tailwind classes (.hover\:bg-gray-100:hover), so
+   the static remaps above do not reach them. Left alone they paint a light fill
+   under light text in dark mode — the row becomes unreadable on hover. This
+   covers dropdown options, table rows and secondary buttons alike. */
+.hover\:bg-gray-50:hover,
+.hover\:bg-gray-100:hover {
+  background-color: var(--tlp-row-hover) !important;
+}
+
+.hover\:bg-gray-200:hover {
+  background-color: var(--tlp-chip-bg) !important;
+}
+
+.hover\:bg-gray-300:hover {
+  background-color: var(--tlp-line-strong) !important;
+}
+
+/* Hovering muted text should make it more prominent, not less. */
+.hover\:text-gray-500:hover,
+.hover\:text-gray-600:hover,
+.hover\:text-gray-700:hover {
+  color: var(--tlp-text) !important;
 }
 
 /* Section headings inside content and modals ("Add Product Item", "Seller
@@ -859,6 +901,10 @@ nav[aria-label="Pagination"] .bg-primary-600 {
 #create-invoice-content > div[id^="step-"] {
   border-radius: 30px !important;
   box-shadow: var(--tlp-shadow) !important;
+  /* Steps carry very different amounts of content. A floor keeps the short ones
+     from collapsing into a stub, so the panel stays a consistent shape as you
+     move through the wizard. Tall steps still grow and scroll as before. */
+  min-height: 32rem;
 }
 
 #reports-content .tab-content > .grid:not(:first-child) > .bg-white,
