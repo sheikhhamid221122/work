@@ -16,6 +16,8 @@ import tempfile
 from weasyprint import HTML
 import math
 import base64
+import threading
+import time
 import psycopg2
 from psycopg2.extras import DictCursor
 from flask_cors import CORS
@@ -1109,6 +1111,104 @@ last_uploaded_file = {}
 last_json_data = {}
 
 
+# ---------------------------------------------------------------------------
+# Per-account billing hold
+#
+# users.access_suspended gates an account out of the whole app. The flag is
+# flipped directly in Postgres; no redeploy or restart is needed either way.
+# Setting it back to FALSE restores access within SUSPENSION_CACHE_TTL_SECONDS.
+# ---------------------------------------------------------------------------
+
+SUSPENSION_CACHE_TTL_SECONDS = 30
+
+# user_id -> (expires_at_monotonic, is_suspended)
+_suspension_cache = {}
+_suspension_cache_lock = threading.Lock()
+
+
+def _cache_suspension(user_id, is_suspended):
+    with _suspension_cache_lock:
+        _suspension_cache[str(user_id)] = (
+            time.monotonic() + SUSPENSION_CACHE_TTL_SECONDS,
+            bool(is_suspended),
+        )
+
+
+def _cached_suspension(user_id, ignore_expiry=False):
+    """Return the cached flag, or None when absent (or stale and not ignoring expiry)."""
+    with _suspension_cache_lock:
+        entry = _suspension_cache.get(str(user_id))
+    if not entry:
+        return None
+    expires_at, is_suspended = entry
+    if ignore_expiry or expires_at > time.monotonic():
+        return is_suspended
+    return None
+
+
+def is_user_suspended(user_id):
+    """Is this account on billing hold? Cached ~30s so we don't hit the DB every request.
+
+    On a database error we fail OPEN: a transient Postgres blip must not lock out
+    every paying client. The last known value is reused if we have one.
+    """
+    cached = _cached_suspension(user_id)
+    if cached is not None:
+        return cached
+
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT access_suspended FROM users WHERE id = %s", (user_id,))
+        row = cur.fetchone()
+        cur.close()
+        is_suspended = bool(row[0]) if row else False
+    except Exception as e:
+        print(f"[suspension] Could not read access_suspended for user {user_id}: {e}")
+        stale = _cached_suspension(user_id, ignore_expiry=True)
+        return stale if stale is not None else False
+    finally:
+        if conn:
+            conn.close()
+
+    _cache_suspension(user_id, is_suspended)
+    return is_suspended
+
+
+def _wants_json_response():
+    """True when the caller is a fetch/XHR/API client rather than a browser navigation."""
+    if request.path.startswith("/api/"):
+        return True
+    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return True
+    if request.is_json:
+        return True
+    # A bare fetch() sends Accept: */* — the tie resolves to JSON. A browser
+    # navigation sends an explicit text/html preference and resolves to HTML.
+    accept = request.accept_mimetypes
+    return accept["application/json"] >= accept["text/html"] and accept["application/json"] > 0
+
+
+SUSPENDED_MESSAGE = (
+    "This account is on hold because the annual hosting and database fee is "
+    "outstanding. No data has been deleted."
+)
+
+
+def suspended_response():
+    """HTTP 402 for an account on billing hold — JSON for API/XHR, the hold page otherwise."""
+    if _wants_json_response():
+        return jsonify({"error": "account_suspended", "message": SUSPENDED_MESSAGE}), 402
+
+    try:
+        return render_template("account_suspended.html"), 402
+    except Exception as e:
+        # The hold page must never 500 — degrade to plain text instead.
+        print(f"[suspension] Failed to render account_suspended.html: {e}")
+        return SUSPENDED_MESSAGE, 402, {"Content-Type": "text/plain; charset=utf-8"}
+
+
 @app.route("/login", methods=["POST"])
 def login():
     username = request.form.get("username")
@@ -1120,7 +1220,7 @@ def login():
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute(
-        "SELECT id, name FROM users WHERE username = %s AND password_hash = %s",
+        "SELECT id, name, access_suspended FROM users WHERE username = %s AND password_hash = %s",
         (username, password),
     )
     user = cur.fetchone()
@@ -1134,6 +1234,19 @@ def login():
     user_id = user[0]
     name = user[1]
     print("User ID found:", user_id)
+
+    # Billing hold — read fresh on every login so blocking is immediate.
+    # Checked before any session value is written, so a suspended account never
+    # gets a session cookie at all.
+    if user[2]:
+        print(f"Login blocked: account {user_id} is suspended.")
+        cur.close()
+        conn.close()
+        _cache_suspension(user_id, True)
+        session.clear()
+        return suspended_response()
+
+    _cache_suspension(user_id, False)
 
     cur.execute("SELECT id FROM clients WHERE user_id = %s", (user_id,))
     client = cur.fetchone()
@@ -1168,6 +1281,13 @@ def before_request():
         if "user_id" not in session:
             print("No user_id in session, redirecting to login")
             return redirect(url_for("index"))
+
+        # Billing hold — sessions are permanent, so a suspended user can still be
+        # holding a valid cookie. Blocking only the login form would not stop them.
+        if is_user_suspended(session["user_id"]):
+            print(f"Request blocked: account {session['user_id']} is suspended.")
+            session.clear()
+            return suspended_response()
 
 
 @app.route("/records", methods=["GET"])

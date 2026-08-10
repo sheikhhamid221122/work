@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>Account On Hold — TaxLink Pro</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/taxlinkpro-favicon.svg') }}" />
+
+  <style>
+    body {
+      background-image: url('/static/images/44420737_9019796.jpg');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Same glass panel as the login page so the hold notice reads as part of the product. */
+    .hold-container {
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4),
+        0 10px 10px -5px rgba(0, 0, 0, 0.3);
+      background-color: rgba(15, 23, 42, 0.65); /* Dark blue with transparency */
+      backdrop-filter: blur(8px);
+      border-radius: 1rem;
+      width: 100%;
+      max-width: 26rem;
+      overflow: hidden;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+
+    .hold-container::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      border-radius: 1rem;
+      padding: 2px;
+      background: linear-gradient(45deg, rgba(59, 130, 246, 0.5), rgba(147, 51, 234, 0.5));
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
+    }
+
+    .hold-body-text {
+      color: rgba(219, 234, 254, 0.9); /* Light blue text, matches .form-label on the login page */
+    }
+
+    .hold-callout {
+      background-color: rgba(30, 41, 59, 0.7);
+      border: 1px solid rgba(71, 85, 105, 0.5);
+    }
+  </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/taxlink-theme.css') }}">
+</head>
+
+<body class="p-4">
+  <div class="hold-container rounded-xl overflow-hidden w-full shadow-lg relative">
+    <!-- Header with Logo -->
+    <div class="bg-gradient-to-r from-blue-700 to-indigo-800 text-white p-4 text-center">
+      <div class="inline-block mb-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto" fill="none" viewBox="0 0 24 24"
+          stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+        </svg>
+      </div>
+      <h1 class="text-xl font-bold">TaxLink Pro</h1>
+      <p class="text-blue-200 text-sm mt-1">Invoice Submission ERP</p>
+    </div>
+
+    <!-- Notice -->
+    <div class="p-6 space-y-4">
+      <h2 class="text-lg font-semibold text-white text-center">Account On Hold</h2>
+
+      <p class="hold-body-text text-sm leading-relaxed">
+        Access to this account has been temporarily suspended because the annual hosting and database
+        fee is currently outstanding.
+      </p>
+
+      <div class="hold-callout rounded-lg p-4 flex items-start gap-3">
+        <i class="fas fa-database text-blue-300 mt-1"></i>
+        <p class="hold-body-text text-sm leading-relaxed">
+          <span class="font-semibold text-white">No data has been deleted.</span>
+          Every invoice, product, buyer and report remains stored and intact. Full access is restored
+          as soon as the outstanding fee is settled.
+        </p>
+      </div>
+
+      <p class="text-xs text-center" style="color: rgba(148, 163, 184, 0.8);">
+        Please settle the outstanding annual fee to reactivate this account.
+      </p>
+    </div>
+  </div>
+</body>
+
+</html>
