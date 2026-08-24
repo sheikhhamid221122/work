@@ -6,6 +6,8 @@ client prints = a profile JSON edit, never a code change.
 
 from __future__ import annotations
 
+import re
+
 from .normalizers import clean_text, digits_only
 
 # key -> (default label, resolver(data) -> value)
@@ -30,6 +32,32 @@ FIELD_CATALOG = {
     "sale_type":      ("SALE TYPE",      lambda d: clean_text(d.get("saleType"))),
     "delivery_date":  ("DELIVERY DATE",  lambda d: clean_text(d.get("deliveryDate"))),
 }
+
+# Some invoice fields have no dedicated input on the create-invoice form and
+# are typed as free-form custom fields ("PO#", "Sales Tax No."). When the main
+# payload key is empty, a row falls back to a custom field whose name matches
+# one of these aliases, and that custom field is then not repeated at the
+# bottom of the block. Matching ignores case, spaces and punctuation.
+CUSTOM_FIELD_ALIASES = {
+    "po": ["PO", "PO#", "P.O", "P.O #", "PO NO", "PO NUMBER",
+           "PURCHASE ORDER", "PURCHASE ORDER #"],
+    "purchase_order": ["PO", "PO#", "P.O", "P.O #", "PO NUMBER",
+                       "PURCHASE ORDER", "PURCHASE ORDER #"],
+    "buyer_strn": ["STRN", "SALES TAX NO", "SALES TAX NUMBER",
+                   "SALES TAX REGISTRATION NO", "BUYER STRN"],
+    "buyer_ntn": ["NTN", "NTN/CNIC", "BUYER NTN", "BUYER NTN/CNIC"],
+    "dn": ["DN", "D.N", "D.N. NO", "DELIVERY NOTE"],
+    "dc": ["DC", "DC #", "DELIVERY CHALLAN"],
+    "time_of_issue": ["TIME", "TIME OF ISSUE"],
+    "delivery_date": ["DELIVERY DATE"],
+    "sale_type": ["SALE TYPE"],
+}
+
+
+def _key(value):
+    """Normalised comparison key: 'P.O #' and 'po' collapse to 'PO'."""
+    return re.sub(r"[^A-Z0-9]+", "", str(value or "").upper())
+
 
 # Fallback ordering used when a profile does not list `rows`. Mirrors the
 # legacy tpl_* checkbox behaviour exactly.
@@ -74,6 +102,24 @@ def build_info_rows(data, settings=None, spec=None, custom_fields_max=None):
         if key in FIELD_CATALOG and key not in wanted:
             wanted.append(key)
 
+    custom = list(data.get("customFields") or [])
+    consumed = set()
+
+    def from_custom_fields(key):
+        """Pull a value from a matching custom field and mark it consumed."""
+        wanted_keys = {_key(a) for a in CUSTOM_FIELD_ALIASES.get(key, [])}
+        if not wanted_keys:
+            return ""
+        for index, field in enumerate(custom):
+            if index in consumed:
+                continue
+            if _key(field.get("name")) in wanted_keys:
+                value = clean_text(field.get("value"))
+                if value:
+                    consumed.add(index)
+                    return value
+        return ""
+
     rows = []
     for key in wanted:
         entry = FIELD_CATALOG.get(key)
@@ -84,18 +130,30 @@ def build_info_rows(data, settings=None, spec=None, custom_fields_max=None):
             value = resolver(data)
         except Exception:
             value = ""
+        if not value:
+            value = from_custom_fields(key)
         if not value and key not in required:
             continue
         rows.append({"key": key, "label": labels.get(key, default_label), "value": value})
 
-    # Per-invoice free-form custom fields still work, appended at the end.
-    custom = data.get("customFields") or []
-    if custom_fields_max is not None:
-        custom = custom[:custom_fields_max]
-    for field in custom:
+    # Per-invoice free-form custom fields still work, appended at the end —
+    # minus any that a row above already consumed or duplicates, so the same
+    # value never prints twice (which also keeps the two-column pairing even).
+    printed_labels = {_key(r["label"]) for r in rows}
+    printed_values = {_key(r["value"]) for r in rows if r["value"]}
+    shown = 0
+    for index, field in enumerate(custom):
+        if index in consumed:
+            continue
+        if custom_fields_max is not None and shown >= custom_fields_max:
+            break
         name, value = clean_text(field.get("name")), clean_text(field.get("value"))
-        if name and value:
-            rows.append({"key": "custom", "label": name, "value": value})
+        if not (name and value):
+            continue
+        if _key(name) in printed_labels or _key(value) in printed_values:
+            continue
+        rows.append({"key": "custom", "label": name, "value": value})
+        shown += 1
 
     return rows
 

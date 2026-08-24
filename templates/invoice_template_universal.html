@@ -211,6 +211,7 @@
     {% set show_seller_legal_name = settings.get('show_seller_legal_name', false) %}
     {% set seller_address_label = settings.get('seller_address_label', '') %}
     {% set show_signature_block = settings.get('show_signature_block', true) %}
+    {% set show_signature_note = settings.get('show_signature_note', true) %}
 
     {# === BORDER STYLE === #}
     {% set border_color = settings.get('border_color', '#999999') %}
@@ -522,7 +523,7 @@
             <tr>
                 <td colspan="2" style="vertical-align: bottom; text-align: left; border: none;">
                     <div class="footer-note">
-                        {% if signature_note_above_authorised %}
+                        {% if show_signature_note and signature_note_above_authorised %}
                         <p style="margin: 0 0 10px 0; font-size: 10pt; line-height: 1.35;">
                             {{ signature_note_above_authorised }}
                         </p>

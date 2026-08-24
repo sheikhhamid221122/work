@@ -1,7 +1,9 @@
 {
   "name": "Fine Printers",
   "enabled": true,
-  "usernames": ["Fineprinters"],
+  "usernames": [
+    "Fineprinters"
+  ],
   "notes": [
     "Invoice layout approved by Point Print PK (Pvt.) Ltd on 2026-08-24 after",
     "their Purchase Invoice Checker rejected PI 279192 / supplier invoice 1634.",
@@ -9,14 +11,13 @@
     "routes, and the profile is matched on users.username only.",
     "This file affects ONLY the usernames listed above."
   ],
-
   "template_name": "invoice_template_universal.html",
   "timezone": "Asia/Karachi",
   "currency": "PKR",
-
   "template": {
     "show_seller_legal_name": false,
     "show_signature_block": false,
+    "show_signature_note": false,
     "seller_address_label": "Seller Address:",
     "date_format": "%d-%m-%Y",
     "show_seller_strn": true,
@@ -30,15 +31,21 @@
     "show_sales_tax_rate_column": true,
     "max_item_rows": 5
   },
-
   "seller": {
     "legal_name": "MIRZA IMRAN BAIG",
     "address": "Shop No. 2, Manmohan Singh Building, Main Chowk, Royal Park, Lahore, Punjab, Pakistan"
   },
-
-  "normalize": ["seller_strn"],
-
-  "rows": ["buyer_ntn", "buyer_strn", "status", "po", "currency", "time_of_issue"],
+  "normalize": [
+    "seller_strn"
+  ],
+  "rows": [
+    "buyer_ntn",
+    "buyer_strn",
+    "status",
+    "po",
+    "currency",
+    "time_of_issue"
+  ],
   "labels": {
     "buyer_ntn": "BUYER NTN/CNIC",
     "buyer_strn": "BUYER STRN",
@@ -46,36 +53,69 @@
     "currency": "CURRENCY",
     "time_of_issue": "TIME OF ISSUE"
   },
-
   "rules": [
-    {"field": "supplier_strn", "rule": "digits_len", "param": 13,
-     "message": "Supplier STRN must print as 13 digits without dashes."},
-    {"field": "invoice_number", "rule": "present",
-     "message": "Invoice serial number is missing."},
-    {"field": "time_of_issue", "rule": "present", "severity": "warning",
-     "message": "Time of issue is missing (FBR requires date AND time of issue)."}
+    {
+      "field": "supplier_strn",
+      "rule": "digits_len",
+      "param": 13,
+      "message": "Supplier STRN must print as 13 digits without dashes."
+    },
+    {
+      "field": "invoice_number",
+      "rule": "present",
+      "message": "Invoice serial number is missing."
+    },
+    {
+      "field": "time_of_issue",
+      "rule": "present",
+      "severity": "warning",
+      "message": "Time of issue is missing (FBR requires date AND time of issue)."
+    }
   ],
-
   "buyers": {
     "1700420089212": {
       "label": "Point Print PK (Pvt.) Ltd",
-      "match": ["1700420089212", "4200892"],
-      "match_names": ["Point Print PK (Pvt.) Ltd", "Point print pk private",
-                      "POINT PRINT PK (PRIVATE) LIMITED"],
+      "match": [
+        "1700420089212",
+        "4200892"
+      ],
+      "match_names": [
+        "Point Print PK (Pvt.) Ltd",
+        "Point print pk private",
+        "POINT PRINT PK (PRIVATE) LIMITED"
+      ],
       "canonical_name": "Point Print PK (Pvt.) Ltd",
       "canonical_address": "D-67/1, Block 4, Clifton, Karachi, Sindh, Pakistan",
       "canonical_ntn": "4200892-1",
       "canonical_strn": "1700420089212",
-      "require": ["po", "buyer_strn"],
+      "require": [
+        "po",
+        "buyer_strn"
+      ],
       "rules": [
-        {"field": "po", "rule": "present",
-         "message": "Point Print requires the PO number on the supplier invoice."},
-        {"field": "buyer_strn", "rule": "equals_normalized", "param": "1700420089212",
-         "message": "Point Print requires their STRN 1700420089212 (NTN alone is rejected)."},
-        {"field": "buyer_name", "rule": "forbid_tokens", "param": "PRIVATE LIMITED",
-         "message": "Point Print's checker rejects the '(PRIVATE) LIMITED' form; print 'Point Print PK (Pvt.) Ltd'."},
-        {"field": "buyer_address", "rule": "contains_all", "param": "CLIFTON KARACHI SINDH PAKISTAN",
-         "message": "Point Print requires the full Clifton / Karachi / Sindh / Pakistan address."}
+        {
+          "field": "po",
+          "rule": "present",
+          "message": "Point Print requires the PO number on the supplier invoice."
+        },
+        {
+          "field": "buyer_strn",
+          "rule": "equals_normalized",
+          "param": "1700420089212",
+          "message": "Point Print requires their STRN 1700420089212 (NTN alone is rejected)."
+        },
+        {
+          "field": "buyer_name",
+          "rule": "forbid_tokens",
+          "param": "PRIVATE LIMITED",
+          "message": "Point Print's checker rejects the '(PRIVATE) LIMITED' form; print 'Point Print PK (Pvt.) Ltd'."
+        },
+        {
+          "field": "buyer_address",
+          "rule": "contains_all",
+          "param": "CLIFTON KARACHI SINDH PAKISTAN",
+          "message": "Point Print requires the full Clifton / Karachi / Sindh / Pakistan address."
+        }
       ]
     }
   }
