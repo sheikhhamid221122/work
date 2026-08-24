@@ -204,6 +204,14 @@
     {% set fixed_tax_rate = settings.get('fixed_tax_rate', '18%') %}
     {% set max_item_rows = settings.get('max_item_rows', 6) %}
     
+    {# === COMPLIANCE-PROFILE SETTINGS ===
+       Supplied by compliance/profiles/<client>.json via merge_template_settings().
+       Every default below reproduces the pre-profile behaviour, so a client
+       without a profile renders exactly as before. #}
+    {% set show_seller_legal_name = settings.get('show_seller_legal_name', false) %}
+    {% set seller_address_label = settings.get('seller_address_label', '') %}
+    {% set show_signature_block = settings.get('show_signature_block', true) %}
+
     {# === BORDER STYLE === #}
     {% set border_color = settings.get('border_color', '#999999') %}
 
@@ -241,8 +249,12 @@
                             {% if data.sellerBusinessName %}
                                 <p style="margin: 0; font-size: 15px; font-weight: bold;">{{ data.sellerBusinessName }}</p>
                             {% endif %}
+                            {% if show_seller_legal_name and data.sellerLegalName
+                                   and (data.sellerLegalName|upper) != (data.sellerBusinessName|upper) %}
+                                <p style="margin: 0;"><strong>Legal Name (FBR):</strong> {{ data.sellerLegalName|upper }}</p>
+                            {% endif %}
                             {% if show_seller_address and data.sellerAddress %}
-                                <p style="margin: 0;">{{ data.sellerAddress }}</p>
+                                <p style="margin: 0;">{% if seller_address_label %}<strong>{{ seller_address_label }}</strong> {% endif %}{{ data.sellerAddress }}</p>
                             {% endif %}
                             {% if show_seller_ntn and data.sellerNTNCNIC %}
                                 <p style="margin: 0;"><strong>NTN:</strong><span style="margin-left: 12px;">{{ data.sellerNTNCNIC }}</span></p>
@@ -276,8 +288,12 @@
                                 {% if data.sellerBusinessName %}
                                     <p class="seller-business-name">{{ data.sellerBusinessName }}</p>
                                 {% endif %}
+                                {% if show_seller_legal_name and data.sellerLegalName
+                                       and (data.sellerLegalName|upper) != (data.sellerBusinessName|upper) %}
+                                    <p class="seller-contact"><span class="label">Legal Name (FBR):</span> {{ data.sellerLegalName|upper }}</p>
+                                {% endif %}
                                 {% if show_seller_address and data.sellerAddress %}
-                                    <p class="seller-address">{{ data.sellerAddress }}</p>
+                                    <p class="seller-address">{% if seller_address_label %}<span class="label">{{ seller_address_label }}</span> {% endif %}{{ data.sellerAddress }}</p>
                                 {% endif %}
                                 {% if show_seller_ntn and data.sellerNTNCNIC %}
                                     <p class="seller-contact"><span class="label">NTN:</span> {{ data.sellerNTNCNIC }}</p>
@@ -309,7 +325,7 @@
                 <td style="width: 20%; font-weight: bold; border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left">BUYER NAME</td>
                 <td style="width: 45%; border: 1px solid {{ border_color }};" class="left">{{ data.buyerBusinessName }}</td>
                 <td style="width: 15%; font-weight: bold; border: 1px solid {{ border_color }}; background-color: #f2f2f2;" class="left">DATE</td>
-                <td style="width: 20%; border: 1px solid {{ border_color }};" class="left">{{ data.invoiceDate | datetimeformat }}</td>
+                <td style="width: 20%; border: 1px solid {{ border_color }};" class="left">{{ data.invoiceDateDisplay or (data.invoiceDate | datetimeformat) }}</td>
             </tr>
             <tr>
                 <td style="font-weight: bold; background-color: #f2f2f2; border: 1px solid {{ border_color }};" class="left">BUYER ADDRESS</td>
@@ -318,6 +334,14 @@
                 <td style="border: 1px solid {{ border_color }};" class="left">{{ data.invoiceRefNo }}</td>
             </tr>
             {% set _info_fields = namespace(items=[]) %}
+            {# Rows are resolved in Python (compliance.build_info_rows) from the
+               client's tpl_* settings merged with its compliance profile.
+               The legacy branch below still serves every client without one. #}
+            {% if data.infoRows %}
+                {% for _row in data.infoRows %}
+                    {% set _ = _info_fields.items.append({'label': _row.label, 'value': _row.value}) %}
+                {% endfor %}
+            {% else %}
             {% set _ = _info_fields.items.append({'label': 'BUYER NTN/CNIC', 'value': data.buyerNTNCNIC or ""}) %}
             {% if show_status %}
                 {% set _status_value = 'Registered' if (data.buyerRegistrationType and (data.buyerRegistrationType|string).lower() in ['registered','r','yes','1']) else 'Unregistered' %}
@@ -348,6 +372,7 @@
             {% for _cf in (data.customFields or [])[:_cf_max] %}
                 {% set _ = _info_fields.items.append({'label': _cf.name or "", 'value': _cf.value or ""}) %}
             {% endfor %}
+            {% endif %}
             {% for _field_row in _info_fields.items|batch(2) %}
             <tr>
                 {% for _field in _field_row %}
@@ -502,8 +527,10 @@
                             {{ signature_note_above_authorised }}
                         </p>
                         {% endif %}
+                        {% if show_signature_block %}
                         <hr style="width: 200px; margin-left: 0; border-top: 2px solid #000000;">
                         <p style="margin-top: -5px;">AUTHORISED SIGNATORY</p>
+                        {% endif %}
                     </div>
                 </td>
 

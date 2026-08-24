@@ -1,0 +1,40 @@
+{
+  "username": "Fineprinters",
+  "logo_path": "static/uploads/FINE PRINTERS.png",
+  "fbr_logo_path": "static/uploads/FBR LOGO.png",
+  "custom_fields_max": 4,
+  "settings": {
+    "header_color": "dark",
+    "logo_width": 200,
+    "border_color": "#999999"
+  },
+  "data": {
+    "sellerBusinessName": "FINE PRINTERS",
+    "sellerAddress": "SHOP NO.2. MANMOHAN SINGH BUILDING, MAIN CHOWK, ROYAL PARK, LAHORE, CELL: 03454049095",
+    "sellerNTNCNIC": "3356156",
+    "sellerSTRN": "03-00-8442-049-37",
+    "fbrInvoiceNumber": "3520195158363DIX40LCQ670074",
+    "buyerBusinessName": "Point print pk private",
+    "buyerAddress": "D-67, Block 4. Clifton Karachi, Saddar Town",
+    "buyerProvince": "Sindh",
+    "buyerNTNCNIC": "4200892",
+    "buyerSTRN": "1700420089212",
+    "buyerRegistrationType": "Registered",
+    "invoiceDate": "2026-08-15",
+    "issueTime": "03:47 PM",
+    "invoiceRefNo": "1634",
+    "PO": "276492",
+    "customFields": [],
+    "items": [
+      {
+        "productDescription": "Trade Letter Double sided",
+        "hs_code": "4901.1000",
+        "quantity": 30000,
+        "rate": "18%",
+        "unitrate": 2.74,
+        "valueSalesExcludingST": 82200.0,
+        "salesTaxApplicable": 14796.0
+      }
+    ]
+  }
+}
