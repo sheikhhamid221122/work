@@ -37,12 +37,25 @@ def _as_float(value):
         return 0.0
 
 
+def _resolved_row_value(data, field):
+    """Prefer the value that will actually be PRINTED. A field may be sourced
+    from a custom field (e.g. a PO typed as "PO#"), in which case the raw
+    payload key is empty but the rendered row is not."""
+    for row in (data.get("infoRows") or []):
+        if row.get("key") == field and row.get("value"):
+            return row["value"]
+    return None
+
+
 def _evaluate(rule, data):
     field = rule.get("field")
     kind = rule.get("rule")
     param = rule.get("param")
-    resolver = VALUE_RESOLVERS.get(field)
-    value = clean_text(resolver(data)) if resolver else clean_text(data.get(field))
+    value = _resolved_row_value(data, field)
+    if value is None:
+        resolver = VALUE_RESOLVERS.get(field)
+        value = resolver(data) if resolver else data.get(field)
+    value = clean_text(value)
 
     if kind == "present":
         return bool(value)

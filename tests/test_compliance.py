@@ -145,6 +145,36 @@ class FinePrintersProfile(unittest.TestCase):
         self.assertEqual(data["buyerBusinessName"], "Some Other Buyer")
         self.assertIn("CURRENCY", labels)
 
+    def test_po_typed_as_a_custom_field_fills_the_po_row(self):
+        """The create-invoice form has no dedicated PO input; users type it as
+        a custom field named 'PO#'. It must land in the P.O # row."""
+        data = sample_invoice()
+        data.pop("PO")
+        data["customFields"] = [{"name": "PO#", "value": "275389"}]
+        data = apply_compliance(data, self.settings, self.profile)
+        rows = {r["label"]: r["value"] for r in data["infoRows"]}
+        self.assertEqual(rows["P.O #"], "275389")
+        self.assertNotIn("PO#", rows)            # not repeated at the bottom
+
+    def test_duplicate_custom_field_is_suppressed(self):
+        """'Sales Tax No.' duplicates the BUYER STRN row — print it once."""
+        data = sample_invoice()
+        data["customFields"] = [{"name": "Sales Tax No.", "value": "1700420089212"}]
+        data = apply_compliance(data, self.settings, self.profile)
+        labels = [r["label"] for r in data["infoRows"]]
+        self.assertNotIn("Sales Tax No.", labels)
+        self.assertEqual(len(data["infoRows"]), 6)
+
+    def test_unrelated_custom_field_still_prints(self):
+        data = sample_invoice()
+        data["customFields"] = [{"name": "Vehicle No.", "value": "LEA-1234"}]
+        data = apply_compliance(data, self.settings, self.profile)
+        rows = {r["label"]: r["value"] for r in data["infoRows"]}
+        self.assertEqual(rows["Vehicle No."], "LEA-1234")
+
+    def test_signature_note_suppressed(self):
+        self.assertFalse(self.settings["show_signature_note"])
+
     def test_excel_route_uses_approved_template(self):
         self.assertEqual(
             resolve_template_name("Fineprinters", "invoice_template3.html"),
