@@ -2,6 +2,13 @@ from reports_routes import add_reports_routes
 from invoice_form_routes import add_invoice_form_routes
 from draft_invoice_routes import add_draft_invoice_routes
 from fbr_reference_routes import add_fbr_reference_routes
+from compliance import (
+    apply_compliance,
+    get_profile,
+    merge_template_settings,
+    resolve_template_name,
+    run_validation,
+)
 from flask import Flask, render_template, request, jsonify, send_file
 from flask import render_template
 from flask import session, redirect, url_for
@@ -591,6 +598,22 @@ def generate_form_invoice():
             except Exception as e:
                 print(f"Error generating QR code: {str(e)}")
 
+        # ---------------------------------------------------------------
+        # Per-client compliance profile (compliance/profiles/*.json).
+        # Clients without a profile: get_profile() -> None -> no-op, so their
+        # invoices render exactly as before. Applies to sandbox + production.
+        # ---------------------------------------------------------------
+        compliance_profile = get_profile(username)
+        if compliance_profile:
+            client_template_settings = merge_template_settings(
+                client_template_settings, compliance_profile
+            )
+            data = apply_compliance(
+                data, client_template_settings, compliance_profile,
+                custom_fields_max=INVOICE_CUSTOM_FIELDS_MAX,
+            )
+            run_validation(data, compliance_profile)
+
         # Select invoice template
         # Always use the universal template; user-specific branching removed.
         template_name = "invoice_template_universal.html"
@@ -1083,6 +1106,22 @@ def generate_invoice_pdf_for_client(invoice_data_raw, client_id):
                     qr_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
             except Exception as e:
                 print(f"Error generating QR code: {e}")
+
+        # ---------------------------------------------------------------
+        # Per-client compliance profile (compliance/profiles/*.json).
+        # Clients without a profile: get_profile() -> None -> no-op, so their
+        # invoices render exactly as before. Applies to sandbox + production.
+        # ---------------------------------------------------------------
+        compliance_profile = get_profile(username)
+        if compliance_profile:
+            client_template_settings = merge_template_settings(
+                client_template_settings, compliance_profile
+            )
+            data = apply_compliance(
+                data, client_template_settings, compliance_profile,
+                custom_fields_max=INVOICE_CUSTOM_FIELDS_MAX,
+            )
+            run_validation(data, compliance_profile)
 
         # Select invoice template
         # Always use the universal template; user-specific branching removed.
@@ -1949,6 +1988,15 @@ def generate_invoice_excel():
         else:
             template_name = "invoice_template3.html"
 
+        # A compliance profile may pin the template for its own client only;
+        # every other client keeps the mapping above untouched.
+        template_name = resolve_template_name(username, template_name)
+        compliance_profile = get_profile(username)
+        if compliance_profile:
+            excel_template_settings = merge_template_settings({}, compliance_profile)
+            data = apply_compliance(data, excel_template_settings, compliance_profile)
+            run_validation(data, compliance_profile)
+
         # --- Render HTML invoice with the selected template ---
         rendered_html = render_template(
             template_name,
@@ -1957,6 +2005,7 @@ def generate_invoice_excel():
             client_logo_url=client_logo_url,
             fbr_logo_url=fbr_logo_url,
             username=username,
+            settings=(excel_template_settings if compliance_profile else None),
         )
 
         # --- Generate PDF directly to a stream ---
