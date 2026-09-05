@@ -2159,7 +2159,7 @@
                     document.getElementById('seller-business-name').value = invoiceData.sellerData.sellerBusinessName || '';
                     document.getElementById('seller-ntn-cnic').value = invoiceData.sellerData.sellerNTNCNIC || '';
                     document.getElementById('seller-strn').value = invoiceData.sellerData.sellerSTRN || '';
-                    document.getElementById('seller-province').value = invoiceData.sellerData.sellerProvince || '';
+                    setSelectValueCaseInsensitive(document.getElementById('seller-province'), invoiceData.sellerData.sellerProvince || '');
                     document.getElementById('seller-address').value = invoiceData.sellerData.sellerAddress || '';
                 }
 
@@ -2194,7 +2194,7 @@
                     document.getElementById('buyer-business-name').value = invoiceData.buyerData.buyerBusinessName || '';
                     document.getElementById('buyer-ntn-cnic').value = invoiceData.buyerData.buyerNTNCNIC || '';
                     document.getElementById('buyer-strn').value = invoiceData.buyerData.buyerSTRN || '';
-                    document.getElementById('buyer-province').value = invoiceData.buyerData.buyerProvince || '';
+                    setSelectValueCaseInsensitive(document.getElementById('buyer-province'), invoiceData.buyerData.buyerProvince || '');
                     document.getElementById('buyer-address').value = invoiceData.buyerData.buyerAddress || '';
                     document.getElementById('buyer-registration-type').value = invoiceData.buyerData.buyerRegistrationType || '';
                     document.getElementById('buyer-code').value = invoiceData.buyerData.buyerCode || '';
@@ -2476,6 +2476,10 @@
                 const optElement = document.createElement("option");
                 optElement.value = option.value;
                 optElement.textContent = option.label;
+                // FBR reference code (e.g. stateProvinceCode) when the API supplies one
+                if (option.code !== undefined && option.code !== null) {
+                    optElement.dataset.code = option.code;
+                }
                 selectElement.appendChild(optElement);
             });
         }
@@ -2532,16 +2536,60 @@
         }
 
         // Populate seller form with selected profile
+        // Legacy province spellings -> FBR's official stateProvinceDesc values.
+        // Keep in sync with PROVINCE_ALIASES in fbr_reference_routes.py
+        const PROVINCE_ALIASES = {
+            "KPK": "KHYBER PAKHTUNKHWA",
+            "K.P.K": "KHYBER PAKHTUNKHWA",
+            "K.P.K.": "KHYBER PAKHTUNKHWA",
+            "KP": "KHYBER PAKHTUNKHWA",
+            "NWFP": "KHYBER PAKHTUNKHWA",
+            "KHYBER PAKHTOONKHWA": "KHYBER PAKHTUNKHWA",
+            "KHYBER PAKHTUNKHAWA": "KHYBER PAKHTUNKHWA",
+            "KHYBER PAKHTUNKHWAH": "KHYBER PAKHTUNKHWA",
+            "KHYBER-PAKHTUNKHWA": "KHYBER PAKHTUNKHWA",
+            "AJK": "AZAD JAMMU AND KASHMIR",
+            "AJ&K": "AZAD JAMMU AND KASHMIR",
+            "AZAD KASHMIR": "AZAD JAMMU AND KASHMIR",
+            "AZAD JAMMU & KASHMIR": "AZAD JAMMU AND KASHMIR",
+            "ISLAMABAD": "CAPITAL TERRITORY",
+            "ICT": "CAPITAL TERRITORY",
+            "ISLAMABAD CAPITAL TERRITORY": "CAPITAL TERRITORY",
+            "FEDERAL CAPITAL": "CAPITAL TERRITORY",
+            "GB": "GILGIT BALTISTAN",
+            "GILGIT-BALTISTAN": "GILGIT BALTISTAN",
+            "GILGIT & BALTISTAN": "GILGIT BALTISTAN",
+            "BALUCHISTAN": "BALOCHISTAN",
+            "BLOCHISTAN": "BALOCHISTAN",
+        };
+
         // Helper function to set select value with case-insensitive matching
         function setSelectValueCaseInsensitive(selectElement, value) {
             if (!selectElement || !value) return;
-            const upperValue = value.toUpperCase();
+            const normalize = (v) => String(v || "").trim().toUpperCase().replace(/\s+/g, " ");
+            const target = normalize(value);
+            if (!target) return;
+
             for (let i = 0; i < selectElement.options.length; i++) {
-                if (selectElement.options[i].value.toUpperCase() === upperValue) {
+                if (normalize(selectElement.options[i].value) === target) {
                     selectElement.selectedIndex = i;
                     return;
                 }
             }
+
+            // Legacy/abbreviated province spellings stored before the province list
+            // was driven by FBR's provinces API.
+            const alias = PROVINCE_ALIASES[target];
+            if (alias) {
+                const aliasTarget = normalize(alias);
+                for (let i = 0; i < selectElement.options.length; i++) {
+                    if (normalize(selectElement.options[i].value) === aliasTarget) {
+                        selectElement.selectedIndex = i;
+                        return;
+                    }
+                }
+            }
+
             // Fallback: try exact match
             selectElement.value = value;
         }
@@ -4597,7 +4645,7 @@
             document.getElementById('bp-name').value = p.business_name || '';
             document.getElementById('bp-ntn').value = p.ntn_cnic || '';
             document.getElementById('bp-strn').value = p.strn || '';
-            document.getElementById('bp-province').value = p.province || '';
+            setSelectValueCaseInsensitive(document.getElementById('bp-province'), p.province || '');
             document.getElementById('bp-address').value = p.address || '';
             document.getElementById('bp-default').checked = !!p.is_default;
         }
@@ -4920,7 +4968,7 @@
         function handleBuyerAction(e) {
             const id = e.currentTarget.getAttribute('data-id'); const action = e.currentTarget.getAttribute('data-action'); const buyer = buyersCache.find(b => b.id == id); if (action === 'del') return deleteBuyer(id); if (action === 'apply') { applyBuyer(buyer); closeBuyerModal(); return; } if (action === 'edit') { editingBuyerId = id; showBuyerForm(true); fillBuyerForm(buyer); }
         }
-        function fillBuyerForm(b) { if (!b) return;['by-name', 'by-ntn', 'by-strn', 'by-province', 'by-reg', 'by-code', 'by-address'].forEach(() => { }); document.getElementById('by-name').value = b.business_name || ''; document.getElementById('by-ntn').value = b.ntn_cnic || ''; document.getElementById('by-strn').value = b.strn || ''; document.getElementById('by-province').value = b.province || ''; document.getElementById('by-reg').value = b.registration_type || ''; document.getElementById('by-code').value = b.buyer_code || ''; document.getElementById('by-address').value = b.address || ''; }
+        function fillBuyerForm(b) { if (!b) return;['by-name', 'by-ntn', 'by-strn', 'by-province', 'by-reg', 'by-code', 'by-address'].forEach(() => { }); document.getElementById('by-name').value = b.business_name || ''; document.getElementById('by-ntn').value = b.ntn_cnic || ''; document.getElementById('by-strn').value = b.strn || ''; setSelectValueCaseInsensitive(document.getElementById('by-province'), b.province || ''); document.getElementById('by-reg').value = b.registration_type || ''; document.getElementById('by-code').value = b.buyer_code || ''; document.getElementById('by-address').value = b.address || ''; }
         async function deleteBuyer(id) {
             if (!confirm('Delete this buyer?')) return; try { const res = await fetch(apiUrl(`/api/buyers/${id}`), { method: 'DELETE' }); const data = await res.json(); if (!res.ok) throw new Error(data.error || 'Failed'); showNotification('success', 'Deleted', 'Buyer removed'); await loadBuyersModal(); }
                 catch (err) { showNotification('error', 'Error', err.message); }

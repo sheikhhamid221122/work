@@ -7,6 +7,8 @@ from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
 from psycopg2.extras import Json
 
+from fbr_reference_routes import canonical_province, fetch_provinces
+
 SPECIAL_USERNAMES = {"H075895", "F667833", "infinityeng"}
 INVOICE_CUSTOM_FIELDS_MAX = 2
 
@@ -938,17 +940,21 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
     # ---------------- Form Options ----------------
     @app.route("/api/form-options", methods=["GET"])
     def get_form_options():
-        # Static province list - matching values stored in database
+        # Provinces come from FBR DI Reference API 5.1 (/pdi/v1/provinces), cached
+        # for 24h, with a static fallback only if FBR is unreachable. The value we
+        # send back is FBR's own stateProvinceDesc, since that exact string is what
+        # gets posted as sellerProvince / buyerProvince.
+        fbr_provinces, provinces_source = fetch_provinces(get_db_connection, get_env)
         provinces_data = [
-            {"value": "PUNJAB", "label": "PUNJAB"},
-            {"value": "SINDH", "label": "SINDH"},
-            {"value": "KPK", "label": "KPK"},
-            {"value": "BALOCHISTAN", "label": "BALOCHISTAN"},
-            {"value": "ISLAMABAD", "label": "ISLAMABAD"},
-            {"value": "AJK", "label": "AJK"},
-            {"value": "GILGIT BALTISTAN", "label": "GILGIT BALTISTAN"},
+            {
+                "value": p["stateProvinceDesc"],
+                "label": p["stateProvinceDesc"],
+                "code": p.get("stateProvinceCode"),
+            }
+            for p in fbr_provinces
         ]
-        
+
+
         # Sale types per FBR Documentation Section 9 - Scenarios for Sandbox Testing
         # These are the official sale type values that map to each scenario
         sale_types_data = [
@@ -986,6 +992,7 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                     {"value": "Debit Note", "label": "Debit Note"},
                 ],
                 "provinces": provinces_data,
+                "provincesSource": provinces_source,
                 # Registration types per FBR doc - only 2 valid values for buyerRegistrationType
                 "registrationTypes": [
                     {"value": "Registered", "label": "Registered"},
@@ -1275,17 +1282,30 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             "customText": sanitize_string(str(sig_raw.get("customText") or "")[:500]),
         }
 
+        # Map whatever province spelling we hold (legacy "KPK", "ISLAMABAD", ...)
+        # onto the exact description FBR's provinces API returns.
+        try:
+            known_provinces, _ = fetch_provinces(get_db_connection, get_env)
+        except Exception:
+            known_provinces = None
+        seller_province = canonical_province(
+            sanitize_string(seller["sellerProvince"]), known_provinces
+        )
+        buyer_province = canonical_province(
+            sanitize_string(buyer["buyerProvince"]), known_provinces
+        )
+
         invoice_json = {
             "invoiceType": sanitize_string(data["invoiceType"]),
             "invoiceDate": data["invoiceDate"],
             "sellerNTNCNIC": seller["sellerNTNCNIC"],
             "sellerBusinessName": sanitize_string(seller["sellerBusinessName"]),
-            "sellerProvince": sanitize_string(seller["sellerProvince"]),
+            "sellerProvince": seller_province,
             "sellerAddress": seller_address,
             "sellerSTRN": seller.get("sellerSTRN", ""),
             "buyerNTNCNIC": buyer["buyerNTNCNIC"],
             "buyerBusinessName": sanitize_string(buyer["buyerBusinessName"]),
-            "buyerProvince": sanitize_string(buyer["buyerProvince"]),
+            "buyerProvince": buyer_province,
             "buyerAddress": buyer_address,
             "buyerRegistrationType": buyer.get("buyerRegistrationType", "Unregistered"),
             "buyerSTRN": buyer.get("buyerSTRN", ""),

@@ -64,6 +64,81 @@ FALLBACK_UOMS = [
 ]
 
 
+# Fallback province list, used ONLY when the live FBR provinces API (5.1) cannot
+# be reached. Descriptions must match FBR's "stateProvinceDesc" values exactly,
+# because that string is what gets posted as sellerProvince / buyerProvince.
+FALLBACK_PROVINCES = [
+    {"stateProvinceCode": 2, "stateProvinceDesc": "BALOCHISTAN"},
+    {"stateProvinceCode": 4, "stateProvinceDesc": "AZAD JAMMU AND KASHMIR"},
+    {"stateProvinceCode": 5, "stateProvinceDesc": "CAPITAL TERRITORY"},
+    {"stateProvinceCode": 6, "stateProvinceDesc": "KHYBER PAKHTUNKHWA"},
+    {"stateProvinceCode": 7, "stateProvinceDesc": "PUNJAB"},
+    {"stateProvinceCode": 8, "stateProvinceDesc": "SINDH"},
+    {"stateProvinceCode": 9, "stateProvinceDesc": "GILGIT BALTISTAN"},
+]
+
+# Legacy / abbreviated spellings that were previously stored in our own database
+# (or that users type) mapped onto FBR's official province descriptions.
+# Keys must be upper-cased and whitespace-collapsed.
+PROVINCE_ALIASES = {
+    "KPK": "KHYBER PAKHTUNKHWA",
+    "K.P.K": "KHYBER PAKHTUNKHWA",
+    "K.P.K.": "KHYBER PAKHTUNKHWA",
+    "KP": "KHYBER PAKHTUNKHWA",
+    "NWFP": "KHYBER PAKHTUNKHWA",
+    "KHYBER PAKHTOONKHWA": "KHYBER PAKHTUNKHWA",
+    "KHYBER PAKHTUNKHAWA": "KHYBER PAKHTUNKHWA",
+    "KHYBER PAKHTUNKHWAH": "KHYBER PAKHTUNKHWA",
+    "KHYBER-PAKHTUNKHWA": "KHYBER PAKHTUNKHWA",
+    "AJK": "AZAD JAMMU AND KASHMIR",
+    "AJ&K": "AZAD JAMMU AND KASHMIR",
+    "AZAD KASHMIR": "AZAD JAMMU AND KASHMIR",
+    "AZAD JAMMU & KASHMIR": "AZAD JAMMU AND KASHMIR",
+    "ISLAMABAD": "CAPITAL TERRITORY",
+    "ICT": "CAPITAL TERRITORY",
+    "ISLAMABAD CAPITAL TERRITORY": "CAPITAL TERRITORY",
+    "FEDERAL CAPITAL": "CAPITAL TERRITORY",
+    "GB": "GILGIT BALTISTAN",
+    "GILGIT-BALTISTAN": "GILGIT BALTISTAN",
+    "GILGIT & BALTISTAN": "GILGIT BALTISTAN",
+    "BALUCHISTAN": "BALOCHISTAN",
+    "BLOCHISTAN": "BALOCHISTAN",
+}
+
+
+def _normalize_province_key(value):
+    """Upper-case and collapse whitespace so lookups are forgiving."""
+    return " ".join(str(value or "").strip().upper().split())
+
+
+def canonical_province(value, provinces=None):
+    """
+    Map a stored / user-entered province string onto the exact description FBR
+    expects. Falls back to the original (trimmed) value when no match is found,
+    so we never silently drop data.
+    """
+    key = _normalize_province_key(value)
+    if not key:
+        return ""
+
+    catalogue = provinces if provinces is not None else FALLBACK_PROVINCES
+    known = {}
+    for row in catalogue:
+        desc = (row.get("stateProvinceDesc") or "").strip()
+        if desc:
+            known[_normalize_province_key(desc)] = desc
+
+    if key in known:
+        return known[key]
+
+    aliased = PROVINCE_ALIASES.get(key)
+    if aliased:
+        # Prefer the live catalogue's own spelling of the aliased province.
+        return known.get(_normalize_province_key(aliased), aliased)
+
+    return str(value).strip()
+
+
 def _get_cache(key):
     """Get cached data if not expired."""
     with _cache_lock:
@@ -93,9 +168,118 @@ def _clear_cache(key=None):
             _reference_cache.clear()
 
 
+def get_client_fbr_token(get_db_connection, get_env):
+    """
+    Resolve (base_url, token) for the client in session, for the active env.
+    Module-level so other blueprints (e.g. the invoice form) can reuse it.
+    Returns (None, None) when unavailable.
+    """
+    client_id = session.get("client_id")
+    env = session.get("env") or get_env()
+
+    if not client_id:
+        return None, None
+
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT sandbox_api_url, sandbox_api_token, production_api_url, production_api_token
+            FROM clients
+            WHERE id = %s
+            """,
+            (client_id,),
+        )
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        if not row:
+            return None, None
+
+        sandbox_url, sandbox_token, prod_url, prod_token = row
+        if env == "sandbox":
+            return (sandbox_url or FBR_SANDBOX_BASE), sandbox_token
+        return (prod_url or FBR_PRODUCTION_BASE), prod_token
+    except Exception as e:
+        print(f"[FBR Reference] ERROR getting client token: {e}")
+        return None, None
+
+
+def fbr_get(endpoint, token, params=None):
+    """Authenticated GET against the FBR reference APIs. Returns (data, error)."""
+    url = f"{FBR_SANDBOX_BASE}{endpoint}"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+    try:
+        response = requests.get(url, headers=headers, params=params, timeout=30)
+        response.raise_for_status()
+        return response.json(), None
+    except requests.Timeout:
+        return None, "FBR API request timed out"
+    except requests.ConnectionError:
+        return None, "Failed to connect to FBR API"
+    except requests.HTTPError as e:
+        return None, f"FBR API error: {e.response.status_code}"
+    except Exception as e:
+        return None, f"Unexpected error: {str(e)}"
+
+
+def fetch_provinces(get_db_connection, get_env):
+    """
+    Single source of truth for the province list (FBR DI API 5.1,
+    GET https://gw.fbr.gov.pk/pdi/v1/provinces).
+
+    Returns (provinces, source) where provinces is a list of
+    {"stateProvinceCode": int, "stateProvinceDesc": str} and source is one of
+    "cache", "api" or "fallback".
+    """
+    client_id = session.get("client_id")
+    cache_key = f"provinces_{client_id}"
+
+    cached = _get_cache(cache_key)
+    if cached:
+        return cached, "cache"
+
+    _, token = get_client_fbr_token(get_db_connection, get_env)
+    if not token:
+        return FALLBACK_PROVINCES, "fallback"
+
+    data, error = fbr_get("/pdi/v1/provinces", token)
+    if error or not isinstance(data, list):
+        if error:
+            print(f"[Provinces API] Error: {error}")
+        return FALLBACK_PROVINCES, "fallback"
+
+    normalized = []
+    for row in data:
+        if not isinstance(row, dict):
+            continue
+        desc = (row.get("stateProvinceDesc") or "").strip()
+        if not desc:
+            continue
+        normalized.append(
+            {
+                "stateProvinceCode": row.get("stateProvinceCode"),
+                "stateProvinceDesc": desc,
+            }
+        )
+
+    if not normalized:
+        return FALLBACK_PROVINCES, "fallback"
+
+    normalized.sort(key=lambda p: p["stateProvinceDesc"])
+    _set_cache(cache_key, normalized, CACHE_DURATION_REFERENCE)
+    return normalized, "api"
+
+
 def add_fbr_reference_routes(app, get_db_connection, get_env):
     """Add FBR reference data routes to the Flask app."""
-    
+
     def _get_client_token():
         """Get the API token for the current client."""
         client_id = session.get("client_id")
@@ -635,47 +819,11 @@ def add_fbr_reference_routes(app, get_db_connection, get_env):
         client_id = session.get("client_id")
         if not client_id:
             return jsonify({"error": "No client ID in session"}), 401
-        
-        cache_key = f"provinces_{client_id}"
-        
-        # Check cache first
-        cached_data = _get_cache(cache_key)
-        if cached_data:
-            return jsonify({"provinces": cached_data, "source": "cache"})
-        
-        # Fetch from FBR API
-        _, token = _get_client_token()
-        if not token:
-            # Fallback provinces
-            fallback = [
-                {"stateProvinceCode": 7, "stateProvinceDesc": "PUNJAB"},
-                {"stateProvinceCode": 8, "stateProvinceDesc": "SINDH"},
-                {"stateProvinceCode": 9, "stateProvinceDesc": "KPK"},
-                {"stateProvinceCode": 10, "stateProvinceDesc": "BALOCHISTAN"},
-                {"stateProvinceCode": 11, "stateProvinceDesc": "ISLAMABAD"},
-                {"stateProvinceCode": 12, "stateProvinceDesc": "AJK"},
-                {"stateProvinceCode": 13, "stateProvinceDesc": "GILGIT BALTISTAN"},
-            ]
-            return jsonify({"provinces": fallback, "source": "fallback"})
-        
-        data, error = _make_fbr_request("/pdi/v1/provinces", token)
-        
-        if error:
-            print(f"[Provinces API] Error: {error}")
-            fallback = [
-                {"stateProvinceCode": 7, "stateProvinceDesc": "PUNJAB"},
-                {"stateProvinceCode": 8, "stateProvinceDesc": "SINDH"},
-                {"stateProvinceCode": 9, "stateProvinceDesc": "KPK"},
-                {"stateProvinceCode": 10, "stateProvinceDesc": "BALOCHISTAN"},
-                {"stateProvinceCode": 11, "stateProvinceDesc": "ISLAMABAD"},
-            ]
-            return jsonify({"provinces": fallback, "source": "fallback", "error": error})
-        
-        if isinstance(data, list):
-            _set_cache(cache_key, data, CACHE_DURATION_REFERENCE)
-            return jsonify({"provinces": data, "source": "api", "count": len(data)})
-        
-        return jsonify({"provinces": [], "source": "api", "error": "Unexpected response format"})
+
+        provinces, source = fetch_provinces(get_db_connection, get_env)
+        return jsonify(
+            {"provinces": provinces, "source": source, "count": len(provinces)}
+        )
 
     # -------------------- Document Types API (5.2) --------------------
     @app.route("/api/reference/document-types", methods=["GET"])
