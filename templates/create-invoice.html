@@ -2721,7 +2721,7 @@
             }
 
             const furtherTaxAmount = shouldApplyFurtherTax()
-                ? ((parseFloat(valueExcl) || 0) * (furtherTaxPercent || 0)) / 100
+                ? percentOf(parseFloat(valueExcl) || 0, furtherTaxPercent || 0)
                 : 0;
 
             // Create item object with all FBR fields
@@ -3605,9 +3605,20 @@
 
                 // Ensure numeric fields are numbers and compute totalValues here
                 const qty = parseFloat(item.quantity) || 0;
-                const valueExcl = Number((parseFloat(item.valueSalesExcludingST) || 0).toFixed(2));
-                const salesTax = Number((parseFloat(item.salesTaxApplicable) || 0).toFixed(2));
-                const totalValues = Number((valueExcl + salesTax).toFixed(2));
+                const valueExcl = roundHalfUp(parseFloat(item.valueSalesExcludingST) || 0, 2);
+                // Re-derive the tax from the value and rate actually being sent, so a
+                // stale or float-rounded figure can't fail FBR's cross-check. Only a
+                // rounding-sized difference is corrected; a different tax basis
+                // (3rd schedule, SRO, exempt) is left as entered.
+                let salesTax = roundHalfUp(parseFloat(item.salesTaxApplicable) || 0, 2);
+                const ratePctForCheck = parseFloat(String(taxRateStr).replace('%', ''));
+                if (isFinite(ratePctForCheck) && ratePctForCheck > 0) {
+                    const recomputed = percentOf(valueExcl, ratePctForCheck);
+                    if (recomputed > 0 && Math.abs(recomputed - salesTax) <= 0.05) {
+                        salesTax = recomputed;
+                    }
+                }
+                const totalValues = roundHalfUp(valueExcl + salesTax, 2);
                 const furtherTaxAmount = shouldApplyFurtherTax()
                     ? ((item.furtherTaxAmount !== undefined ? parseFloat(item.furtherTaxAmount) : computeFurtherTaxAmount(item)) || 0)
                     : (parseFloat(item.furtherTax) || 0);
@@ -3677,6 +3688,47 @@
             }, 800);
         });        // Auto-calculate rate when quantity or value excluding sales tax changes
 
+        // ---------- Exact money math ----------
+        // FBR recomputes salesTaxApplicable from valueSalesExcludingST and rate and
+        // rejects the invoice when ours differs by even one paisa. Plain floats are
+        // not safe for this: 694806.75 * 0.18 evaluates to 125065.21499999999, so
+        // toFixed(2) gives 125065.21 where FBR computes the exact decimal
+        // 125065.215 and expects 125065.22. These helpers scale to integers first.
+
+        function scaleToInt(value, dp) {
+            const num = Number(value);
+            if (!isFinite(num)) return 0;
+            // toFixed absorbs representation error before we snap to an integer
+            return Math.round(Number((num * Math.pow(10, dp)).toFixed(4)));
+        }
+
+        function roundHalfUp(value, dp = 2) {
+            const num = Number(value);
+            if (!isFinite(num)) return 0;
+            const factor = Math.pow(10, dp);
+            const scaled = Number((Math.abs(num) * factor).toFixed(6));
+            const whole = Math.floor(scaled);
+            const rounded = whole + (scaled - whole >= 0.5 ? 1 : 0);
+            return (num < 0 ? -rounded : rounded) / factor;
+        }
+
+        // percent of amount, half-up to 2dp, without floating point drift
+        function percentOf(amount, percent) {
+            const amt = Number(amount) || 0;
+            const pct = Number(percent) || 0;
+            const negative = (amt < 0) !== (pct < 0);
+            const paisa = scaleToInt(Math.abs(amt), 2);   // rupees -> paisa
+            const basisPoints = scaleToInt(Math.abs(pct), 2); // 18.00% -> 1800
+            const product = paisa * basisPoints;
+            if (!Number.isSafeInteger(product)) {
+                // absurdly large values: fall back to float, still half-up
+                return roundHalfUp((amt * pct) / 100, 2);
+            }
+            const whole = Math.floor(product / 10000);
+            const taxPaisa = whole + (product - whole * 10000 >= 5000 ? 1 : 0);
+            return (negative ? -taxPaisa : taxPaisa) / 100;
+        }
+
         function calculateValueAndTax() {
             const qtyEl = document.getElementById('product-quantity'); const rateEl = document.getElementById('product-rate'); const valueEl = document.getElementById('product-value-excl'); const taxRateSelect = document.getElementById('product-tax-rate'); const taxAmtEl = document.getElementById('product-tax-amount');
             if (!qtyEl || !rateEl || !valueEl || !taxRateSelect || !taxAmtEl) return;
@@ -3684,7 +3736,10 @@
             const qty = parseFloat(qtyEl.value) || 0;
             const ratePerUnit = parseFloat(rateEl.value) || 0;
 
-            const valueExcl = qty * ratePerUnit;
+            // Round the value FIRST -- this rounded figure is what gets sent as
+            // valueSalesExcludingST, so the tax must be derived from it, not from
+            // the unrounded product.
+            const valueExcl = roundHalfUp(qty * ratePerUnit, 2);
             if (qty > 0 && ratePerUnit > 0) {
                 valueEl.value = valueExcl.toFixed(2);
             } else {
@@ -3698,7 +3753,7 @@
                 const optText = taxRateSelect.options[taxRateSelect.selectedIndex].textContent.trim();
                 taxPercent = parseFloat(optText.replace('%', '')) || 0;
             }
-            const taxAmount = valueExcl * (taxPercent / 100);
+            const taxAmount = percentOf(valueExcl, taxPercent);
             taxAmtEl.value = taxAmount.toFixed(2);
         }
 

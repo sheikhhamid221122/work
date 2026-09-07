@@ -38,6 +38,53 @@ def _require_valid_tax_id(value, label):
     raise ValueError(f"{label} must be 7 characters (NTN) or 13 digits (CNIC)")
 
 
+def parse_rate_percent(rate):
+    """
+    Pull a Decimal percentage out of the many shapes a rate arrives in:
+    "18%", "18.00%", "18", 18, 0.18 is NOT treated as 18% (callers send percent).
+    Returns None when no percentage can be read.
+    """
+    if rate is None:
+        return None
+    text = str(rate).strip().replace("%", "").strip()
+    if not text:
+        return None
+    try:
+        return Decimal(text)
+    except Exception:
+        return None
+
+
+def expected_sales_tax(value_excl, rate):
+    """
+    The sales tax FBR will re-compute for a straight percentage-of-value line:
+    round(valueSalesExcludingST * rate / 100, 2) with HALF-UP rounding.
+
+    Decimal is essential here. In binary floating point 694806.75 * 0.18 is
+    125065.21499999999, so rounding to 2dp yields 125065.21, while FBR computes
+    the exact decimal 125065.215 and expects 125065.22 -- a one-paisa mismatch
+    that fails validation with "Provided sales tax amount does not match the
+    calculated sales tax amount".
+    """
+    percent = parse_rate_percent(rate)
+    if percent is None:
+        return None
+    try:
+        base = Decimal(str(value_excl))
+    except Exception:
+        return None
+    return (base * percent / Decimal("100")).quantize(
+        Decimal("0.01"), rounding=ROUND_HALF_UP
+    )
+
+
+# How far the submitted tax may sit from the recomputed figure and still be
+# treated as a rounding artifact we should silently correct. A genuine
+# difference (3rd schedule tax on retail price, SRO-driven amounts, exempt
+# lines) is far larger than this and is left exactly as the user entered it.
+SALES_TAX_SNAP_TOLERANCE = Decimal("0.05")
+
+
 def _normalize_custom_field_names(fields):
     names = []
     seen = set()
@@ -1337,19 +1384,41 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             try:
                 value_excl = q2(item_data["valueSalesExcludingST"])
                 sales_tax = q2(item_data["salesTaxApplicable"])
-                total_values = item_data.get("totalValues")
-                # Ensure the computed sum is also rounded to 2 decimals to avoid float precision artifacts
-                total_values = (
-                    q2(value_excl + sales_tax)
-                    if total_values is None
-                    else q2(total_values)
-                )
+
                 # Handle taxRate consistently
                 tax_rate = item_data.get("taxRate", "0%")
                 # Ensure it ends with % if it's a numeric string without %
                 if isinstance(tax_rate, str) and not tax_rate.endswith('%') and tax_rate.replace('.', '', 1).isdigit():
                     tax_rate = f"{tax_rate}%"
-                
+
+                # Re-derive the tax from the value and rate we are about to send,
+                # using exact decimal half-up rounding. If the client's figure is
+                # only a rounding artifact away, snap to what FBR will compute so
+                # the invoice is not rejected over a single paisa. Anything
+                # further out is a different tax basis and is left untouched.
+                recomputed_tax = expected_sales_tax(value_excl, tax_rate)
+                if recomputed_tax is not None and recomputed_tax > 0:
+                    drift = abs(Decimal(str(sales_tax)) - recomputed_tax)
+                    if 0 < drift <= SALES_TAX_SNAP_TOLERANCE:
+                        print(
+                            f"[Invoice] Sales tax adjusted {sales_tax} -> {recomputed_tax} "
+                            f"(value {value_excl} @ {tax_rate}) to match FBR's calculation"
+                        )
+                        sales_tax = float(recomputed_tax)
+
+                total_values = item_data.get("totalValues")
+                # Ensure the computed sum is also rounded to 2 decimals to avoid float precision artifacts
+                if total_values is None:
+                    total_values = q2(value_excl + sales_tax)
+                else:
+                    total_values = q2(total_values)
+                    # Keep the gross consistent if it was just value + tax and the
+                    # tax moved above.
+                    gross = q2(value_excl + sales_tax)
+                    if abs(Decimal(str(total_values)) - Decimal(str(gross))) <= SALES_TAX_SNAP_TOLERANCE:
+                        total_values = gross
+
+
                 item = {
                     "hsCode": sanitize_string(item_data.get("hsCode", "")),
                     "productDescription": sanitize_string(item_data["productDescription"]),
