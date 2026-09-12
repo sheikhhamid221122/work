@@ -3014,7 +3014,144 @@
             if (step === 5) {
                 updateReviewSection();
             }
+
+            wizardSyncUrl(step);
+            wizardPersist();
         }
+
+        // ---------- Step URLs + reload persistence ----------
+        // Each step gets its own URL (?step=buyer) and the in-progress invoice
+        // is mirrored into sessionStorage, so a reload, a bookmark or the
+        // browser's back/forward buttons land the user where they were instead
+        // of dumping them back on step 1.
+        const STEP_SLUGS = { 1: "seller", 2: "invoice", 3: "buyer", 4: "products", 5: "review" };
+        const SLUG_STEPS = { seller: 1, invoice: 2, buyer: 3, products: 4, review: 5 };
+        const WIZARD_STORAGE_KEY = "taxlinkpro:create-invoice";
+        // Suppresses URL pushes / writes while we are the ones driving goToStep.
+        let wizardRestoring = false;
+
+        function wizardStepFromUrl() {
+            return SLUG_STEPS[(getUrlParameter("step") || "").toLowerCase()] || null;
+        }
+
+        function wizardSyncUrl(step) {
+            try {
+                const url = new URL(window.location.href);
+                url.searchParams.set("step", STEP_SLUGS[step] || "seller");
+                // A restore/back-nav must not stack another history entry.
+                history[wizardRestoring ? "replaceState" : "pushState"](
+                    { wizardStep: step },
+                    "",
+                    url.toString()
+                );
+            } catch (e) {
+                console.warn("Could not sync step to URL:", e);
+            }
+        }
+
+        function wizardCollectFieldValues() {
+            const values = {};
+            for (let i = 1; i <= 5; i++) {
+                const container = document.getElementById(`step-${i}`);
+                if (!container) continue;
+                container.querySelectorAll("input[id], select[id], textarea[id]").forEach((el) => {
+                    if (["file", "button", "submit", "password"].includes(el.type)) return;
+                    values[el.id] = el.type === "checkbox" || el.type === "radio" ? el.checked : el.value;
+                });
+            }
+            return values;
+        }
+
+        function wizardApplyFieldValues(values) {
+            if (!values) return;
+            Object.keys(values).forEach((id) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                if (el.type === "checkbox" || el.type === "radio") {
+                    el.checked = !!values[id];
+                } else {
+                    el.value = values[id];
+                }
+            });
+        }
+
+        function wizardPersist() {
+            if (wizardRestoring) return;
+            try {
+                sessionStorage.setItem(
+                    WIZARD_STORAGE_KEY,
+                    JSON.stringify({
+                        env: ENV,
+                        currentStep: state.currentStep,
+                        sellerData: state.sellerData,
+                        buyerData: state.buyerData,
+                        invoiceData: state.invoiceData,
+                        productItems: state.productItems,
+                        draft_id: state.draft_id,
+                        fields: wizardCollectFieldValues(),
+                    })
+                );
+            } catch (e) {
+                // Private browsing or quota: progress just won't survive a reload.
+            }
+        }
+
+        function wizardClear() {
+            try {
+                sessionStorage.removeItem(WIZARD_STORAGE_KEY);
+            } catch (e) { /* nothing to clean up */ }
+        }
+
+        function wizardRestore() {
+            let saved = null;
+            try {
+                const raw = sessionStorage.getItem(WIZARD_STORAGE_KEY);
+                saved = raw ? JSON.parse(raw) : null;
+            } catch (e) {
+                saved = null;
+            }
+
+            // Never carry a sandbox invoice into production (or vice versa).
+            if (saved && saved.env !== ENV) {
+                wizardClear();
+                saved = null;
+            }
+
+            const urlStep = wizardStepFromUrl();
+            if (!saved && !urlStep) return;
+
+            wizardRestoring = true;
+            try {
+                if (saved) {
+                    state.sellerData = saved.sellerData || {};
+                    state.buyerData = saved.buyerData || {};
+                    state.invoiceData = saved.invoiceData || {};
+                    state.productItems = Array.isArray(saved.productItems) ? saved.productItems : [];
+                    state.draft_id = saved.draft_id || null;
+                    wizardApplyFieldValues(saved.fields);
+                    renderCustomFields();
+                    if (state.productItems.length) {
+                        renderProductItems();
+                    }
+                }
+                const target = urlStep || (saved && saved.currentStep) || 1;
+                goToStep(Math.min(Math.max(target, 1), 5));
+            } finally {
+                wizardRestoring = false;
+            }
+        }
+
+        window.addEventListener("popstate", function (event) {
+            const step = (event.state && event.state.wizardStep) || wizardStepFromUrl() || 1;
+            if (step === state.currentStep) return;
+            wizardRestoring = true;
+            try {
+                goToStep(step);
+            } finally {
+                wizardRestoring = false;
+            }
+            wizardPersist();
+        });
 
         // Update review section
         function updateReviewSection() {
@@ -3823,6 +3960,27 @@
                             showNotification("error", "Loading Error", error.message || "Failed to load draft invoice");
                         });
                 }, 1000); // Increased timeout to ensure all initializations complete
+            } else {
+                // No draft in the URL: restore whatever the user had in progress
+                // before a reload. Deferred so dropdown options (which are
+                // fetched) exist before we write saved values back into them.
+                setTimeout(wizardRestore, 1200);
+            }
+
+            // Keep the saved snapshot current as the user types, so a reload
+            // mid-step doesn't lose anything they hadn't clicked Next on yet.
+            let wizardPersistTimer = null;
+            for (let i = 1; i <= 5; i++) {
+                const container = document.getElementById(`step-${i}`);
+                if (!container) continue;
+                container.addEventListener("input", function () {
+                    clearTimeout(wizardPersistTimer);
+                    wizardPersistTimer = setTimeout(wizardPersist, 400);
+                });
+                container.addEventListener("change", function () {
+                    clearTimeout(wizardPersistTimer);
+                    wizardPersistTimer = setTimeout(wizardPersist, 400);
+                });
             }
 
             // Mobile menu toggle
@@ -4084,6 +4242,10 @@
                             // Enable the Generate Invoice button after successful submission
                             document.getElementById("generate-invoice-btn").disabled = false;
                             document.getElementById("generate-invoice-btn").classList.remove("opacity-50", "cursor-not-allowed");
+
+                            // Filed successfully: drop the in-progress snapshot so a
+                            // later visit starts clean instead of re-opening this invoice.
+                            wizardClear();
                         } else {
                             document.getElementById("submission-error").classList.remove("hidden");
                             document.getElementById("error-response-data").textContent = JSON.stringify(result, null, 2);
