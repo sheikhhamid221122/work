@@ -890,12 +890,13 @@ nav[aria-label="Pagination"] .bg-primary-600 {
   background: var(--tlp-green) !important;
 }
 
-#create-invoice-content > .mb-8 .flex.items-center {
-  overflow-x: auto;
+#create-invoice-content > .mb-8 > .flex.items-center {
+  overflow: visible;
 }
 
 #create-invoice-content > .mb-8 .flex-col.items-center {
-  min-width: 82px;
+  flex: 0 0 auto;
+  min-width: 74px;
 }
 
 #create-invoice-content > div[id^="step-"] {
@@ -989,10 +990,6 @@ body > .login-container,
 
   .sidebar nav {
     padding: 0 !important;
-  }
-
-  .sidebar .px-4.py-4.text-center {
-    padding-inline: 50px 0 !important;
   }
 
   .sidebar-logo::after {
@@ -1517,4 +1514,69 @@ body.create-invoice-page input[type="date"],
 body.create-invoice-page textarea {
   padding-block: 7px !important;
   font-size: 13px !important;
+}
+
+/* ---------------------------------------------------------------------------
+   Sidebar sizing corrections.
+
+   The first density pass cut the sidebar too far: the company name ellipsised,
+   the environment switcher clipped "Production" to "Produc", and
+   "Reports & Analytics" wrapped onto two lines. Environment is the single most
+   consequential thing on this screen -- it decides whether an invoice is a test
+   or a real filing -- so it has to be legible at a glance.
+   --------------------------------------------------------------------------- */
+
+:root {
+  --tlp-sidebar: clamp(238px, 16.5vw, 272px);
+}
+
+.sidebar .sidebar-item {
+  padding-inline: 12px !important;
+  white-space: nowrap;
+}
+
+.sidebar .sidebar-item i {
+  margin-right: 10px !important;
+  flex: 0 0 auto;
+}
+
+/* Company + environment block: full width of the rail, nothing clipped. */
+.sidebar .px-4.py-4.text-center {
+  padding-inline: 0 !important;
+}
+
+.sidebar .sidebar-company-name {
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+}
+
+.sidebar .sidebar-env-switcher {
+  padding: 6px 26px 6px 12px;
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+}
+
+/* Step indicator: the row fits on its own -- the connecting lines already flex,
+   so nothing here needs to scroll. */
+#create-invoice-content > .mb-8 > .flex.items-center {
+  align-items: flex-start;
+}
+
+#create-invoice-content > .mb-8 .flex-col.items-center > .mt-2 {
+  width: auto !important;
+  min-width: 62px;
+  white-space: nowrap;
+}
+
+#create-invoice-content > .mb-8 .step-line {
+  margin: 15px 8px 0 !important;
+  min-width: 14px;
+}
+
+/* Forms stretched the full width of a wide monitor, leaving a reference-number
+   field ~750px wide and half the card empty. Capping the column keeps lines a
+   readable length and the layout composed; the products table still has room. */
+#create-invoice-content {
+  max-width: 1280px;
+  margin-inline: auto;
 }
