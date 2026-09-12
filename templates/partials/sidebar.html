@@ -7,6 +7,10 @@
 <div class="hidden md:flex md:flex-shrink-0{{ sidebar_print_class }}">
     <div class="flex flex-col sidebar">
         <div class="flex flex-col items-center justify-center pt-5 pb-2">
+            <button type="button" id="sidebar-collapse-toggle" class="sidebar-collapse-toggle"
+                aria-label="Collapse navigation" aria-expanded="true" title="Collapse navigation">
+                <i class="fas fa-angles-left" aria-hidden="true"></i>
+            </button>
             <div class="sidebar-logo w-32 mb-4">
                 <img src="{{ url_for('static', filename='uploads/logo.png') }}"
                     alt="TaxLink Pro Logo" class="w-full h-auto" />
@@ -28,22 +32,22 @@
                 <a href="/dashboard" id="dashboard-tab"
                     class="sidebar-item {% if current_page == 'dashboard' %}active {% endif %}flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
                     <i class="fas fa-tachometer-alt mr-3"></i>
-                    Dashboard
+                    <span class="sidebar-label">Dashboard</span>
                 </a>
                 <a href="/create-invoice" id="create-invoice-tab"
                     class="sidebar-item {% if current_page == 'create-invoice' %}active {% endif %}flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
                     <i class="fas fa-file-invoice mr-3"></i>
-                    Create Invoice
+                    <span class="sidebar-label">Create Invoice</span>
                 </a>
                 <a href="/draft-invoices" id="draft-invoices-tab"
                     class="sidebar-item {% if current_page == 'draft-invoices' %}active {% endif %}flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
                     <i class="fas fa-file-alt mr-3"></i>
-                    Draft Invoices
+                    <span class="sidebar-label">Draft Invoices</span>
                 </a>
                 <a href="/reports" id="reports-tab"
                     class="sidebar-item {% if current_page == 'reports' %}active {% endif %}flex items-center px-4 py-3 text-sm font-medium rounded-md text-white">
                     <i class="fas fa-chart-bar mr-3"></i>
-                    Reports & Analytics
+                    <span class="sidebar-label">Reports & Analytics</span>
                 </a>
             </nav>
 
@@ -75,7 +79,7 @@
                 <a href="/logout"
                     class="sidebar-item flex items-center justify-center px-4 py-3 text-sm font-medium rounded-md text-white">
                     <i class="fas fa-sign-out-alt mr-3"></i>
-                    Logout
+                    <span class="sidebar-label">Logout</span>
                 </a>
             </div>
         </div>
@@ -339,5 +343,45 @@
         });
 
         paint();
+    })();
+</script>
+
+<script>
+    // Sidebar collapse. Runs inline (not on DOMContentLoaded) so a sidebar the
+    // user left collapsed is already narrow when the page first paints, and the
+    // width transition is only armed afterwards so it doesn't animate on load.
+    (function () {
+        var STORAGE_KEY = 'tlp:sidebar-collapsed';
+        var body = document.body;
+        var toggle = document.getElementById('sidebar-collapse-toggle');
+
+        function label(collapsed) {
+            return collapsed ? 'Expand navigation' : 'Collapse navigation';
+        }
+
+        try {
+            if (localStorage.getItem(STORAGE_KEY) === '1') {
+                body.classList.add('sidebar-collapsed');
+            }
+        } catch (e) { /* private mode: just start expanded */ }
+
+        if (toggle) {
+            var startCollapsed = body.classList.contains('sidebar-collapsed');
+            toggle.setAttribute('aria-expanded', String(!startCollapsed));
+            toggle.setAttribute('aria-label', label(startCollapsed));
+            toggle.title = label(startCollapsed);
+
+            toggle.addEventListener('click', function () {
+                var collapsed = body.classList.toggle('sidebar-collapsed');
+                toggle.setAttribute('aria-expanded', String(!collapsed));
+                toggle.setAttribute('aria-label', label(collapsed));
+                toggle.title = label(collapsed);
+                try { localStorage.setItem(STORAGE_KEY, collapsed ? '1' : '0'); } catch (e) {}
+            });
+        }
+
+        requestAnimationFrame(function () {
+            body.classList.add('sidebar-transitions');
+        });
     })();
 </script>
