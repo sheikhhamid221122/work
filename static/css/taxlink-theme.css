@@ -1400,48 +1400,121 @@ body.sidebar-collapsed .sidebar .sidebar-item::after {
 }
 
 /* ---------------------------------------------------------------------------
-   Create Invoice: fit the shell, scroll only where content genuinely overflows.
+   Create Invoice layout.
 
-   The page itself no longer scrolls. The header and the step indicator stay
-   put, and the single visible step card becomes the flexible region -- it only
-   scrolls internally when its own content is taller than the space left, which
-   in practice is just the long product and review steps.
+   The page scrolls normally -- forcing everything into one viewport clipped
+   content and hid the step navigation. Instead the page chrome is kept compact
+   and the Back/Next bar is pinned to the bottom of the viewport, so the way
+   forward is always reachable no matter how long the step is.
    --------------------------------------------------------------------------- */
 
 body.create-invoice-page main {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden !important;
   padding: var(--tlp-main-gutter) !important;
 }
 
-body.create-invoice-page #create-invoice-content {
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
-  min-height: 0;
-}
-
-/* Header + step indicator: fixed chrome, tightened so the form gets the room. */
-body.create-invoice-page #create-invoice-content > .flex:first-child {
-  flex: 0 0 auto;
-  margin-bottom: clamp(8px, 1.2vh, 18px) !important;
-}
-
+/* Step indicator needs room for its labels; it was being clipped. */
 body.create-invoice-page #create-invoice-content > .mb-8 {
-  flex: 0 0 auto;
-  margin-bottom: clamp(10px, 1.6vh, 24px) !important;
+  margin-bottom: 22px !important;
+  padding-bottom: 4px;
+  overflow: visible;
 }
 
-/* Only one step is ever visible; it takes the remaining height. Tailwind's
-   .hidden still wins on the other four because display isn't touched here. */
 body.create-invoice-page #create-invoice-content > [id^="step-"] {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  padding: clamp(14px, 1.8vw, 26px) !important;
+  padding: 22px !important;
+  overflow: visible;
+}
+
+/* Pin each step's action row so Back/Next never scroll out of reach. */
+body.create-invoice-page #create-invoice-content > [id^="step-"] > .flex.justify-between,
+body.create-invoice-page #create-invoice-content > [id^="step-"] > .flex.justify-end {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  margin: 18px -22px -22px;
+  padding: 14px 22px;
+  background: var(--tlp-card);
+  border-top: 1px solid var(--tlp-line);
+  border-radius: 0 0 12px 12px;
+}
+
+/* ---------------------------------------------------------------------------
+   Display density.
+
+   The UI was drawn at a scale that only fitted at ~80% browser zoom, so users
+   had to zoom out on every machine. Tailwind's utilities are rem-based, so
+   dropping the root font size rescales the whole app in one place; the px
+   values this stylesheet sets itself are brought down to match below.
+
+   Only the app chrome is affected -- the invoice PDF templates don't load this
+   stylesheet, so printed invoices are untouched.
+   --------------------------------------------------------------------------- */
+
+html {
+  font-size: 13px;
+}
+
+:root {
+  --tlp-sidebar: clamp(196px, 15vw, 244px);
+  --tlp-sidebar-collapsed: 66px;
+  --tlp-main-gutter: clamp(14px, 1.7vw, 30px);
+}
+
+/* Sidebar chrome, rescaled to match the new density. */
+.sidebar > .flex:first-child {
+  padding: 24px 20px 12px !important;
+}
+
+.sidebar > .flex.flex-col.flex-grow {
+  padding: 0 20px 20px !important;
+}
+
+.sidebar-logo {
+  width: 168px !important;
+  height: 32px;
+  margin: 0 0 30px !important;
+}
+
+.sidebar-logo::before {
+  width: 26px;
+  height: 26px;
+}
+
+.sidebar-logo::after {
+  font-size: 20px;
+  left: 36px;
+  line-height: 26px;
+}
+
+.sidebar .sidebar-item {
+  font-size: 13px !important;
+  padding-block: 9px !important;
+}
+
+.sidebar .sidebar-item i {
+  width: 20px;
+}
+
+/* Page headings and cards: tighter, so more of the form is visible at once. */
+body.create-invoice-page #create-invoice-content > .flex:first-child h1 {
+  font-size: 22px !important;
 }
 
 body.create-invoice-page #create-invoice-content > [id^="step-"] > h2 {
-  margin-bottom: clamp(8px, 1.4vh, 20px) !important;
+  font-size: 17px !important;
+  margin-bottom: 14px !important;
+}
+
+body.create-invoice-page label {
+  font-size: 12.5px !important;
+  margin-bottom: 4px !important;
+}
+
+body.create-invoice-page .form-input,
+body.create-invoice-page select,
+body.create-invoice-page input[type="text"],
+body.create-invoice-page input[type="number"],
+body.create-invoice-page input[type="date"],
+body.create-invoice-page textarea {
+  padding-block: 7px !important;
+  font-size: 13px !important;
 }
