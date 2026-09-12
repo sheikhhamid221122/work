@@ -5565,8 +5565,11 @@
             initHsCodeAutocomplete();
             // Preload UOMs in background
             setTimeout(preloadAllUoms, 2000);
-            // Initialize buyer NTN auto-detection
-            initBuyerRegistrationAutoDetect();
+            // Buyer NTN auto-detection (5.12 Get_Reg_Type) disabled: FBR's
+            // answer proved unreliable for this client's token in both
+            // sandbox and production, so buyers select Registered/Unregistered
+            // manually again. initBuyerRegistrationAutoDetect() and its
+            // backend endpoint are left in place in case this is revisited.
         });
         
         // ================== End FBR Reference Data ==================
