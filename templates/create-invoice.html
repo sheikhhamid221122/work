@@ -3024,20 +3024,25 @@
         // is mirrored into sessionStorage, so a reload, a bookmark or the
         // browser's back/forward buttons land the user where they were instead
         // of dumping them back on step 1.
-        const STEP_SLUGS = { 1: "seller", 2: "invoice", 3: "buyer", 4: "products", 5: "review" };
-        const SLUG_STEPS = { seller: 1, invoice: 2, buyer: 3, products: 4, review: 5 };
+        const STEP_SLUGS = { 1: "seller", 2: "details", 3: "buyer", 4: "products", 5: "review" };
+        const SLUG_STEPS = { seller: 1, details: 2, buyer: 3, products: 4, review: 5 };
         const WIZARD_STORAGE_KEY = "taxlinkpro:create-invoice";
         // Suppresses URL pushes / writes while we are the ones driving goToStep.
         let wizardRestoring = false;
 
+        // The step the page was served at, e.g. /create-invoice/buyer. Empty
+        // when the user opened /create-invoice, which always starts fresh.
+        const SERVED_STEP = "{{ current_step or '' }}";
+
         function wizardStepFromUrl() {
-            return SLUG_STEPS[(getUrlParameter("step") || "").toLowerCase()] || null;
+            const slug = (window.location.pathname.split("/").filter(Boolean).pop() || "").toLowerCase();
+            return SLUG_STEPS[slug] || null;
         }
 
         function wizardSyncUrl(step) {
             try {
                 const url = new URL(window.location.href);
-                url.searchParams.set("step", STEP_SLUGS[step] || "seller");
+                url.pathname = `/create-invoice/${STEP_SLUGS[step] || "seller"}`;
                 // A restore/back-nav must not stack another history entry.
                 history[wizardRestoring ? "replaceState" : "pushState"](
                     { wizardStep: step },
@@ -3103,6 +3108,20 @@
         }
 
         function wizardRestore() {
+            // Opening /create-invoice (e.g. the sidebar link) means "start a new
+            // invoice" -- only a step URL such as /create-invoice/buyer, which is
+            // what a reload of an in-progress step produces, resumes anything.
+            if (!SERVED_STEP) {
+                wizardClear();
+                wizardRestoring = true;   // replace, don't stack a history entry
+                try {
+                    wizardSyncUrl(1);
+                } finally {
+                    wizardRestoring = false;
+                }
+                return;
+            }
+
             let saved = null;
             try {
                 const raw = sessionStorage.getItem(WIZARD_STORAGE_KEY);
@@ -3134,7 +3153,10 @@
                         renderProductItems();
                     }
                 }
-                const target = urlStep || (saved && saved.currentStep) || 1;
+                // A step URL with nothing saved (new browser session, a shared
+                // link) has no invoice to resume, so start at the beginning
+                // rather than dropping the user on an empty Review page.
+                const target = saved ? (urlStep || saved.currentStep || 1) : 1;
                 goToStep(Math.min(Math.max(target, 1), 5));
             } finally {
                 wizardRestoring = false;

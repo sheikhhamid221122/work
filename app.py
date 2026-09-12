@@ -127,9 +127,16 @@ def add_static_cache_buster(endpoint, values):
         pass
 
 
+# The invoice form is one page with five steps. Each step is addressable so a
+# reload or a shared link lands where the user was; /create-invoice with no
+# step always starts a fresh invoice.
+CREATE_INVOICE_STEPS = ("seller", "details", "buyer", "products", "review")
+
+
 @app.route("/create-invoice")
 @app.route("/create-invoice.html")
-def create_invoice_html():
+@app.route("/create-invoice/<step>")
+def create_invoice_html(step=None):
     if request.path.endswith('.html'):
         return redirect(url_for('create_invoice_html', _external=False, _scheme=None).replace('.html', ''), code=301)
 
@@ -137,10 +144,14 @@ def create_invoice_html():
         print("No user_id in session, redirecting to login")
         return redirect(url_for("index"))
 
+    if step is not None and step not in CREATE_INVOICE_STEPS:
+        return redirect(url_for("create_invoice_html"))
+
     print("Access granted to create invoice page")
     return render_template(
         "create-invoice.html",
         invoice_custom_fields_max=INVOICE_CUSTOM_FIELDS_MAX,
+        current_step=step,
     )
 
 
