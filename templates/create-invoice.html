@@ -2666,9 +2666,17 @@
 
             console.log("Adding product:", description);
 
-            // Get scenario-based sale type
+            // Sale type: in sandbox the scenario drives it (and keeps the
+            // dropdown in sync), so the scenario mapping wins. Production has
+            // no scenario field at all, so the Sale Type dropdown the user
+            // actually picked is the only source of truth -- without this
+            // fallback every production line item was silently submitted as
+            // the hardcoded literal below, ignoring the user's selection.
             const scenarioId = document.getElementById("scenario-id")?.value;
-            const saleType = scenarioToSaleType[scenarioId] || 'Goods at standard rate';
+            const selectedSaleType = (document.getElementById("product-sale-type")?.value || "").trim();
+            const saleType = scenarioToSaleType[scenarioId]
+                || selectedSaleType
+                || 'Goods at standard rate';
 
             // Set SRO values based on username
             let sroScheduleNo = '';
