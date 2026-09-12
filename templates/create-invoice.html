@@ -3015,8 +3015,40 @@
                 updateReviewSection();
             }
 
+            // Completed steps double as navigation: click the circle to go back
+            // and correct something without walking back one Back click at a time.
+            for (let i = 1; i <= 5; i++) {
+                const indicator = document.getElementById(`step-${i}-indicator`);
+                if (!indicator) continue;
+                const canReturn = i < step;
+                indicator.style.cursor = canReturn ? "pointer" : "";
+                indicator.title = canReturn ? `Back to ${STEP_TITLES[i]}` : "";
+            }
+
             wizardSyncUrl(step);
             wizardPersist();
+        }
+
+        const STEP_TITLES = {
+            1: "Seller Info",
+            2: "Invoice Details",
+            3: "Buyer Info",
+            4: "Products",
+            5: "Review",
+        };
+
+        function initStepIndicatorNav() {
+            for (let i = 1; i <= 5; i++) {
+                const indicator = document.getElementById(`step-${i}-indicator`);
+                if (!indicator) continue;
+                indicator.addEventListener("click", function () {
+                    // Backwards only: jumping forward would skip the validation
+                    // each Next button performs.
+                    if (i < state.currentStep) {
+                        goToStep(i);
+                    }
+                });
+            }
         }
 
         // ---------- Step URLs + reload persistence ----------
@@ -3988,6 +4020,8 @@
                 // fetched) exist before we write saved values back into them.
                 setTimeout(wizardRestore, 1200);
             }
+
+            initStepIndicatorNav();
 
             // Keep the saved snapshot current as the user types, so a reload
             // mid-step doesn't lose anything they hadn't clicked Next on yet.
