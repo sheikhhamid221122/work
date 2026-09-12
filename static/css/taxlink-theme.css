@@ -54,6 +54,14 @@
   --tlp-green-soft-2: #effff6;
   --tlp-red: #d0004a;
 
+  /* Destructive actions (logout). --tlp-red above is a status *text*
+     colour -- as a button fill it reads pink rather than red. These are
+     a true red and deliberately shared by both themes: a saturated red
+     button with white text carries AA contrast on light and dark alike,
+     where a per-theme lighter red would drop below it. */
+  --tlp-danger: #d92d20;
+  --tlp-danger-hover: #b42318;
+
   --tlp-focus-ring: rgba(89, 50, 234, 0.35);
   --tlp-shadow: 0 10px 60px rgba(226, 236, 249, 0.5);
   --tlp-sidebar: 306px;
@@ -1421,18 +1429,6 @@ body.create-invoice-page #create-invoice-content > [id^="step-"] {
   overflow: visible;
 }
 
-/* Pin each step's action row so Back/Next never scroll out of reach. */
-body.create-invoice-page #create-invoice-content > [id^="step-"] > .flex.justify-between,
-body.create-invoice-page #create-invoice-content > [id^="step-"] > .flex.justify-end {
-  position: sticky;
-  bottom: 0;
-  z-index: 5;
-  margin: 18px -22px -22px;
-  padding: 14px 22px;
-  background: var(--tlp-card);
-  border-top: 1px solid var(--tlp-line);
-  border-radius: 0 0 12px 12px;
-}
 
 /* ---------------------------------------------------------------------------
    Display density.
@@ -1607,7 +1603,7 @@ body.create-invoice-page textarea {
 /* Logout is the one destructive action in the rail -- colour it accordingly
    rather than leaving it indistinguishable from Dark mode. */
 .sidebar .sidebar-item[href="/logout"] {
-  background: var(--tlp-red) !important;
+  background: var(--tlp-danger) !important;
   color: var(--tlp-on-accent) !important;
   margin-top: 8px;
 }
@@ -1617,5 +1613,5 @@ body.create-invoice-page textarea {
 }
 
 .sidebar .sidebar-item[href="/logout"]:hover {
-  filter: brightness(0.92);
+  background: var(--tlp-danger-hover) !important;
 }
