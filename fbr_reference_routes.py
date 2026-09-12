@@ -1270,19 +1270,31 @@ def add_fbr_reference_routes(app, get_db_connection, get_env):
             )
             print(f"[Registration Type API] POST Response status: {response.status_code}")
             print(f"[Registration Type API] POST Response body: {response.text[:500] if response.text else 'empty'}")
-            
-            response.raise_for_status()
-            
-            result = response.json()
+
+            # FBR's sandbox has been observed returning HTTP 500 for a
+            # perfectly legitimate result (e.g. REGISTRATION_TYPE
+            # "unregistered" is the real answer, not a server error). The
+            # JSON body is the actual signal, not the HTTP status code, so
+            # parse it first and only fall back to raise_for_status() when
+            # the body isn't the shape we expect.
+            try:
+                result = response.json()
+            except ValueError:
+                result = None
+
+            if not isinstance(result, dict) or "REGISTRATION_TYPE" not in result:
+                response.raise_for_status()
+                raise ValueError(f"Unexpected response from FBR: {response.text[:200]}")
+
             print(f"[Registration Type API] Result: {result}")
-            
+
             # Normalize the response
             # statuscode "00" = Registered, "01" = Unregistered
             normalized = {
                 "registration_no": result.get("REGISTRATION_NO") or registration_no,
-                "registration_type": result.get("REGISTRATION_TYPE", "").lower(),
+                "registration_type": (result.get("REGISTRATION_TYPE") or "").lower(),
                 "status_code": result.get("statuscode"),
-                "is_registered": result.get("statuscode") == "00" or result.get("REGISTRATION_TYPE", "").lower() == "registered",
+                "is_registered": result.get("statuscode") == "00" or (result.get("REGISTRATION_TYPE") or "").lower() == "registered",
                 "source": "api"
             }
             
@@ -1381,9 +1393,19 @@ def add_fbr_reference_routes(app, get_db_connection, get_env):
             response = requests.post(url, headers=headers, json=payload, timeout=30)
             print(f"[STATL API] POST Response status: {response.status_code}")
             print(f"[STATL API] Response body: {response.text[:500] if response.text else 'empty'}")
-            response.raise_for_status()
-            
-            result = response.json()
+
+            # Same FBR quirk as Get_Reg_Type (5.12): a legitimate "In-Active"
+            # result can arrive on an HTTP 500. Parse the body first and only
+            # treat this as a real failure if it isn't the expected shape.
+            try:
+                result = response.json()
+            except ValueError:
+                result = None
+
+            if not isinstance(result, dict) or "status" not in result:
+                response.raise_for_status()
+                raise ValueError(f"Unexpected response from FBR: {response.text[:200]}")
+
             print(f"[STATL API] Result: {result}")
             
             # Normalize the response
