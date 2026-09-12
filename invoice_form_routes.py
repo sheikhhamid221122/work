@@ -7,7 +7,7 @@ from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
 from psycopg2.extras import Json
 
-from fbr_reference_routes import canonical_province, fetch_provinces
+from fbr_reference_routes import canonical_province, fetch_provinces, fetch_transaction_types
 
 SPECIAL_USERNAMES = {"H075895", "F667833", "infinityeng"}
 INVOICE_CUSTOM_FIELDS_MAX = 2
@@ -1002,35 +1002,21 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         ]
 
 
-        # Sale types per FBR Documentation Section 9 - Scenarios for Sandbox Testing
-        # These are the official sale type values that map to each scenario
+        # Sale types come from FBR DI Reference API 5.5 (/pdi/v1/transtypecode),
+        # cached for 24h, with the old Section-9 static list as fallback only if
+        # FBR is unreachable. "code" carries transactioN_TYPE_ID so the tax-rate
+        # dropdown (5.8 SaleTypeToRate) can look up rates for the chosen sale
+        # type without a second round-trip to resolve the ID.
+        fbr_sale_types, sale_types_source = fetch_transaction_types(get_db_connection, get_env)
         sale_types_data = [
-            {"value": "Goods at Standard Rate (default)", "label": "Goods at Standard Rate (default)"},
-            {"value": "Steel melting and re-rolling", "label": "Steel melting and re-rolling"},
-            {"value": "Ship breaking", "label": "Ship breaking"},
-            {"value": "Goods at Reduced Rate", "label": "Goods at Reduced Rate"},
-            {"value": "Exempt Goods", "label": "Exempt Goods"},
-            {"value": "Goods at zero-rate", "label": "Goods at zero-rate"},
-            {"value": "3rd Schedule Goods", "label": "3rd Schedule Goods"},
-            {"value": "Cotton Ginners", "label": "Cotton Ginners"},
-            {"value": "Telecommunication services", "label": "Telecommunication services"},
-            {"value": "Toll Manufacturing", "label": "Toll Manufacturing"},
-            {"value": "Petroleum Products", "label": "Petroleum Products"},
-            {"value": "Electricity Supply to Retailers", "label": "Electricity Supply to Retailers"},
-            {"value": "Gas to CNG stations", "label": "Gas to CNG stations"},
-            {"value": "Mobile Phones", "label": "Mobile Phones"},
-            {"value": "Processing/ Conversion of Goods", "label": "Processing/ Conversion of Goods"},
-            {"value": "Goods (FED in ST Mode)", "label": "Goods (FED in ST Mode)"},
-            {"value": "Services (FED in ST Mode)", "label": "Services (FED in ST Mode)"},
-            {"value": "Services", "label": "Services"},
-            {"value": "Electric Vehicle", "label": "Electric Vehicle"},
-            {"value": "Cement /Concrete Block", "label": "Cement /Concrete Block"},
-            {"value": "Potassium Chlorate", "label": "Potassium Chlorate"},
-            {"value": "CNG Sales", "label": "CNG Sales"},
-            {"value": "Goods as per SRO.297(|)/2023", "label": "Goods as per SRO.297(|)/2023"},
-            {"value": "Non-Adjustable Supplies", "label": "Non-Adjustable Supplies"},
+            {
+                "value": t["transactioN_DESC"],
+                "label": t["transactioN_DESC"],
+                "code": t.get("transactioN_TYPE_ID"),
+            }
+            for t in fbr_sale_types
         ]
-        
+
         return jsonify(
             {
                 "invoiceTypes": [
@@ -1046,6 +1032,7 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                     {"value": "Unregistered", "label": "Unregistered"},
                 ],
                 "saleTypes": sale_types_data,
+                "saleTypesSource": sale_types_source,
                 # Extended UOM list - fallback values if FBR API unavailable
                 # Dynamic UOMs are fetched via /api/reference/uoms and /api/reference/hs-uom
                 "uoms": [
