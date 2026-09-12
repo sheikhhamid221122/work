@@ -1541,9 +1541,7 @@ body.create-invoice-page textarea {
 }
 
 /* Company + environment block: full width of the rail, nothing clipped. */
-.sidebar .px-4.py-4.text-center {
-  padding-inline: 0 !important;
-}
+
 
 .sidebar .sidebar-company-name {
   font-size: 12.5px;
@@ -1579,4 +1577,45 @@ body.create-invoice-page textarea {
 #create-invoice-content {
   max-width: 1280px;
   margin-inline: auto;
+}
+
+/* ---------------------------------------------------------------------------
+   Sidebar footer: company, environment, theme and logout.
+
+   These sit in a block pinned to the bottom of the rail (margin-top:auto
+   above). They were indented inconsistently with each other, so their left
+   edges stepped in and out. Everything below shares one inset, matching the
+   nav items, so the icons and the switcher line up in a single column.
+   --------------------------------------------------------------------------- */
+
+.sidebar .px-4.py-4.text-center,
+.sidebar .px-2.mt-auto,
+.sidebar .px-2.text-center {
+  padding-inline: 0 !important;
+}
+
+.sidebar .px-4.py-4.text-center {
+  padding-bottom: 14px !important;
+}
+
+/* The account it belongs to reads as a heading for the block, so centre it. */
+.sidebar .sidebar-company-name {
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+/* Logout is the one destructive action in the rail -- colour it accordingly
+   rather than leaving it indistinguishable from Dark mode. */
+.sidebar .sidebar-item[href="/logout"] {
+  background: var(--tlp-red) !important;
+  color: var(--tlp-on-accent) !important;
+  margin-top: 8px;
+}
+
+.sidebar .sidebar-item[href="/logout"] i {
+  color: var(--tlp-on-accent) !important;
+}
+
+.sidebar .sidebar-item[href="/logout"]:hover {
+  filter: brightness(0.92);
 }
