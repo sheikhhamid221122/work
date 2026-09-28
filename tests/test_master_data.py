@@ -81,6 +81,29 @@ class Codes(unittest.TestCase):
         self.assertEqual(md.format_code("B", 1), "B-0001")
         self.assertEqual(md.format_code("P", 12345), "P-12345")
 
+    def test_reserving_codes_works_with_a_uuid_client_id(self):
+        # clients.id is a UUID on the live database. pg_advisory_xact_lock
+        # takes an int4, so passing the id itself failed with "invalid input
+        # syntax for type integer" and no buyer or product could be added.
+        class Cursor:
+            def __init__(self):
+                self.calls = []
+
+            def execute(self, sql, params=None):
+                self.calls.append((sql, params))
+
+            def fetchone(self):
+                return (7,)
+
+        cur = Cursor()
+        client_id = "ddc5c02b-02e0-45fc-92f8-a202c022ae79"
+        codes = md.reserve_codes(cur, "buyers", "buyer_code", "B", client_id, count=2)
+        self.assertEqual(codes, ["B-0008", "B-0009"])
+        lock_sql, lock_params = cur.calls[0]
+        self.assertIn("hashtext(%s)", lock_sql)
+        self.assertEqual(lock_params[1], client_id)
+        self.assertEqual(cur.calls[1][1][-1], client_id)  # codes still filtered by the real id
+
 
 class Validation(unittest.TestCase):
     PROVINCES = {"SINDH": "SINDH", "PUNJAB": "PUNJAB"}

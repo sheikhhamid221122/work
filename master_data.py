@@ -23,7 +23,7 @@ from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 BUYER_CODE_PREFIX = "B"
 PRODUCT_CODE_PREFIX = "P"
 
-# pg_advisory_xact_lock(namespace, client_id): one namespace per code series.
+# pg_advisory_xact_lock(namespace, hashtext(client_id)): one namespace per code series.
 _LOCK_NAMESPACE = {"buyers": 7101, "products": 7102}
 
 REGISTRATION_TYPES = ("Registered", "Unregistered")
@@ -114,7 +114,11 @@ def reserve_codes(cur, table, column, prefix, client_id, count=1):
     Locks the client's code series until the surrounding transaction ends, so
     call this in the same transaction as the INSERTs that use the codes.
     """
-    cur.execute("SELECT pg_advisory_xact_lock(%s, %s)", (_LOCK_NAMESPACE[table], client_id))
+    # clients.id is a UUID on the live database, and the lock takes an int4,
+    # so the key is a hash of the id. A collision only makes two clients wait
+    # for each other briefly; it can never mix their codes.
+    cur.execute("SELECT pg_advisory_xact_lock(%s, hashtext(%s))",
+                (_LOCK_NAMESPACE[table], str(client_id)))
     start = _highest_code(cur, table, column, prefix, client_id)
     return [format_code(prefix, start + i) for i in range(1, count + 1)]
 
