@@ -122,8 +122,9 @@
           document.documentElement.setAttribute("data-theme", t);
         }
       } catch (e) { /* storage blocked; fall back to the OS preference */ }
-      // A new login always starts the Dashboard and Reports on Last 30 days.
-      ["tlp:dashboard-range", "tlp:reports-range"].forEach(function (k) {
+      // A new login always starts the Dashboard and Reports on Last 30 days,
+      // and never inherits an unfinished Create Invoice from the last account.
+      ["tlp:dashboard-range", "tlp:reports-range", "taxlinkpro:create-invoice"].forEach(function (k) {
         try { sessionStorage.removeItem(k); localStorage.removeItem(k); } catch (e) { }
       });
     })();

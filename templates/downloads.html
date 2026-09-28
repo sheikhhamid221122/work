@@ -130,7 +130,11 @@
         'use strict';
         var ENV = "{{ session.get('env', 'sandbox') }}";
         var PAGE_SIZE = 25;
-        var HISTORY_KEY = 'tlp:download-history';
+        // Per account: several accounts can be used from one browser, and each
+        // must only ever see its own downloads.
+        var HISTORY_KEY = 'tlp:download-history:' + {{ session.get('client_id', '') | tojson }};
+        // The old key was shared by every account that used this browser.
+        try { localStorage.removeItem('tlp:download-history'); } catch (e) { }
         var $ = function (id) { return document.getElementById(id); };
         var state = { invoices: [], selected: new Set(), page: 1 };
 
@@ -296,8 +300,8 @@
         });
 
         // --------------------------------------------------------- history
-        // Kept in this browser only: it lists what you downloaded here, and
-        // "download again" re-requests the same invoices.
+        // Kept in this browser only, per account: it lists what this account
+        // downloaded here, and "download again" re-requests the same invoices.
         function readHistory() {
             try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch (e) { return []; }
         }

@@ -72,13 +72,20 @@
     }
 
     // --------------------------------------------------------- preferences
-    // Per browser: 'ask' (default), 'always' or 'never'.
+    // Per account, in this browser: 'ask' (default), 'always' or 'never'.
+    // Several accounts can share one browser, so the key carries the account.
     var PREF = { products: 'tlp:save-new-products', buyers: 'tlp:save-new-buyers' };
+    function prefKey(kind) {
+        var wrap = $('scenario-id-container');
+        return PREF[kind] + ':' + ((wrap && wrap.getAttribute('data-client')) || 'me');
+    }
+    // The old keys were shared by every account that used this browser.
+    try { localStorage.removeItem(PREF.products); localStorage.removeItem(PREF.buyers); } catch (e) { }
     function getPref(kind) {
-        try { return localStorage.getItem(PREF[kind]) || 'ask'; } catch (e) { return 'ask'; }
+        try { return localStorage.getItem(prefKey(kind)) || 'ask'; } catch (e) { return 'ask'; }
     }
     function setPref(kind, value) {
-        try { localStorage.setItem(PREF[kind], value); } catch (e) { }
+        try { localStorage.setItem(prefKey(kind), value); } catch (e) { }
         renderPrefs();
     }
     function renderPrefs() {

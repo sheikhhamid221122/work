@@ -3140,6 +3140,10 @@
         const STEP_SLUGS = { 1: "seller", 2: "details", 3: "buyer", 4: "products", 5: "review" };
         const SLUG_STEPS = { seller: 1, details: 2, buyer: 3, products: 4, review: 5 };
         const WIZARD_STORAGE_KEY = "taxlinkpro:create-invoice";
+        // The account the saved invoice belongs to. Several accounts can be
+        // used in one tab (log out, log in as another), and one must never
+        // resume another's invoice.
+        const WIZARD_CLIENT = {{ session.get('client_id', '') | tojson }};
         // Suppresses URL pushes / writes while we are the ones driving goToStep.
         let wizardRestoring = false;
 
@@ -3199,6 +3203,7 @@
                 sessionStorage.setItem(
                     WIZARD_STORAGE_KEY,
                     JSON.stringify({
+                        client: WIZARD_CLIENT,
                         env: ENV,
                         currentStep: state.currentStep,
                         sellerData: state.sellerData,
@@ -3243,8 +3248,9 @@
                 saved = null;
             }
 
-            // Never carry a sandbox invoice into production (or vice versa).
-            if (saved && saved.env !== ENV) {
+            // Never carry a sandbox invoice into production (or vice versa), and
+            // never resume an invoice that another account started.
+            if (saved && (saved.env !== ENV || saved.client !== WIZARD_CLIENT)) {
                 wizardClear();
                 saved = null;
             }
