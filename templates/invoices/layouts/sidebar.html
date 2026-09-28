@@ -1,0 +1,30 @@
+{% extends "invoices/_base.html" %}
+{% block sheet %}
+
+  {# Accent rail carries seller identity, the identifiers and the FBR block;
+     the main column is left to the items. #}
+  <div class="row bleed bleed-top" style="gap:0">
+    <div class="rail col" style="width:30%; background:{{ T.accent }}; color:{{ T.on_accent }}; padding:{{ T.margin_mm }}mm {{ T.gap_mm }}mm {{ T.gap_mm }}mm {{ T.margin_x_mm }}mm">
+      {{ P.logo(d, T, client_logo_url, plate=(T.on_accent == '#ffffff')) }}
+      <div style="margin-top:2mm">
+        {{ P.party(d, T, 'seller', 'From', color=T.on_accent) }}
+      </div>
+      <div style="margin-top:{{ T.section_mm }}mm">
+        {{ P.meta(d, T, 'left', color=T.on_accent) }}
+      </div>
+      <div style="margin-top:auto; padding-top:{{ T.section_mm }}mm">
+        {{ P.fbr_block(d, T, qr_base64, fbr_logo_url, 'col') }}
+      </div>
+    </div>
+
+    <div class="grow col" style="padding:{{ T.margin_mm }}mm {{ T.margin_x_mm }}mm {{ T.gap_mm }}mm {{ T.gap_mm }}mm">
+      <div class="t-heading t-strong t-accent" style="letter-spacing:.08em">SALES TAX INVOICE</div>
+      <div class="sec-sm">{{ P.party(d, T, 'buyer', 'Bill To') }}</div>
+      <div class="sec">{{ P.items(d, T, 'rule', settings) }}</div>
+      <div class="sec row" style="justify-content:flex-end">
+        <div style="width:60%">{{ P.totals(d, T) }}</div>
+      </div>
+      <div class="sec row" style="justify-content:flex-end">{{ P.signature(d, T) }}</div>
+    </div>
+  </div>
+{% endblock %}

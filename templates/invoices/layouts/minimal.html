@@ -1,0 +1,34 @@
+{% extends "invoices/_base.html" %}
+{% block sheet %}
+
+  {# No rules, no fills. Whitespace and weight do the work. #}
+  <div class="row-btw row-base">
+    <div class="t-name t-strong">{% if T.seller_identity %}{{ P.txt(d.sellerLegalName or d.sellerBusinessName) }}{% endif %}</div>
+    <div class="t-label">Sales Tax Invoice</div>
+  </div>
+  {% if T.seller_identity %}
+    <address class="t-body t-muted" style="margin-top:1mm">{{ P.txt(d.sellerAddress) }}</address>
+  {% endif %}
+  {% if T.seller_tax_ids and (d.sellerNTNCNIC or d.sellerSTRN) %}
+    <div class="t-body t-muted t-nums">
+      {% if d.sellerNTNCNIC %}NTN {{ P.txt(d.sellerNTNCNIC) }}{% endif %}
+      {% if d.sellerSTRN %} &middot; STRN {{ P.txt(d.sellerSTRN) }}{% endif %}
+    </div>
+  {% endif %}
+
+  <div class="sec row" style="gap:{{ T.gap_mm * 2 }}mm">
+    <div class="half">{{ P.party(d, T, 'buyer', 'Bill To') }}</div>
+    <div class="half">{{ P.meta(d, T, 'left') }}</div>
+  </div>
+
+  <div class="sec">{{ P.items(d, T, 'rule', settings) }}</div>
+
+  <div class="sec row" style="justify-content:flex-end">
+    <div style="width:42%">{{ P.totals(d, T) }}</div>
+  </div>
+
+  <div class="sec-sm row-btw" style="align-items:flex-end">
+    {{ P.fbr_block(d, T, qr_base64, fbr_logo_url) }}
+    <div>{{ P.signature(d, T) }}</div>
+  </div>
+{% endblock %}

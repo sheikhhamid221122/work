@@ -1,0 +1,38 @@
+{% extends "invoices/_base.html" %}
+{% block sheet %}
+
+  {# Logo and seller on the left, a large invoice title and the identifiers on
+     the right -- the arrangement most Pakistani sales tax invoices already use. #}
+  <div class="row-btw row-top">
+    <div>
+      {{ P.logo(d, T, client_logo_url) }}
+      {% if T.seller_identity %}
+        <div class="t-name t-strong" style="margin-top:1.5mm">{{ P.txt(d.sellerLegalName or d.sellerBusinessName) }}</div>
+        <address class="t-body t-muted">{{ P.txt(d.sellerAddress) }}</address>
+      {% endif %}
+      {% if T.seller_tax_ids %}
+        {% if d.sellerNTNCNIC %}<div class="t-body"><span class="t-muted">NTN/CNIC</span> {{ P.txt(d.sellerNTNCNIC) }}</div>{% endif %}
+        {% if d.sellerSTRN %}<div class="t-body"><span class="t-muted">STRN</span> {{ P.txt(d.sellerSTRN) }}</div>{% endif %}
+      {% endif %}
+    </div>
+    <div style="text-align:right">
+      <div class="t-heading t-strong t-accent" style="letter-spacing:.08em">SALES TAX INVOICE</div>
+      <div style="margin-top:2mm">{{ P.meta(d, T) }}</div>
+    </div>
+  </div>
+
+  <div class="sec rule" style="padding-top:{{ T.section_mm }}mm">
+    {{ P.party(d, T, 'buyer', 'Bill To') }}
+  </div>
+
+  <div class="sec">{{ P.items(d, T, 'rule', settings) }}</div>
+
+  <div class="sec row" style="justify-content:flex-end">
+    <div style="width:44%">{{ P.totals(d, T) }}</div>
+  </div>
+
+  <div class="sec-sm row-btw" style="align-items:flex-end">
+    {{ P.fbr_block(d, T, qr_base64, fbr_logo_url) }}
+    <div>{{ P.signature(d, T) }}</div>
+  </div>
+{% endblock %}

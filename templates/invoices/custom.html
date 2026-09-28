@@ -1,0 +1,217 @@
+{#
+  Renderer for a template built in the invoice template designer.
+
+  Walks the validated placement spec (see invoice_spec.py) and emits the same
+  parts every built-in layout uses. There is deliberately no branch here that
+  can render arbitrary markup: an element type this file does not recognise
+  produces nothing, and every string goes through Jinja autoescaping.
+
+  invoice_spec.validate() guarantees the spec holds exactly one `fbr` element
+  and one `items` element, both on the page, so a custom template cannot be
+  saved without its FBR compliance marks.
+
+  How free placement survives a long invoice
+  ------------------------------------------
+  The designer lets a user put an element anywhere, which is fine for a
+  masthead and fatal for the items table: a table pinned to a fixed box
+  clips at forty lines, and absolutely positioned content does not paginate
+  in WeasyPrint -- it just overflows off the paper.
+
+  So the sheet is emitted as three bands in *normal* flow:
+
+    1. `.band-head`  everything whose top edge is above the table. Fixed
+                     height, children absolutely placed inside it, so the
+                     designed arrangement is exact.
+    2. `.band-items` the table itself, in flow, with `min-height` set to the
+                     height it was given in the designer. Short invoices
+                     therefore keep the designed gap below the table; long
+                     ones grow and break across pages naturally.
+    3. `.band-tail`  everything whose top edge is at or below the table's
+                     bottom. Fixed height, children absolutely placed
+                     relative to the table's bottom edge -- so totals and the
+                     FBR marks keep their designed relationship to each other
+                     and follow the table down however far it grew.
+
+  `footer` is the exception: it leaves the bands and prints as a running
+  footer at the bottom of every page, which is what a footer means on a
+  multi-page invoice.
+
+  Coordinates are millimetres on invoice_spec's 186x273mm canvas. The active
+  density picks the real page margins, so `sx`/`sy` below rescale the canvas
+  onto whatever printable area the theme actually has. Without that, a
+  template laid out under one density would spill off the page under another.
+#}
+{% extends "invoices/_base.html" %}
+
+{%- set S = custom_spec or {'elements': []} -%}
+{%- set els = S.elements or [] -%}
+
+{#- The canvas the designer laid out on, and the paper we must fit it to. -#}
+{%- set CW = 186.0 -%}
+{%- set CH = 273.0 -%}
+{#- `theme` is a render argument, so it is bound here; the base template's
+    `T` alias is not assigned until the parent renders, which is after this
+    top-level code runs. Macros below may use T freely -- they resolve it
+    from the context at call time. -#}
+{%- set page_w = 210.0 - 2 * theme.margin_x_mm -%}
+{%- set page_h = 297.0 - theme.margin_mm - theme.margin_bottom_mm -%}
+{%- set sx = page_w / CW -%}
+{%- set sy = page_h / CH -%}
+
+{#- Two different edges of the table matter, and conflating them costs a
+    page: `top` is where the head band has to stop, `split` is the bottom
+    edge that decides which elements ride along under the table. -#}
+{%- set items_el = (els | selectattr('type', 'equalto', 'items') | list | first) -%}
+{%- set top = items_el.y if items_el else CH -%}
+{%- set split = (items_el.y + items_el.h) if items_el else CH -%}
+
+{%- macro geom(e, dy=0) -%}
+left:{{ (e.x * sx) | round(2) }}mm; top:{{ ((e.y - dy) * sy) | round(2) }}mm;
+width:{{ (e.w * sx) | round(2) }}mm; height:{{ (e.h * sy) | round(2) }}mm;
+{%- endmacro -%}
+
+{%- macro skin(e) -%}
+{%- if e.fill == 'light' %}background:{{ T.accent_soft }};{% elif e.fill == 'accent' %}background:{{ T.accent }};{% endif -%}
+{%- if e.border == 'thin' %}border:.5px solid {{ T.line }};{% elif e.border == 'thick' %}border:1.2px solid {{ T.accent }};{% endif -%}
+{%- if e.color %}color:{{ e.color }};{% endif -%}
+font-size:{{ e.font_size }}pt;
+{%- if e.bold %}font-weight:700;{% endif -%}
+{%- if e.italic %}font-style:italic;{% endif -%}
+text-align:{{ e.align }};
+{%- endmacro -%}
+
+{#- Vertical placement inside an element's own box. -#}
+{%- macro vpos(e) -%}
+{%- if e.valign == 'middle' %}justify-content:center;{% elif e.valign == 'bottom' %}justify-content:flex-end;{% else %}justify-content:flex-start;{% endif -%}
+{%- endmacro -%}
+
+{% macro content(e) %}
+  {%- if e.type == 'header' -%}
+    <div class="t-{{ e.size }} t-strong t-accent" style="letter-spacing:.06em">{{ e.text }}</div>
+
+  {%- elif e.type == 'logo' -%}
+    {{ P.logo(d, T, client_logo_url) }}
+
+  {%- elif e.type == 'seller' -%}
+    {{ P.party(d, T, 'seller', e.heading, e.color or None, True) }}
+
+  {%- elif e.type == 'buyer' -%}
+    {{ P.party(d, T, 'buyer', e.heading, e.color or None, True) }}
+
+  {%- elif e.type == 'meta' -%}
+    {{ P.meta(d, T, e.align, e.color or None) }}
+
+  {%- elif e.type == 'items' -%}
+    {{ P.items(d, T, e.variant, settings, e.columns) }}
+
+  {%- elif e.type == 'totals' -%}
+    {{ P.totals(d, T, e.emphasis) }}
+
+  {%- elif e.type == 'fbr' -%}
+    {{ P.fbr_block(d, T, qr_base64, fbr_logo_url, e.orientation) }}
+
+  {%- elif e.type == 'notes' -%}
+    {%- if e.heading %}<div class="t-label t-strong">{{ e.heading }}</div>{% endif -%}
+    <div class="t-body" style="white-space:pre-line">{{ e.text }}</div>
+
+  {%- elif e.type == 'footer' or e.type == 'text' -%}
+    <div style="white-space:pre-line">{{ e.text }}</div>
+
+  {%- elif e.type == 'divider' -%}
+    <div class="cx-rule cx-rule-{{ e.weight }}"></div>
+
+  {%- elif e.type == 'field' -%}
+    {#- Label and value both come from invoice_field(), which prefers the
+        client's resolved infoRows so a standalone field cannot contradict
+        the info block printed next to it. -#}
+    {%- set f = invoice_field(d, e.key, e.label) -%}
+    {%- if e.stacked -%}
+      {%- if f.label %}<div class="t-label">{{ f.label }}</div>{% endif -%}
+      <div class="t-body t-strong t-nums">{{ f.value }}</div>
+    {%- else -%}
+      <div>
+        {%- if f.label %}<span class="t-label">{{ f.label }}</span> {% endif -%}
+        <span class="t-body t-strong t-nums">{{ f.value }}</span>
+      </div>
+    {%- endif -%}
+
+  {%- endif -%}
+  {#- `box` renders nothing: it is a frame, drawn by skin() alone. -#}
+{% endmacro %}
+
+{% block extra_style %}
+<style>
+  /* Bands are in normal flow so the table can break across pages; the
+     elements inside them are placed absolutely so the layout is exact. */
+  .band { position: relative; }
+  .band-head { height: {{ (top * sy) | round(2) }}mm; }
+  .band-items { min-height: {{ (items_el.h * sy) | round(2) if items_el else 0 }}mm; }
+  .cx-el { position: absolute; overflow: hidden; display: flex; flex-direction: column; }
+  .cx-el > * { max-width: 100%; }
+  .cx-pad { padding: 1.2mm 1.6mm; }
+
+  /* Rules are drawn as a border on a full-width child so `weight` reads the
+     same whatever height the element was dragged to. */
+  .cx-rule { width: 100%; }
+  .cx-rule-hair  { border-top: .25px solid {{ T.line }}; }
+  .cx-rule-thin  { border-top: .6px solid {{ T.line }}; }
+  .cx-rule-thick { border-top: 1.4px solid {{ T.accent }}; }
+
+  /* A footer means "every page", so it leaves the bands entirely.
+     position:fixed repeats on each page in WeasyPrint. */
+  .cx-footer {
+    position: fixed;
+    left: 0; right: 0;
+    bottom: -{{ (T.margin_bottom_mm / 2) | round(2) }}mm;
+  }
+</style>
+{% endblock %}
+
+{% block sheet %}
+
+  {#- ---- band 1: above the table ------------------------------------- -#}
+  <div class="band band-head">
+    {#- The table itself belongs to band 2, and the footer to the running
+        footer; everything else whose top is above the table's bottom edge
+        is placed here. -#}
+    {%- for e in els if e.type not in ('footer', 'items') and e.y < split -%}
+      <div class="cx-el cx-pad" style="{{ geom(e) }} {{ skin(e) }} {{ vpos(e) }} z-index:{{ e.z }}">
+        {{ content(e) }}
+      </div>
+    {%- endfor -%}
+  </div>
+
+  {#- ---- band 2: the table, in flow so it paginates ------------------- -#}
+  {%- if items_el -%}
+    <div class="band band-items" style="margin-left:{{ (items_el.x * sx) | round(2) }}mm;
+         width:{{ (items_el.w * sx) | round(2) }}mm; {{ skin(items_el) }}">
+      {{ content(items_el) }}
+    </div>
+  {%- endif -%}
+
+  {#- ---- band 3: below the table, riding along with it ---------------- -#}
+  {%- set tail = els | rejectattr('type', 'equalto', 'footer')
+                     | rejectattr('type', 'equalto', 'items')
+                     | selectattr('y', 'ge', split) | list -%}
+  {%- if tail -%}
+    {#- The band must be as tall as the lowest edge in it, so nothing is
+        clipped: Jinja has no max-of-an-expression, hence the loop. -#}
+    {%- set ns = namespace(bottom=split) -%}
+    {%- for e in tail -%}
+      {%- if e.y + e.h > ns.bottom %}{% set ns.bottom = e.y + e.h %}{% endif -%}
+    {%- endfor -%}
+    <div class="band band-tail" style="height:{{ ((ns.bottom - split) * sy) | round(2) }}mm">
+      {%- for e in tail -%}
+        <div class="cx-el cx-pad" style="{{ geom(e, split) }} {{ skin(e) }} {{ vpos(e) }} z-index:{{ e.z }}">
+          {{ content(e) }}
+        </div>
+      {%- endfor -%}
+    </div>
+  {%- endif -%}
+
+  {#- ---- the running footer ------------------------------------------- -#}
+  {%- for e in els if e.type == 'footer' -%}
+    <div class="cx-footer" style="{{ skin(e) }}">{{ content(e) }}</div>
+  {%- endfor -%}
+
+{% endblock %}

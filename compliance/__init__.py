@@ -34,7 +34,8 @@ See `compliance/README.md` for the full field reference.
 
 from __future__ import annotations
 
-from .fields import FIELD_CATALOG, build_info_rows
+from .fields import (FIELD_CATALOG, build_info_rows, catalog, meta_rows,
+                     resolve_field)
 from .normalizers import clean_text, compose_address, digits_only, format_date, local_now
 from .registry import (
     all_profiles,
