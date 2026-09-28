@@ -16,11 +16,12 @@ from compliance import (
 )
 from flask import Flask, render_template, request, jsonify, send_file
 from flask import render_template
-from flask import session, redirect, url_for
+from flask import session, redirect, url_for, has_request_context
 from collections import OrderedDict
 import pandas as pd
 import json
 import os
+import pathlib
 import datetime
 import requests
 import qrcode
@@ -899,6 +900,34 @@ def _extract_fbr_error_message(res_json, fallback_text=""):
     return "Invoice rejected by FBR. Please review the values and try again."
 
 
+def _pdf_asset_url(path):
+    """An image src WeasyPrint can load for a logo path stored in the database.
+
+    PDFs are rendered from an HTML string with no base_url, so a site-relative
+    "/static/uploads/X.png" resolves to nothing and the template prints its alt
+    text ("Logo", "FBR Logo") instead of the image. A file that exists under
+    static/ is handed over as a file:// URI, which needs no HTTP round trip to
+    this same server. Anything else relative is prefixed with BASE_URL, or with
+    this request's host as generate_form_invoice already does.
+    """
+    path = str(path).strip() if path is not None else ""
+    if not path:
+        return None
+    if path.lower().startswith(("http://", "https://", "data:", "file:")):
+        return path
+
+    relative = path.split("?", 1)[0].split("#", 1)[0].lstrip("/")
+    if relative.startswith("static/"):
+        static_root = os.path.realpath(app.static_folder)
+        local = os.path.realpath(os.path.join(static_root, relative[len("static/"):]))
+        if local.startswith(static_root + os.sep) and os.path.isfile(local):
+            return pathlib.Path(local).as_uri()
+
+    base = os.getenv("BASE_URL") or (request.host_url if has_request_context() else "")
+    base = (base or "").strip().rstrip("/")
+    return f"{base}/{path.lstrip('/')}" if base else path
+
+
 def generate_invoice_pdf_for_client(invoice_data_raw, client_id):
     """Generate a PDF for an invoice using the client's assigned template.
 
@@ -945,7 +974,10 @@ def generate_invoice_pdf_for_client(invoice_data_raw, client_id):
                       tpl_show_po, tpl_show_dc, tpl_show_cnic, tpl_show_hs_code_buyer,
                       tpl_show_product_code, tpl_show_hs_code, tpl_apply_further_tax,
                       tpl_max_item_rows, tpl_fixed_tax_rate, tpl_show_top_header,
-                      tpl_show_fbr_invoice_buyer
+                      tpl_show_fbr_invoice_buyer,
+                      tpl_template, tpl_accent_color, tpl_font, tpl_density,
+                      tpl_letterhead_enabled, tpl_letterhead_mm, tpl_letterhead_url,
+                      tpl_logo_mm, tpl_qr_mm, tpl_custom_spec
                FROM clients WHERE id = %s""",
             (client_id,),
         )
@@ -979,6 +1011,18 @@ def generate_invoice_pdf_for_client(invoice_data_raw, client_id):
                 "show_fbr_invoice_buyer": client_row[23] if client_row[23] is not None else False,
             }
 
+            # Template choice, colour, font, density and letterhead -- the same
+            # columns generate_form_invoice reads. Without them a download always
+            # fell back to the universal template, whatever the client was assigned.
+            # cursor() here is a plain tuple cursor, so name the columns in the
+            # order they were selected above.
+            client_template_settings.update(invoice_templates.settings_from_row(dict(zip(
+                ("tpl_template", "tpl_accent_color", "tpl_font", "tpl_density",
+                 "tpl_letterhead_enabled", "tpl_letterhead_mm", "tpl_letterhead_url",
+                 "tpl_logo_mm", "tpl_qr_mm", "tpl_custom_spec"),
+                client_row[24:],
+            ))))
+
         # Get STRN from clients table if not in data
         if not data.get("sellerSTRN") and client_row and client_row[0]:
             data["sellerSTRN"] = client_row[0]
@@ -991,40 +1035,24 @@ def generate_invoice_pdf_for_client(invoice_data_raw, client_id):
         user_row = cur.fetchone()
         username = str(user_row[0]).strip() if user_row and user_row[0] else None
 
-        base_url = (os.getenv("BASE_URL") or "").strip().rstrip("/")
         user_logo_path = (
             str(user_row[1]).strip()
             if user_row and len(user_row) > 1 and user_row[1] is not None and str(user_row[1]).strip()
             else None
         )
-        if user_logo_path and base_url:
-            client_logo_url = (
-                f"{base_url}{user_logo_path}"
-                if user_logo_path.startswith("/")
-                else f"{base_url}/{user_logo_path}"
-            )
-        else:
+        # Prefer users.logo over clients.logo_url, as generate_form_invoice does.
+        # Both are stored site-relative ("/static/uploads/X.png"); without
+        # _pdf_asset_url the PDF printed the alt text "Logo" instead of the image.
+        if not user_logo_path:
             print(
                 "[generate_invoice_pdf_for_client] falling back to clients.logo_url for invoice logo"
             )
-            client_logo_url = client_row[1] if client_row else None
+        client_logo_url = _pdf_asset_url(user_logo_path or (client_row[1] if client_row else None))
 
         # Get FBR logo
         cur.execute("SELECT fbr_logo FROM fbr LIMIT 1")
         fbr_row = cur.fetchone()
-        fbr_logo_path = (
-            str(fbr_row[0]).strip()
-            if fbr_row and fbr_row[0] is not None and str(fbr_row[0]).strip()
-            else None
-        )
-        if fbr_logo_path and base_url and not fbr_logo_path.lower().startswith(("http://", "https://")):
-            fbr_logo_url = (
-                f"{base_url}{fbr_logo_path}"
-                if fbr_logo_path.startswith("/")
-                else f"{base_url}/{fbr_logo_path}"
-            )
-        else:
-            fbr_logo_url = fbr_logo_path
+        fbr_logo_url = _pdf_asset_url(fbr_row[0] if fbr_row else None)
 
         cur.close()
         conn.close()
