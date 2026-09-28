@@ -1,0 +1,115 @@
+{# App top bar, modelled on the redesign prototype. Include it as the first
+   child of each page's main column, after partials/sidebar.html.
+
+   Behaviour (dropdowns, environment switch, search, theme, notifications, the
+   mobile drawer) lives in static/js/app-shell.js. #}
+{% set tb_print_class = ' no-print' if sidebar_no_print|default(false) else '' %}
+{% set tb_name = session.get('name') or 'Account' %}
+{% set tb_env = 'production' if session.get('env') == 'production' else 'sandbox' %}
+{% set tb_env_label = 'Production' if tb_env == 'production' else 'Sandbox' %}
+{% set tb_words = tb_name.split() %}
+{% set tb_initials = ((tb_words[0][:1] if tb_words else 'U') ~ (tb_words[1][:1] if tb_words|length > 1 else ''))|upper %}
+
+<header class="tl-topbar{{ tb_print_class }}">
+    <button type="button" class="tl-icon-btn tl-menu-btn" id="tl-menu-open" aria-label="Open navigation" aria-controls="tl-drawer">
+        <i class="fas fa-bars" aria-hidden="true"></i>
+    </button>
+
+    <div class="tl-workspace">
+        <span class="tl-workspace-name" title="{{ tb_name }}">{{ tb_name }}</span>
+        <span class="tl-workspace-sep" aria-hidden="true">/</span>
+        <div class="tl-dd">
+            <button type="button" class="tl-env-pill tl-env-{{ tb_env }}" data-dd-trigger aria-haspopup="menu" aria-expanded="false"
+                    id="tl-env-trigger" data-current-env="{{ tb_env }}">
+                <span class="tl-env-dot" aria-hidden="true"></span>
+                {{ tb_env_label }}
+                <i class="fas fa-chevron-down tl-env-caret" aria-hidden="true"></i>
+            </button>
+            <div class="tl-menu" role="menu" hidden>
+                <div class="tl-menu-label">Switch environment</div>
+                <div class="tl-menu-sep"></div>
+                <button type="button" class="tl-menu-item" role="menuitem" data-env-choice="sandbox">
+                    <span class="tl-env-dot tl-env-dot-sandbox" aria-hidden="true"></span>
+                    Sandbox
+                    <span class="tl-menu-hint">{% if tb_env == 'sandbox' %}<i class="fas fa-check" aria-label="current"></i>{% else %}testing{% endif %}</span>
+                </button>
+                <button type="button" class="tl-menu-item" role="menuitem" data-env-choice="production">
+                    <span class="tl-env-dot tl-env-dot-production" aria-hidden="true"></span>
+                    Production
+                    <span class="tl-menu-hint">{% if tb_env == 'production' %}<i class="fas fa-check" aria-label="current"></i>{% else %}<i class="fas fa-lock"></i> password{% endif %}</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="tl-search" id="tl-search">
+        <i class="fas fa-magnifying-glass tl-search-icon" aria-hidden="true"></i>
+        <input type="text" id="tl-search-input" class="tl-search-input" placeholder="Search invoices, buyers, products…"
+               autocomplete="off" spellcheck="false" role="combobox" aria-expanded="false"
+               aria-controls="tl-search-results" aria-autocomplete="list" aria-label="Search invoices, buyers and products">
+        <kbd class="tl-kbd" id="tl-search-kbd">Ctrl K</kbd>
+        <div class="tl-search-panel" id="tl-search-results" role="listbox" hidden></div>
+    </div>
+
+    <a href="/create-invoice" class="tl-btn-primary">
+        <i class="fas fa-plus" aria-hidden="true"></i><span class="tl-btn-label">New Invoice</span>
+    </a>
+
+    <button type="button" id="theme-toggle" class="tl-icon-btn" aria-label="Switch to dark mode" title="Switch to dark mode">
+        <i id="theme-toggle-icon" class="fas fa-moon" aria-hidden="true"></i>
+    </button>
+
+    <div class="tl-dd" id="tl-notifications">
+        <button type="button" class="tl-icon-btn tl-bell" data-dd-trigger aria-haspopup="true" aria-expanded="false" aria-label="Notifications">
+            <i class="fas fa-bell" aria-hidden="true"></i>
+            <span class="tl-bell-dot" id="tl-bell-dot" hidden></span>
+        </button>
+        <div class="tl-menu tl-menu-right tl-notif-panel" hidden>
+            <div class="tl-notif-head">
+                <span>Notifications</span>
+                <span class="tl-notif-count" id="tl-notif-count"></span>
+            </div>
+            <div class="tl-notif-list" id="tl-notif-list">
+                <div class="tl-notif-empty">Loading…</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tl-dd">
+        <button type="button" class="tl-avatar" data-dd-trigger aria-haspopup="menu" aria-expanded="false" aria-label="Account menu" title="{{ tb_name }}">
+            {{ tb_initials }}
+        </button>
+        <div class="tl-menu tl-menu-right" role="menu" hidden>
+            <div class="tl-menu-user">
+                <div class="tl-menu-user-name">{{ tb_name }}</div>
+                <div class="tl-menu-user-sub">{{ tb_env_label }} environment</div>
+            </div>
+            <div class="tl-menu-sep"></div>
+            <a href="/logout" class="tl-menu-item tl-menu-danger" role="menuitem">
+                <i class="fas fa-right-from-bracket" aria-hidden="true"></i> Sign out
+            </a>
+        </div>
+    </div>
+</header>
+
+<!-- Environment switch: password confirmation -->
+<div id="env-switch-modal" class="tl-modal{{ tb_print_class }}" role="dialog" aria-modal="true" aria-labelledby="env-switch-modal-title" hidden>
+    <div class="tl-modal-backdrop" id="env-switch-modal-backdrop"></div>
+    <div class="tl-modal-card">
+        <div class="tl-modal-icon"><i class="fas fa-lock" aria-hidden="true"></i></div>
+        <h3 id="env-switch-modal-title" class="tl-modal-title">Confirm environment switch</h3>
+        <p id="env-switch-modal-message" class="tl-modal-text">Enter your password to switch environments.</p>
+        <p id="env-switch-error" class="tl-modal-error" hidden></p>
+        <form id="env-switch-form">
+            <label for="env-switch-password" class="tl-modal-label">Password</label>
+            <input type="password" id="env-switch-password" name="password" required autocomplete="current-password"
+                   class="tl-modal-input" placeholder="Enter your password">
+            <div class="tl-modal-actions">
+                <button type="button" id="env-switch-cancel" class="tl-btn-outline">Cancel</button>
+                <button type="submit" id="env-switch-confirm" class="tl-btn-primary">Switch</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/app-shell.js') }}" defer></script>

@@ -1,0 +1,15 @@
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/taxlinkpro-favicon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/taxlink-theme.css') }}">
+    <script>
+        // Applied before first paint so a dark-mode user never sees a light flash.
+        (function () {
+            try {
+                var t = localStorage.getItem("tlp-theme");
+                if (t === "dark" || t === "light") document.documentElement.setAttribute("data-theme", t);
+            } catch (e) { /* storage blocked; fall back to the OS preference */ }
+        })();
+    </script>

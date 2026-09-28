@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    {% include 'partials/head-common.html' %}
+    <title>Download Center — TaxLink Pro</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/master-data.css') }}">
+    <style>
+        .dc-layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
+        .dc-env { width: 172px; }
+        main .dc-env select { height: 36px; min-height: 36px; border-radius: 8px !important; font-size: 13px !important; }
+        .dc-history-item { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; }
+        .dc-history-item + .dc-history-item { border-top: 1px solid var(--tlp-line); }
+        .dc-history-icon { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; flex: 0 0 34px; border-radius: 8px; background: var(--tlp-purple-soft); color: var(--tlp-purple); }
+        .dc-history-main { flex: 1 1 auto; min-width: 0; }
+        .dc-history-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--tlp-heading); font-size: 13px; font-weight: 500; }
+        .dc-history-meta { margin-top: 2px; color: var(--tlp-muted-2); font-size: 11.5px; }
+        .dc-history-side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+        .dc-ready { display: inline-flex; align-items: center; gap: 4px; padding: 1px 6px; border-radius: 6px; background: var(--tlp-green-tint); color: var(--tlp-green-text); font-size: 10.5px; font-weight: 500; }
+        .dc-env-badge { display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px; border-radius: 6px; font-size: 10.5px; font-weight: 500; letter-spacing: .05em; text-transform: uppercase; }
+        .dc-env-badge::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+        .dc-env-badge.production { background: var(--tlp-green-tint); color: var(--tlp-green-text); }
+        .dc-env-badge.sandbox { background: var(--tlp-amber-tint); color: var(--tlp-amber-text); }
+        .dc-popover-dates { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .md-popover.dc-pop { width: 300px; }
+        @media (max-width: 1180px) { .dc-layout { grid-template-columns: minmax(0, 1fr); } }
+    </style>
+</head>
+
+<body class="font-sans">
+    <div class="flex h-screen overflow-hidden">
+        {% include 'partials/sidebar.html' %}
+
+        <div class="flex flex-col flex-1 overflow-hidden">
+            {% include 'partials/topbar.html' %}
+            <main class="flex-1 overflow-y-auto min-h-0">
+                <div class="md-page" id="downloads-content">
+                    <div class="md-header">
+                        <div>
+                            <h1>Download Center</h1>
+                            <p>Single PDFs, bulk ZIP exports, and your export history. Every PDF uses your invoice template.</p>
+                        </div>
+                    </div>
+
+                    <div class="md-metrics">
+                        <div class="md-card md-metric"><div class="md-metric-top"><span class="md-metric-label">Available PDFs</span><span class="md-metric-icon"><i class="fas fa-file-zipper"></i></span></div>
+                            <div class="md-metric-value" id="m-available">–</div><div class="md-metric-hint" id="m-available-hint">Submitted invoices</div></div>
+                        <div class="md-card md-metric"><div class="md-metric-top"><span class="md-metric-label">This month</span><span class="md-metric-icon"><i class="fas fa-calendar"></i></span></div>
+                            <div class="md-metric-value" id="m-month">–</div><div class="md-metric-hint">Submitted this month</div></div>
+                        <div class="md-card md-metric"><div class="md-metric-top"><span class="md-metric-label">Total value</span><span class="md-metric-icon"><i class="fas fa-sack-dollar"></i></span></div>
+                            <div class="md-metric-value" id="m-value">–</div><div class="md-metric-hint">Of the invoices listed</div></div>
+                        <div class="md-card md-metric"><div class="md-metric-top"><span class="md-metric-label">Recent exports</span><span class="md-metric-icon"><i class="fas fa-clock-rotate-left"></i></span></div>
+                            <div class="md-metric-value" id="m-exports">–</div><div class="md-metric-hint" id="m-exports-hint">From this browser</div></div>
+                    </div>
+
+                    <div class="dc-layout">
+                        <section class="md-card">
+                            <div class="md-toolbar">
+                                <div class="md-search">
+                                    <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+                                    <input type="text" id="search" placeholder="Search invoices, buyers, dates…" autocomplete="off" aria-label="Search invoices">
+                                    <button type="button" class="md-search-clear" id="search-clear" aria-label="Clear search" hidden><i class="fas fa-xmark"></i></button>
+                                </div>
+                                <div class="dc-env">
+                                    <select class="md-select" id="env-filter" aria-label="Environment">
+                                        <option value="sandbox" {% if session.get('env') != 'production' %}selected{% endif %}>Sandbox</option>
+                                        <option value="production" {% if session.get('env') == 'production' %}selected{% endif %}>Production</option>
+                                        <option value="all">All environments</option>
+                                    </select>
+                                </div>
+                                <div class="md-filter-wrap">
+                                    <button type="button" class="md-btn md-btn-outline md-btn-sm" id="btn-filters" aria-expanded="false">
+                                        <i class="fas fa-filter"></i> Filters <span class="md-filter-count" id="filter-count" hidden></span>
+                                    </button>
+                                    <div class="md-popover dc-pop" id="filters" hidden>
+                                        <div class="md-label" style="margin-bottom:6px">Submitted between</div>
+                                        <div class="dc-popover-dates">
+                                            <input type="date" class="md-input" id="start-date" aria-label="From">
+                                            <input type="date" class="md-input" id="end-date" aria-label="To">
+                                        </div>
+                                        <p class="md-hint" style="margin-top:6px">Pick only a start date for a single day.</p>
+                                        <div class="md-popover-foot">
+                                            <button type="button" class="md-btn md-btn-ghost md-btn-sm" id="f-reset">Reset</button>
+                                            <button type="button" class="md-btn md-btn-primary md-btn-sm" id="f-apply">Apply</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" class="md-btn md-btn-primary md-btn-sm" id="btn-zip" disabled style="margin-left:auto">
+                                    <i class="fas fa-download"></i> <span id="zip-label">Download ZIP</span>
+                                </button>
+                            </div>
+                            <div class="md-table-wrap">
+                                <table class="md-table" style="min-width:760px">
+                                    <thead>
+                                        <tr>
+                                            <th style="width:40px"><input type="checkbox" id="select-all" aria-label="Select all listed invoices"></th>
+                                            <th>Invoice</th>
+                                            <th>Buyer</th>
+                                            <th>Date</th>
+                                            <th class="num">Amount</th>
+                                            <th>Env</th>
+                                            <th style="width:90px"><span class="sr-only">Download</span></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="rows"><tr class="md-loading"><td colspan="7"><i class="fas fa-circle-notch fa-spin"></i> Loading invoices…</td></tr></tbody>
+                                </table>
+                            </div>
+                            <div class="md-table-foot" id="foot" hidden>
+                                <span id="range"></span>
+                                <div class="md-pager" id="pager"></div>
+                            </div>
+                        </section>
+
+                        <aside class="md-card">
+                            <div class="md-toolbar" style="justify-content:space-between">
+                                <div><div class="md-strong" style="font-size:13.5px">Export history</div><div class="md-hint">Your recent downloads on this browser</div></div>
+                                <button type="button" class="md-btn md-btn-ghost md-btn-sm" id="clear-history" hidden>Clear</button>
+                            </div>
+                            <div id="history"></div>
+                        </aside>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/master-data.js') }}"></script>
+    <script>
+    (function () {
+        'use strict';
+        var ENV = "{{ session.get('env', 'sandbox') }}";
+        var PAGE_SIZE = 25;
+        var HISTORY_KEY = 'tlp:download-history';
+        var $ = function (id) { return document.getElementById(id); };
+        var state = { invoices: [], selected: new Set(), page: 1 };
+
+        function apiUrl(endpoint) { return endpoint + (endpoint.indexOf('?') >= 0 ? '&' : '?') + 'env=' + ENV; }
+
+        // ------------------------------------------------------------ load
+        // Same endpoint the old Downloads tab on Reports used. `env` is its
+        // filter: sandbox, production, or all.
+        function load() {
+            var start = $('start-date').value, end = $('end-date').value || start;
+            var params = new URLSearchParams({ env: $('env-filter').value });
+            if (start) { params.append('start_date', start); params.append('end_date', end); }
+            $('rows').innerHTML = '<tr class="md-loading"><td colspan="7"><i class="fas fa-circle-notch fa-spin"></i> Loading invoices…</td></tr>';
+            MD.request('/api/reports/downloadable-invoices?' + params.toString()).then(function (res) {
+                if (!res.ok) {
+                    $('rows').innerHTML = '<tr><td colspan="7" class="md-empty"><div class="md-empty-title">Could not load invoices</div><div class="md-empty-sub">' + MD.esc(MD.errorText(res)) + '</div></td></tr>';
+                    return;
+                }
+                state.invoices = res.data.invoices || [];
+                var ids = {};
+                state.invoices.forEach(function (i) { ids[i.id] = true; });
+                state.selected.forEach(function (id) { if (!ids[id]) state.selected.delete(id); });
+                state.page = 1;
+                render();
+            });
+        }
+
+        function filtered() {
+            var t = $('search').value.trim().toLowerCase();
+            if (!t) return state.invoices;
+            return state.invoices.filter(function (i) {
+                return [i.invoice_ref, i.buyer_name, i.invoice_date, MD.date(i.invoice_date)].some(function (v) {
+                    return String(v || '').toLowerCase().indexOf(t) >= 0;
+                });
+            });
+        }
+
+        function render() {
+            var list = filtered();
+            var term = $('search').value.trim();
+            $('search-clear').hidden = !term;
+            var now = new Date();
+            var monthKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+            $('m-available').textContent = MD.num(state.invoices.length);
+            var envText = { sandbox: 'Sandbox', production: 'Production', all: 'All environments' }[$('env-filter').value];
+            $('m-available-hint').textContent = envText + ' · submitted invoices';
+            $('m-month').textContent = MD.num(state.invoices.filter(function (i) { return String(i.created_at || '').slice(0, 7) === monthKey; }).length);
+            $('m-value').textContent = MD.pkr(state.invoices.reduce(function (s, i) { return s + Number(i.total_amount || 0); }, 0));
+
+            if (!list.length) {
+                $('rows').innerHTML = '<tr><td colspan="7" class="md-empty"><div class="md-empty-icon"><i class="fas fa-file-pdf"></i></div><div class="md-empty-title">' +
+                    (state.invoices.length ? 'No invoices match' : 'No invoices available') + '</div><div class="md-empty-sub">' +
+                    (state.invoices.length ? 'Try a different search.' : 'PDFs are available for invoices submitted after this feature was enabled. Try another environment or date range.') + '</div></td></tr>';
+                $('foot').hidden = true;
+                syncSelection();
+                return;
+            }
+            var pages = Math.ceil(list.length / PAGE_SIZE);
+            state.page = Math.min(state.page, pages);
+            var startIdx = (state.page - 1) * PAGE_SIZE;
+            var slice = list.slice(startIdx, startIdx + PAGE_SIZE);
+            $('rows').innerHTML = slice.map(function (i) {
+                return '<tr>' +
+                    '<td><input type="checkbox" class="dl-check" value="' + MD.esc(i.id) + '"' + (state.selected.has(i.id) ? ' checked' : '') + ' aria-label="Select invoice"></td>' +
+                    '<td><span class="md-strong">' + MD.highlight(i.invoice_ref, term) + '</span></td>' +
+                    '<td style="max-width:240px"><div class="md-sub" style="margin:0;font-size:13px;color:var(--tlp-text)">' + MD.highlight(i.buyer_name, term) + '</div></td>' +
+                    '<td class="nowrap md-muted">' + MD.esc(MD.date(i.invoice_date)) + '</td>' +
+                    '<td class="num">' + MD.pkr(i.total_amount, 2) + '</td>' +
+                    '<td><span class="dc-env-badge ' + (i.env === 'production' ? 'production' : 'sandbox') + '">' + MD.esc(i.env) + '</span></td>' +
+                    '<td><button type="button" class="md-btn md-btn-ghost md-btn-sm" data-pdf="' + MD.esc(i.id) + '"><i class="fas fa-download"></i> PDF</button></td>' +
+                    '</tr>';
+            }).join('');
+            $('foot').hidden = false;
+            $('range').textContent = 'Showing ' + (startIdx + 1) + '–' + (startIdx + slice.length) + ' of ' + MD.num(list.length);
+            MD.renderPager($('pager'), state.page, pages, function (p) { state.page = p; render(); });
+            syncSelection();
+        }
+
+        function syncSelection() {
+            var n = state.selected.size;
+            $('btn-zip').disabled = n === 0;
+            $('zip-label').textContent = n ? 'Download (' + n + ')' : 'Download ZIP';
+            var boxes = Array.prototype.slice.call(document.querySelectorAll('.dl-check'));
+            $('select-all').checked = boxes.length > 0 && boxes.every(function (b) { return b.checked; });
+        }
+
+        $('rows').addEventListener('change', function (e) {
+            if (!e.target.classList.contains('dl-check')) return;
+            if (e.target.checked) state.selected.add(e.target.value); else state.selected.delete(e.target.value);
+            syncSelection();
+        });
+        $('select-all').addEventListener('change', function () {
+            var on = this.checked;
+            document.querySelectorAll('.dl-check').forEach(function (b) {
+                b.checked = on;
+                if (on) state.selected.add(b.value); else state.selected.delete(b.value);
+            });
+            syncSelection();
+        });
+
+        // ------------------------------------------------------- downloads
+        function download(blob, name) {
+            var a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = name;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+        }
+        function nameFrom(res, fallback) {
+            var cd = res.headers.get('Content-Disposition') || '';
+            var m = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(cd);
+            return m ? decodeURIComponent(m[1]) : fallback;
+        }
+        function kb(bytes) { return bytes >= 1048576 ? (bytes / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(bytes / 1024)) + ' KB'; }
+
+        // One PDF, regenerated server-side with the client's invoice template.
+        function downloadOne(id, btn) {
+            var inv = state.invoices.filter(function (i) { return i.id === id; })[0];
+            var html = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> PDF';
+            fetch(apiUrl('/api/reports/download-invoice/' + encodeURIComponent(id))).then(function (res) {
+                if (!res.ok) return res.json().catch(function () { return {}; }).then(function (d) { throw new Error(d.error || 'Download failed'); });
+                return res.blob().then(function (blob) {
+                    var name = nameFrom(res, (inv ? inv.invoice_ref : 'invoice') + '.pdf');
+                    download(blob, name);
+                    remember({ name: name, ids: [id], size: blob.size, kind: 'pdf' });
+                });
+            }).catch(function (e) { MD.toast('error', e.message); })
+              .finally(function () { btn.disabled = false; btn.innerHTML = html; });
+        }
+
+        function downloadZip(ids, label) {
+            var btn = $('btn-zip');
+            btn.disabled = true;
+            $('zip-label').textContent = 'Preparing ZIP…';
+            MD.toast('info', 'Preparing ZIP for ' + ids.length + ' invoice' + (ids.length === 1 ? '' : 's') + '…');
+            return fetch(apiUrl('/api/reports/download-invoices-bulk'), {
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ invoice_ids: ids })
+            }).then(function (res) {
+                if (!res.ok) throw new Error('Failed to download invoices');
+                return res.blob().then(function (blob) {
+                    var name = nameFrom(res, 'invoices_' + Date.now() + '.zip');
+                    download(blob, name);
+                    remember({ name: label || name, file: name, ids: ids, size: blob.size, kind: 'zip' });
+                    MD.toast('success', ids.length + ' invoice' + (ids.length === 1 ? '' : 's') + ' downloaded as ZIP.');
+                });
+            }).catch(function (e) { MD.toast('error', e.message); })
+              .finally(syncSelection);
+        }
+
+        $('rows').addEventListener('click', function (e) {
+            var b = e.target.closest('[data-pdf]');
+            if (b) downloadOne(b.getAttribute('data-pdf'), b);
+        });
+        $('btn-zip').addEventListener('click', function () {
+            if (!state.selected.size) return;
+            var ids = Array.from(state.selected);
+            var d = new Date();
+            var label = d.toLocaleString('en-GB', { month: 'long', year: 'numeric' }) + ' — ' + ids.length + ' invoice' + (ids.length === 1 ? '' : 's') + '.zip';
+            downloadZip(ids, label);
+        });
+
+        // --------------------------------------------------------- history
+        // Kept in this browser only: it lists what you downloaded here, and
+        // "download again" re-requests the same invoices.
+        function readHistory() {
+            try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch (e) { return []; }
+        }
+        function remember(entry) {
+            var list = readHistory();
+            entry.at = Date.now();
+            entry.env = $('env-filter').value;
+            list.unshift(entry);
+            try { localStorage.setItem(HISTORY_KEY, JSON.stringify(list.slice(0, 12))); } catch (e) { }
+            renderHistory();
+        }
+        function ago(t) {
+            var s = (Date.now() - t) / 1000;
+            if (s < 60) return 'Just now';
+            if (s < 3600) return Math.floor(s / 60) + ' min ago';
+            if (s < 86400) return Math.floor(s / 3600) + ' h ago';
+            if (s < 172800) return 'Yesterday';
+            return new Date(t).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+        }
+        function renderHistory() {
+            var list = readHistory();
+            $('m-exports').textContent = MD.num(list.length);
+            $('m-exports-hint').textContent = list.length ? kb(list.reduce(function (s, h) { return s + (h.size || 0); }, 0)) + ' downloaded from this browser' : 'From this browser';
+            $('clear-history').hidden = !list.length;
+            $('history').innerHTML = list.length ? list.map(function (h, idx) {
+                return '<div class="dc-history-item"><span class="dc-history-icon"><i class="fas ' + (h.kind === 'zip' ? 'fa-file-zipper' : 'fa-file-pdf') + '"></i></span>' +
+                    '<div class="dc-history-main"><div class="dc-history-name" title="' + MD.esc(h.name) + '">' + MD.esc(h.name) + '</div>' +
+                    '<div class="dc-history-meta"><i class="fas fa-clock"></i> ' + ago(h.at) + ' · ' + kb(h.size || 0) + ' · ' + h.ids.length + ' invoice' + (h.ids.length === 1 ? '' : 's') + '</div></div>' +
+                    '<div class="dc-history-side"><span class="dc-ready"><i class="fas fa-circle-check"></i> Ready</span>' +
+                    '<button type="button" class="md-icon-btn" data-again="' + idx + '" title="Download again" aria-label="Download ' + MD.esc(h.name) + ' again"><i class="fas fa-download"></i></button></div></div>';
+            }).join('') : '<div class="md-empty-sub" style="padding:28px 16px;margin:0;text-align:center">PDFs and ZIPs you download will be listed here.</div>';
+        }
+        $('history').addEventListener('click', function (e) {
+            var b = e.target.closest('[data-again]');
+            if (!b) return;
+            var h = readHistory()[+b.getAttribute('data-again')];
+            if (!h) return;
+            if (h.kind === 'pdf') {
+                fetch(apiUrl('/api/reports/download-invoice/' + encodeURIComponent(h.ids[0]))).then(function (res) {
+                    if (!res.ok) throw new Error('That invoice is no longer available.');
+                    return res.blob().then(function (blob) { download(blob, h.name); });
+                }).catch(function (err) { MD.toast('error', err.message); });
+            } else {
+                downloadZip(h.ids, h.name);
+            }
+        });
+        $('clear-history').addEventListener('click', function () {
+            try { localStorage.removeItem(HISTORY_KEY); } catch (e) { }
+            renderHistory();
+        });
+
+        // --------------------------------------------------------- filters
+        var rerender = MD.debounce(function () { state.page = 1; render(); }, 120);
+        $('search').addEventListener('input', rerender);
+        $('search-clear').addEventListener('click', function () { $('search').value = ''; render(); $('search').focus(); });
+        $('env-filter').addEventListener('change', function () { state.selected.clear(); load(); });
+        MD.popover($('btn-filters'), $('filters'));
+        function filterBadge() {
+            var on = !!$('start-date').value;
+            $('filter-count').textContent = '1';
+            $('filter-count').hidden = !on;
+        }
+        $('f-apply').addEventListener('click', function () {
+            if ($('end-date').value && $('start-date').value > $('end-date').value) { MD.toast('error', 'The start date must be before the end date.'); return; }
+            $('filters').hidden = true;
+            filterBadge();
+            load();
+        });
+        $('f-reset').addEventListener('click', function () {
+            $('start-date').value = ''; $('end-date').value = '';
+            $('filters').hidden = true;
+            filterBadge();
+            load();
+        });
+
+        renderHistory();
+        load();
+    })();
+    </script>
+</body>
+
+</html>

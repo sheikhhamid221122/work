@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    {% include 'partials/head-common.html' %}
+    <title>Business Profiles — TaxLink Pro</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/master-data.css') }}">
+</head>
+
+<body class="font-sans">
+    <div class="flex h-screen overflow-hidden">
+        {% include 'partials/sidebar.html' %}
+
+        <div class="flex flex-col flex-1 overflow-hidden">
+            {% include 'partials/topbar.html' %}
+            <main class="flex-1 overflow-y-auto min-h-0">
+                <div class="md-page" id="profiles-content">
+                    <div class="md-header">
+                        <div>
+                            <h1>Business Profiles</h1>
+                            <p>Seller identities used to issue invoices. Set a default for quicker creation.</p>
+                        </div>
+                        <div class="md-actions">
+                            <button type="button" class="md-btn md-btn-primary" id="btn-new"><i class="fas fa-plus"></i> New profile</button>
+                        </div>
+                    </div>
+                    <div class="md-profile-grid" id="grid">
+                        <div class="md-card md-profile" style="min-height:260px;align-items:center;justify-content:center;color:var(--tlp-muted-2)">
+                            <i class="fas fa-circle-notch fa-spin"></i>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <aside class="md-sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" hidden>
+        <div class="md-sheet-head">
+            <h2 class="md-sheet-title" id="sheet-title">Add business profile</h2>
+            <p class="md-sheet-desc" id="sheet-desc">The seller details printed on invoices and sent to FBR.</p>
+            <button type="button" class="md-close" data-md-close aria-label="Close"><i class="fas fa-xmark"></i></button>
+        </div>
+        <form class="md-sheet-body" id="form" novalidate>
+            <div class="md-alert" id="form-error" hidden></div>
+            <div class="md-field">
+                <label for="bp-name">Business name <span class="req">*</span></label>
+                <input class="md-input" id="bp-name" maxlength="255" placeholder="Acme Trading (Pvt) Ltd." required>
+            </div>
+            <div class="md-form-grid" style="margin-top:14px">
+                <div class="md-field">
+                    <label for="bp-ntn">NTN / CNIC <span class="req">*</span></label>
+                    <input class="md-input" id="bp-ntn" maxlength="20" placeholder="0000000" required>
+                </div>
+                <div class="md-field">
+                    <label for="bp-strn">STRN</label>
+                    <input class="md-input" id="bp-strn" maxlength="50" placeholder="32-77-…">
+                </div>
+            </div>
+            <div class="md-field">
+                <label for="bp-province">Province <span class="req">*</span></label>
+                <select class="md-select" id="bp-province" required><option value="">Select province</option></select>
+            </div>
+            <div class="md-field">
+                <label for="bp-address">Address <span class="req">*</span></label>
+                <textarea class="md-textarea" id="bp-address" maxlength="500" placeholder="Plot 42, SITE Industrial Area, Karachi" required></textarea>
+            </div>
+            <label class="md-check">
+                <input type="checkbox" id="bp-default">
+                <span>Default profile<span class="md-hint">Pre-selected when you start a new invoice</span></span>
+            </label>
+        </form>
+        <div class="md-sheet-foot">
+            <button type="submit" form="form" class="md-btn md-btn-primary md-btn-block" id="btn-save">Save profile</button>
+        </div>
+    </aside>
+
+    <script src="{{ url_for('static', filename='js/master-data.js') }}"></script>
+    <script>
+    (function () {
+        'use strict';
+        var profiles = [];
+        var editing = null;
+        var $ = function (id) { return document.getElementById(id); };
+        var grid = $('grid');
+
+        function load() {
+            return MD.request('/api/business-profiles/overview').then(function (res) {
+                if (!res.ok) {
+                    grid.innerHTML = '<div class="md-card md-profile"><div class="md-empty-title">Could not load profiles</div>' +
+                        '<div class="md-empty-sub" style="margin-left:0">' + MD.esc(MD.errorText(res)) + '</div></div>';
+                    return;
+                }
+                profiles = res.data.profiles || [];
+                render();
+            });
+        }
+
+        function render() {
+            grid.innerHTML = profiles.map(function (p) {
+                return '<article class="md-card md-profile">' +
+                    '<div class="md-profile-top">' +
+                    '<span class="md-profile-mark"><i class="fas fa-building"></i></span>' +
+                    '<div style="display:flex;align-items:center;gap:6px">' +
+                    (p.is_default ? '<span class="md-badge md-badge-default"><i class="fas fa-star"></i> Default</span>' : '') +
+                    '<button type="button" class="md-icon-btn" data-menu="' + p.id + '" aria-haspopup="menu" aria-label="More actions for ' + MD.esc(p.business_name) + '"><i class="fas fa-ellipsis"></i></button>' +
+                    '</div></div>' +
+                    '<div class="md-menu" data-menu-for="' + p.id + '" role="menu" hidden>' +
+                    '<button type="button" role="menuitem" data-edit="' + p.id + '"><i class="fas fa-pen"></i> Edit</button>' +
+                    (p.is_default ? '' : '<button type="button" role="menuitem" data-default="' + p.id + '"><i class="fas fa-star"></i> Set as default</button>') +
+                    '<button type="button" role="menuitem" class="danger" data-delete="' + p.id + '"><i class="fas fa-trash-can"></i> Delete</button>' +
+                    '</div>' +
+                    '<div class="md-profile-name">' + MD.esc(p.business_name) + '</div>' +
+                    '<div class="md-profile-address"><i class="fas fa-location-dot"></i><span>' + MD.esc(p.address || '–') + '</span></div>' +
+                    '<div class="md-profile-facts">' +
+                    '<div><div class="k">' + (String(p.ntn_cnic).replace(/\D/g, '').length === 13 ? 'CNIC' : 'NTN') + '</div><div class="v">' + MD.esc(p.ntn_cnic || '–') + '</div></div>' +
+                    '<div><div class="k">STRN</div><div class="v">' + MD.esc(p.strn || '–') + '</div></div>' +
+                    '<div><div class="k">Province</div><div class="v">' + MD.esc(p.province || '–') + '</div></div>' +
+                    '<div><div class="k"><i class="fas fa-file-lines"></i> Invoices</div><div class="v">' + MD.num(p.invoices) + '</div></div>' +
+                    '</div>' +
+                    '<div class="md-profile-foot" style="border-top:1px solid var(--tlp-line);margin-top:16px">' +
+                    '<button type="button" class="md-btn md-btn-outline md-btn-sm" data-edit="' + p.id + '">Edit</button>' +
+                    (p.is_default ? '' : '<button type="button" class="md-btn md-btn-ghost md-btn-sm" data-default="' + p.id + '">Set default</button>') +
+                    '</div></article>';
+            }).join('') +
+                '<button type="button" class="md-add-card" data-new>' +
+                '<i class="fas fa-plus"></i><span class="t">Add new profile</span><span class="d">Create another seller identity</span></button>';
+        }
+
+        function find(id) { return profiles.filter(function (p) { return p.id === id; })[0]; }
+
+        function closeMenus(except) {
+            grid.querySelectorAll('.md-menu').forEach(function (m) { if (m !== except) m.hidden = true; });
+        }
+
+        grid.addEventListener('click', function (e) {
+            var t;
+            if ((t = e.target.closest('[data-menu]'))) {
+                e.stopPropagation();
+                var menu = grid.querySelector('[data-menu-for="' + t.getAttribute('data-menu') + '"]');
+                closeMenus(menu);
+                menu.hidden = !menu.hidden;
+                return;
+            }
+            closeMenus();
+            if (e.target.closest('[data-new]')) openSheet(null);
+            else if ((t = e.target.closest('[data-edit]'))) openSheet(find(+t.getAttribute('data-edit')));
+            else if ((t = e.target.closest('[data-default]'))) makeDefault(find(+t.getAttribute('data-default')));
+            else if ((t = e.target.closest('[data-delete]'))) remove(find(+t.getAttribute('data-delete')));
+        });
+        document.addEventListener('click', function (e) { if (!grid.contains(e.target)) closeMenus(); });
+
+        var provincesReady = MD.formOptions().then(function (opts) {
+            MD.fillSelect($('bp-province'), opts.provinces || [], 'Select province');
+        });
+
+        function openSheet(p) {
+            editing = p || null;
+            MD.formError($('form-error'), '');
+            $('form').querySelectorAll('.is-invalid').forEach(function (el) { el.classList.remove('is-invalid'); });
+            $('sheet-title').textContent = p ? 'Edit business profile' : 'Add business profile';
+            $('btn-save').textContent = p ? 'Save changes' : 'Save profile';
+            $('bp-name').value = p ? p.business_name : '';
+            $('bp-ntn').value = p ? p.ntn_cnic : '';
+            $('bp-strn').value = p ? p.strn : '';
+            $('bp-address').value = p ? p.address : '';
+            $('bp-default').checked = p ? p.is_default : !profiles.length;
+            provincesReady.then(function () {
+                var sel = $('bp-province');
+                if (p && p.province && !MD.selectValue(sel, p.province)) {
+                    var opt = document.createElement('option');
+                    opt.value = p.province; opt.textContent = p.province;
+                    sel.appendChild(opt);
+                    sel.value = p.province;
+                }
+                if (!p) sel.value = '';
+            });
+            MD.open($('sheet'), '#bp-name');
+        }
+
+        $('btn-new').addEventListener('click', function () { openSheet(null); });
+
+        function validTaxId(value) {
+            var raw = String(value || '').trim().toUpperCase();
+            var digits = raw.replace(/\D/g, '');
+            if (digits.length === 13) return true;
+            return /^[0-9A-Z]{7}$/.test(raw.replace(/[^0-9A-Z]/g, ''));
+        }
+
+        $('form').addEventListener('submit', function (e) {
+            e.preventDefault();
+            var payload = {
+                business_name: $('bp-name').value.trim().replace(/\s+/g, ' '),
+                ntn_cnic: $('bp-ntn').value.trim(),
+                strn: $('bp-strn').value.trim(),
+                province: $('bp-province').value,
+                address: $('bp-address').value.trim(),
+                is_default: $('bp-default').checked
+            };
+            var missing = [];
+            [['bp-name', payload.business_name], ['bp-ntn', payload.ntn_cnic], ['bp-province', payload.province],
+             ['bp-address', payload.address]].forEach(function (f) {
+                $(f[0]).classList.toggle('is-invalid', !f[1]);
+                if (!f[1]) missing.push(f[0]);
+            });
+            if (missing.length) { MD.formError($('form-error'), 'Fill in the required fields marked *.'); $(missing[0]).focus(); return; }
+            if (!validTaxId(payload.ntn_cnic)) {
+                $('bp-ntn').classList.add('is-invalid');
+                MD.formError($('form-error'), 'NTN/CNIC must be a 7-character NTN or a 13-digit CNIC.');
+                return;
+            }
+            var btn = $('btn-save');
+            btn.disabled = true;
+            var wasEditing = editing;
+            (wasEditing
+                ? MD.request('/api/business-profiles/' + wasEditing.id, { method: 'PUT', json: payload })
+                : MD.request('/api/business-profiles', { method: 'POST', json: payload })
+            ).then(function (res) {
+                btn.disabled = false;
+                if (!res.ok) { MD.formError($('form-error'), MD.errorText(res, 'The profile could not be saved.')); return; }
+                MD.close($('sheet'));
+                MD.toast('success', wasEditing ? 'Profile updated.' : payload.business_name + ' added.');
+                load();
+            });
+        });
+
+        function makeDefault(p) {
+            MD.request('/api/business-profiles/' + p.id + '/default', { method: 'POST' }).then(function (res) {
+                if (!res.ok) { MD.toast('error', MD.errorText(res, 'Could not set the default profile.')); return; }
+                MD.toast('success', p.business_name + ' is now the default profile.');
+                load();
+            });
+        }
+
+        function remove(p) {
+            MD.confirm({
+                title: 'Delete ' + p.business_name + '?',
+                message: 'You won’t be able to issue invoices from this profile any more. Invoices already issued are not affected.',
+                confirmText: 'Delete profile'
+            }).then(function (yes) {
+                if (!yes) return;
+                MD.request('/api/business-profiles/' + p.id, { method: 'DELETE' }).then(function (res) {
+                    if (!res.ok) { MD.toast('error', MD.errorText(res, 'The profile could not be deleted.')); return; }
+                    MD.toast('success', p.business_name + ' deleted.');
+                    load();
+                });
+            });
+        }
+
+        load();
+    })();
+    </script>
+</body>
+
+</html>

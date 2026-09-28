@@ -1,4 +1,5 @@
 @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap");
+@import url("shell.css");
 
 /* ---------------------------------------------------------------------------
    Theme tokens.
@@ -19,7 +20,6 @@
   --tlp-bg: #eef1f7;
   --tlp-card: #ffffff;
   --tlp-surface-2: #f4f6fa;
-  --tlp-sidebar-bg: #ffffff;
 
   /* Text — every value below clears WCAG AA (4.5:1) on its own surface. */
   --tlp-text: #1e2432;          /* 15.5:1 on card — headings, primary copy */
@@ -33,7 +33,7 @@
   --tlp-input-bg: #f7f9fc;
   --tlp-input-text: #1e2432;
   --tlp-input-border: #d5dbe7;
-  --tlp-input-border-focus: #5932ea;
+  --tlp-input-border-focus: #273fa8;
   --tlp-placeholder: #7a8299;
 
   /* Lines and chrome */
@@ -47,8 +47,8 @@
   --tlp-chip-text: #3d4459;
 
   /* Brand + status */
-  --tlp-purple: #5932ea;
-  --tlp-purple-hover: #6842f4;
+  --tlp-purple: #273fa8;
+  --tlp-purple-hover: #3149bd;
   --tlp-green: #00ac4f;
   --tlp-green-soft: #d3ffe7;
   --tlp-green-soft-2: #effff6;
@@ -62,9 +62,44 @@
   --tlp-danger: #d92d20;
   --tlp-danger-hover: #b42318;
 
-  --tlp-focus-ring: rgba(89, 50, 234, 0.35);
+  --tlp-focus-ring: rgba(39, 63, 168, 0.3);
   --tlp-shadow: 0 10px 60px rgba(226, 236, 249, 0.5);
-  --tlp-sidebar: 306px;
+
+  /* Redesigned pages (dashboard first): hairline-bordered cards with a quiet
+     shadow, and tinted status badges. */
+  --tlp-shadow-card: 0 1px 2px rgba(20, 26, 48, 0.04), 0 1px 3px rgba(20, 26, 48, 0.05);
+  --tlp-shadow-raised: 0 6px 16px -4px rgba(20, 26, 48, 0.1), 0 2px 4px -2px rgba(20, 26, 48, 0.05);
+  --tlp-purple-soft: rgba(39, 63, 168, 0.09);
+  --tlp-green-tint: rgba(0, 150, 70, 0.1);
+  --tlp-green-text: #00803b;
+  --tlp-red-tint: rgba(208, 0, 74, 0.08);
+  --tlp-amber: #d98a04;
+  --tlp-amber-tint: rgba(217, 138, 4, 0.12);
+  --tlp-amber-text: #8a5300;
+  --tlp-chart-tax: #0f9f8f;
+
+  /* ---- Shell + density -------------------------------------------------
+     The app is used on 1366-1536px laptop screens, most of them running
+     Windows at 125% display scaling -- so "100% browser zoom" is really a
+     ~1520px CSS viewport, not the ~1900px the original layout assumed.
+     Everything below is sized for that viewport, which is why the shell
+     scales with vw rather than being pinned to one width.
+
+     These are the ONLY declarations of these variables. Redefining them
+     further down the file (which this stylesheet used to do three more
+     times) makes the effective value depend on source order.
+     --------------------------------------------------------------------- */
+
+    --tlp-main-gutter: clamp(14px, 1.5vw, 26px);
+
+  /* Corner radii. The previous 30px read as oversized once the rest of the
+     UI came down to this density -- the radius has to scale with the box. */
+  --tlp-radius-card: 16px;
+  --tlp-radius-inner: 12px;
+  --tlp-radius-control: 8px;
+
+  /* Vertical rhythm between the stacked blocks of a page. */
+  --tlp-stack: 14px;
 }
 
 /* Explicit dark choice. */
@@ -74,7 +109,6 @@
   --tlp-bg: #0f1319;
   --tlp-card: #171c26;
   --tlp-surface-2: #1e2530;
-  --tlp-sidebar-bg: #141922;
 
   --tlp-text: #e8ecf5;          /* 14.5:1 on card */
   --tlp-heading: #f2f5fa;
@@ -86,7 +120,7 @@
   --tlp-input-bg: #1e2530;
   --tlp-input-text: #e8ecf5;
   --tlp-input-border: #363f52;
-  --tlp-input-border-focus: #8b6dff;
+  --tlp-input-border-focus: #6b8aff;
   --tlp-placeholder: #78829a;
 
   --tlp-line: #2a3240;
@@ -99,15 +133,26 @@
   --tlp-chip-text: #c3cade;
 
   /* Brand purple is lifted for legibility on dark surfaces. */
-  --tlp-purple: #7c5cff;
-  --tlp-purple-hover: #8b6dff;
+  --tlp-purple: #5673f0;
+  --tlp-purple-hover: #6b8aff;
   --tlp-green: #34d399;
   --tlp-green-soft: #123a2c;
   --tlp-green-soft-2: #0e2a20;
   --tlp-red: #ff5c8a;
 
-  --tlp-focus-ring: rgba(124, 92, 255, 0.45);
+  --tlp-focus-ring: rgba(107, 138, 255, 0.45);
   --tlp-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+
+  --tlp-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --tlp-shadow-raised: 0 8px 20px -6px rgba(0, 0, 0, 0.55);
+  --tlp-purple-soft: rgba(107, 138, 255, 0.16);
+  --tlp-green-tint: rgba(52, 211, 153, 0.13);
+  --tlp-green-text: #34d399;
+  --tlp-red-tint: rgba(255, 92, 138, 0.13);
+  --tlp-amber: #f5b544;
+  --tlp-amber-tint: rgba(245, 181, 68, 0.14);
+  --tlp-amber-text: #f5c56b;
+  --tlp-chart-tax: #2dd4bf;
 }
 
 /* "Follow my OS" — same values, only when the user has not chosen light. */
@@ -118,8 +163,7 @@
     --tlp-bg: #0f1319;
     --tlp-card: #171c26;
     --tlp-surface-2: #1e2530;
-    --tlp-sidebar-bg: #141922;
-
+  
     --tlp-text: #e8ecf5;
     --tlp-heading: #f2f5fa;
     --tlp-muted: #a8b0c5;
@@ -130,7 +174,7 @@
     --tlp-input-bg: #1e2530;
     --tlp-input-text: #e8ecf5;
     --tlp-input-border: #363f52;
-    --tlp-input-border-focus: #8b6dff;
+    --tlp-input-border-focus: #6b8aff;
     --tlp-placeholder: #78829a;
 
     --tlp-line: #2a3240;
@@ -142,15 +186,26 @@
     --tlp-chip-bg: #232b38;
     --tlp-chip-text: #c3cade;
 
-    --tlp-purple: #7c5cff;
-    --tlp-purple-hover: #8b6dff;
+    --tlp-purple: #5673f0;
+    --tlp-purple-hover: #6b8aff;
     --tlp-green: #34d399;
     --tlp-green-soft: #123a2c;
     --tlp-green-soft-2: #0e2a20;
     --tlp-red: #ff5c8a;
 
-    --tlp-focus-ring: rgba(124, 92, 255, 0.45);
-  --tlp-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+    --tlp-focus-ring: rgba(107, 138, 255, 0.45);
+    --tlp-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+
+    --tlp-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --tlp-shadow-raised: 0 8px 20px -6px rgba(0, 0, 0, 0.55);
+    --tlp-purple-soft: rgba(107, 138, 255, 0.16);
+    --tlp-green-tint: rgba(52, 211, 153, 0.13);
+    --tlp-green-text: #34d399;
+    --tlp-red-tint: rgba(255, 92, 138, 0.13);
+    --tlp-amber: #f5b544;
+    --tlp-amber-tint: rgba(245, 181, 68, 0.14);
+    --tlp-amber-text: #f5c56b;
+    --tlp-chart-tax: #2dd4bf;
   }
 }
 
@@ -186,227 +241,9 @@ body.reports-page > .flex.h-screen {
   overflow: hidden !important;
 }
 
-.sidebar {
-  position: relative;
-  width: var(--tlp-sidebar) !important;
-  min-width: var(--tlp-sidebar) !important;
-  max-width: var(--tlp-sidebar) !important;
-  min-height: 100vh;
-  background: var(--tlp-sidebar-bg) !important;
-  box-shadow: none !important;
-  border-right: 1px solid var(--tlp-line) !important;
-  color: var(--tlp-muted);
-}
-
-.sidebar > .flex:first-child {
-  align-items: flex-start !important;
-  padding: 36px 28px 18px !important;
-}
-
-.sidebar > .flex.flex-col.flex-grow {
-  min-height: 0;
-  padding: 0 28px 28px !important;
-  overflow-y: visible !important;
-}
-
-.sidebar-logo {
-  position: relative;
-  width: 215px !important;
-  height: 42px;
-  margin: 0 0 48px !important;
-  transform: none !important;
-}
-
-.sidebar-logo img {
-  display: none;
-}
-
-.sidebar-logo::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 2px;
-  width: 34px;
-  height: 34px;
-  background: url("/static/uploads/logo.png") center / contain no-repeat;
-  filter: grayscale(1) contrast(1.35);
-}
-
-.sidebar-logo::after {
-  content: "TaxLink Pro";
-  position: absolute;
-  left: 46px;
-  top: 2px;
-  color: var(--tlp-heading);
-  font-size: 26px;
-  font-weight: 600;
-  line-height: 34px;
-  white-space: nowrap;
-}
-
-.sidebar > .flex:first-child .w-full,
-.sidebar > .flex:first-child .flex.items-center.justify-center {
-  display: none !important;
-}
-
-.sidebar nav {
-  flex: 0 0 auto !important;
-  padding: 0 !important;
-}
-
-.sidebar .sidebar-item {
-  min-height: 46px;
-  padding: 0 11px !important;
-  border: 0 !important;
-  border-radius: 8px !important;
-  color: var(--tlp-muted) !important;
-  background: transparent !important;
-  font-size: 14px !important;
-  font-weight: 500 !important;
-  box-shadow: none !important;
-  transition: background-color 0.18s ease, color 0.18s ease;
-}
-
-.sidebar .sidebar-item i {
-  width: 24px;
-  height: 24px;
-  margin-right: 14px !important;
-  border: 2px solid currentColor;
-  border-radius: 8px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-}
-
-.sidebar .sidebar-item::after {
-  content: "\f105";
-  margin-left: auto;
-  font-family: "Font Awesome 6 Free";
-  font-weight: 900;
-  font-size: 14px;
-  color: currentColor;
-}
-
-.sidebar .sidebar-item[href="/logout"]::after,
-.sidebar .theme-toggle::after {
-  content: "";
-}
-
-.sidebar .theme-toggle {
-  width: 100%;
-  border: 0 !important;
-  background: transparent !important;
-  text-align: left;
-  cursor: pointer;
-}
-
-.sidebar .sidebar-item.active,
-.sidebar .sidebar-item:hover {
-  background: var(--tlp-purple) !important;
-  color: var(--tlp-on-accent) !important;
-}
-
-.sidebar .env-badge {
-  position: static;
-  width: 100%;
-  min-height: 38px;
-  padding: 0 !important;
-  background: transparent !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-  color: var(--tlp-muted) !important;
-  display: block !important;
-  text-align: left;
-  text-transform: uppercase;
-  font-size: 12px !important;
-  font-weight: 400 !important;
-  line-height: 1.35;
-}
-
-.sidebar .env-badge i {
-  display: none;
-}
-
-.sidebar .env-badge::before {
-  content: none;
-}
-
-.sidebar .sidebar-company-name {
-  display: block;
-  color: var(--tlp-heading);
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.35;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.sidebar .sidebar-env-name {
-  display: block;
-  color: var(--tlp-muted);
-  margin-top: 2px;
-}
-
-.sidebar .sidebar-env-switcher,
-.mobile-env-switcher {
-  width: 100%;
-  margin-top: 4px;
-  padding: 6px 28px 6px 10px;
-  border: 1px solid var(--tlp-input-border);
-  border-radius: 9999px;
-  background-color: var(--tlp-input-bg);
-  color: var(--tlp-input-text);
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: capitalize;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2364748b' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-  background-position: right 0.6rem center;
-  background-repeat: no-repeat;
-  background-size: 1rem;
-  cursor: pointer;
-}
-
-.mobile-env-switcher {
-  background-color: var(--tlp-input-bg);
-  border-color: var(--tlp-input-border);
-  color: var(--tlp-input-text);
-  border-radius: 0.5rem;
-  font-size: 14px;
-  padding: 8px 32px 8px 12px;
-  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2393c5fd' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
-}
-
-.sidebar .sidebar-env-switcher:focus,
-.mobile-env-switcher:focus {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--tlp-focus-ring);
-}
-
-.sidebar .px-4.py-4.text-center {
-  margin-top: auto;
-  padding: 0 54px 16px !important;
-  text-align: left !important;
-}
-
-.sidebar .px-2.mt-auto {
-  margin-top: 0 !important;
-  padding: 0 !important;
-}
-
-.sidebar a[href="/logout"] {
-  position: static;
-  width: 100%;
-  min-height: 46px;
-  margin-bottom: 0;
-  justify-content: flex-start !important;
-}
-
 main {
   background: var(--tlp-bg) !important;
-  padding: 40px 30px 78px !important;
+  padding: var(--tlp-main-gutter) var(--tlp-main-gutter) calc(var(--tlp-main-gutter) * 2) !important;
   overflow-y: auto !important;
   overflow-x: hidden !important;
   /* Reserve the scrollbar track even when the page doesn't scroll. Without this
@@ -416,17 +253,11 @@ main {
   scrollbar-gutter: stable;
 }
 
+/* The dashboard scrolls as a normal page; its own layout is in dashboard.css. */
 body.dashboard-page main {
   height: 100%;
-  overflow: hidden !important;
-  padding: 30px !important;
-}
-
-body.dashboard-page #dashboard-content {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
   min-height: 0;
+  padding: var(--tlp-main-gutter) var(--tlp-main-gutter) calc(var(--tlp-main-gutter) * 2) !important;
 }
 
 body.create-invoice-page > .flex.h-screen > .flex.flex-col.flex-1,
@@ -459,8 +290,8 @@ main > .content-section {
 
 main h1 {
   color: var(--tlp-heading) !important;
-  font-size: 24px !important;
-  font-weight: 500 !important;
+  font-size: 20px !important;
+  font-weight: 600 !important;
   line-height: 1.3 !important;
 }
 
@@ -469,19 +300,30 @@ main h1 + * {
 }
 
 /* A visible border is what separates a field from the card it sits on — the
-   previous `1px solid transparent` left near-white inputs on white cards. */
-main input,
+   previous `1px solid transparent` left near-white inputs on white cards.
+   Checkboxes and radios are excluded throughout: they are square controls, and
+   the text-field treatment turned each one into a 38px box. */
+main input:not([type="checkbox"]):not([type="radio"]),
 main select,
 main textarea,
-.fixed input,
+.fixed input:not([type="checkbox"]):not([type="radio"]),
 .fixed select,
 .fixed textarea {
-  min-height: 38px;
+  min-height: 34px;
   border: 1px solid var(--tlp-input-border) !important;
   background-color: var(--tlp-input-bg) !important;
   border-radius: 10px !important;
   color: var(--tlp-input-text) !important;
   box-shadow: none !important;
+}
+
+main input[type="checkbox"],
+main input[type="radio"],
+.fixed input[type="checkbox"],
+.fixed input[type="radio"] {
+  min-height: 0;
+  accent-color: var(--tlp-purple);
+  vertical-align: middle;
 }
 
 main input:focus,
@@ -622,9 +464,33 @@ main a[class*="bg-red"],
 main button[class*="bg-primary"],
 main button[class*="bg-green"],
 main button[class*="bg-red"] {
-  min-height: 36px;
-  border-radius: 8px !important;
+  min-height: 32px;
+  border-radius: var(--tlp-radius-control) !important;
   box-shadow: none !important;
+}
+
+/* Icon-only buttons inside a table cell set the row height. At 36px they made
+   every row 60px tall, which is why the dashboard showed three invoices. They
+   need no more height than the text beside them. `vertical-align: middle` is
+   the other half of it: an inline-flex button sits on the text baseline, so
+   the cell reserved descender space underneath it as well. */
+main td button,
+main th button {
+  min-height: 0;
+  vertical-align: middle;
+}
+
+#dashboard-content td button,
+#draft-invoices-content td button,
+#reports-content td button,
+#create-invoice-content td button {
+  min-height: 0 !important;
+}
+
+#dashboard-content td .view-invoice-btn,
+#dashboard-content td .delete-invoice-btn {
+  width: 28px !important;
+  height: 28px !important;
 }
 
 main .bg-primary-600,
@@ -655,7 +521,7 @@ main #no-invoices-message,
 main #no-products-message,
 main #no-buyers-message,
 main #no-downloads-message {
-  border-radius: 30px !important;
+  border-radius: var(--tlp-radius-card) !important;
   border: 0 !important;
   background: var(--tlp-card) !important;
   box-shadow: var(--tlp-shadow) !important;
@@ -680,34 +546,22 @@ main .draft-card {
 
 main .stats-card,
 main .stat-card {
-  min-height: 110px;
-  border-radius: 0 !important;
-  box-shadow: none !important;
+  min-height: 62px;
+  border-radius: var(--tlp-radius-card) !important;
   transform: none !important;
 }
 
-#dashboard-content > .grid,
 #reports-content .tab-content.active > .grid:first-child {
   background: var(--tlp-card);
-  border-radius: 30px;
+  border-radius: var(--tlp-radius-card);
   box-shadow: var(--tlp-shadow);
-  padding: 21px 30px !important;
-  gap: 34px !important;
-}
-
-#dashboard-content > .grid > div,
-#reports-content .tab-content.active > .grid:first-child > div {
-  border-left: 1px solid var(--tlp-line) !important;
-}
-
-#dashboard-content > .grid > div:first-child,
-#reports-content .tab-content.active > .grid:first-child > div:first-child {
-  border-left: 0 !important;
+  padding: 14px 20px !important;
+  gap: 20px !important;
 }
 
 .stats-card > .flex,
 .stat-card > .flex {
-  gap: 20px;
+  gap: 14px;
 }
 
 .stats-card .rounded-xl,
@@ -715,9 +569,9 @@ main .stat-card {
 .stat-card .p-3,
 .stat-card .p-2\.5,
 .stats-card .p-2\.5 {
-  width: 84px !important;
-  height: 84px !important;
-  flex: 0 0 84px;
+  width: 46px !important;
+  height: 46px !important;
+  flex: 0 0 46px;
   border-radius: 999px !important;
   background: linear-gradient(201deg, var(--tlp-green-soft) 0%, var(--tlp-green-soft-2) 100%) !important;
   color: var(--tlp-green) !important;
@@ -735,13 +589,13 @@ main .stat-card {
   justify-content: center;
   width: 1em;
   height: 1em;
-  font-size: 30px !important;
+  font-size: 18px !important;
   line-height: 1 !important;
 }
 
 .stats-card h3,
 .stat-card h3 {
-  font-size: 14px !important;
+  font-size: 12px !important;
   font-weight: 400 !important;
   color: var(--tlp-muted-2) !important;
 }
@@ -749,8 +603,13 @@ main .stat-card {
 .stats-card p,
 .stat-card p {
   color: var(--tlp-text) !important;
-  font-size: 30px !important;
+  font-size: 21px !important;
   font-weight: 600 !important;
+  line-height: 1.2 !important;
+}
+
+#reports-content .stat-card {
+  padding: 12px 16px !important;
 }
 
 main .overflow-x-auto,
@@ -778,43 +637,17 @@ main .overflow-x-auto {
   overflow-y: hidden;
 }
 
-body.dashboard-page #dashboard-content > .bg-white {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-body.dashboard-page #dashboard-content > .bg-white > .overflow-x-auto {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow: auto !important;
-}
-
-#dashboard-content button,
-#dashboard-content a[role="button"],
-#dashboard-content .action-button {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 6px;
-  min-height: 36px;
-  line-height: 1.2 !important;
-  white-space: nowrap;
-  text-align: center;
-}
-
-#dashboard-content button i,
-#dashboard-content a[role="button"] i,
-#dashboard-content .action-button i {
-  margin-right: 0 !important;
-  line-height: 1 !important;
-}
-
 main table {
   min-width: 760px;
   border-collapse: separate !important;
   border-spacing: 0 !important;
+}
+
+/* Row height is set here rather than left to each template's Tailwind padding,
+   so every table in the app scans at the same rhythm. */
+main th,
+main td {
+  padding-block: 7px !important;
 }
 
 #create-invoice-content table,
@@ -822,16 +655,11 @@ main table {
   width: 100%;
 }
 
-#reports-content table th {
-  font-size: 15px !important;
-  padding-top: 0.875rem !important;
-  padding-bottom: 0.875rem !important;
-}
-
+/* Reports' tables were a size and a half larger than every other table in the
+   app for no reason -- they now match the dashboard. */
+#reports-content table th,
 #reports-content table td {
-  font-size: 16px !important;
-  padding-top: 1rem !important;
-  padding-bottom: 1rem !important;
+  font-size: 13px !important;
 }
 
 main thead {
@@ -908,19 +736,19 @@ nav[aria-label="Pagination"] .bg-primary-600 {
 }
 
 #create-invoice-content > div[id^="step-"] {
-  border-radius: 30px !important;
+  border-radius: var(--tlp-radius-card) !important;
   box-shadow: var(--tlp-shadow) !important;
   /* Steps carry very different amounts of content. A floor keeps the short ones
      from collapsing into a stub, so the panel stays a consistent shape as you
      move through the wizard. Tall steps still grow and scroll as before. */
-  min-height: 32rem;
+  min-height: 26rem;
 }
 
 #reports-content .tab-content > .grid:not(:first-child) > .bg-white,
 #reports-content .tab-content > .bg-white,
 #create-invoice-content > div[id^="step-"],
 #draft-invoices-content > .bg-white {
-  padding: 30px !important;
+  padding: 20px !important;
 }
 
 #draft-invoices-grid {
@@ -937,7 +765,18 @@ nav[aria-label="Pagination"] .bg-primary-600 {
 
 .draft-card {
   border: 0 !important;
-  border-radius: 24px !important;
+  border-radius: var(--tlp-radius-card) !important;
+}
+
+/* The environment badge is absolutely positioned in the card's top-right
+   corner, so a long draft title ran underneath it. Reserve the badge's width
+   and ellipsise instead -- the full title is already on the element's title
+   attribute, and Rename shows it in full. */
+.draft-card .draft-title {
+  padding-right: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .modal-overlay {
@@ -945,15 +784,24 @@ nav[aria-label="Pagination"] .bg-primary-600 {
 }
 
 .notification {
-  border-radius: 12px !important;
+  border-radius: var(--tlp-radius-inner) !important;
   box-shadow: var(--tlp-shadow) !important;
+}
+
+/* The login card was pinned to the top of the window with the rest of the
+   viewport empty below it. The page has one element on it, so centre it. */
+body:has(> .login-container) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
 }
 
 body > .login-container,
 .login-container {
   background: var(--tlp-card) !important;
   border: 0 !important;
-  border-radius: 30px !important;
+  border-radius: 20px !important;
   box-shadow: var(--tlp-shadow) !important;
   color: var(--tlp-text) !important;
 }
@@ -992,27 +840,11 @@ body > .login-container,
 }
 
 @media (max-width: 1180px) {
-  .sidebar > .flex.flex-col.flex-grow {
-    padding-inline: 18px !important;
-  }
-
-  .sidebar nav {
-    padding: 0 !important;
-  }
-
-  .sidebar-logo::after {
-    font-size: 22px;
-  }
-
-  .sidebar .sidebar-item {
-    font-size: 13px !important;
-  }
 
   main {
     padding: 32px 32px 56px !important;
   }
 
-  #dashboard-content > .grid,
   #reports-content .tab-content.active > .grid:first-child {
     padding: 26px 28px !important;
     gap: 20px !important;
@@ -1021,51 +853,6 @@ body > .login-container,
   .stats-card p,
   .stat-card p {
     font-size: 24px !important;
-  }
-
-  /* Dashboard: scrollable on tablet and smaller (match reports page behavior) */
-  body.dashboard-page > .flex.h-screen {
-    height: 100vh !important;
-    min-height: 100vh;
-    overflow: hidden !important;
-  }
-
-  body.dashboard-page > .flex.h-screen > .flex.flex-col.flex-1 {
-    height: 100vh !important;
-    min-height: 0;
-    overflow: hidden !important;
-  }
-
-  body.dashboard-page main {
-    height: 100% !important;
-    min-height: 0 !important;
-    overflow-y: auto !important;
-    overflow-x: hidden !important;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  body.dashboard-page #dashboard-content {
-    height: auto !important;
-    min-height: 0;
-    display: block !important;
-  }
-
-  body.dashboard-page #dashboard-content > .bg-white {
-    flex: none !important;
-    min-height: auto !important;
-    display: block !important;
-  }
-
-  body.dashboard-page #dashboard-content > .bg-white > .overflow-x-auto {
-    flex: none !important;
-    min-height: auto !important;
-    overflow-x: auto !important;
-    overflow-y: visible !important;
-  }
-
-  body.dashboard-page #records-pagination {
-    flex-shrink: 0;
-    min-height: 32px;
   }
 }
 
@@ -1097,47 +884,22 @@ body > .login-container,
   }
 
   body.dashboard-page > .flex.h-screen > .flex.flex-col.flex-1 {
-    height: calc(100vh - 64px) !important;
+    height: 100vh !important;
     min-height: 0;
     overflow: hidden !important;
   }
 
   body.create-invoice-page > .flex.h-screen > .flex.flex-col.flex-1 {
-    height: calc(100vh - 64px);
+    height: 100vh;
     min-height: 0;
     overflow: hidden !important;
   }
 
   body.draft-invoices-page > .flex.h-screen > .flex.flex-col.flex-1,
   body.reports-page > .flex.h-screen > .flex.flex-col.flex-1 {
-    height: calc(100vh - 64px);
+    height: 100vh;
     min-height: 0;
     overflow: hidden !important;
-  }
-
-  .md\:hidden.bg-primary-700 {
-    position: sticky;
-    top: 0;
-    z-index: 30;
-    background: var(--tlp-card) !important;
-    color: var(--tlp-heading) !important;
-    box-shadow: var(--tlp-shadow);
-  }
-
-  #mobile-menu .bg-primary-800,
-  #mobile-menu .absolute.inset-y-0 {
-    background: var(--tlp-card) !important;
-    color: var(--tlp-heading) !important;
-  }
-
-  #mobile-menu a {
-    color: var(--tlp-muted) !important;
-  }
-
-  #mobile-menu a.bg-primary-700,
-  #mobile-menu a:hover {
-    background: var(--tlp-purple) !important;
-    color: var(--tlp-on-accent) !important;
   }
 
   main {
@@ -1157,21 +919,18 @@ body > .login-container,
     max-width: 100%;
   }
 
-  #dashboard-content > .grid,
   #reports-content .tab-content.active > .grid:first-child {
     grid-template-columns: 1fr !important;
     padding: 24px !important;
     border-radius: 24px !important;
   }
 
-  #dashboard-content > .grid > div,
   #reports-content .tab-content.active > .grid:first-child > div {
     border-left: 0 !important;
     border-top: 1px solid var(--tlp-line) !important;
     padding-top: 18px !important;
   }
 
-  #dashboard-content > .grid > div:first-child,
   #reports-content .tab-content.active > .grid:first-child > div:first-child {
     border-top: 0 !important;
     padding-top: 0 !important;
@@ -1269,7 +1028,6 @@ body > .login-container,
     padding: 18px 12px 32px !important;
   }
 
-  #dashboard-content > .grid,
   #reports-content .tab-content.active > .grid:first-child {
     padding: 18px !important;
   }
@@ -1294,117 +1052,6 @@ body > .login-container,
 }
 
 /* ---------------------------------------------------------------------------
-   Fluid shell + collapsible sidebar.
-
-   The shell used to be sized in fixed pixels tuned for one viewport, which is
-   why the app only looked right at a particular browser zoom. The sidebar and
-   the main gutters now scale with the viewport via clamp(), so 100% zoom works
-   across laptop and desktop widths without per-device zooming.
-   --------------------------------------------------------------------------- */
-
-:root {
-  /* Floor keeps labels readable, ceiling preserves the original design width. */
-  --tlp-sidebar: clamp(228px, 18vw, 306px);
-  --tlp-sidebar-collapsed: 78px;
-  --tlp-main-gutter: clamp(18px, 2.2vw, 40px);
-}
-
-body.sidebar-collapsed {
-  --tlp-sidebar: var(--tlp-sidebar-collapsed);
-}
-
-/* Armed by the sidebar partial one frame after load, so a restored collapsed
-   sidebar doesn't animate itself open on every page view. */
-body.sidebar-transitions .sidebar {
-  transition: width 0.28s ease, min-width 0.28s ease, max-width 0.28s ease;
-}
-
-body.sidebar-transitions .sidebar .sidebar-label,
-body.sidebar-transitions .sidebar-logo::after {
-  transition: opacity 0.18s ease;
-}
-
-.sidebar {
-  overflow: hidden;
-}
-
-.sidebar-collapse-toggle {
-  position: absolute;
-  top: 18px;
-  right: 14px;
-  z-index: 2;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border: 1px solid var(--tlp-line);
-  border-radius: 8px;
-  background: var(--tlp-card);
-  color: var(--tlp-muted);
-  cursor: pointer;
-  transition: background 0.18s ease, color 0.18s ease, transform 0.28s ease;
-}
-
-.sidebar-collapse-toggle:hover {
-  background: var(--tlp-surface-2);
-  color: var(--tlp-text);
-}
-
-.sidebar-collapse-toggle:focus-visible {
-  outline: 2px solid var(--tlp-input-border-focus);
-  outline-offset: 2px;
-}
-
-/* ---- Collapsed state: icons only ---- */
-
-body.sidebar-collapsed .sidebar-collapse-toggle {
-  right: 50%;
-  transform: translateX(50%) rotate(180deg);
-}
-
-body.sidebar-collapsed .sidebar > .flex:first-child {
-  padding: 64px 0 12px !important;
-  align-items: center !important;
-}
-
-body.sidebar-collapsed .sidebar > .flex.flex-col.flex-grow {
-  padding: 0 10px 18px !important;
-}
-
-body.sidebar-collapsed .sidebar-logo {
-  width: 34px !important;
-  margin: 0 0 22px !important;
-}
-
-body.sidebar-collapsed .sidebar-logo::after,
-body.sidebar-collapsed .sidebar .sidebar-label,
-body.sidebar-collapsed .sidebar-user-info,
-body.sidebar-collapsed .sidebar .env-badge,
-body.sidebar-collapsed .sidebar #theme-toggle-label {
-  opacity: 0;
-  visibility: hidden;
-  width: 0 !important;
-  height: 0;
-  overflow: hidden;
-  white-space: nowrap;
-}
-
-body.sidebar-collapsed .sidebar .sidebar-item {
-  justify-content: center !important;
-  padding-inline: 0 !important;
-}
-
-body.sidebar-collapsed .sidebar .sidebar-item i,
-body.sidebar-collapsed .sidebar .theme-toggle i {
-  margin-right: 0 !important;
-}
-
-body.sidebar-collapsed .sidebar .sidebar-item::after {
-  display: none !important;
-}
-
-/* ---------------------------------------------------------------------------
    Create Invoice layout.
 
    The page scrolls normally -- forcing everything into one viewport clipped
@@ -1425,10 +1072,9 @@ body.create-invoice-page #create-invoice-content > .mb-8 {
 }
 
 body.create-invoice-page #create-invoice-content > [id^="step-"] {
-  padding: 22px !important;
+  padding: 20px !important;
   overflow: visible;
 }
-
 
 /* ---------------------------------------------------------------------------
    Display density.
@@ -1446,108 +1092,31 @@ html {
   font-size: 13px;
 }
 
-:root {
-  --tlp-sidebar: clamp(196px, 15vw, 244px);
-  --tlp-sidebar-collapsed: 66px;
-  --tlp-main-gutter: clamp(14px, 1.7vw, 30px);
-}
-
 /* Sidebar chrome, rescaled to match the new density. */
-.sidebar > .flex:first-child {
-  padding: 24px 20px 12px !important;
-}
 
-.sidebar > .flex.flex-col.flex-grow {
-  padding: 0 20px 20px !important;
-}
-
-.sidebar-logo {
-  width: 168px !important;
-  height: 32px;
-  margin: 0 0 30px !important;
-}
-
-.sidebar-logo::before {
-  width: 26px;
-  height: 26px;
-}
-
-.sidebar-logo::after {
-  font-size: 20px;
-  left: 36px;
-  line-height: 26px;
-}
-
-.sidebar .sidebar-item {
-  font-size: 13px !important;
-  padding-block: 9px !important;
-}
-
-.sidebar .sidebar-item i {
-  width: 20px;
-}
-
-/* Page headings and cards: tighter, so more of the form is visible at once. */
-body.create-invoice-page #create-invoice-content > .flex:first-child h1 {
-  font-size: 22px !important;
-}
-
+/* Section headings inside a card. */
+main h2,
 body.create-invoice-page #create-invoice-content > [id^="step-"] > h2 {
   font-size: 17px !important;
   margin-bottom: 14px !important;
 }
 
-body.create-invoice-page label {
+main label,
+.fixed label {
   font-size: 12.5px !important;
   margin-bottom: 4px !important;
 }
 
-body.create-invoice-page .form-input,
-body.create-invoice-page select,
-body.create-invoice-page input[type="text"],
-body.create-invoice-page input[type="number"],
-body.create-invoice-page input[type="date"],
-body.create-invoice-page textarea {
+main .form-input,
+main select,
+main input:not([type="checkbox"]):not([type="radio"]),
+main textarea,
+.fixed .form-input,
+.fixed select,
+.fixed input:not([type="checkbox"]):not([type="radio"]),
+.fixed textarea {
   padding-block: 7px !important;
   font-size: 13px !important;
-}
-
-/* ---------------------------------------------------------------------------
-   Sidebar sizing corrections.
-
-   The first density pass cut the sidebar too far: the company name ellipsised,
-   the environment switcher clipped "Production" to "Produc", and
-   "Reports & Analytics" wrapped onto two lines. Environment is the single most
-   consequential thing on this screen -- it decides whether an invoice is a test
-   or a real filing -- so it has to be legible at a glance.
-   --------------------------------------------------------------------------- */
-
-:root {
-  --tlp-sidebar: clamp(238px, 16.5vw, 272px);
-}
-
-.sidebar .sidebar-item {
-  padding-inline: 12px !important;
-  white-space: nowrap;
-}
-
-.sidebar .sidebar-item i {
-  margin-right: 10px !important;
-  flex: 0 0 auto;
-}
-
-/* Company + environment block: full width of the rail, nothing clipped. */
-
-
-.sidebar .sidebar-company-name {
-  font-size: 12.5px;
-  letter-spacing: 0.02em;
-}
-
-.sidebar .sidebar-env-switcher {
-  padding: 6px 26px 6px 12px;
-  font-size: 12.5px;
-  text-overflow: ellipsis;
 }
 
 /* Step indicator: the row fits on its own -- the connecting lines already flex,
@@ -1573,45 +1142,4 @@ body.create-invoice-page textarea {
 #create-invoice-content {
   max-width: 1280px;
   margin-inline: auto;
-}
-
-/* ---------------------------------------------------------------------------
-   Sidebar footer: company, environment, theme and logout.
-
-   These sit in a block pinned to the bottom of the rail (margin-top:auto
-   above). They were indented inconsistently with each other, so their left
-   edges stepped in and out. Everything below shares one inset, matching the
-   nav items, so the icons and the switcher line up in a single column.
-   --------------------------------------------------------------------------- */
-
-.sidebar .px-4.py-4.text-center,
-.sidebar .px-2.mt-auto,
-.sidebar .px-2.text-center {
-  padding-inline: 0 !important;
-}
-
-.sidebar .px-4.py-4.text-center {
-  padding-bottom: 14px !important;
-}
-
-/* The account it belongs to reads as a heading for the block, so centre it. */
-.sidebar .sidebar-company-name {
-  text-align: center;
-  margin-bottom: 6px;
-}
-
-/* Logout is the one destructive action in the rail -- colour it accordingly
-   rather than leaving it indistinguishable from Dark mode. */
-.sidebar .sidebar-item[href="/logout"] {
-  background: var(--tlp-danger) !important;
-  color: var(--tlp-on-accent) !important;
-  margin-top: 8px;
-}
-
-.sidebar .sidebar-item[href="/logout"] i {
-  color: var(--tlp-on-accent) !important;
-}
-
-.sidebar .sidebar-item[href="/logout"]:hover {
-  background: var(--tlp-danger-hover) !important;
 }

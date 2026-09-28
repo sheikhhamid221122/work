@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Invoice Appearance - TaxLink Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/taxlinkpro-favicon.svg') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/taxlink-theme.css') }}">
+    <script>
+        // Applied before first paint so a dark-mode user never sees a light flash.
+        (function () {
+            try {
+                var t = localStorage.getItem("tlp-theme");
+                if (t === "dark" || t === "light") document.documentElement.setAttribute("data-theme", t);
+            } catch (e) { }
+        })();
+    </script>
+    <style>
+        .tpl-card { cursor: pointer; border: 1.5px solid var(--tlp-line); border-radius: 10px; }
+        .tpl-card:hover { border-color: var(--tlp-input-border-focus); }
+        .tpl-card.is-active { border-color: var(--tlp-purple); background: var(--tlp-surface-2); }
+        .tpl-card.is-active .tpl-tick { opacity: 1; }
+        .tpl-tick { opacity: 0; color: var(--tlp-purple); }
+        .swatch { width: 26px; height: 26px; border-radius: 999px; border: 2px solid transparent; cursor: pointer; }
+        .swatch.is-active { border-color: var(--tlp-text); }
+        /* A4 at 96dpi. The frame is always rendered at true page size and then
+           scaled to whatever room the panel has, so the preview is the real
+           layout at a smaller size rather than a narrower layout. */
+        .preview-frame { width: 794px; height: 1123px; border: 0; background: #fff;
+                         transform-origin: top left; display: block; }
+        .seg button { border: 1px solid var(--tlp-line); background: var(--tlp-card); }
+        .seg button.is-active { background: var(--tlp-purple); color: #fff; border-color: var(--tlp-purple); }
+
+        /* A drop zone rather than a bare file input: the whole point of this
+           feature is that the client already has the file sitting on their
+           desktop. */
+        .drop-zone { border: 1.5px dashed var(--tlp-line); border-radius: 8px; padding: 14px 10px;
+                     text-align: center; cursor: pointer; background: var(--tlp-card);
+                     transition: border-color .12s, background .12s; }
+        .drop-zone:hover { border-color: var(--tlp-purple); }
+        .drop-zone.is-over { border-color: var(--tlp-purple); background: var(--tlp-surface-2); }
+        .drop-zone.is-busy { opacity: .6; pointer-events: none; }
+
+        /* ---- Crop stage ----------------------------------------------------
+           The page image is shown at its natural aspect ratio and everything
+           below the cut line is dimmed, so the client is choosing on the
+           picture rather than on a number. */
+        .crop-stage { position: relative; display: inline-block; max-width: 100%; cursor: crosshair; user-select: none; }
+        .crop-stage img { display: block; max-width: 100%; height: auto; border: 1px solid var(--tlp-line); border-radius: 6px; }
+        .crop-drop { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(17, 24, 39, .55); pointer-events: none; border-radius: 0 0 6px 6px; }
+        .crop-line { position: absolute; left: 0; right: 0; height: 0; border-top: 2px dashed #7c3aed; pointer-events: none; }
+        .crop-tag { position: absolute; right: 4px; transform: translateY(-115%); background: #7c3aed; color: #fff;
+                    font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 999px; pointer-events: none; }
+    </style>
+</head>
+
+<body class="bg-gray-50 font-sans template-settings-page">
+    <div class="flex h-screen overflow-hidden">
+        {% with active_page = "templates" %}{% include "partials/sidebar.html" %}{% endwith %}
+
+        <div class="flex flex-col flex-1 min-w-0">
+            {% include 'partials/topbar.html' %}
+            <main class="flex-1 overflow-y-auto min-h-0 p-5 bg-gray-50">
+                <div id="templates-content" class="content-section">
+
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h1 class="text-xl font-bold text-gray-800">Invoice Appearance</h1>
+                            <p class="text-sm text-gray-500">Your letterhead and branding on every invoice. The FBR QR
+                                code, digital invoicing logo and FBR invoice number are always printed.</p>
+                        </div>
+                        <button id="save-btn"
+                            class="bg-primary-600 text-white text-sm font-semibold py-2 px-4 rounded-lg inline-flex items-center gap-2">
+                            <i class="fas fa-floppy-disk"></i> Save
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)] gap-4">
+
+                        <!-- ------------------------------------------------ options -->
+                        <div class="flex flex-col gap-4">
+
+                            <!-- ------------------------------------------ letterhead
+                                 First, because it is what clients actually ask for:
+                                 "use our own invoice format". -->
+                            <div class="bg-white rounded-xl shadow p-4">
+                                <h2 class="text-base font-semibold text-gray-800 mb-1">Your letterhead</h2>
+                                <p class="text-xs text-gray-500 mb-3">
+                                    Already print on paper with your letterhead? Turn this on and leave the
+                                    image empty &mdash; the invoice keeps that space blank so nothing prints
+                                    over it. The space is reserved on the first page only.
+                                </p>
+
+                                <label class="flex items-center gap-2 mb-3">
+                                    <input type="checkbox" id="lh-enabled" class="w-4 h-4">
+                                    <span class="text-sm text-gray-700">Reserve space for a letterhead</span>
+                                </label>
+
+                                <div id="lh-options" class="pl-1">
+
+                                    <!-- ---------------------------------- importer -->
+                                    <div class="border border-primary-200 bg-primary-50 rounded-lg p-3 mb-4">
+                                        <div class="flex items-start gap-2">
+                                            <i class="fas fa-file-import text-primary-600 mt-0.5"></i>
+                                            <div class="min-w-0 flex-1">
+                                                <div class="text-sm font-semibold text-gray-800">
+                                                    Use the invoice you already send
+                                                </div>
+                                                <p class="text-xs text-gray-600 mt-0.5 mb-2">
+                                                    Upload one of your existing invoices &mdash; PDF or a scan &mdash;
+                                                    and we will lift the letterhead off the top of it. Nothing below
+                                                    the line you choose is kept.
+                                                </p>
+                                                <div id="imp-dropzone" class="drop-zone">
+                                                    <i class="fas fa-cloud-arrow-up text-primary-500 text-lg"></i>
+                                                    <div class="text-sm font-medium text-gray-700 mt-1">
+                                                        Drop your invoice here, or click to choose
+                                                    </div>
+                                                    <div class="text-xs text-gray-500 mt-0.5">
+                                                        PDF, PNG, JPG or WebP &middot; up to 12MB
+                                                    </div>
+                                                    <input type="file" id="imp-file"
+                                                        accept=".pdf,.png,.jpg,.jpeg,.webp,application/pdf,image/*"
+                                                        class="hidden">
+                                                </div>
+                                                <div id="imp-status" class="text-xs mt-2"></div>
+                                            </div>
+                                        </div>
+
+                                        <!-- crop step -->
+                                        <div id="imp-crop" class="hidden mt-3 pt-3 border-t border-primary-200">
+                                            <p class="text-xs text-gray-600 mb-2">
+                                                Drag the slider (or click the page) so the line sits just below your
+                                                letterhead.
+                                            </p>
+                                            <div class="text-center">
+                                                <div class="crop-stage" id="imp-stage">
+                                                    <img id="imp-img" alt="Your uploaded invoice">
+                                                    <div class="crop-drop" id="imp-drop"></div>
+                                                    <div class="crop-line" id="imp-line">
+                                                        <span class="crop-tag" id="imp-tag"></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="flex items-center gap-3 mt-3">
+                                                <input type="range" id="imp-range" class="flex-1" step="1">
+                                                <input type="number" id="imp-mm"
+                                                    class="w-20 text-sm border border-gray-300 rounded-md px-2 py-1">
+                                                <span class="text-xs text-gray-500">mm</span>
+                                            </div>
+                                            <div class="flex items-center gap-2 mt-3">
+                                                <button type="button" id="imp-use"
+                                                    class="bg-primary-600 text-white text-xs font-semibold py-2 px-3 rounded-lg">
+                                                    <i class="fas fa-check mr-1"></i> Use this letterhead
+                                                </button>
+                                                <button type="button" id="imp-cancel"
+                                                    class="text-xs text-gray-600 hover:underline">Cancel</button>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <label class="block text-xs font-medium text-gray-500 mb-1">Top space (mm)</label>
+                                    <div class="flex items-center gap-3 mb-3">
+                                        <input type="range" id="lh-mm-range" min="10" max="200" step="5"
+                                            value="{{ default_letterhead_mm }}" class="flex-1">
+                                        <input type="number" id="lh-mm" min="10" max="200"
+                                            value="{{ default_letterhead_mm }}"
+                                            class="w-20 text-sm border border-gray-300 rounded-md px-2 py-1">
+                                    </div>
+                                    <p class="text-xs text-gray-500 mb-3">
+                                        {{ default_letterhead_mm }}mm suits most pre-printed letterheads. An imported
+                                        letterhead sets this for you.
+                                    </p>
+
+                                    <!-- What the letterhead makes redundant -->
+                                    <label class="block text-xs font-medium text-gray-500 mb-1">
+                                        Your details on the invoice</label>
+                                    <select id="seller-display"
+                                        class="w-full text-sm border border-gray-300 rounded-md px-2 py-1.5 mb-1">
+                                        <option value="auto">Decide for me</option>
+                                        {% for key, label in seller_displays %}
+                                            <option value="{{ key }}">{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <p class="text-xs text-gray-500 mb-4">
+                                        Your letterhead already shows your name and address, so by default
+                                        the invoice stops repeating them &mdash; but it keeps printing your
+                                        NTN and STRN, which a sales tax invoice needs and a letterhead
+                                        rarely carries.
+                                    </p>
+
+                                    <label class="block text-xs font-medium text-gray-500 mb-1">Or upload a letterhead
+                                        image directly</label>
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <input type="file" id="lh-file" accept=".png,.jpg,.jpeg,.webp"
+                                            class="text-sm">
+                                        <button type="button" id="lh-remove"
+                                            class="text-xs text-red-600 hover:underline hidden">Remove image</button>
+                                    </div>
+                                    <div id="lh-status" class="text-xs mt-2"></div>
+                                    <div id="lh-thumb-wrap" class="mt-2 hidden">
+                                        <img id="lh-thumb" alt="Letterhead preview"
+                                            class="max-h-24 border border-gray-200 rounded">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- ------------------------------------------- layout -->
+                            <div class="bg-white rounded-xl shadow p-4">
+                                <h2 class="text-base font-semibold text-gray-800 mb-1">Layout</h2>
+                                <p class="text-xs text-gray-500 mb-3">How the invoice below your letterhead is
+                                    arranged.</p>
+                                <div class="grid grid-cols-2 xl:grid-cols-3 gap-2" id="template-grid">
+                                    {% for layout in layouts %}
+                                        <div class="tpl-card p-3" data-template="{{ layout.id }}">
+                                            <div class="flex items-start justify-between gap-2">
+                                                <div class="font-semibold text-sm text-gray-800">{{ layout.name }}</div>
+                                                <i class="fas fa-circle-check tpl-tick"></i>
+                                            </div>
+                                            <div class="text-xs text-gray-500 mt-1 leading-snug">{{ layout.desc }}</div>
+                                        </div>
+                                    {% endfor %}
+                                    <div class="tpl-card p-3" data-template="custom">
+                                        <div class="flex items-start justify-between gap-2">
+                                            <div class="font-semibold text-sm text-gray-800">{{ settings.custom_name or "My Template" }}</div>
+                                            <i class="fas fa-circle-check tpl-tick"></i>
+                                        </div>
+                                        <div class="text-xs text-gray-500 mt-1 leading-snug">
+                                            The template you designed yourself
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- --------------------------------------- appearance -->
+                            <div class="bg-white rounded-xl shadow p-4">
+                                <h2 class="text-base font-semibold text-gray-800 mb-3">Colour &amp; type</h2>
+
+                                <label class="block text-xs font-medium text-gray-500 mb-2">Accent colour</label>
+                                <div class="flex flex-wrap items-center gap-2 mb-4" id="accent-row">
+                                    {% for name, hex in accents %}
+                                        <button type="button" class="swatch" data-accent="{{ hex }}"
+                                            title="{{ name }}" style="background: {{ hex }}"></button>
+                                    {% endfor %}
+                                    <input type="color" id="accent-custom" class="w-9 h-8 p-0 border-0 bg-transparent"
+                                        title="Custom colour">
+                                </div>
+
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-500 mb-2">Font</label>
+                                        <div class="seg flex flex-wrap gap-1" id="font-row">
+                                            {% for fid, fname in fonts %}
+                                                <button type="button" data-font="{{ fid }}"
+                                                    class="text-xs py-1.5 px-2.5 rounded-md">{{ fname }}</button>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-500 mb-2">Density</label>
+                                        <div class="seg flex flex-wrap gap-1" id="density-row">
+                                            {% for d in densities %}
+                                                <button type="button" data-density="{{ d }}"
+                                                    class="text-xs py-1.5 px-2.5 rounded-md capitalize">{{ d }}</button>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- The designer is a specialist tool, not the main road:
+                                 most clients want their letterhead on a standard
+                                 layout, not a layout of their own. -->
+                            <p class="text-xs text-gray-500 px-1">
+                                Need a layout none of the above gives you?
+                                <a href="/settings/template-builder"
+                                    class="text-primary-600 font-medium hover:underline">Open the template designer</a>.
+                            </p>
+                        </div>
+
+                        <!-- ------------------------------------------------ preview -->
+                        <div class="bg-white rounded-xl shadow p-3 flex flex-col" style="min-height: 70vh">
+                            <div class="flex items-center justify-between mb-2">
+                                <h2 class="text-base font-semibold text-gray-800">Preview</h2>
+                                <div class="flex items-center gap-2">
+                                    <span id="preview-state" class="text-xs text-gray-500"></span>
+                                    <button type="button" id="preview-pdf"
+                                        class="text-xs border border-gray-200 text-gray-700 py-1 px-2 rounded-md">
+                                        <i class="fas fa-file-pdf mr-1"></i> Check print PDF
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="preview-wrap" class="flex-1 min-h-0 bg-gray-100 rounded-lg overflow-auto p-2">
+                                <div id="preview-scaler" class="mx-auto">
+                                    <iframe id="preview" class="preview-frame" title="Template preview"></iframe>
+                                </div>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-2">
+                                Sample data &mdash; your real invoices use your own figures. This is a live
+                                view of one sheet; use <strong>Check print PDF</strong> to see pagination.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            const stored = {{ settings | tojson }};
+            const state = {
+                template: stored.template || "classic",
+                accent_color: stored.accent_color || "{{ accents[0][1] }}",
+                font: stored.font || "sans",
+                density: stored.density || "comfortable",
+                letterhead_enabled: !!stored.letterhead_enabled,
+                letterhead_mm: stored.letterhead_mm || {{ default_letterhead_mm }},
+                letterhead_url: stored.letterhead_image_url || null,
+                seller_display: stored.seller_display || "auto"
+            };
+
+            const $ = (sel) => document.querySelector(sel);
+            const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+            function paintSelection() {
+                $$("[data-template]").forEach(el =>
+                    el.classList.toggle("is-active", el.dataset.template === state.template));
+                $$("[data-accent]").forEach(el =>
+                    el.classList.toggle("is-active", el.dataset.accent.toLowerCase() === state.accent_color.toLowerCase()));
+                $$("[data-font]").forEach(el =>
+                    el.classList.toggle("is-active", el.dataset.font === state.font));
+                $$("[data-density]").forEach(el =>
+                    el.classList.toggle("is-active", el.dataset.density === state.density));
+                $("#accent-custom").value = state.accent_color;
+                $("#seller-display").value = state.seller_display;
+                $("#lh-enabled").checked = state.letterhead_enabled;
+                $("#lh-options").style.display = state.letterhead_enabled ? "" : "none";
+                $("#lh-mm").value = state.letterhead_mm;
+                $("#lh-mm-range").value = state.letterhead_mm;
+                if (state.letterhead_url) {
+                    $("#lh-thumb").src = state.letterhead_url;
+                    $("#lh-thumb-wrap").classList.remove("hidden");
+                    $("#lh-remove").classList.remove("hidden");
+                } else {
+                    $("#lh-thumb-wrap").classList.add("hidden");
+                    $("#lh-remove").classList.add("hidden");
+                }
+            }
+
+            // The preview is the real invoice template rendered straight into the
+            // frame -- same Jinja, same stylesheet, no PDF step -- so it comes
+            // back in milliseconds instead of seconds. The PDF is still one
+            // click away, and it is the one that proves pagination.
+            function previewQuery() {
+                return new URLSearchParams({
+                    template: state.template,
+                    accent_color: state.accent_color,
+                    font: state.font,
+                    density: state.density,
+                    letterhead_enabled: state.letterhead_enabled ? "1" : "0",
+                    letterhead_mm: state.letterhead_mm,
+                    seller_display: state.seller_display,
+                    _: Date.now()
+                });
+            }
+
+            // The frame renders at true A4 width and is scaled down to the panel,
+            // so what is on screen is the page, not a reflowed version of it.
+            const PAGE_PX = { w: 794, h: 1123 };
+            function fitPreview() {
+                const room = $("#preview-wrap").clientWidth - 16;
+                const scale = Math.min(1, Math.max(0.2, room / PAGE_PX.w));
+                $("#preview").style.transform = "scale(" + scale + ")";
+                $("#preview-scaler").style.width = (PAGE_PX.w * scale) + "px";
+                $("#preview-scaler").style.height = (PAGE_PX.h * scale) + "px";
+            }
+
+            let timer = null;
+            function refreshPreview() {
+                clearTimeout(timer);
+                $("#preview-state").textContent = "Updating...";
+                timer = setTimeout(() => {
+                    const q = previewQuery();
+                    q.set("format", "html");
+                    $("#preview").src = "/api/template-preview?" + q.toString();
+                }, 120);
+            }
+            $("#preview").addEventListener("load", () => {
+                $("#preview-state").textContent = "";
+                fitPreview();
+            });
+            window.addEventListener("resize", fitPreview);
+
+            $("#preview-pdf").addEventListener("click", () => {
+                window.open("/api/template-preview?" + previewQuery().toString(), "_blank");
+            });
+
+            function status(el, message, tone) {
+                const colours = { ok: "text-green-600", bad: "text-red-600", busy: "text-gray-500" };
+                el.textContent = message;
+                el.className = "text-xs mt-2 " + (colours[tone] || colours.busy);
+            }
+
+            // Server errors can carry diagnostics the message alone does not
+            // convey -- which column, which database. Dropping them sends the
+            // user back to the terminal to find out what the screen already knew.
+            function errorText(json, fallback) {
+                const parts = [json.error || fallback];
+                if (json.detail) parts.push(json.detail);
+                if (json.database) parts.push("Connected to: " + json.database);
+                return parts.join(" \u2014 ");
+            }
+
+            $("#template-grid").addEventListener("click", (e) => {
+                const card = e.target.closest("[data-template]");
+                if (!card) return;
+                state.template = card.dataset.template;
+                paintSelection(); refreshPreview();
+            });
+            $("#accent-row").addEventListener("click", (e) => {
+                const sw = e.target.closest("[data-accent]");
+                if (!sw) return;
+                state.accent_color = sw.dataset.accent;
+                paintSelection(); refreshPreview();
+            });
+            $("#accent-custom").addEventListener("change", (e) => {
+                state.accent_color = e.target.value;
+                paintSelection(); refreshPreview();
+            });
+            $("#font-row").addEventListener("click", (e) => {
+                const b = e.target.closest("[data-font]");
+                if (!b) return;
+                state.font = b.dataset.font; paintSelection(); refreshPreview();
+            });
+            $("#density-row").addEventListener("click", (e) => {
+                const b = e.target.closest("[data-density]");
+                if (!b) return;
+                state.density = b.dataset.density; paintSelection(); refreshPreview();
+            });
+            $("#seller-display").addEventListener("change", (e) => {
+                state.seller_display = e.target.value;
+                paintSelection(); refreshPreview();
+            });
+            $("#lh-enabled").addEventListener("change", (e) => {
+                state.letterhead_enabled = e.target.checked;
+                paintSelection(); refreshPreview();
+            });
+            function setMm(v) {
+                v = Math.max(10, Math.min(200, parseInt(v, 10) || {{ default_letterhead_mm }}));
+                state.letterhead_mm = v; paintSelection(); refreshPreview();
+            }
+            $("#lh-mm").addEventListener("change", (e) => setMm(e.target.value));
+            $("#lh-mm-range").addEventListener("input", (e) => setMm(e.target.value));
+
+            // ------------------------------------------------------ importer
+            // `imp` holds the rendered page between the two steps. `source` is
+            // the server-side filename; it is echoed back on commit and the
+            // server re-checks that it belongs to this client.
+            const imp = { source: null, pageH: 297, min: 10, max: 133, mm: 40 };
+
+            function paintCrop() {
+                const pct = Math.max(0, Math.min(100, imp.mm / imp.pageH * 100));
+                $("#imp-drop").style.top = pct + "%";
+                $("#imp-line").style.top = pct + "%";
+                $("#imp-tag").textContent = imp.mm + "mm";
+                $("#imp-range").value = imp.mm;
+                $("#imp-mm").value = imp.mm;
+            }
+
+            function setCropMm(value) {
+                const mm = Math.round(Number(value));
+                imp.mm = Math.max(imp.min, Math.min(imp.max, isFinite(mm) ? mm : imp.min));
+                paintCrop();
+            }
+
+            function closeCrop() {
+                $("#imp-crop").classList.add("hidden");
+                $("#imp-file").value = "";
+                imp.source = null;
+            }
+
+            // Drop, paste or click -- whichever the client reaches for first.
+            const dropZone = $("#imp-dropzone");
+            dropZone.addEventListener("click", () => $("#imp-file").click());
+            ["dragenter", "dragover"].forEach(name =>
+                dropZone.addEventListener(name, (e) => {
+                    e.preventDefault(); dropZone.classList.add("is-over");
+                }));
+            ["dragleave", "drop"].forEach(name =>
+                dropZone.addEventListener(name, (e) => {
+                    e.preventDefault(); dropZone.classList.remove("is-over");
+                }));
+            dropZone.addEventListener("drop", (e) => {
+                const file = e.dataTransfer && e.dataTransfer.files[0];
+                if (file) importInvoice(file);
+            });
+
+            $("#imp-file").addEventListener("change", (e) => {
+                if (e.target.files[0]) importInvoice(e.target.files[0]);
+            });
+
+            async function importInvoice(file) {
+                const body = new FormData(); body.append("file", file);
+                dropZone.classList.add("is-busy");
+                status($("#imp-status"), "Reading " + file.name + "...", "busy");
+                $("#imp-crop").classList.add("hidden");
+                try {
+                    const res = await fetch("/api/letterhead/import", { method: "POST", body });
+                    const json = await res.json();
+                    if (!res.ok) throw new Error(errorText(json, "Could not read that file"));
+
+                    imp.source = json.source;
+                    imp.pageH = json.page_h_mm;
+                    imp.min = json.min_mm;
+                    imp.max = json.max_mm;
+                    $("#imp-range").min = imp.min;
+                    $("#imp-range").max = imp.max;
+                    $("#imp-mm").min = imp.min;
+                    $("#imp-mm").max = imp.max;
+                    $("#imp-img").src = json.source_url;
+                    setCropMm(json.suggested_mm);
+                    $("#imp-crop").classList.remove("hidden");
+                    status($("#imp-status"), json.detected
+                        ? "Found your letterhead. Check the line below."
+                        : "We could not find a letterhead automatically — set the line yourself.",
+                        json.detected ? "ok" : "busy");
+                } catch (err) {
+                    status($("#imp-status"), err.message, "bad");
+                } finally {
+                    dropZone.classList.remove("is-busy");
+                }
+            }
+
+            $("#imp-range").addEventListener("input", (e) => setCropMm(e.target.value));
+            $("#imp-mm").addEventListener("change", (e) => setCropMm(e.target.value));
+
+            // Clicking the page is the fastest way to place the line; the
+            // slider is there for the last millimetre.
+            $("#imp-stage").addEventListener("click", (e) => {
+                const box = $("#imp-img").getBoundingClientRect();
+                if (!box.height) return;
+                setCropMm((e.clientY - box.top) / box.height * imp.pageH);
+            });
+
+            $("#imp-cancel").addEventListener("click", () => {
+                closeCrop();
+                status($("#imp-status"), "", "busy");
+            });
+
+            $("#imp-use").addEventListener("click", async () => {
+                if (!imp.source) return;
+                const btn = $("#imp-use");
+                btn.disabled = true;
+                status($("#imp-status"), "Saving your letterhead...", "busy");
+                try {
+                    const res = await fetch("/api/letterhead/import/commit", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ source: imp.source, mm: imp.mm })
+                    });
+                    const json = await res.json();
+                    if (!res.ok) throw new Error(errorText(json, "Could not save"));
+
+                    // The commit already wrote these to the database. Mirroring
+                    // them into `state` keeps a later Save from posting the old
+                    // reservation back over the imported one.
+                    state.letterhead_url = json.url;
+                    state.letterhead_mm = json.mm;
+                    state.letterhead_enabled = true;
+                    closeCrop();
+                    status($("#imp-status"), "Letterhead imported.", "ok");
+                    status($("#lh-status"), "", "busy");
+                    paintSelection(); refreshPreview();
+                } catch (err) {
+                    status($("#imp-status"), err.message, "bad");
+                } finally {
+                    btn.disabled = false;
+                }
+            });
+
+            // ------------------------------------------- direct image upload
+            $("#lh-file").addEventListener("change", async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const body = new FormData(); body.append("file", file);
+                status($("#lh-status"), "Uploading...", "busy");
+                try {
+                    const res = await fetch("/api/letterhead", { method: "POST", body });
+                    const json = await res.json();
+                    if (!res.ok) throw new Error(errorText(json, "Upload failed"));
+                    state.letterhead_url = json.url;
+                    status($("#lh-status"), "Letterhead uploaded.", "ok");
+                    paintSelection(); refreshPreview();
+                } catch (err) {
+                    status($("#lh-status"), err.message, "bad");
+                }
+            });
+
+            $("#lh-remove").addEventListener("click", async () => {
+                await fetch("/api/letterhead", { method: "DELETE" });
+                state.letterhead_url = null;
+                $("#lh-file").value = "";
+                status($("#lh-status"), "Image removed. The space stays reserved.", "busy");
+                paintSelection(); refreshPreview();
+            });
+
+            $("#save-btn").addEventListener("click", async () => {
+                const btn = $("#save-btn");
+                btn.disabled = true;
+                const original = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving';
+                try {
+                    const res = await fetch("/api/template-settings", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(state)
+                    });
+                    const json = await res.json();
+                    if (!res.ok) throw new Error(errorText(json, "Could not save"));
+                    btn.innerHTML = '<i class="fas fa-check"></i> Saved';
+                } catch (err) {
+                    btn.innerHTML = '<i class="fas fa-triangle-exclamation"></i> ' + err.message;
+                } finally {
+                    setTimeout(() => { btn.innerHTML = original; btn.disabled = false; }, 1800);
+                }
+            });
+
+            paintSelection();
+            fitPreview();
+            refreshPreview();
+        })();
+    </script>
+</body>
+
+</html>

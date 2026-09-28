@@ -1,0 +1,435 @@
+/* ---------------------------------------------------------------------------
+   Reports & Analytics -- tabs, chart cards and the date-range control.
+   Builds on master-data.css (header, metric tiles, cards, table, dialogs).
+   --------------------------------------------------------------------------- */
+
+.rp-range {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.rp-select-wrap {
+  position: relative;
+}
+
+.rp-select-wrap > i {
+  position: absolute;
+  top: 50%;
+  left: 11px;
+  transform: translateY(-50%);
+  color: var(--tlp-muted-2);
+  font-size: 12px;
+  pointer-events: none;
+}
+
+main .rp-range select.md-select {
+  width: 176px;
+  height: 34px;
+  min-height: 34px;
+  padding-left: 32px !important;
+  border-radius: 8px !important;
+  font-size: 13px !important;
+}
+
+.rp-custom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rp-custom[hidden] {
+  display: none;
+}
+
+main .rp-custom input[type="date"] {
+  width: 148px;
+  height: 34px;
+  min-height: 34px;
+  padding: 0 10px !important;
+  border-radius: 8px !important;
+  font-size: 13px !important;
+}
+
+.rp-custom span {
+  color: var(--tlp-muted-2);
+  font-size: 12px;
+}
+
+.rp-context {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: -8px 0 16px;
+  color: var(--tlp-muted-2);
+  font-size: 12px;
+}
+
+.rp-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--tlp-green-tint);
+  color: var(--tlp-green-text);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.rp-pill::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Tabs: a muted track with the active tab raised, as in the prototype. */
+.rp-tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin-bottom: 18px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--tlp-surface-2);
+  border: 1px solid var(--tlp-line);
+}
+
+.rp-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  min-height: 32px !important;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 7px !important;
+  background: transparent;
+  color: var(--tlp-muted);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.rp-tab i {
+  font-size: 12px;
+}
+
+.rp-tab:hover {
+  color: var(--tlp-text);
+}
+
+.rp-tab.is-active {
+  background: var(--tlp-card);
+  color: var(--tlp-heading);
+  box-shadow: var(--tlp-shadow-card);
+}
+
+.rp-tab:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--tlp-focus-ring) !important;
+}
+
+.rp-panel[hidden] {
+  display: none;
+}
+
+.rp-panel {
+  animation: rp-in 0.2s ease-out;
+}
+
+@keyframes rp-in {
+  from { opacity: 0; transform: translateY(4px); }
+}
+
+.rp-grid {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.rp-grid-3 {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+
+.rp-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.rp-chart-card {
+  padding: 18px 20px 20px;
+}
+
+.rp-chart-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.rp-chart-title {
+  color: var(--tlp-heading);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.rp-chart-sub {
+  margin-top: 1px;
+  color: var(--tlp-muted-2);
+  font-size: 12px;
+}
+
+.rp-chart {
+  position: relative;
+  height: 280px;
+}
+
+.rp-chart-tall {
+  height: 340px;
+}
+
+.rp-chart-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20px;
+  color: var(--tlp-muted-2);
+  font-size: 12.5px;
+  text-align: center;
+}
+
+.rp-chart-empty[hidden] {
+  display: none;
+}
+
+.rp-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.rp-trend.up { background: var(--tlp-green-tint); color: var(--tlp-green-text); }
+.rp-trend.down { background: var(--tlp-red-tint); color: var(--tlp-red); }
+.rp-trend.flat { background: var(--tlp-surface-2); color: var(--tlp-muted-2); }
+
+.rp-trend[hidden] {
+  display: none;
+}
+
+.md-metric-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.md-metric-row .md-metric-value {
+  min-width: 0;
+}
+
+/* Filters row above a table. */
+.rp-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--tlp-line);
+}
+
+.rp-filters .md-field {
+  flex: 1 1 180px;
+  max-width: 260px;
+}
+
+.rp-filters .md-field + .md-field {
+  margin-top: 0;
+}
+
+.rp-filters label {
+  color: var(--tlp-muted-2) !important;
+  font-size: 11.5px !important;
+  font-weight: 500;
+  margin-bottom: 0 !important;
+}
+
+main .rp-filters input {
+  height: 34px;
+  min-height: 34px;
+  padding: 0 10px !important;
+  border-radius: 8px !important;
+  font-size: 13px !important;
+}
+
+.rp-filters-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.rp-selected {
+  color: var(--tlp-purple);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+main .md-table th[data-sort] {
+  cursor: pointer;
+  user-select: none;
+}
+
+main .md-table th[data-sort]:hover {
+  color: var(--tlp-text) !important;
+}
+
+main .md-table th[data-sort] i {
+  margin-left: 4px;
+  font-size: 10px;
+  opacity: 0.5;
+}
+
+main .md-table th.sort-asc i,
+main .md-table th.sort-desc i {
+  opacity: 1;
+  color: var(--tlp-purple);
+}
+
+.rp-dist {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 16px;
+}
+
+.rp-dist-card {
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--tlp-line);
+  border-radius: 10px;
+  background: var(--tlp-surface-2);
+}
+
+.rp-dist-card h4 {
+  margin: 0 0 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--tlp-heading) !important;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.rp-dist-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 5px 0;
+  border-top: 1px solid var(--tlp-line);
+  font-size: 12.5px;
+}
+
+.rp-dist-row span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--tlp-muted);
+}
+
+.rp-dist-row span:last-child {
+  color: var(--tlp-heading);
+  font-weight: 500;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.rp-loading-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 95;
+  height: 2px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.rp-loading-bar[hidden] {
+  display: none;
+}
+
+.rp-loading-bar::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -40%;
+  width: 40%;
+  height: 100%;
+  background: var(--tlp-purple);
+  animation: rp-load 1s ease-in-out infinite;
+}
+
+@keyframes rp-load {
+  to { left: 100%; }
+}
+
+/* Dialog contents written by the summary / details renderers. */
+.rp-dialog-wide {
+  width: min(1100px, calc(100vw - 24px));
+}
+
+.rp-dialog-body-table table {
+  width: 100%;
+}
+
+@media (max-width: 1180px) {
+  .rp-grid-3,
+  .rp-grid-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rp-dist {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .rp-dist {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rp-filters .md-field {
+    max-width: none;
+  }
+}
+
+@media print {
+  .no-print,
+  .tl-topbar,
+  .tl-sidebar,
+  .rp-tabs,
+  .md-actions {
+    display: none !important;
+  }
+
+  body > .flex.h-screen,
+  body > .flex.h-screen > .flex.flex-col.flex-1,
+  main {
+    height: auto !important;
+    overflow: visible !important;
+  }
+}

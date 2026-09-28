@@ -1,0 +1,996 @@
+/* ---------------------------------------------------------------------------
+   Create Invoice -- layout and components from the redesign prototype.
+
+   Restyles the existing wizard markup (ids and behaviour unchanged) and adds
+   the pieces create-invoice-ux.js drives: the live summary rail, business
+   profile cards, the searchable buyer / product pickers, the advanced tax
+   fields section and the "save this new buyer / product?" prompt.
+   Colours are --tlp-* tokens only, so dark mode needs nothing extra.
+   --------------------------------------------------------------------------- */
+
+/* ---- Two columns: wizard + live summary --------------------------------- */
+
+#create-invoice-content {
+  max-width: 1440px !important;
+}
+
+.ci-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 20px;
+  align-items: start;
+}
+
+.ci-main {
+  min-width: 0;
+}
+
+/* Step panels become cards. */
+.ci-main > [id^="step-"] {
+  padding: 24px !important;
+  border: 1px solid var(--tlp-line) !important;
+  border-radius: 12px !important;
+  background: var(--tlp-card) !important;
+  box-shadow: var(--tlp-shadow-card) !important;
+}
+
+.ci-main > [id^="step-"] > h2 {
+  margin-bottom: 2px !important;
+  color: var(--tlp-heading) !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+}
+
+.ci-step-desc {
+  margin: 0 0 18px;
+  color: var(--tlp-muted);
+  font-size: 13px;
+}
+
+/* ---- Stepper ------------------------------------------------------------- */
+
+.ci-stepper {
+  margin-bottom: 16px !important;
+  padding: 14px 20px 12px;
+  border: 1px solid var(--tlp-line);
+  border-radius: 12px;
+  background: var(--tlp-card);
+  box-shadow: var(--tlp-shadow-card);
+}
+
+.ci-stepper > .flex {
+  align-items: flex-start !important;
+}
+
+.ci-stepper [id$="-indicator"] {
+  position: relative;
+  width: 30px !important;
+  height: 30px !important;
+  border: 1px solid var(--tlp-line-strong);
+  font-size: 12px;
+  font-weight: 600;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.ci-stepper .step-inactive {
+  background: var(--tlp-surface-2) !important;
+  color: var(--tlp-muted-2) !important;
+}
+
+.ci-stepper .step-active {
+  border-color: var(--tlp-purple);
+  background: var(--tlp-purple) !important;
+  color: var(--tlp-on-accent) !important;
+  box-shadow: 0 0 0 4px var(--tlp-purple-soft);
+}
+
+/* A finished step shows a tick instead of its number. */
+.ci-stepper .step-completed {
+  border-color: var(--tlp-green);
+  background: var(--tlp-green) !important;
+  color: transparent !important;
+}
+
+.ci-stepper .step-completed::before {
+  content: "\f00c";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-family: "Font Awesome 6 Free";
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.ci-stepper .step-completed:hover {
+  box-shadow: 0 0 0 4px var(--tlp-green-tint);
+}
+
+.ci-stepper [id$="-indicator"] + div {
+  margin-top: 6px !important;
+  color: var(--tlp-muted-2);
+  font-size: 12px !important;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.ci-stepper .step-active + div {
+  color: var(--tlp-purple);
+  font-weight: 600;
+}
+
+.ci-stepper .step-completed + div {
+  color: var(--tlp-text);
+}
+
+.ci-stepper .step-line {
+  flex: 1 1 auto;
+  height: 2px;
+  margin: 14px 10px 0 !important;
+  border-radius: 2px;
+  background: var(--tlp-line);
+}
+
+/* ---- Buttons ------------------------------------------------------------- */
+
+/* The wizard's purple "secondary" buttons predate the brand colour; they read
+   as outline buttons now, like the prototype's secondary actions. */
+.ci-main .bg-secondary-600,
+.ci-main #open-manage-bp {
+  border: 1px solid var(--tlp-line-strong) !important;
+  background: var(--tlp-card) !important;
+  color: var(--tlp-text) !important;
+}
+
+.ci-main .bg-secondary-600:hover,
+.ci-main #open-manage-bp:hover {
+  background: var(--tlp-surface-2) !important;
+}
+
+#submit-invoice-btn {
+  background: var(--tlp-purple) !important;
+  color: var(--tlp-on-accent) !important;
+}
+
+#submit-invoice-btn:hover {
+  background: var(--tlp-purple-hover) !important;
+}
+
+.ci-main button.bg-primary-600,
+.ci-main #step-5 button {
+  border-radius: 8px !important;
+}
+
+.ci-icon-btn {
+  display: inline-flex;
+  flex: 0 0 38px;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  min-height: 38px !important;
+  margin-left: 8px;
+  border: 1px solid var(--tlp-line-strong);
+  border-radius: 8px !important;
+  background: var(--tlp-card);
+  color: var(--tlp-text);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.ci-icon-btn:hover {
+  background: var(--tlp-surface-2);
+}
+
+.ci-icon-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--tlp-focus-ring) !important;
+}
+
+/* The native select stays in the page for the existing code; only the
+   searchable picker in front of it is visible. */
+.ci-native-select {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---- Searchable picker --------------------------------------------------- */
+
+.ci-combo {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ci-combo-icon {
+  position: absolute;
+  top: 50%;
+  left: 13px;
+  z-index: 1;
+  transform: translateY(-50%);
+  color: var(--tlp-muted-2);
+  font-size: 13px;
+  pointer-events: none;
+}
+
+main input.ci-combo-input {
+  width: 100%;
+  height: 38px;
+  padding: 0 36px 0 38px !important;
+  border-radius: 8px !important;
+  font-size: 13.5px !important;
+}
+
+.ci-combo-clear {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  min-height: 24px !important;
+  border: 0;
+  border-radius: 6px !important;
+  background: transparent;
+  color: var(--tlp-muted-2);
+  cursor: pointer;
+}
+
+.ci-combo-clear:hover {
+  background: var(--tlp-surface-2);
+  color: var(--tlp-text);
+}
+
+.ci-combo-clear[hidden] {
+  display: none;
+}
+
+.ci-combo-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  max-height: 340px;
+  overflow-y: auto;
+  padding: 5px;
+  border: 1px solid var(--tlp-line);
+  border-radius: 10px;
+  background: var(--tlp-card);
+  box-shadow: var(--tlp-shadow-raised);
+}
+
+.ci-combo-list[hidden] {
+  display: none;
+}
+
+.ci-combo-group {
+  padding: 7px 9px 4px;
+  color: var(--tlp-muted-2);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.ci-combo-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 0 !important;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 7px !important;
+  background: transparent;
+  color: var(--tlp-text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.ci-combo-item:hover,
+.ci-combo-item.is-active {
+  background: var(--tlp-surface-2);
+}
+
+.ci-combo-item.is-current .ci-combo-name::after {
+  content: "\f00c";
+  margin-left: 6px;
+  color: var(--tlp-purple);
+  font-family: "Font Awesome 6 Free";
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.ci-combo-avatar {
+  display: inline-flex;
+  flex: 0 0 30px;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  background: var(--tlp-purple-soft);
+  color: var(--tlp-purple);
+  font-size: 12px;
+}
+
+.ci-combo-main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ci-combo-name,
+.ci-combo-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ci-combo-name {
+  color: var(--tlp-heading);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.ci-combo-meta {
+  color: var(--tlp-muted-2);
+  font-size: 11.5px;
+}
+
+.ci-combo-side {
+  flex: 0 0 auto;
+  color: var(--tlp-text);
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.ci-combo-item mark {
+  padding: 0 1px;
+  border-radius: 2px;
+  background: var(--tlp-amber-tint);
+  color: inherit;
+}
+
+.ci-combo-new {
+  margin-top: 4px;
+  border-top: 1px solid var(--tlp-line);
+  padding-top: 4px;
+}
+
+.ci-combo-new .ci-combo-avatar {
+  background: var(--tlp-green-tint);
+  color: var(--tlp-green-text);
+}
+
+.ci-combo-empty {
+  padding: 12px 10px;
+  color: var(--tlp-muted-2);
+  font-size: 12.5px;
+}
+
+/* ---- Business profile cards ---------------------------------------------- */
+
+.ci-profile-cards {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.ci-profile-cards[hidden] {
+  display: none;
+}
+
+.ci-profile-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0 !important;
+  padding: 14px 16px;
+  border: 1px solid var(--tlp-line) !important;
+  border-radius: 10px !important;
+  background: var(--tlp-card);
+  color: var(--tlp-text);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ci-profile-card:hover {
+  background: var(--tlp-surface-2);
+}
+
+.ci-profile-card.is-selected {
+  border-color: var(--tlp-purple) !important;
+  background: var(--tlp-purple-soft);
+  box-shadow: 0 0 0 1px var(--tlp-purple);
+}
+
+.ci-profile-card:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--tlp-focus-ring) !important;
+}
+
+.ci-profile-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ci-profile-name {
+  color: var(--tlp-heading);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.ci-profile-badge {
+  flex: 0 0 auto;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--tlp-purple-soft);
+  color: var(--tlp-purple);
+  font-size: 10.5px;
+  font-weight: 500;
+}
+
+.ci-profile-addr {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--tlp-muted-2);
+  font-size: 12px;
+}
+
+.ci-profile-ids {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 8px;
+  font-size: 12px;
+}
+
+.ci-profile-ids span {
+  color: var(--tlp-muted-2);
+}
+
+.ci-profile-ids b {
+  color: var(--tlp-heading);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.ci-profile-add {
+  align-items: center;
+  justify-content: center;
+  border-style: dashed !important;
+  border-width: 1.5px !important;
+  border-color: var(--tlp-line-strong) !important;
+  color: var(--tlp-muted);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.ci-profile-add:hover {
+  border-color: var(--tlp-purple) !important;
+  background: transparent;
+  color: var(--tlp-purple);
+}
+
+.ci-profile-add i {
+  margin-bottom: 4px;
+  font-size: 16px;
+}
+
+/* ---- Advanced tax fields ------------------------------------------------- */
+
+.ci-advanced {
+  margin-top: 14px;
+  border: 1px solid var(--tlp-line);
+  border-radius: 10px;
+  background: var(--tlp-card);
+}
+
+.ci-advanced > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  padding: 11px 14px;
+  color: var(--tlp-purple);
+  font-size: 13px;
+  font-weight: 500;
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ci-advanced > summary::-webkit-details-marker {
+  display: none;
+}
+
+.ci-advanced-caret {
+  font-size: 10px;
+  transition: transform 0.15s ease;
+}
+
+.ci-advanced[open] .ci-advanced-caret {
+  transform: rotate(90deg);
+}
+
+.ci-advanced-sub {
+  color: var(--tlp-muted-2);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.ci-advanced-badge {
+  margin-left: auto;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--tlp-purple-soft);
+  color: var(--tlp-purple);
+  font-size: 11px;
+}
+
+.ci-advanced-badge[hidden] {
+  display: none;
+}
+
+.ci-advanced-body {
+  padding: 2px 14px 14px;
+  border-top: 1px solid var(--tlp-line);
+}
+
+/* "New products: saved automatically · Change" */
+.ci-pref {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 10px 0 0;
+  color: var(--tlp-muted-2);
+  font-size: 12px;
+}
+
+.ci-pref[hidden] {
+  display: none;
+}
+
+.ci-pref button {
+  min-height: 0 !important;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--tlp-purple);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ci-pref button:hover {
+  text-decoration: underline;
+}
+
+/* ---- Review step --------------------------------------------------------- */
+
+#step-5 .bg-gray-50.p-4.rounded-md {
+  border: 1px solid var(--tlp-line);
+  border-radius: 10px !important;
+  background: var(--tlp-surface-2) !important;
+}
+
+#step-5 .bg-gray-50.p-4.rounded-md h3 {
+  margin-bottom: 8px !important;
+  color: var(--tlp-muted-2) !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+#step-5 .bg-gray-50.p-4.rounded-md p {
+  margin: 3px 0;
+}
+
+#step-5 .text-primary-700 {
+  color: var(--tlp-purple) !important;
+}
+
+/* The product-code column only exists for a few clients; without it the
+   first row of the item form would leave an empty fourth column. */
+#step-4 .grid.md\:grid-cols-4:has(> #product-code-wrapper.hidden) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+/* Profile cards carry their own "Add or manage" card. */
+.ci-profile-cards:not([hidden]) ~ #seller-form #open-manage-bp {
+  display: none !important;
+}
+
+.ci-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 12px 14px;
+  border: 1px solid rgba(217, 138, 4, 0.3);
+  border-radius: 10px;
+  background: var(--tlp-amber-tint);
+  color: var(--tlp-amber-text);
+  font-size: 13px;
+}
+
+.ci-warning i {
+  margin-top: 2px;
+}
+
+/* ---- Live summary rail --------------------------------------------------- */
+
+.ci-summary {
+  position: sticky;
+  top: 4px;
+  border: 1px solid var(--tlp-line);
+  border-radius: 12px;
+  background: var(--tlp-card);
+  box-shadow: var(--tlp-shadow-card);
+}
+
+.ci-summary-head {
+  padding: 16px 20px 14px;
+  border-bottom: 1px solid var(--tlp-line);
+}
+
+.ci-summary-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--tlp-muted-2);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ci-summary-top i {
+  color: var(--tlp-purple);
+}
+
+.ci-summary-total {
+  margin-top: 8px;
+  color: var(--tlp-heading);
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.ci-summary-sub {
+  margin-top: 2px;
+  color: var(--tlp-muted-2);
+  font-size: 12px;
+}
+
+.ci-summary-body {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 16px 20px;
+}
+
+.ci-summary-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.ci-summary-row > span:first-child {
+  flex: 0 0 auto;
+  color: var(--tlp-muted-2);
+  font-size: 12px;
+}
+
+.ci-summary-row > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--tlp-text);
+  text-align: right;
+}
+
+.ci-summary-row .mono {
+  font-variant-numeric: tabular-nums;
+}
+
+.ci-summary-sep {
+  height: 1px;
+  background: var(--tlp-line);
+}
+
+.ci-summary-grand {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--tlp-heading);
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.ci-summary-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 12px 14px;
+  border-top: 1px solid var(--tlp-line);
+}
+
+.ci-summary-step {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 0 !important;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 7px !important;
+  background: transparent;
+  color: var(--tlp-muted-2);
+  font-size: 12.5px;
+  text-align: left;
+}
+
+.ci-summary-step i {
+  width: 14px;
+  text-align: center;
+}
+
+.ci-summary-step.is-done {
+  color: var(--tlp-text);
+  cursor: pointer;
+}
+
+.ci-summary-step.is-done i {
+  color: var(--tlp-green-text);
+}
+
+.ci-summary-step.is-done:hover {
+  background: var(--tlp-surface-2);
+}
+
+.ci-summary-step.is-current {
+  background: var(--tlp-purple-soft);
+  color: var(--tlp-purple);
+  font-weight: 500;
+}
+
+/* ---- Save-new prompt ----------------------------------------------------- */
+
+.ci-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 88;
+  background: var(--tlp-overlay);
+}
+
+.ci-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 89;
+  width: min(480px, calc(100vw - 24px));
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  transform: translate(-50%, -50%);
+  border: 1px solid var(--tlp-line);
+  border-radius: 12px;
+  background: var(--tlp-card);
+  box-shadow: var(--tlp-shadow-raised);
+  color: var(--tlp-text);
+}
+
+.ci-dialog-body {
+  padding: 22px 22px 6px;
+}
+
+.ci-dialog-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  margin-bottom: 12px;
+  border-radius: 50%;
+  background: var(--tlp-green-tint);
+  color: var(--tlp-green-text);
+}
+
+.ci-dialog h3 {
+  margin: 0 0 4px;
+  color: var(--tlp-heading) !important;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.ci-dialog p {
+  margin: 0 0 12px;
+  color: var(--tlp-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.ci-dialog-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+  margin-bottom: 12px;
+}
+
+.ci-dialog-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--tlp-line);
+  border-radius: 8px;
+  background: var(--tlp-surface-2);
+  cursor: pointer;
+}
+
+.ci-dialog-item input {
+  margin-top: 3px;
+  accent-color: var(--tlp-purple);
+}
+
+.ci-dialog-item .t {
+  color: var(--tlp-heading);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.ci-dialog-item .d {
+  color: var(--tlp-muted-2);
+  font-size: 12px;
+}
+
+.ci-dialog-never {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 6px;
+  color: var(--tlp-muted);
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.ci-dialog-never input {
+  accent-color: var(--tlp-purple);
+}
+
+.ci-dialog-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 22px 18px;
+}
+
+.ci-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ci-btn-primary {
+  background: var(--tlp-purple);
+  color: var(--tlp-on-accent);
+}
+
+.ci-btn-primary:hover {
+  background: var(--tlp-purple-hover);
+}
+
+.ci-btn-outline {
+  border-color: var(--tlp-line-strong);
+  background: var(--tlp-card);
+  color: var(--tlp-text);
+}
+
+.ci-btn-outline:hover {
+  background: var(--tlp-surface-2);
+}
+
+.ci-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--tlp-focus-ring);
+}
+
+/* ---- Responsive ---------------------------------------------------------- */
+
+@media (max-width: 1180px) {
+  .ci-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+
+  .ci-summary {
+    position: static;
+  }
+
+  .ci-summary-steps {
+    display: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .ci-profile-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ci-stepper [id$="-indicator"] + div {
+    display: none;
+  }
+
+  .ci-main > [id^="step-"] {
+    padding: 16px !important;
+  }
+}
+
+/* "Use as my default" beside the Scenario ID label. */
+.ci-label-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2px 12px;
+}
+
+.ci-default-toggle {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px !important;
+  color: var(--tlp-muted) !important;
+  font-size: 12.5px !important;
+  font-weight: 400 !important;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ci-default-toggle input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--tlp-purple);
+  cursor: pointer;
+}
+
+.ci-default-toggle b {
+  color: var(--tlp-heading);
+  font-weight: 600;
+}
