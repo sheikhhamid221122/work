@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    {% include 'partials/head-common.html' %}
+    <title>Buyers — TaxLink Pro</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/master-data.css') }}">
+</head>
+
+<body class="font-sans">
+    <div class="flex h-screen overflow-hidden">
+        {% include 'partials/sidebar.html' %}
+
+        <div class="flex flex-col flex-1 overflow-hidden">
+            {% include 'partials/topbar.html' %}
+            <main class="flex-1 overflow-y-auto min-h-0">
+                <div class="md-page" id="buyers-content">
+                    <div class="md-header">
+                        <div>
+                            <h1>Buyers</h1>
+                            <p>Master directory of buyers used across all invoices.</p>
+                        </div>
+                        <div class="md-actions">
+                            <button type="button" class="md-btn md-btn-outline" id="btn-import"><i class="fas fa-upload"></i> Import</button>
+                            <button type="button" class="md-btn md-btn-primary" id="btn-new"><i class="fas fa-plus"></i> New buyer</button>
+                        </div>
+                    </div>
+
+                    <div class="md-metrics">
+                        <div class="md-card md-metric">
+                            <div class="md-metric-top"><span class="md-metric-label">Total buyers</span><span class="md-metric-icon"><i class="fas fa-users"></i></span></div>
+                            <div class="md-metric-value" id="m-total">–</div>
+                            <div class="md-metric-hint">In your buyer list</div>
+                        </div>
+                        <div class="md-card md-metric">
+                            <div class="md-metric-top"><span class="md-metric-label">Registered</span><span class="md-metric-icon"><i class="fas fa-id-card"></i></span></div>
+                            <div class="md-metric-value" id="m-registered">–</div>
+                            <div class="md-metric-hint" id="m-registered-hint">Registered with FBR</div>
+                        </div>
+                        <div class="md-card md-metric">
+                            <div class="md-metric-top"><span class="md-metric-label">Total revenue</span><span class="md-metric-icon"><i class="fas fa-arrow-trend-up"></i></span></div>
+                            <div class="md-metric-value" id="m-revenue">–</div>
+                            <div class="md-metric-hint">Submitted invoices · {{ 'Production' if session.get('env') == 'production' else 'Sandbox' }}</div>
+                        </div>
+                        <div class="md-card md-metric">
+                            <div class="md-metric-top"><span class="md-metric-label">Active this month</span><span class="md-metric-icon"><i class="fas fa-calendar-check"></i></span></div>
+                            <div class="md-metric-value" id="m-active">–</div>
+                            <div class="md-metric-hint">Buyers invoiced this month</div>
+                        </div>
+                    </div>
+
+                    <section class="md-card">
+                        <div class="md-toolbar">
+                            <div class="md-search">
+                                <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+                                <input type="text" id="search" placeholder="Search by name, code, NTN/CNIC, STRN…" autocomplete="off" value="{{ query }}" aria-label="Search buyers">
+                                <button type="button" class="md-search-clear" id="search-clear" aria-label="Clear search" hidden><i class="fas fa-xmark"></i></button>
+                            </div>
+                            <div class="md-filter-wrap">
+                                <button type="button" class="md-btn md-btn-outline md-btn-sm" id="btn-filters" aria-expanded="false">
+                                    <i class="fas fa-filter"></i> Filters <span class="md-filter-count" id="filter-count" hidden></span>
+                                </button>
+                                <div class="md-popover" id="filters" hidden>
+                                    <div class="md-field">
+                                        <label for="f-type">Registration type</label>
+                                        <select class="md-select" id="f-type">
+                                            <option value="">All types</option>
+                                            <option value="registered">Registered</option>
+                                            <option value="unregistered">Unregistered</option>
+                                        </select>
+                                    </div>
+                                    <div class="md-field">
+                                        <label for="f-province">Province</label>
+                                        <select class="md-select" id="f-province"><option value="">All provinces</option></select>
+                                    </div>
+                                    <div class="md-popover-foot">
+                                        <button type="button" class="md-btn md-btn-ghost md-btn-sm" id="f-reset">Reset</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <span class="md-toolbar-count" id="count"></span>
+                        </div>
+
+                        <div class="md-table-wrap">
+                            <table class="md-table">
+                                <thead>
+                                    <tr>
+                                        <th>Buyer</th>
+                                        <th>Code</th>
+                                        <th>Type</th>
+                                        <th>NTN / STRN</th>
+                                        <th>Province</th>
+                                        <th class="num">Invoices</th>
+                                        <th class="num">Revenue</th>
+                                        <th class="num">Last invoice</th>
+                                        <th style="width:120px"><span class="sr-only">Actions</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="rows">
+                                    <tr class="md-loading"><td colspan="9"><i class="fas fa-circle-notch fa-spin"></i> Loading buyers…</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="md-table-foot" id="foot" hidden>
+                            <span id="range"></span>
+                            <div class="md-pager" id="pager"></div>
+                        </div>
+                    </section>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Add / edit buyer -->
+    <aside class="md-sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" hidden>
+        <div class="md-sheet-head">
+            <h2 class="md-sheet-title" id="sheet-title">Add a new buyer</h2>
+            <p class="md-sheet-desc" id="sheet-desc">This buyer will be available in the invoice creation flow.</p>
+            <button type="button" class="md-close" data-md-close aria-label="Close"><i class="fas fa-xmark"></i></button>
+        </div>
+        <form class="md-sheet-body" id="form" novalidate>
+            <div class="md-alert" id="form-error" hidden></div>
+            <div class="md-stats" id="stats" hidden>
+                <div><div class="k">Invoices</div><div class="v" id="s-invoices"></div></div>
+                <div><div class="k">Revenue</div><div class="v" id="s-revenue"></div></div>
+                <div><div class="k">Last invoice</div><div class="v" id="s-last"></div></div>
+            </div>
+            <div class="md-field">
+                <label for="b-name">Business name <span class="req">*</span></label>
+                <input class="md-input" id="b-name" maxlength="255" placeholder="Acme Corporation" required>
+            </div>
+            <div class="md-field">
+                <label for="b-reg">Registration type <span class="req">*</span></label>
+                <select class="md-select" id="b-reg" required>
+                    <option value="">Select type</option>
+                    <option value="Registered">Registered</option>
+                    <option value="Unregistered">Unregistered</option>
+                </select>
+            </div>
+            <div class="md-form-grid" style="margin-top:14px">
+                <div class="md-field">
+                    <label for="b-code">Buyer code</label>
+                    <input class="md-input" id="b-code" readonly tabindex="-1">
+                    <span class="md-hint" id="b-code-hint">Assigned automatically</span>
+                </div>
+                <div class="md-field">
+                    <label for="b-ntn">NTN / CNIC <span class="req">*</span></label>
+                    <input class="md-input" id="b-ntn" maxlength="20" placeholder="0000000 or 13-digit CNIC" required inputmode="text">
+                    <span class="md-hint" id="b-ntn-hint">7-character NTN or 13-digit CNIC</span>
+                </div>
+                <div class="md-field">
+                    <label for="b-strn">STRN</label>
+                    <input class="md-input" id="b-strn" maxlength="50" placeholder="32-77-…">
+                </div>
+                <div class="md-field">
+                    <label for="b-province">Province <span class="req">*</span></label>
+                    <select class="md-select" id="b-province" required><option value="">Select province</option></select>
+                </div>
+                <div class="md-field span-2">
+                    <label for="b-address">Address <span class="req">*</span></label>
+                    <textarea class="md-textarea" id="b-address" maxlength="500" placeholder="Plot 42, SITE Area, Karachi" required></textarea>
+                </div>
+            </div>
+            <label class="md-check">
+                <input type="checkbox" id="b-default">
+                <span>Default buyer<span class="md-hint">Pre-selected when you start a new invoice</span></span>
+            </label>
+        </form>
+        <div class="md-sheet-foot">
+            <button type="submit" form="form" class="md-btn md-btn-primary md-btn-block" id="btn-save">Save buyer</button>
+            <a class="md-btn md-btn-outline md-btn-block" id="btn-use" hidden><i class="fas fa-file-circle-plus"></i> Use in new invoice</a>
+            <button type="button" class="md-btn md-btn-danger-ghost md-btn-block" id="btn-delete" hidden><i class="fas fa-trash-can"></i> Delete buyer</button>
+        </div>
+    </aside>
+
+    <!-- Import -->
+    <div class="md-dialog" id="import" role="dialog" aria-modal="true" aria-labelledby="import-title" hidden>
+        <div class="md-sheet-head">
+            <h2 class="md-sheet-title" id="import-title">Import buyers from Excel</h2>
+            <p class="md-sheet-desc">Add many buyers at once. Codes are assigned automatically and duplicates are skipped.</p>
+            <button type="button" class="md-close" data-md-close aria-label="Close"><i class="fas fa-xmark"></i></button>
+        </div>
+        <div class="md-dialog-body">
+            <div class="md-alert" data-error hidden></div>
+            <div class="md-steps">
+                <div class="md-step">
+                    <span class="md-step-no">1</span>
+                    <div class="md-step-main">
+                        <div class="md-step-title">Download the template</div>
+                        <p class="md-step-desc">An Excel file with the right columns, dropdowns for province and registration type, and a few sample rows to replace.</p>
+                        <a class="md-btn md-btn-outline md-btn-sm" href="/api/buyers/import-template" download><i class="fas fa-file-excel"></i> Download template</a>
+                    </div>
+                </div>
+                <div class="md-step">
+                    <span class="md-step-no">2</span>
+                    <div class="md-step-main">
+                        <div class="md-step-title">Upload the filled-in file</div>
+                        <p class="md-step-desc">We'll check every row first — nothing is saved until you confirm.</p>
+                        <div class="md-drop" tabindex="0" role="button" aria-label="Choose file">
+                            <i class="fas fa-file-excel" aria-hidden="true"></i>
+                            <div style="min-width:0"><div class="t"></div><div class="d"></div></div>
+                        </div>
+                        <input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+                    </div>
+                </div>
+            </div>
+            <div data-report></div>
+        </div>
+        <div class="md-dialog-foot">
+            <button type="button" class="md-btn md-btn-outline" data-md-close>Close</button>
+            <button type="button" class="md-btn md-btn-primary" data-action="check" disabled><i class="fas fa-list-check"></i> Check file</button>
+            <button type="button" class="md-btn md-btn-primary" data-action="import" hidden></button>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/master-data.js') }}"></script>
+    <script>
+    (function () {
+        'use strict';
+        var PAGE_SIZE = 20;
+        var state = { buyers: [], nextCode: '', page: 1 };
+        var editing = null;
+        var $ = function (id) { return document.getElementById(id); };
+
+        var els = {
+            rows: $('rows'), count: $('count'), foot: $('foot'), range: $('range'), pager: $('pager'),
+            search: $('search'), clear: $('search-clear'), type: $('f-type'), province: $('f-province'),
+            filterCount: $('filter-count'), sheet: $('sheet'), form: $('form'), error: $('form-error')
+        };
+
+        // ------------------------------------------------------------- load
+
+        function load() {
+            return MD.request('/api/buyers/overview').then(function (res) {
+                if (!res.ok) {
+                    els.rows.innerHTML = '<tr><td colspan="9" class="md-empty"><div class="md-empty-title">Could not load buyers</div>' +
+                        '<div class="md-empty-sub">' + MD.esc(MD.errorText(res)) + '</div></td></tr>';
+                    return;
+                }
+                state.buyers = res.data.buyers || [];
+                state.nextCode = res.data.next_code || '';
+                var s = res.data.summary || {};
+                $('m-total').textContent = MD.num(s.total);
+                $('m-registered').textContent = MD.num(s.registered);
+                $('m-registered-hint').textContent = s.total ? Math.round(s.registered / s.total * 100) + '% of buyers · registered with FBR' : 'Registered with FBR';
+                $('m-revenue').textContent = MD.pkr(s.revenue);
+                $('m-revenue').title = MD.pkr(s.revenue, 2);
+                $('m-active').textContent = MD.num(s.active_this_month);
+                fillProvinceFilter();
+                render();
+            });
+        }
+
+        function fillProvinceFilter() {
+            var current = els.province.value;
+            var seen = {};
+            state.buyers.forEach(function (b) { if (b.province) seen[b.province] = true; });
+            MD.fillSelect(els.province, Object.keys(seen).sort().map(function (p) { return { value: p, label: p }; }), 'All provinces');
+            els.province.value = current;
+        }
+
+        // ------------------------------------------------------------ render
+
+        function matches(b, term) {
+            if (!term) return true;
+            var t = term.toLowerCase();
+            var digits = t.replace(/[^0-9a-z]/g, '');
+            return [b.business_name, b.buyer_code, b.strn, b.province, b.address].some(function (v) {
+                return String(v || '').toLowerCase().indexOf(t) >= 0;
+            }) || (digits && String(b.ntn_cnic || '').toLowerCase().replace(/[^0-9a-z]/g, '').indexOf(digits) >= 0);
+        }
+
+        function filtered() {
+            var term = els.search.value.trim();
+            var type = els.type.value;
+            var province = els.province.value;
+            return state.buyers.filter(function (b) {
+                return matches(b, term) &&
+                    (!type || String(b.registration_type).toLowerCase() === type) &&
+                    (!province || b.province === province);
+            });
+        }
+
+        function taxIdLabel(value) {
+            var digits = String(value || '').replace(/\D/g, '');
+            return digits.length === 13 ? 'CNIC' : 'NTN';
+        }
+
+        function render() {
+            var list = filtered();
+            var term = els.search.value.trim();
+            var active = (els.type.value ? 1 : 0) + (els.province.value ? 1 : 0);
+            els.filterCount.textContent = active;
+            els.filterCount.hidden = !active;
+            els.clear.hidden = !term;
+            els.count.textContent = list.length === state.buyers.length
+                ? MD.num(list.length) + ' buyer' + (list.length === 1 ? '' : 's')
+                : MD.num(list.length) + ' of ' + MD.num(state.buyers.length) + ' buyers';
+
+            if (!state.buyers.length) {
+                els.rows.innerHTML = '<tr><td colspan="9" class="md-empty"><div class="md-empty-icon"><i class="fas fa-users"></i></div>' +
+                    '<div class="md-empty-title">No buyers yet</div><div class="md-empty-sub">Add the businesses you invoice, one at a time or in bulk from Excel.</div>' +
+                    '<button type="button" class="md-btn md-btn-primary md-btn-sm" data-new><i class="fas fa-plus"></i> New buyer</button></td></tr>';
+                els.foot.hidden = true;
+                return;
+            }
+            if (!list.length) {
+                els.rows.innerHTML = '<tr><td colspan="9" class="md-empty"><div class="md-empty-title">No buyers match</div>' +
+                    '<div class="md-empty-sub">Try a different search, or clear the filters.</div></td></tr>';
+                els.foot.hidden = true;
+                return;
+            }
+
+            var pages = Math.ceil(list.length / PAGE_SIZE);
+            state.page = Math.min(state.page, pages);
+            var start = (state.page - 1) * PAGE_SIZE;
+            var slice = list.slice(start, start + PAGE_SIZE);
+
+            els.rows.innerHTML = slice.map(function (b) {
+                var reg = String(b.registration_type || '').toLowerCase() === 'registered';
+                return '<tr>' +
+                    '<td><div class="md-strong">' + MD.highlight(b.business_name, term) +
+                    (b.is_default ? ' <span class="md-badge md-badge-default"><i class="fas fa-star"></i> Default</span>' : '') + '</div>' +
+                    '<div class="md-sub" title="' + MD.esc(b.address) + '"><i class="fas fa-location-dot"></i> ' + MD.highlight(b.address || '–', term) + '</div></td>' +
+                    '<td class="md-muted md-mono">' + MD.highlight(b.buyer_code || '–', term) + '</td>' +
+                    '<td><span class="md-badge ' + (reg ? 'md-badge-registered' : 'md-badge-unregistered') + '">' +
+                    MD.esc(b.registration_type || 'Unknown') + '</span></td>' +
+                    '<td class="md-mono" style="font-size:12px">' + taxIdLabel(b.ntn_cnic) + ' ' + MD.highlight(b.ntn_cnic, term) +
+                    (b.strn ? '<div class="md-muted">' + MD.highlight(b.strn, term) + '</div>' : '') + '</td>' +
+                    '<td class="nowrap">' + MD.highlight(b.province || '–', term) + '</td>' +
+                    '<td class="num">' + MD.num(b.invoices) + '</td>' +
+                    '<td class="num md-strong">' + MD.pkr(b.revenue) + '</td>' +
+                    '<td class="num md-muted" style="font-size:12px">' + MD.date(b.last_invoice) + '</td>' +
+                    '<td><div class="md-row-actions">' +
+                    '<button type="button" class="md-icon-btn" data-view="' + b.id + '" title="View / edit" aria-label="View ' + MD.esc(b.business_name) + '"><i class="fas fa-eye"></i></button>' +
+                    '<a class="md-icon-btn" href="/create-invoice?buyer_id=' + b.id + '" title="Use in new invoice" aria-label="New invoice for ' + MD.esc(b.business_name) + '"><i class="fas fa-file-circle-plus"></i></a>' +
+                    '<button type="button" class="md-icon-btn danger" data-delete="' + b.id + '" title="Delete" aria-label="Delete ' + MD.esc(b.business_name) + '"><i class="fas fa-trash-can"></i></button>' +
+                    '</div></td></tr>';
+            }).join('');
+
+            els.foot.hidden = false;
+            els.range.textContent = 'Showing ' + (start + 1) + '–' + (start + slice.length) + ' of ' + MD.num(list.length);
+            MD.renderPager(els.pager, state.page, pages, function (p) { state.page = p; render(); });
+        }
+
+        els.rows.addEventListener('click', function (e) {
+            var view = e.target.closest('[data-view]');
+            var del = e.target.closest('[data-delete]');
+            if (e.target.closest('[data-new]')) openSheet(null);
+            if (view) openSheet(find(+view.getAttribute('data-view')));
+            if (del) remove(find(+del.getAttribute('data-delete')));
+        });
+
+        function find(id) { return state.buyers.filter(function (b) { return b.id === id; })[0]; }
+
+        var rerender = MD.debounce(function () { state.page = 1; render(); }, 120);
+        els.search.addEventListener('input', rerender);
+        els.clear.addEventListener('click', function () { els.search.value = ''; state.page = 1; render(); els.search.focus(); });
+        els.type.addEventListener('change', function () { state.page = 1; render(); });
+        els.province.addEventListener('change', function () { state.page = 1; render(); });
+        $('f-reset').addEventListener('click', function () { els.type.value = ''; els.province.value = ''; state.page = 1; render(); });
+        MD.popover($('btn-filters'), $('filters'));
+
+        // ------------------------------------------------------------- sheet
+
+        var provincesReady = MD.formOptions().then(function (opts) {
+            MD.fillSelect($('b-province'), opts.provinces || [], 'Select province');
+        });
+
+        function openSheet(buyer) {
+            editing = buyer || null;
+            MD.formError(els.error, '');
+            els.form.querySelectorAll('.is-invalid').forEach(function (el) { el.classList.remove('is-invalid'); });
+            $('sheet-title').textContent = buyer ? 'Buyer details' : 'Add a new buyer';
+            $('sheet-desc').textContent = buyer ? 'Changes apply to new invoices; submitted invoices keep the details they were filed with.'
+                : 'This buyer will be available in the invoice creation flow.';
+            $('btn-save').textContent = buyer ? 'Save changes' : 'Save buyer';
+            $('btn-delete').hidden = !buyer;
+            $('btn-use').hidden = !buyer;
+            $('stats').hidden = !buyer;
+            $('b-ntn-hint').className = 'md-hint';
+            $('b-ntn-hint').textContent = '7-character NTN or 13-digit CNIC';
+
+            $('b-name').value = buyer ? buyer.business_name : '';
+            $('b-reg').value = buyer ? (buyer.registration_type || '') : '';
+            $('b-ntn').value = buyer ? buyer.ntn_cnic : '';
+            $('b-strn').value = buyer ? buyer.strn : '';
+            $('b-address').value = buyer ? buyer.address : '';
+            $('b-default').checked = !!(buyer && buyer.is_default);
+            $('b-code').value = buyer ? (buyer.buyer_code || '') : (state.nextCode || '');
+            $('b-code-hint').textContent = buyer ? (buyer.buyer_code ? 'Codes don’t change once assigned' : 'Assigned when you save')
+                : 'Assigned automatically when you save';
+            if (buyer) {
+                $('s-invoices').textContent = MD.num(buyer.invoices);
+                $('s-revenue').textContent = MD.pkr(buyer.revenue);
+                $('s-last').textContent = MD.date(buyer.last_invoice);
+                $('btn-use').href = '/create-invoice?buyer_id=' + buyer.id;
+            }
+            provincesReady.then(function () {
+                if (buyer && !MD.selectValue($('b-province'), buyer.province) && buyer.province) {
+                    // A province saved before FBR's list was adopted: keep it visible.
+                    var opt = document.createElement('option');
+                    opt.value = buyer.province; opt.textContent = buyer.province;
+                    $('b-province').appendChild(opt);
+                    $('b-province').value = buyer.province;
+                }
+                if (!buyer) $('b-province').value = '';
+            });
+            MD.open(els.sheet, '#b-name');
+        }
+
+        $('btn-new').addEventListener('click', function () { openSheet(null); });
+
+        function normalizeTaxId(value) {
+            var raw = String(value || '').trim().toUpperCase();
+            var digits = raw.replace(/\D/g, '');
+            return digits.length === 13 ? digits : raw.replace(/[^0-9A-Z]/g, '');
+        }
+
+        function validTaxId(value) {
+            var v = normalizeTaxId(value);
+            return (/^\d{13}$/.test(v)) || (/^[0-9A-Z]{7}$/.test(v));
+        }
+
+        // Ask FBR whether this NTN/CNIC is registered, as the invoice form does.
+        $('b-ntn').addEventListener('change', function () {
+            var hint = $('b-ntn-hint');
+            var value = this.value;
+            if (!validTaxId(value)) {
+                hint.className = 'md-hint warn';
+                hint.textContent = value.trim() ? 'Should be a 7-character NTN or a 13-digit CNIC' : '7-character NTN or 13-digit CNIC';
+                return;
+            }
+            var dupe = state.buyers.filter(function (b) {
+                return (!editing || b.id !== editing.id) && normalizeTaxId(b.ntn_cnic) === normalizeTaxId(value);
+            })[0];
+            if (dupe) {
+                hint.className = 'md-hint warn';
+                hint.textContent = 'Already saved as ' + dupe.business_name + (dupe.buyer_code ? ' (' + dupe.buyer_code + ')' : '');
+                return;
+            }
+            hint.className = 'md-hint';
+            hint.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Checking with FBR…';
+            MD.request('/api/reference/registration-type', { method: 'POST', json: { registration_no: normalizeTaxId(value) } })
+                .then(function (res) {
+                    if (!res.ok || res.data.error || res.data.is_registered === undefined) {
+                        hint.className = 'md-hint';
+                        hint.textContent = 'Couldn’t verify with FBR — choose the registration type yourself.';
+                        return;
+                    }
+                    var type = res.data.is_registered ? 'Registered' : 'Unregistered';
+                    $('b-reg').value = type;
+                    hint.className = 'md-hint ok';
+                    hint.innerHTML = '<i class="fas fa-circle-check"></i> FBR: ' + type;
+                });
+        });
+
+        els.form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var payload = {
+                business_name: $('b-name').value.trim().replace(/\s+/g, ' '),
+                registration_type: $('b-reg').value,
+                ntn_cnic: $('b-ntn').value.trim(),
+                strn: $('b-strn').value.trim(),
+                province: $('b-province').value,
+                address: $('b-address').value.trim(),
+                is_default: $('b-default').checked
+            };
+            var missing = [];
+            [['b-name', payload.business_name], ['b-reg', payload.registration_type], ['b-ntn', payload.ntn_cnic],
+             ['b-province', payload.province], ['b-address', payload.address]].forEach(function (f) {
+                $(f[0]).classList.toggle('is-invalid', !f[1]);
+                if (!f[1]) missing.push(f[0]);
+            });
+            if (missing.length) { MD.formError(els.error, 'Fill in the required fields marked *.'); $(missing[0]).focus(); return; }
+            if (!validTaxId(payload.ntn_cnic)) {
+                $('b-ntn').classList.add('is-invalid');
+                MD.formError(els.error, 'NTN/CNIC must be a 7-character NTN or a 13-digit CNIC.');
+                return;
+            }
+
+            var btn = $('btn-save');
+            btn.disabled = true;
+            var wasEditing = editing;
+            var req = wasEditing
+                ? MD.request('/api/buyers/' + wasEditing.id, { method: 'PUT', json: payload })
+                : MD.request('/api/buyers', { method: 'POST', json: payload });
+            req.then(function (res) {
+                btn.disabled = false;
+                if (!res.ok) {
+                    if (res.status === 409 && res.data.duplicate) {
+                        $(res.data.duplicate.field === 'ntn' ? 'b-ntn' : 'b-name').classList.add('is-invalid');
+                    }
+                    MD.formError(els.error, MD.errorText(res, 'The buyer could not be saved.'));
+                    return;
+                }
+                MD.close(els.sheet);
+                MD.toast('success', wasEditing ? 'Buyer updated.'
+                    : payload.business_name + ' added' + (res.data.buyer_code ? ' as ' + res.data.buyer_code : '') + '.');
+                load();
+            });
+        });
+
+        $('btn-delete').addEventListener('click', function () { if (editing) remove(editing, true); });
+
+        function remove(buyer, fromSheet) {
+            if (!buyer) return;
+            MD.confirm({
+                title: 'Delete ' + buyer.business_name + '?',
+                message: 'It will no longer be offered when you create invoices. Invoices already issued to this buyer are not affected.',
+                confirmText: 'Delete buyer'
+            }).then(function (yes) {
+                if (!yes) return;
+                MD.request('/api/buyers/' + buyer.id, { method: 'DELETE' }).then(function (res) {
+                    if (!res.ok) { MD.toast('error', MD.errorText(res, 'The buyer could not be deleted.')); return; }
+                    if (fromSheet) MD.close(els.sheet);
+                    MD.toast('success', buyer.business_name + ' deleted.');
+                    load();
+                });
+            });
+        }
+
+        // ------------------------------------------------------------ import
+
+        var importer = MD.setupImport({
+            dialog: $('import'),
+            importUrl: '/api/buyers/import',
+            noun: 'Buyer',
+            onDone: load
+        });
+        $('btn-import').addEventListener('click', importer.open);
+
+        load();
+    })();
+    </script>
+</body>
+
+</html>

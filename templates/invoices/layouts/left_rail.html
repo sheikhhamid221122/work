@@ -1,0 +1,40 @@
+{% extends "invoices/_base.html" %}
+{% block sheet %}
+
+  {# A thin accent stripe and generous indent -- editorial rather than boxy. #}
+  <div class="row" style="gap:{{ T.gap_mm }}mm">
+    <div class="rail" style="width:2.5mm; background:{{ T.accent }}; flex:0 0 2.5mm"></div>
+    <div class="grow">
+      <div class="row-btw row-top">
+        <div>
+          {{ P.logo(d, T, client_logo_url) }}
+          {% if T.seller_identity %}
+            <div class="t-name t-strong" style="margin-top:1.5mm">{{ P.txt(d.sellerLegalName or d.sellerBusinessName) }}</div>
+            <address class="t-body t-muted">{{ P.txt(d.sellerAddress) }}</address>
+          {% endif %}
+          {% if T.seller_tax_ids %}
+            <div class="t-body t-muted t-nums">
+              {% if d.sellerNTNCNIC %}NTN {{ P.txt(d.sellerNTNCNIC) }}{% endif %}
+              {% if d.sellerSTRN %} &middot; STRN {{ P.txt(d.sellerSTRN) }}{% endif %}
+            </div>
+          {% endif %}
+        </div>
+        <div style="text-align:right">
+          <div class="t-heading t-strong" style="letter-spacing:.08em">SALES TAX INVOICE</div>
+          <div style="margin-top:2mm">{{ P.meta(d, T) }}</div>
+        </div>
+      </div>
+
+      <div class="sec">{{ P.party(d, T, 'buyer', 'Bill To') }}</div>
+      <div class="sec">{{ P.items(d, T, 'rule', settings) }}</div>
+      <div class="sec row" style="justify-content:flex-end">
+        <div style="width:44%">{{ P.totals(d, T) }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec-sm row-btw" style="align-items:flex-end">
+    {{ P.fbr_block(d, T, qr_base64, fbr_logo_url) }}
+    <div>{{ P.signature(d, T) }}</div>
+  </div>
+{% endblock %}

@@ -1,0 +1,838 @@
+/* ---------------------------------------------------------------------------
+   Dashboard.
+
+   Layout modelled on the redesign prototype: page header, a KPI grid,
+   trend charts, the invoice table and top buyers /
+   products. Loaded after taxlink-theme.css and scoped to #dashboard-content,
+   so it only has to out-rank the theme's generic `main th/td/button` rules --
+   which it does by specificity plus !important where the theme uses it.
+
+   Colours come only from the --tlp-* tokens, so light, dark and follow-my-OS
+   all work without rules of their own here.
+   --------------------------------------------------------------------------- */
+
+#dashboard-content {
+  --dash-gap: 14px;
+  --dash-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ---- Header -------------------------------------------------------------- */
+
+.dash-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+#dashboard-content .dash-header h1 {
+  margin: 0;
+  font-size: 22px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em;
+}
+
+.dash-subtitle {
+  margin-top: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: var(--tlp-muted);
+  font-size: 13px;
+}
+
+.dash-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ---- Buttons ------------------------------------------------------------- */
+
+#dashboard-content .dash-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 8px !important;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+#dashboard-content .dash-btn i {
+  font-size: 12.5px;
+}
+
+#dashboard-content .dash-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--tlp-focus-ring) !important;
+}
+
+#dashboard-content .dash-btn:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.dash-btn-primary {
+  background: var(--tlp-purple);
+  color: var(--tlp-on-accent) !important;
+}
+
+.dash-btn-primary:hover {
+  background: var(--tlp-purple-hover);
+}
+
+.dash-btn-outline {
+  background: var(--tlp-card);
+  border-color: var(--tlp-line-strong) !important;
+  color: var(--tlp-text) !important;
+}
+
+.dash-btn-outline:hover {
+  background: var(--tlp-surface-2);
+}
+
+.dash-btn-ghost {
+  background: transparent;
+  color: var(--tlp-muted) !important;
+  min-height: 28px !important;
+  padding: 0 10px !important;
+  font-size: 12px !important;
+}
+
+.dash-btn-ghost:hover {
+  background: var(--tlp-surface-2);
+  color: var(--tlp-text) !important;
+}
+
+.dash-btn-danger {
+  background: var(--tlp-danger);
+  color: var(--tlp-on-accent) !important;
+}
+
+.dash-btn-danger:hover {
+  background: var(--tlp-danger-hover);
+}
+
+#dashboard-content .dash-btn-sm {
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+/* ---- Badges -------------------------------------------------------------- */
+
+.dash-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.dash-badge i {
+  font-size: 10px;
+}
+
+.dash-badge-success {
+  background: var(--tlp-green-tint);
+  color: var(--tlp-green-text);
+}
+
+.dash-badge-failed {
+  background: var(--tlp-red-tint);
+  color: var(--tlp-red);
+}
+
+.dash-env {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 10.5px;
+  padding: 1px 7px;
+}
+
+.dash-env::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.dash-env-sandbox {
+  background: var(--tlp-amber-tint);
+  color: var(--tlp-amber-text);
+}
+
+.dash-env-production {
+  background: var(--tlp-green-tint);
+  color: var(--tlp-green-text);
+}
+
+.dash-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dash-trend[hidden] {
+  display: none;
+}
+
+.dash-trend.up {
+  background: var(--tlp-green-tint);
+  color: var(--tlp-green-text);
+}
+
+.dash-trend.down {
+  background: var(--tlp-red-tint);
+  color: var(--tlp-red);
+}
+
+/* ---- Cards --------------------------------------------------------------- */
+
+.dash-card {
+  min-width: 0;
+  background: var(--tlp-card);
+  border: 1px solid var(--tlp-line);
+  border-radius: var(--dash-radius);
+  box-shadow: var(--tlp-shadow-card);
+}
+
+.dash-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--tlp-line);
+}
+
+.dash-card-head.plain {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.dash-card-title {
+  color: var(--tlp-heading);
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.dash-card-sub {
+  margin-top: 1px;
+  color: var(--tlp-muted-2);
+  font-size: 12px;
+}
+
+.dash-card-body {
+  padding: 14px 18px 18px;
+}
+
+/* ---- KPI grid ------------------------------------------------------------ */
+
+.dash-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--dash-gap);
+}
+
+.dash-kpi {
+  padding: 14px 16px;
+  transition: box-shadow 0.18s ease;
+}
+
+.dash-kpi:hover {
+  box-shadow: var(--tlp-shadow-raised);
+}
+
+.dash-kpi-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dash-kpi-label {
+  color: var(--tlp-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.dash-kpi-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border-radius: 7px;
+  background: var(--tlp-purple-soft);
+  color: var(--tlp-purple);
+  font-size: 12.5px;
+}
+
+.dash-kpi-row {
+  margin-top: 6px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dash-kpi-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--tlp-heading);
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-kpi-hint {
+  margin-top: 3px;
+  color: var(--tlp-muted-2);
+  font-size: 11.5px;
+}
+
+.dash-kpi-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.dash-kpi-link i {
+  margin-left: 2px;
+  font-size: 9.5px;
+}
+
+.dash-kpi-link:hover {
+  color: var(--tlp-purple);
+}
+
+/* ---- Charts -------------------------------------------------------------- */
+
+.dash-charts {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--dash-gap);
+}
+
+.dash-chart-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-legend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--tlp-muted);
+  font-size: 12px;
+}
+
+.dash-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dash-legend span::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--swatch);
+}
+
+.dash-chart {
+  position: relative;
+  height: 210px;
+}
+
+.dash-chart-sm {
+  height: 134px;
+}
+
+.dash-chart-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--tlp-muted-2);
+  font-size: 12px;
+}
+
+.dash-chart-empty[hidden] {
+  display: none;
+}
+
+.dash-health-foot {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--tlp-line);
+}
+
+.dash-health-foot .k {
+  color: var(--tlp-muted-2);
+  font-size: 11.5px;
+}
+
+.dash-health-foot .v {
+  color: var(--tlp-heading);
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-health-foot .v.good {
+  color: var(--tlp-green-text);
+}
+
+/* ---- Invoice table ------------------------------------------------------- */
+
+.dash-table-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+#bulk-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px 3px 10px;
+  border-radius: 8px;
+  background: var(--tlp-purple-soft);
+}
+
+#bulk-action-bar.hidden {
+  display: none;
+}
+
+#bulk-action-bar .count {
+  margin-right: 4px;
+  color: var(--tlp-purple);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+#dashboard-content .dash-table-wrap {
+  overflow-x: auto;
+}
+
+#dashboard-content .dash-table {
+  width: 100%;
+  min-width: 980px;
+}
+
+#dashboard-content .dash-table th {
+  height: 38px;
+  padding: 0 12px !important;
+  border-bottom: 1px solid var(--tlp-line);
+  background: var(--tlp-surface-2) !important;
+  color: var(--tlp-muted-2) !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  text-align: left;
+  white-space: nowrap;
+}
+
+#dashboard-content .dash-table td {
+  padding: 6px 12px !important;
+  border-bottom: 1px solid var(--tlp-line);
+  color: var(--tlp-text) !important;
+  font-size: 13px !important;
+  font-weight: 400 !important;
+  white-space: nowrap;
+}
+
+#dashboard-content .dash-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+#dashboard-content .dash-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+#dashboard-content .dash-table .center {
+  text-align: center;
+}
+
+#dashboard-content .dash-table .w-check {
+  width: 40px;
+  padding-right: 0 !important;
+}
+
+#dashboard-content .dash-table th[id^="sort-"] {
+  cursor: pointer;
+  user-select: none;
+}
+
+#dashboard-content .dash-table th[id^="sort-"]:hover {
+  color: var(--tlp-text) !important;
+}
+
+#dashboard-content .dash-table th[id^="sort-"] i {
+  margin-left: 4px;
+  font-size: 10px;
+  opacity: 0.55;
+}
+
+#dashboard-content .dash-table th .fa-sort-up,
+#dashboard-content .dash-table th .fa-sort-down {
+  opacity: 1;
+  color: var(--tlp-purple);
+}
+
+#dashboard-content .dash-inv {
+  color: var(--tlp-heading);
+  font-weight: 500;
+}
+
+#dashboard-content .dash-muted {
+  color: var(--tlp-muted) !important;
+}
+
+#dashboard-content .dash-buyer {
+  display: inline-block;
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+}
+
+#dashboard-content .dash-sr {
+  color: var(--tlp-muted-2);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-row-actions {
+  display: inline-flex;
+  gap: 4px;
+}
+
+#dashboard-content td .view-invoice-btn,
+#dashboard-content td .delete-invoice-btn {
+  width: 28px !important;
+  height: 28px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 7px !important;
+  background: transparent;
+  color: var(--tlp-muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+#dashboard-content td .view-invoice-btn:hover {
+  background: var(--tlp-purple-soft);
+  color: var(--tlp-purple);
+}
+
+#dashboard-content td .delete-invoice-btn:hover {
+  background: var(--tlp-red-tint);
+  color: var(--tlp-red);
+}
+
+.dash-table-empty {
+  padding: 36px 16px !important;
+  text-align: center;
+}
+
+.dash-empty-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-bottom: 8px;
+  border-radius: 50%;
+  background: var(--tlp-purple-soft);
+  color: var(--tlp-purple);
+}
+
+.dash-empty-title {
+  color: var(--tlp-heading);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dash-empty-sub {
+  margin-top: 2px;
+  color: var(--tlp-muted-2);
+  font-size: 12px;
+}
+
+.dash-table-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 46px;
+  padding: 8px 18px;
+  border-top: 1px solid var(--tlp-line);
+  color: var(--tlp-muted-2);
+  font-size: 12px;
+}
+
+.dash-table-foot:has(#records-range:empty):has(#records-pagination:empty) {
+  display: none;
+}
+
+/* Pagination buttons are generated by the page script with Tailwind classes;
+   restyle them here rather than change the generator. */
+#dashboard-content #records-pagination {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0 !important;
+}
+
+#dashboard-content #records-pagination button {
+  min-width: 28px;
+  height: 28px;
+  min-height: 0;
+  margin: 0 !important;
+  padding: 0 8px !important;
+  border: 1px solid var(--tlp-line-strong) !important;
+  border-radius: 7px !important;
+  background: var(--tlp-card) !important;
+  color: var(--tlp-text) !important;
+  font-size: 12px !important;
+  font-weight: 500;
+}
+
+#dashboard-content #records-pagination button:hover:not(:disabled) {
+  background: var(--tlp-surface-2) !important;
+}
+
+#dashboard-content #records-pagination button.bg-primary-600 {
+  background: var(--tlp-purple) !important;
+  border-color: var(--tlp-purple) !important;
+  color: var(--tlp-on-accent) !important;
+}
+
+/* ---- Top buyers / products ---------------------------------------------- */
+
+.dash-tops {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--dash-gap);
+}
+
+.dash-rank-list > div + div {
+  border-top: 1px solid var(--tlp-line);
+}
+
+.dash-rank {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px;
+}
+
+.dash-rank-no {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  border-radius: 7px;
+  background: var(--tlp-purple-soft);
+  color: var(--tlp-purple);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.dash-rank-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.dash-rank-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--tlp-heading);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.dash-rank-meta {
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--tlp-muted-2);
+  font-size: 11.5px;
+}
+
+.dash-rank-bar {
+  height: 4px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: var(--tlp-surface-2);
+  overflow: hidden;
+}
+
+.dash-rank-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--tlp-purple);
+}
+
+.dash-rank-amt {
+  flex: 0 0 auto;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-rank-amt .v {
+  color: var(--tlp-heading);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.dash-rank-amt .k {
+  color: var(--tlp-muted-2);
+  font-size: 11px;
+}
+
+.dash-rank-empty {
+  padding: 28px 18px;
+  color: var(--tlp-muted-2);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* ---- Responsive ---------------------------------------------------------- */
+
+@media (max-width: 1180px) {
+  .dash-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dash-charts,
+  .dash-tops {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .dash-kpi-value {
+    font-size: 19px;
+  }
+
+  .dash-card-head {
+    flex-wrap: wrap;
+  }
+}
+
+/* ---- Range control + table environment switch --------------------------- */
+
+.dash-header-actions {
+  align-items: center;
+}
+
+/* Sandbox | Production for the invoice table: the Reports tab track, small. */
+.dash-env-toggle {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--tlp-line);
+  border-radius: 9px;
+  background: var(--tlp-surface-2);
+}
+
+#dashboard-content .dash-env-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  min-height: 26px !important;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 6px !important;
+  background: transparent;
+  color: var(--tlp-muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+#dashboard-content .dash-env-opt:hover {
+  color: var(--tlp-text);
+}
+
+#dashboard-content .dash-env-opt.is-active {
+  background: var(--tlp-card);
+  color: var(--tlp-heading);
+  box-shadow: var(--tlp-shadow-card);
+}
+
+#dashboard-content .dash-env-opt:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--tlp-focus-ring) !important;
+}
+
+.dash-env-opt .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.dash-env-opt .dot.sandbox { background: var(--tlp-amber); }
+.dash-env-opt .dot.production { background: var(--tlp-green); }
+
+#dashboard-content td .delete-invoice-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+#dashboard-content td .delete-invoice-btn:disabled:hover {
+  background: transparent;
+  color: var(--tlp-muted);
+}

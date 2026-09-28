@@ -1,0 +1,247 @@
+{#
+  Shared sheet styles for every invoice layout.
+
+  Everything a layout must NOT decide for itself lives here: the paper, the
+  typeface, the density scale and the accent colour. A layout file is then only
+  an arrangement of the parts in parts/, which is what keeps thirteen of them
+  maintainable by one person.
+
+  Units are mm wherever paper is involved (letterhead space, page margins) --
+  that is what a printer and a pre-printed letterhead are measured in.
+#}
+{%- set T = theme -%}
+<style>
+  @page {
+    size: A4;
+    margin: {{ T.margin_mm }}mm {{ T.margin_x_mm }}mm {{ T.margin_bottom_mm }}mm;
+  }
+
+  /* The first page may have to clear a pre-printed letterhead. WeasyPrint
+     supports named page selectors, so only page 1 is pushed down; page 2
+     onwards starts at the normal margin instead of wasting 120mm on every
+     sheet of a long invoice. */
+  {% if T.letterhead_mm %}
+  @page :first {
+    margin-top: {{ T.letterhead_mm }}mm;
+  }
+  {% endif %}
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    font-family: {{ T.font_stack }};
+    font-size: {{ T.body_pt }}pt;
+    line-height: 1.45;
+    color: #111827;
+    -weasy-hyphens: none;
+  }
+
+  /* ---- Density scale -------------------------------------------------- */
+  .t-label   { font-size: {{ T.label_pt }}pt; letter-spacing: .06em; text-transform: uppercase; color: #6b7280; font-weight: 600; }
+  .t-body    { font-size: {{ T.body_pt }}pt; }
+  .t-name    { font-size: {{ T.name_pt }}pt; }
+  .t-heading { font-size: {{ T.heading_pt }}pt; }
+  .t-total   { font-size: {{ T.total_pt }}pt; }
+  .t-muted   { color: #6b7280; }
+  .t-accent  { color: {{ T.accent }}; }
+  .t-strong  { font-weight: 700; }
+  .t-right   { text-align: right; }
+  .t-center  { text-align: center; }
+  .t-nums    { font-variant-numeric: tabular-nums; }
+
+  .sec       { margin-top: {{ T.section_mm }}mm; }
+  .sec-sm    { margin-top: {{ (T.section_mm / 2) | round(1) }}mm; }
+
+  /* ---- Layout helpers -------------------------------------------------
+     Flex and grid both lay out AND fragment across pages correctly in
+     WeasyPrint 66 (verified), so layouts are free to use either. The items
+     table stays a real <table> so its header can repeat on page 2. */
+  .row      { display: flex; gap: {{ T.gap_mm }}mm; }
+  .row-btw  { display: flex; justify-content: space-between; gap: {{ T.gap_mm }}mm; }
+  .row-top  { align-items: flex-start; }
+  .row-base { align-items: baseline; }
+  .row-mid  { align-items: center; }
+  .col      { display: flex; flex-direction: column; }
+  .grow     { flex: 1 1 auto; min-width: 0; }
+  .half     { flex: 1 1 0; min-width: 0; }
+  .fill     { background: {{ T.accent }}; color: {{ T.on_accent }}; }
+  .soft     { background: {{ T.accent_soft }}; }
+  .rule     { border-top: 1px solid {{ T.line }}; }
+  .rule-acc { border-top: 2px solid {{ T.accent }}; }
+
+  /* Full-bleed band. @page owns the margin, so a header that must touch the
+     paper edge pulls itself back out by exactly that much and re-adds it as
+     padding. Using the same token for both keeps them in step at every
+     density. */
+  .bleed {
+    margin-left: -{{ T.margin_x_mm }}mm;
+    margin-right: -{{ T.margin_x_mm }}mm;
+    padding-left: {{ T.margin_x_mm }}mm;
+    padding-right: {{ T.margin_x_mm }}mm;
+  }
+  .bleed-top { margin-top: -{{ T.margin_mm }}mm; padding-top: {{ T.margin_mm }}mm; }
+
+  /* The side rail layouts. align-self:stretch makes the rail match the height
+     of the content beside it rather than only its own text. */
+  .rail { align-self: stretch; }
+
+  /* ---- Items table ----------------------------------------------------
+     table-layout: fixed is load-bearing, not cosmetic. With `auto`, a long
+     product description makes the table wider than its container, and in the
+     narrow-column layouts (Sidebar, Column) it overflowed the page and rode
+     over the totals. Fixed widths come from the <colgroup> the items macro
+     emits; the description column takes whatever is left. */
+  table.items { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  table.items td.desc { word-wrap: break-word; overflow-wrap: anywhere; }
+  table.items thead { display: table-header-group; }   /* repeat on every page */
+  table.items tr { page-break-inside: avoid; }
+  table.items th {
+    font-size: {{ T.label_pt }}pt; text-transform: uppercase; letter-spacing: .05em;
+    font-weight: 700; text-align: left; padding: {{ T.row_mm }}mm 1.4mm;
+    white-space: normal;
+  }
+  table.items td { font-size: {{ T.body_pt }}pt; padding: {{ T.row_mm }}mm 1.4mm; vertical-align: top; }
+  table.items .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* A designer template may switch on up to nineteen DI API columns. At that
+     width the uppercase, letter-spaced, nowrap headers overflow their cells
+     and print on top of each other -- `.num`'s nowrap applies to the header
+     row too. Dense mode lets headers wrap, drops the letter-spacing and
+     shrinks the type. Scoped to the class so the built-in layouts, which
+     never reach the threshold, are unaffected. */
+  table.items.items-dense th {
+    white-space: normal; text-transform: none; letter-spacing: 0;
+    font-size: {{ (T.label_pt * 0.92) | round(1) }}pt; padding: {{ T.row_mm }}mm .7mm;
+    hyphens: auto;
+  }
+  table.items.items-dense td {
+    font-size: {{ (T.body_pt * 0.88) | round(1) }}pt; padding: {{ T.row_mm }}mm .7mm;
+  }
+  table.items.items-dense td.desc { hyphens: auto; }
+  /* Figures normally never wrap -- a broken amount is hard to read. But at
+     this column count a nowrap amount is *wider than its cell*, so it prints
+     over its neighbour, which is worse than wrapping. Dense mode therefore
+     lets them wrap; the designer warns above
+     invoice_spec.LEGIBLE_ITEM_COLUMNS so a user reaches this deliberately. */
+  table.items.items-dense .num,
+  table.items.items-dense .t-nums { white-space: normal; overflow-wrap: anywhere; }
+
+  table.items.v-rule thead th { border-bottom: 1.5px solid {{ T.accent }}; }
+  table.items.v-rule tbody td { border-bottom: .5px solid {{ T.line }}; }
+
+  table.items.v-filled thead th { background: {{ T.accent }}; color: {{ T.on_accent }}; }
+  table.items.v-filled tbody tr:nth-child(even) td { background: {{ T.accent_soft }}; }
+
+  table.items.v-grid th, table.items.v-grid td { border: .5px solid {{ T.line }}; }
+  table.items.v-grid thead th { background: {{ T.accent_soft }}; }
+
+  /* ---- Totals --------------------------------------------------------- */
+  .totals { width: 100%; border-collapse: collapse; }
+  .totals td { padding: {{ T.row_mm }}mm 2mm; font-size: {{ T.body_pt }}pt; }
+  .totals td.k { color: #6b7280; }
+  .totals td.v { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .totals tr.grand td { font-size: {{ T.total_pt }}pt; font-weight: 700; border-top: 1.5px solid {{ T.accent }}; }
+  .totals tr.grand.fill td { background: {{ T.accent }}; color: {{ T.on_accent }}; border-top: 0; }
+
+  /* ---- Logo ----------------------------------------------------------- */
+  .logo img { max-height: {{ T.logo_mm }}mm; max-width: 60mm; object-fit: contain; }
+  .logo-plate { background: #fff; padding: 1.5mm 2mm; border-radius: 1.5mm; display: inline-block; }
+
+  /* ---- Letterhead ------------------------------------------------------
+     Printed into the space reserved above only when the client uploaded an
+     image. A client with PRE-PRINTED paper uploads nothing and gets the blank
+     space instead, which is the whole point of reserving it. */
+  {% if T.letterhead_fullbleed %}
+  /* IMPORTED letterhead. The image is the top {{ T.letterhead_mm }}mm of the
+     client's own page, cropped at full page width from the paper's top edge,
+     so it is printed back at exactly that size and position: outside the side
+     margins, flush to the top. Any other placement would rescale a masthead
+     the client already had right. */
+  .letterhead {
+    position: absolute;
+    top: -{{ T.letterhead_mm }}mm;
+    left: -{{ T.margin_x_mm }}mm; right: -{{ T.margin_x_mm }}mm;
+    height: {{ T.letterhead_mm }}mm;
+    overflow: hidden;
+  }
+  .letterhead img {
+    display: block;
+    width: 100%;
+    height: {{ T.letterhead_mm }}mm;
+    /* The crop and the reservation are the same band by construction, so
+       nothing is cropped here in practice. `cover` from the top is what keeps
+       it honest if the client afterwards drags the reservation smaller: the
+       masthead stays put and loses its bottom, rather than distorting. */
+    object-fit: cover;
+    object-position: top center;
+  }
+  {% else %}
+  /* UPLOADED letterhead: a graphic the client prepared, with no relationship
+     to the page edges. Centred inside the content box, which is where every
+     letterhead uploaded before the importer existed already prints. */
+  .letterhead {
+    position: absolute;
+    top: -{{ (T.letterhead_mm - T.margin_mm) if T.letterhead_mm else 0 }}mm;
+    left: 0; right: 0;
+    text-align: center;
+  }
+  /* The band the image may occupy runs from the normal top margin down to
+     where the content starts, so its height cap is the reserved space MINUS
+     that margin (and a 4mm breathing gap). Capping at `letterhead_mm - 6`
+     instead let a tall image run past the reservation and print over the
+     invoice -- visible at small reservations such as 60mm. */
+  .letterhead img {
+    max-width: 100%;
+    max-height: {{ [(T.letterhead_mm - T.margin_mm - 4), 4] | max if T.letterhead_mm else 0 }}mm;
+    object-fit: contain;
+  }
+  {% endif %}
+
+  /* ---- Screen preview --------------------------------------------------
+     The Invoice Appearance screen renders this same markup straight into an
+     iframe instead of rasterising a PDF, so the preview is instant and always
+     the real template rather than a mock-up of it.
+
+     A browser ignores `@page`, so the sheet and its margins are rebuilt here
+     as a padded body. The letterhead is the one thing positioned against the
+     page box rather than against the content, so it is re-anchored to match:
+     `position:absolute` resolves against the body's padding box on screen,
+     which is the paper edge, and against the page area in print, which is
+     inside the margins.
+
+     Print is untouched -- WeasyPrint renders the `print` media, so nothing
+     here reaches a real invoice. */
+  @media screen {
+    html { background: #eef0f4; padding: 10px 0; }
+    body {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto;
+      background: #fff;
+      position: relative;
+      box-shadow: 0 1px 12px rgba(17, 24, 39, .18);
+      padding: {{ T.letterhead_mm or T.margin_mm }}mm {{ T.margin_x_mm }}mm {{ T.margin_bottom_mm }}mm;
+    }
+    .letterhead {
+      {% if T.letterhead_fullbleed %}
+      top: 0; left: 0; right: 0;
+      {% else %}
+      top: {{ T.margin_mm }}mm;
+      left: {{ T.margin_x_mm }}mm;
+      right: {{ T.margin_x_mm }}mm;
+      {% endif %}
+    }
+  }
+
+  /* ---- FBR compliance block ------------------------------------------- */
+  .fbr-block { page-break-inside: avoid; }
+  .fbr-qr img { width: {{ T.qr_mm }}mm; height: {{ T.qr_mm }}mm; display: block; }
+  .fbr-logo img { max-height: {{ T.qr_mm }}mm; max-width: 34mm; object-fit: contain; }
+  .fbr-num { font-size: {{ T.label_pt }}pt; font-weight: 700; letter-spacing: .02em; }
+  .fbr-cap { font-size: {{ (T.label_pt - 0.5) }}pt; color: #6b7280; text-transform: uppercase; letter-spacing: .06em; }
+
+  .sig { border-top: .5px solid #9ca3af; padding-top: 1.5mm; min-width: 42mm; text-align: center; }
+  address { font-style: normal; }
+</style>

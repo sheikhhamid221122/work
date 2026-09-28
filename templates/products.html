@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    {% include 'partials/head-common.html' %}
+    <title>Products — TaxLink Pro</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/master-data.css') }}">
+</head>
+
+<body class="font-sans">
+    <div class="flex h-screen overflow-hidden">
+        {% include 'partials/sidebar.html' %}
+
+        <div class="flex flex-col flex-1 overflow-hidden">
+            {% include 'partials/topbar.html' %}
+            <main class="flex-1 overflow-y-auto min-h-0">
+                <div class="md-page" id="products-content">
+                    <div class="md-header">
+                        <div>
+                            <h1>Products</h1>
+                            <p>Catalog of items with HS codes, UOM, and tax configuration.</p>
+                        </div>
+                        <div class="md-actions">
+                            <button type="button" class="md-btn md-btn-outline" id="btn-import"><i class="fas fa-upload"></i> Import</button>
+                            <button type="button" class="md-btn md-btn-primary" id="btn-new"><i class="fas fa-plus"></i> New product</button>
+                        </div>
+                    </div>
+
+                    <div class="md-metrics">
+                        <div class="md-card md-metric">
+                            <div class="md-metric-top"><span class="md-metric-label">Catalog size</span><span class="md-metric-icon"><i class="fas fa-box"></i></span></div>
+                            <div class="md-metric-value" id="m-total">–</div>
+                            <div class="md-metric-hint">Products in your catalogue</div>
+                        </div>
+                        <div class="md-card md-metric">
+                            <div class="md-metric-top"><span class="md-metric-label">Active products</span><span class="md-metric-icon"><i class="fas fa-bolt"></i></span></div>
+                            <div class="md-metric-value" id="m-active">–</div>
+                            <div class="md-metric-hint">Sold in the last 30 days</div>
+                        </div>
+                        <div class="md-card md-metric">
+                            <div class="md-metric-top"><span class="md-metric-label">Avg. tax rate</span><span class="md-metric-icon"><i class="fas fa-percent"></i></span></div>
+                            <div class="md-metric-value" id="m-tax">–</div>
+                            <div class="md-metric-hint">Default rate across the catalogue</div>
+                        </div>
+                        <div class="md-card md-metric">
+                            <div class="md-metric-top"><span class="md-metric-label">Catalog revenue</span><span class="md-metric-icon"><i class="fas fa-arrow-trend-up"></i></span></div>
+                            <div class="md-metric-value" id="m-revenue">–</div>
+                            <div class="md-metric-hint">Submitted invoices · {{ 'Production' if session.get('env') == 'production' else 'Sandbox' }}</div>
+                        </div>
+                    </div>
+
+                    <section class="md-card">
+                        <div class="md-toolbar">
+                            <div class="md-search">
+                                <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+                                <input type="text" id="search" placeholder="Search by name, code, or HS…" autocomplete="off" value="{{ query }}" aria-label="Search products">
+                                <button type="button" class="md-search-clear" id="search-clear" aria-label="Clear search" hidden><i class="fas fa-xmark"></i></button>
+                            </div>
+                            <div class="md-filter-wrap">
+                                <button type="button" class="md-btn md-btn-outline md-btn-sm" id="btn-filters" aria-expanded="false">
+                                    <i class="fas fa-filter"></i> Filters <span class="md-filter-count" id="filter-count" hidden></span>
+                                </button>
+                                <div class="md-popover" id="filters" hidden>
+                                    <div class="md-field">
+                                        <label for="f-uom">UoM</label>
+                                        <select class="md-select" id="f-uom"><option value="">All units</option></select>
+                                    </div>
+                                    <div class="md-field">
+                                        <label for="f-tax">Tax rate</label>
+                                        <select class="md-select" id="f-tax"><option value="">All rates</option></select>
+                                    </div>
+                                    <div class="md-field">
+                                        <label for="f-sale">Sale type</label>
+                                        <select class="md-select" id="f-sale"><option value="">All sale types</option></select>
+                                    </div>
+                                    <div class="md-popover-foot">
+                                        <button type="button" class="md-btn md-btn-ghost md-btn-sm" id="f-reset">Reset</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <span class="md-toolbar-count" id="count"></span>
+                        </div>
+
+                        <div class="md-table-wrap">
+                            <table class="md-table">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Code</th>
+                                        <th>HS Code</th>
+                                        <th>UOM</th>
+                                        <th>Sale type</th>
+                                        <th class="num">Rate</th>
+                                        <th class="num">Tax</th>
+                                        <th class="num">Times sold</th>
+                                        <th class="num">Revenue</th>
+                                        <th style="width:84px"><span class="sr-only">Actions</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="rows">
+                                    <tr class="md-loading"><td colspan="10"><i class="fas fa-circle-notch fa-spin"></i> Loading products…</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="md-table-foot" id="foot" hidden>
+                            <span id="range"></span>
+                            <div class="md-pager" id="pager"></div>
+                        </div>
+                    </section>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Add / edit product -->
+    <aside class="md-sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title" hidden>
+        <div class="md-sheet-head">
+            <h2 class="md-sheet-title" id="sheet-title">Add product</h2>
+            <p class="md-sheet-desc" id="sheet-desc">Define HS code, UOM, default rate and tax.</p>
+            <button type="button" class="md-close" data-md-close aria-label="Close"><i class="fas fa-xmark"></i></button>
+        </div>
+        <form class="md-sheet-body" id="form" novalidate>
+            <div class="md-alert" id="form-error" hidden></div>
+            <div class="md-stats" id="stats" hidden>
+                <div><div class="k">Times sold</div><div class="v" id="s-sold"></div></div>
+                <div><div class="k">Quantity</div><div class="v" id="s-qty"></div></div>
+                <div><div class="k">Revenue</div><div class="v" id="s-revenue"></div></div>
+            </div>
+            <div class="md-field">
+                <label for="p-name">Product name <span class="req">*</span></label>
+                <input class="md-input" id="p-name" maxlength="500" placeholder="Portland Cement (50kg)" required>
+            </div>
+            <div class="md-form-grid" style="margin-top:14px">
+                <div class="md-field">
+                    <label for="p-code">Code</label>
+                    <input class="md-input" id="p-code" maxlength="50" readonly tabindex="-1">
+                    <span class="md-hint" id="p-code-hint">Assigned automatically</span>
+                </div>
+                <div class="md-field">
+                    <label for="p-hs">HS Code</label>
+                    <div class="md-combo">
+                        <input class="md-input" id="p-hs" maxlength="12" placeholder="2523.2900" autocomplete="off"
+                               role="combobox" aria-expanded="false" aria-controls="p-hs-list" aria-autocomplete="list">
+                        <div class="md-combo-list" id="p-hs-list" role="listbox" hidden></div>
+                    </div>
+                </div>
+                <div class="md-field span-2" id="p-hs-desc-wrap" hidden>
+                    <span class="md-hint" id="p-hs-desc"></span>
+                </div>
+                <div class="md-field">
+                    <label for="p-uom">UOM <span class="req">*</span></label>
+                    <select class="md-select" id="p-uom" required><option value="">Select UoM</option></select>
+                    <span class="md-hint" id="p-uom-hint" hidden></span>
+                </div>
+                <div class="md-field">
+                    <label for="p-rate">Default rate</label>
+                    <input class="md-input" id="p-rate" type="number" min="0" step="0.01" placeholder="1450.00" inputmode="decimal">
+                    <span class="md-hint">Unit price in PKR</span>
+                </div>
+                <div class="md-field">
+                    <label for="p-tax">Tax % <span class="req">*</span></label>
+                    <select class="md-select" id="p-tax" required><option value="">Select rate</option></select>
+                </div>
+                <div class="md-field" data-standard-only>
+                    <label for="p-sale">Sale type</label>
+                    <select class="md-select" id="p-sale"><option value="">Select sale type</option></select>
+                </div>
+                <div class="md-field" data-standard-only>
+                    <label for="p-sro">SRO schedule no</label>
+                    <input class="md-input" id="p-sro" maxlength="100" placeholder="e.g. EIGHTH SCHEDULE Table 1">
+                </div>
+                <div class="md-field" data-standard-only>
+                    <label for="p-sro-item">SRO item serial no</label>
+                    <input class="md-input" id="p-sro-item" maxlength="50" placeholder="e.g. 81">
+                </div>
+            </div>
+            <p class="md-hint" style="margin-top:14px">The same product name at a different rate is saved as a separate product; the same name <em>and</em> rate is a duplicate.</p>
+        </form>
+        <div class="md-sheet-foot">
+            <button type="submit" form="form" class="md-btn md-btn-primary md-btn-block" id="btn-save">Save product</button>
+            <button type="button" class="md-btn md-btn-danger-ghost md-btn-block" id="btn-delete" hidden><i class="fas fa-trash-can"></i> Delete product</button>
+        </div>
+    </aside>
+
+    <!-- Import -->
+    <div class="md-dialog" id="import" role="dialog" aria-modal="true" aria-labelledby="import-title" hidden>
+        <div class="md-sheet-head">
+            <h2 class="md-sheet-title" id="import-title">Import products from Excel</h2>
+            <p class="md-sheet-desc">Add many products at once. Codes are assigned automatically and duplicates are skipped.</p>
+            <button type="button" class="md-close" data-md-close aria-label="Close"><i class="fas fa-xmark"></i></button>
+        </div>
+        <div class="md-dialog-body">
+            <div class="md-alert" data-error hidden></div>
+            <div class="md-steps">
+                <div class="md-step">
+                    <span class="md-step-no">1</span>
+                    <div class="md-step-main">
+                        <div class="md-step-title">Download the template</div>
+                        <p class="md-step-desc">An Excel file with the right columns, FBR's UoMs, tax rates and sale types as dropdowns, and a few sample rows to replace.</p>
+                        <a class="md-btn md-btn-outline md-btn-sm" href="/api/products/import-template" download><i class="fas fa-file-excel"></i> Download template</a>
+                    </div>
+                </div>
+                <div class="md-step">
+                    <span class="md-step-no">2</span>
+                    <div class="md-step-main">
+                        <div class="md-step-title">Upload the filled-in file</div>
+                        <p class="md-step-desc">We'll check every row first — nothing is saved until you confirm.</p>
+                        <div class="md-drop" tabindex="0" role="button" aria-label="Choose file">
+                            <i class="fas fa-file-excel" aria-hidden="true"></i>
+                            <div style="min-width:0"><div class="t"></div><div class="d"></div></div>
+                        </div>
+                        <input type="file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+                    </div>
+                </div>
+            </div>
+            <div data-report></div>
+        </div>
+        <div class="md-dialog-foot">
+            <button type="button" class="md-btn md-btn-outline" data-md-close>Close</button>
+            <button type="button" class="md-btn md-btn-primary" data-action="check" disabled><i class="fas fa-list-check"></i> Check file</button>
+            <button type="button" class="md-btn md-btn-primary" data-action="import" hidden></button>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/master-data.js') }}"></script>
+    <script>
+    (function () {
+        'use strict';
+        var PAGE_SIZE = 20;
+        var state = { products: [], page: 1, nextCode: '', codesEnabled: true, codeEditable: false, special: false };
+        var editing = null;
+        var $ = function (id) { return document.getElementById(id); };
+        var els = {
+            rows: $('rows'), count: $('count'), foot: $('foot'), range: $('range'), pager: $('pager'),
+            search: $('search'), clear: $('search-clear'), uom: $('f-uom'), tax: $('f-tax'), sale: $('f-sale'),
+            filterCount: $('filter-count'), sheet: $('sheet'), form: $('form'), error: $('form-error')
+        };
+
+        function taxText(value) { return MD.num(value) + '%'; }
+
+        // ------------------------------------------------------------- load
+
+        function load() {
+            return MD.request('/api/products/overview').then(function (res) {
+                if (!res.ok) {
+                    els.rows.innerHTML = '<tr><td colspan="10" class="md-empty"><div class="md-empty-title">Could not load products</div>' +
+                        '<div class="md-empty-sub">' + MD.esc(MD.errorText(res)) + '</div></td></tr>';
+                    return;
+                }
+                var d = res.data;
+                state.products = d.products || [];
+                state.nextCode = d.next_code || '';
+                state.codesEnabled = d.codes_enabled !== false;
+                state.codeEditable = !!d.code_editable;
+                state.special = !!d.is_special;
+                var s = d.summary || {};
+                $('m-total').textContent = MD.num(s.total);
+                $('m-active').textContent = MD.num(s.active_30d);
+                $('m-tax').textContent = MD.num(s.avg_tax_rate) + '%';
+                $('m-revenue').textContent = MD.pkr(s.revenue);
+                $('m-revenue').title = MD.pkr(s.revenue, 2);
+                fillFilters();
+                render();
+            });
+        }
+
+        function fillFilters() {
+            [[els.uom, 'uom', 'All units', String], [els.tax, 'default_tax_rate', 'All rates', taxText],
+             [els.sale, 'sale_type', 'All sale types', String]].forEach(function (f) {
+                var current = f[0].value, seen = {};
+                state.products.forEach(function (p) { if (p[f[1]] !== '' && p[f[1]] !== null) seen[p[f[1]]] = true; });
+                var keys = Object.keys(seen).sort(function (a, b) {
+                    return f[1] === 'default_tax_rate' ? a - b : a.localeCompare(b);
+                });
+                MD.fillSelect(f[0], keys.map(function (k) { return { value: k, label: f[3](k) }; }), f[2]);
+                f[0].value = current;
+            });
+        }
+
+        // ------------------------------------------------------------ render
+
+        function filtered() {
+            var t = els.search.value.trim().toLowerCase();
+            return state.products.filter(function (p) {
+                var hit = !t || [p.description, p.product_code, p.hs_code, p.uom, p.sale_type].some(function (v) {
+                    return String(v || '').toLowerCase().indexOf(t) >= 0;
+                });
+                return hit && (!els.uom.value || p.uom === els.uom.value) &&
+                    (!els.tax.value || p.default_tax_rate === els.tax.value) &&
+                    (!els.sale.value || p.sale_type === els.sale.value);
+            });
+        }
+
+        function render() {
+            var list = filtered();
+            var term = els.search.value.trim();
+            var active = [els.uom, els.tax, els.sale].filter(function (s) { return s.value; }).length;
+            els.filterCount.textContent = active;
+            els.filterCount.hidden = !active;
+            els.clear.hidden = !term;
+            els.count.textContent = list.length === state.products.length
+                ? MD.num(list.length) + ' product' + (list.length === 1 ? '' : 's')
+                : MD.num(list.length) + ' of ' + MD.num(state.products.length) + ' products';
+
+            if (!state.products.length) {
+                els.rows.innerHTML = '<tr><td colspan="10" class="md-empty"><div class="md-empty-icon"><i class="fas fa-box"></i></div>' +
+                    '<div class="md-empty-title">No products yet</div><div class="md-empty-sub">Add the goods and services you sell, one at a time or in bulk from Excel.</div>' +
+                    '<button type="button" class="md-btn md-btn-primary md-btn-sm" data-new><i class="fas fa-plus"></i> New product</button></td></tr>';
+                els.foot.hidden = true;
+                return;
+            }
+            if (!list.length) {
+                els.rows.innerHTML = '<tr><td colspan="10" class="md-empty"><div class="md-empty-title">No products match</div>' +
+                    '<div class="md-empty-sub">Try a different search, or clear the filters.</div></td></tr>';
+                els.foot.hidden = true;
+                return;
+            }
+
+            var pages = Math.ceil(list.length / PAGE_SIZE);
+            state.page = Math.min(state.page, pages);
+            var start = (state.page - 1) * PAGE_SIZE;
+            var slice = list.slice(start, start + PAGE_SIZE);
+
+            els.rows.innerHTML = slice.map(function (p) {
+                return '<tr>' +
+                    '<td><div class="md-strong">' + MD.highlight(p.description, term) + '</div>' +
+                    '<div class="md-sub">' + (p.last_sold ? 'Last sold ' + MD.date(p.last_sold) : 'Not sold yet') +
+                    (p.sro_schedule_no ? ' · ' + MD.esc(p.sro_schedule_no) : '') + '</div></td>' +
+                    '<td class="md-muted md-mono">' + MD.highlight(p.product_code || '–', term) + '</td>' +
+                    '<td class="md-mono">' + MD.highlight(p.hs_code || '–', term) + '</td>' +
+                    '<td class="nowrap">' + MD.highlight(p.uom || '–', term) + '</td>' +
+                    '<td class="md-muted" style="font-size:12px;max-width:200px">' + MD.highlight(p.sale_type || '–', term) + '</td>' +
+                    '<td class="num">' + MD.pkr(p.rate, 2) + '</td>' +
+                    '<td class="num">' + taxText(p.default_tax_rate) + '</td>' +
+                    '<td class="num">' + MD.num(p.times_sold) + '</td>' +
+                    '<td class="num md-strong">' + MD.pkr(p.revenue) + '</td>' +
+                    '<td><div class="md-row-actions">' +
+                    '<button type="button" class="md-icon-btn" data-view="' + p.id + '" title="View / edit" aria-label="View ' + MD.esc(p.description) + '"><i class="fas fa-eye"></i></button>' +
+                    '<button type="button" class="md-icon-btn danger" data-delete="' + p.id + '" title="Delete" aria-label="Delete ' + MD.esc(p.description) + '"><i class="fas fa-trash-can"></i></button>' +
+                    '</div></td></tr>';
+            }).join('');
+
+            els.foot.hidden = false;
+            els.range.textContent = 'Showing ' + (start + 1) + '–' + (start + slice.length) + ' of ' + MD.num(list.length);
+            MD.renderPager(els.pager, state.page, pages, function (pg) { state.page = pg; render(); });
+        }
+
+        function find(id) { return state.products.filter(function (p) { return p.id === id; })[0]; }
+
+        els.rows.addEventListener('click', function (e) {
+            var view = e.target.closest('[data-view]');
+            var del = e.target.closest('[data-delete]');
+            if (e.target.closest('[data-new]')) openSheet(null);
+            if (view) openSheet(find(+view.getAttribute('data-view')));
+            if (del) remove(find(+del.getAttribute('data-delete')));
+        });
+
+        var rerender = MD.debounce(function () { state.page = 1; render(); }, 120);
+        els.search.addEventListener('input', rerender);
+        els.clear.addEventListener('click', function () { els.search.value = ''; state.page = 1; render(); els.search.focus(); });
+        [els.uom, els.tax, els.sale].forEach(function (s) { s.addEventListener('change', function () { state.page = 1; render(); }); });
+        $('f-reset').addEventListener('click', function () { els.uom.value = els.tax.value = els.sale.value = ''; state.page = 1; render(); });
+        MD.popover($('btn-filters'), $('filters'));
+
+        // ------------------------------------------------------------- sheet
+
+        var optionsReady = MD.formOptions().then(function (opts) {
+            MD.fillSelect($('p-uom'), opts.uoms || [], 'Select UoM');
+            // Stored as a number (18); FBR's list labels it "18%".
+            MD.fillSelect($('p-tax'), (opts.taxRates || []).map(function (o) {
+                return { value: String(parseFloat(String(o.label).replace('%', ''))), label: o.label };
+            }), 'Select rate');
+            MD.fillSelect($('p-sale'), opts.saleTypes || [], 'Select sale type');
+        });
+
+        function ensureOption(select, value) {
+            if (!value || MD.selectValue(select, value)) return;
+            var opt = document.createElement('option');
+            opt.value = value; opt.textContent = value;
+            select.appendChild(opt);
+            select.value = value;
+        }
+
+        function openSheet(product) {
+            editing = product || null;
+            MD.formError(els.error, '');
+            els.form.querySelectorAll('.is-invalid').forEach(function (el) { el.classList.remove('is-invalid'); });
+            $('sheet-title').textContent = product ? 'Product details' : 'Add product';
+            $('sheet-desc').textContent = product ? 'Changes apply to new invoices; submitted invoices are not affected.'
+                : 'Define HS code, UOM, default rate and tax.';
+            $('btn-save').textContent = product ? 'Save changes' : 'Save product';
+            $('btn-delete').hidden = !product;
+            $('stats').hidden = !product;
+            $('p-uom-hint').hidden = true;
+            $('p-hs-desc-wrap').hidden = true;
+
+            document.querySelectorAll('[data-standard-only]').forEach(function (el) { el.hidden = state.special; });
+            var code = $('p-code');
+            code.readOnly = !state.codeEditable;
+            code.tabIndex = state.codeEditable ? 0 : -1;
+            code.value = product ? (product.product_code || '') : (state.codeEditable ? '' : state.nextCode);
+            $('p-code-hint').textContent = state.codeEditable ? 'Your own product code'
+                : !state.codesEnabled ? 'Codes need the latest database update'
+                : product ? (product.product_code ? 'Codes don’t change once assigned' : 'Assigned when you save')
+                : 'Assigned automatically when you save';
+
+            $('p-name').value = product ? product.description : '';
+            $('p-hs').value = product ? product.hs_code : '';
+            $('p-rate').value = product && Number(product.rate) ? product.rate : '';
+            $('p-sro').value = product ? product.sro_schedule_no : '';
+            $('p-sro-item').value = product ? product.sro_item_serial_no : '';
+            if (product) {
+                $('s-sold').textContent = MD.num(product.times_sold);
+                $('s-qty').textContent = MD.num(product.quantity);
+                $('s-revenue').textContent = MD.pkr(product.revenue);
+            }
+            optionsReady.then(function () {
+                if (product) {
+                    ensureOption($('p-uom'), product.uom);
+                    ensureOption($('p-tax'), product.default_tax_rate);
+                    ensureOption($('p-sale'), product.sale_type);
+                } else {
+                    $('p-uom').value = ''; $('p-tax').value = ''; $('p-sale').value = '';
+                }
+            });
+            MD.open(els.sheet, '#p-name');
+        }
+
+        $('btn-new').addEventListener('click', function () { openSheet(null); });
+
+        // HS code search against FBR's list, then the UoMs FBR accepts for it.
+        (function () {
+            var input = $('p-hs'), list = $('p-hs-list'), seq = 0, items = [], active = -1;
+            function close() { list.hidden = true; input.setAttribute('aria-expanded', 'false'); active = -1; }
+            function pick(code, desc) {
+                input.value = code;
+                close();
+                $('p-hs-desc').textContent = desc || '';
+                $('p-hs-desc-wrap').hidden = !desc;
+                suggestUom(code);
+            }
+            var search = MD.debounce(function () {
+                var term = input.value.trim();
+                if (term.length < 2) { close(); return; }
+                var mine = ++seq;
+                MD.request('/api/reference/hs-codes?search=' + encodeURIComponent(term)).then(function (res) {
+                    if (mine !== seq) return;
+                    items = ((res.data && res.data.hs_codes) || []).slice(0, 30);
+                    list.innerHTML = items.length ? items.map(function (h, i) {
+                        return '<button type="button" class="md-combo-item" role="option" data-i="' + i + '"><b>' +
+                            MD.esc(h.hS_CODE || h.hs_code) + '</b><span>' + MD.esc(h.description || '') + '</span></button>';
+                    }).join('') : '<div class="md-combo-empty">' + (res.data && res.data.error ? 'FBR list unavailable — type the code' : 'No matching HS codes') + '</div>';
+                    list.hidden = false;
+                    input.setAttribute('aria-expanded', 'true');
+                    active = -1;
+                });
+            }, 250);
+            input.addEventListener('input', search);
+            input.addEventListener('keydown', function (e) {
+                var buttons = list.querySelectorAll('.md-combo-item');
+                if (list.hidden || !buttons.length) return;
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    if (active >= 0) buttons[active].classList.remove('is-active');
+                    active = (active + (e.key === 'ArrowDown' ? 1 : -1) + buttons.length) % buttons.length;
+                    buttons[active].classList.add('is-active');
+                    buttons[active].scrollIntoView({ block: 'nearest' });
+                } else if (e.key === 'Enter' && active >= 0) {
+                    e.preventDefault();
+                    buttons[active].click();
+                } else if (e.key === 'Escape') {
+                    e.stopPropagation();
+                    close();
+                }
+            });
+            list.addEventListener('mousedown', function (e) { e.preventDefault(); });
+            list.addEventListener('click', function (e) {
+                var b = e.target.closest('[data-i]');
+                if (!b) return;
+                var h = items[+b.getAttribute('data-i')];
+                pick(h.hS_CODE || h.hs_code, h.description);
+            });
+            input.addEventListener('blur', function () { setTimeout(close, 120); });
+            els.sheet.addEventListener('md:closed', close);
+        })();
+
+        function suggestUom(code) {
+            var hint = $('p-uom-hint');
+            MD.request('/api/reference/hs-uom?hs_code=' + encodeURIComponent(code)).then(function (res) {
+                var valid = (res.ok && res.data.source === 'api' && res.data.valid_uoms) || [];
+                if (!valid.length) { hint.hidden = true; return; }
+                var names = valid.map(function (u) { return u.description; });
+                hint.hidden = false;
+                hint.className = 'md-hint';
+                hint.textContent = 'FBR accepts for this HS code: ' + names.join(', ');
+                if (names.length === 1) MD.selectValue($('p-uom'), names[0]);
+            });
+        }
+
+        function payloadFromForm() {
+            var payload = {
+                description: $('p-name').value.trim().replace(/\s+/g, ' '),
+                hs_code: $('p-hs').value.trim(),
+                uom: $('p-uom').value,
+                rate: $('p-rate').value.trim() || '0',
+                default_tax_rate: $('p-tax').value,
+                sale_type: state.special ? '' : $('p-sale').value,
+                sro_schedule_no: state.special ? '' : $('p-sro').value.trim(),
+                sro_item_serial_no: state.special ? '' : $('p-sro-item').value.trim()
+            };
+            if (state.codeEditable) payload.product_code = $('p-code').value.trim();
+            return payload;
+        }
+
+        function sameRate(a, b) { return Math.round(Number(a || 0) * 100) === Math.round(Number(b || 0) * 100); }
+
+        els.form.addEventListener('submit', function (e) {
+            e.preventDefault();
+            var payload = payloadFromForm();
+            var missing = [];
+            [['p-name', payload.description], ['p-uom', payload.uom], ['p-tax', payload.default_tax_rate]].forEach(function (f) {
+                $(f[0]).classList.toggle('is-invalid', !f[1]);
+                if (!f[1]) missing.push(f[0]);
+            });
+            if (missing.length) { MD.formError(els.error, 'Fill in the required fields marked *.'); $(missing[0]).focus(); return; }
+            if (payload.hs_code && !/^\d{4}(\.\d{1,4})?$/.test(payload.hs_code)) {
+                $('p-hs').classList.add('is-invalid');
+                MD.formError(els.error, 'HS code should look like 3004.9099.');
+                return;
+            }
+            if (Number(payload.rate) < 0 || isNaN(Number(payload.rate))) {
+                $('p-rate').classList.add('is-invalid');
+                MD.formError(els.error, 'Rate must be zero or more.');
+                return;
+            }
+            var key = payload.description.toLowerCase();
+            var dupe = state.products.filter(function (p) {
+                return (!editing || p.id !== editing.id) && p.description.replace(/\s+/g, ' ').toLowerCase() === key && sameRate(p.rate, payload.rate);
+            })[0];
+            if (dupe) {
+                $('p-name').classList.add('is-invalid');
+                $('p-rate').classList.add('is-invalid');
+                MD.formError(els.error, '“' + dupe.description + '” at ' + MD.pkr(dupe.rate, 2) + ' already exists' +
+                    (dupe.product_code ? ' (' + dupe.product_code + ')' : '') + '. Change the name or the rate.');
+                return;
+            }
+            // The server needs a rate to apply the name + rate rule.
+            payload.default_tax_rate = Number(payload.default_tax_rate);
+
+            var btn = $('btn-save');
+            btn.disabled = true;
+            var wasEditing = editing;
+            var req = wasEditing
+                ? MD.request('/api/products/' + wasEditing.id, { method: 'PUT', json: payload })
+                : MD.request('/api/products', { method: 'POST', json: payload }).then(function (res) {
+                    // A deleted product with this name and rate is brought back;
+                    // save the form over it so it matches what was entered.
+                    if (res.ok && res.data.restored) {
+                        return MD.request('/api/products/' + res.data.id, { method: 'PUT', json: payload }).then(function (r2) {
+                            r2.restored = true;
+                            return r2;
+                        });
+                    }
+                    return res;
+                });
+            req.then(function (res) {
+                btn.disabled = false;
+                if (!res.ok) {
+                    if (res.status === 409) { $('p-name').classList.add('is-invalid'); $('p-rate').classList.add('is-invalid'); }
+                    MD.formError(els.error, MD.errorText(res, 'The product could not be saved.'));
+                    return;
+                }
+                MD.close(els.sheet);
+                MD.toast('success', wasEditing ? 'Product updated.'
+                    : res.restored ? payload.description + ' had been deleted; it has been restored with these details.'
+                    : payload.description + ' added' + (res.data.product_code ? ' as ' + res.data.product_code : '') + '.');
+                load();
+            });
+        });
+
+        $('btn-delete').addEventListener('click', function () { if (editing) remove(editing, true); });
+
+        function remove(product, fromSheet) {
+            if (!product) return;
+            MD.confirm({
+                title: 'Delete ' + product.description + '?',
+                message: 'It will no longer be offered when you create invoices. Invoices that already include it are not affected.',
+                confirmText: 'Delete product'
+            }).then(function (yes) {
+                if (!yes) return;
+                MD.request('/api/products/' + product.id, { method: 'DELETE' }).then(function (res) {
+                    if (!res.ok) { MD.toast('error', MD.errorText(res, 'The product could not be deleted.')); return; }
+                    if (fromSheet) MD.close(els.sheet);
+                    MD.toast('success', product.description + ' deleted.');
+                    load();
+                });
+            });
+        }
+
+        // ------------------------------------------------------------ import
+
+        var importer = MD.setupImport({
+            dialog: $('import'),
+            importUrl: '/api/products/import',
+            noun: 'Product',
+            onDone: load
+        });
+        $('btn-import').addEventListener('click', importer.open);
+
+        load();
+    })();
+    </script>
+</body>
+
+</html>

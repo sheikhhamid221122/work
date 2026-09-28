@@ -1,0 +1,246 @@
+{#
+  The building blocks every invoice layout is assembled from.
+
+  A layout file arranges these macros; it does not contain invoice knowledge of
+  its own. That is what makes thirteen layouts maintainable -- a change to how
+  sales tax is shown happens once, here, and every template inherits it.
+
+  Contract: each macro takes `d` (the invoice payload) and `T` (the resolved
+  theme from invoice_templates.resolve_theme).
+#}
+
+{#- Safe money formatting. Values arrive from Excel/DB as str or float, and a
+    stray "1,234.00" must not blow up the render. -#}
+{%- macro amt(value) -%}
+{%- set cleaned = (value | string | replace(',', '') | trim) or '0' -%}
+{%- if cleaned | float(none) is none -%}{{ value }}{%- else -%}{{ '{:,.2f}'.format(cleaned | float) }}{%- endif -%}
+{%- endmacro -%}
+
+{%- macro txt(value) -%}{{ (value if value is not none else '') | string | trim }}{%- endmacro -%}
+
+
+{# ---------------------------------------------------------------- logo -- #}
+{% macro logo(d, T, client_logo_url, plate=False) %}
+  {% if client_logo_url %}
+    <div class="logo{% if plate %} logo-plate{% endif %}">
+      <img src="{{ client_logo_url }}" alt="">
+    </div>
+  {% endif %}
+{% endmacro %}
+
+
+{# ------------------------------------------------------------- parties -- #}
+{#- `show_province` defaults off so the thirteen built-in layouts keep the
+    output they have always had. Province is required in the DI API payload
+    (s4.1.2) but none of those layouts has ever printed it, so turning it on
+    for everyone would silently change every client's invoice. Templates built
+    in the designer pass True. -#}
+{#- The seller half also answers to T.seller_display: a client printing under
+    their own letterhead does not want their name and address repeated
+    immediately below it. The tax numbers are governed separately because they
+    belong on the face of a sales tax invoice and a letterhead rarely carries
+    them. The buyer half is never affected. -#}
+{% macro party(d, T, side, heading, color=None, show_province=False) %}
+  {% set is_seller = side == 'seller' %}
+  {% set show_identity = T.seller_identity if is_seller else True %}
+  {% set show_tax_ids = T.seller_tax_ids if is_seller else True %}
+  {% set name = (d.sellerBusinessName if is_seller else d.buyerBusinessName) if show_identity else None %}
+  {% set legal = (d.sellerLegalName if is_seller else None) if show_identity else None %}
+  {% set addr = (d.sellerAddress if is_seller else d.buyerAddress) if show_identity else None %}
+  {% set ntn = (d.sellerNTNCNIC if is_seller else d.buyerNTNCNIC) if show_tax_ids else None %}
+  {% set strn = (d.sellerSTRN if is_seller else d.buyerSTRN) if show_tax_ids else None %}
+  {% set province = ((d.sellerProvince if is_seller else d.buyerProvince) if show_province else None) if show_identity else None %}
+  {#- Nothing to say: a heading with an empty block under it reads as missing
+      data rather than as a deliberate setting, so the block goes entirely. -#}
+  {% if is_seller and not (name or legal or addr or ntn or strn) %}{% else %}
+  <div>
+    <div class="t-label" {% if color %}style="color:{{ color }};opacity:.8"{% endif %}>{{ heading }}</div>
+    {% if legal or name %}<div class="t-name t-strong" style="margin-top:1mm{% if color %};color:{{ color }}{% endif %}">{{ txt(legal or name) }}</div>{% endif %}
+    {% if legal and name and legal != name %}
+      <div class="t-body t-muted" {% if color %}style="color:{{ color }};opacity:.85"{% endif %}>{{ txt(name) }}</div>
+    {% endif %}
+    {% if addr %}
+      <address class="t-body t-muted" style="margin-top:.8mm{% if color %};color:{{ color }};opacity:.85{% endif %}">{{ txt(addr) }}</address>
+    {% endif %}
+    {% if ntn %}<div class="t-body" style="margin-top:.8mm{% if color %};color:{{ color }};opacity:.9{% endif %}"><span class="t-muted"{% if color %} style="color:{{ color }};opacity:.7"{% endif %}>NTN/CNIC</span> {{ txt(ntn) }}</div>{% endif %}
+    {% if strn %}<div class="t-body"{% if color %} style="color:{{ color }};opacity:.9"{% endif %}><span class="t-muted"{% if color %} style="color:{{ color }};opacity:.7"{% endif %}>STRN</span> {{ txt(strn) }}</div>{% endif %}
+    {% if province %}<div class="t-body"{% if color %} style="color:{{ color }};opacity:.9"{% endif %}><span class="t-muted"{% if color %} style="color:{{ color }};opacity:.7"{% endif %}>Province</span> {{ txt(province) }}</div>{% endif %}
+    {% if side == 'buyer' and d.buyerRegistrationType %}
+      <div class="t-body"{% if color %} style="color:{{ color }};opacity:.9"{% endif %}><span class="t-muted"{% if color %} style="color:{{ color }};opacity:.7"{% endif %}>Status</span> {{ txt(d.buyerRegistrationType) }}</div>
+    {% endif %}
+  </div>
+  {% endif %}
+{% endmacro %}
+
+
+{# --------------------------------------------------------- document meta --#}
+{#- Rows of invoice identifiers.
+
+    Which rows, in what order, with what labels, is decided by
+    compliance.fields.meta_rows(): the client's profile when they have one,
+    the standard set when they do not, plus any per-invoice custom fields.
+    It lives there rather than here so the template designer's canvas shows
+    exactly the rows this block will print. -#}
+{% macro meta(d, T, align='right', color=None) %}
+  <table style="border-collapse:collapse;{% if align == 'right' %}margin-left:auto;{% endif %}">
+    {% for row in meta_rows(d) %}
+      {% set label = row.label %}{% set value = row.value %}
+      <tr>
+        <td class="t-label" style="padding:.5mm 3mm .5mm 0;white-space:nowrap{% if color %};color:{{ color }};opacity:.7{% endif %}">{{ label }}</td>
+        <td class="t-body t-strong t-nums" style="padding:.5mm 0;text-align:{{ align }}{% if color %};color:{{ color }}{% endif %}">{{ txt(value) }}</td>
+      </tr>
+    {% endfor %}
+  </table>
+{% endmacro %}
+
+
+{# --------------------------------------------------------- items table -- #}
+{#- `variant` selects the visual treatment. The thirteen built-in layouts all
+    print the same columns; only a template built in the designer chooses its
+    own, from the DI API catalogue in invoice_spec.ITEM_COLUMNS. -#}
+{#- One cell. `col` is a dict from invoice_spec.item_columns(); the value is
+    the first of its candidate payload keys that actually carries something,
+    because the same figure arrives under different names depending on whether
+    the invoice came from the form, an Excel upload or a saved draft. -#}
+{%- macro item_cell(item, col, row_no, excl, tax, further) -%}
+  {%- if col.kind == 'index' -%}
+    <td>{{ row_no }}</td>
+  {%- elif col.kind == 'total' -%}
+    <td class="num t-strong">{{ amt(excl + tax + further) }}</td>
+  {%- else -%}
+    {%- set ns = namespace(v=none) -%}
+    {%- for key in col.sources -%}
+      {%- if ns.v is none and item.get(key) is not none and item.get(key) != '' -%}
+        {%- set ns.v = item.get(key) -%}
+      {%- endif -%}
+    {%- endfor -%}
+    {%- if col.kind == 'money' -%}
+      {#- A money column with nothing in it is 0.00, not blank: these are
+          figures FBR expects to balance, and a blank reads as an omission. -#}
+      <td class="num">{{ amt(ns.v if ns.v is not none else 0) }}</td>
+    {%- elif col.kind == 'desc' -%}
+      <td class="desc">{{ txt(ns.v) }}</td>
+    {%- elif col.kind == 'num' -%}
+      <td class="num">{{ txt(ns.v) }}</td>
+    {%- else -%}
+      <td class="t-nums">{{ txt(ns.v) }}</td>
+    {%- endif -%}
+  {%- endif -%}
+{%- endmacro -%}
+
+{#- `columns` is a list of invoice_spec.ITEM_COLUMNS keys, passed by a template
+    built in the designer. The thirteen built-in layouts pass nothing and get
+    the legacy column set assembled from the same settings flags they have
+    always used, so their output is unchanged.
+
+    Widths come from item_columns() rather than being written out here: with
+    up to nineteen selectable columns, hardcoded percentages would overflow
+    the sheet as soon as a user switched a few on. -#}
+{% macro items(d, T, variant='rule', settings=None, columns=None) %}
+  {% set s = settings or {} %}
+  {% if columns %}
+    {% set cols = item_columns(columns) %}
+  {% else %}
+    {% set ns = namespace(keys=['serial']) %}
+    {% if s.get('show_product_code', False) %}{% set ns.keys = ns.keys + ['product_code'] %}{% endif %}
+    {% set ns.keys = ns.keys + ['description'] %}
+    {% if s.get('show_hs_code', True) %}{% set ns.keys = ns.keys + ['hs_code'] %}{% endif %}
+    {% set ns.keys = ns.keys + ['quantity', 'rate', 'value_excl', 'sales_tax'] %}
+    {% if d.showFurtherTax %}{% set ns.keys = ns.keys + ['further_tax'] %}{% endif %}
+    {% set ns.keys = ns.keys + ['total'] %}
+    {% set cols = item_columns(ns.keys) %}
+  {% endif %}
+  {% set has_further = cols | selectattr('key', 'equalto', 'further_tax') | list | length > 0 %}
+  <table class="items v-{{ variant }}{% if cols | length > 10 %} items-dense{% endif %}">
+    <colgroup>
+      {%- for c in cols %}<col{% if c.width %} style="width:{{ c.width }}%"{% endif %}>{% endfor -%}
+    </colgroup>
+    <thead>
+      <tr>
+        {%- for c in cols %}<th{% if c.align == 'num' %} class="num"{% endif %}>{{ c.label }}</th>{% endfor -%}
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in (d['items'] or []) %}
+        {% set row_no = loop.index %}
+        {% set excl = (item.valueSalesExcludingST | string | replace(',', '') | float(0)) %}
+        {% set tax = (item.salesTaxApplicable | string | replace(',', '') | float(0)) %}
+        {% set further = ((item.furtherTaxAmount or item.furtherTax) | string | replace(',', '') | float(0)) if has_further else 0 %}
+        <tr>
+          {%- for c in cols %}{{ item_cell(item, c, row_no, excl, tax, further) }}{% endfor -%}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endmacro %}
+
+
+{# -------------------------------------------------------------- totals -- #}
+{% macro totals(d, T, emphasis='rule') %}
+  <table class="totals">
+    <tr><td class="k">Total excl. Sales Tax</td><td class="v">{{ amt(d.totalExcl) }}</td></tr>
+    <tr><td class="k">Sales Tax</td><td class="v">{{ amt(d.totalTax) }}</td></tr>
+    <tr class="grand{% if emphasis == 'fill' %} fill{% endif %}">
+      <td>Total Amount</td><td class="v">PKR {{ amt(d.totalInclusive) }}</td>
+    </tr>
+  </table>
+  {% if d.amountInWords %}
+    <div class="t-body t-muted" style="margin-top:1.5mm">
+      <span class="t-label">Amount in words</span><br>{{ txt(d.amountInWords) | title }}
+    </div>
+  {% endif %}
+{% endmacro %}
+
+
+{# ------------------------------------------------------- FBR compliance --#}
+{#
+  LOCKED BLOCK -- do not make this conditional on a client setting.
+
+  FBR requires three things on a digitally-issued sales tax invoice: the QR
+  code (encoding the FBR invoice number), the FBR Digital Invoicing logo, and
+  the FBR invoice number itself in readable text. Every layout must include
+  this macro; a layout chooses only *where* it sits.
+
+  It renders only once `fbrInvoiceNumber` exists -- i.e. after the invoice has
+  been submitted to FBR. Before submission there is no number to encode, so a
+  draft or preview shows a neutral placeholder instead of a broken QR.
+#}
+{% macro fbr_block(d, T, qr_base64, fbr_logo_url, orientation='row') %}
+  {% set number = txt(d.fbrInvoiceNumber) %}
+  <div class="fbr-block {% if orientation == 'row' %}row row-mid{% else %}col{% endif %}"
+       style="gap:{{ T.gap_mm }}mm;{% if orientation != 'row' %}align-items:flex-start{% endif %}">
+    {% if number %}
+      {% if qr_base64 %}
+        <div class="fbr-qr"><img src="data:image/png;base64,{{ qr_base64 }}" alt="FBR QR code"></div>
+      {% endif %}
+      <div>
+        {% if fbr_logo_url %}
+          <div class="fbr-logo" style="margin-bottom:1mm"><img src="{{ fbr_logo_url }}" alt="FBR Digital Invoicing"></div>
+        {% endif %}
+        <div class="fbr-cap">FBR Invoice Number</div>
+        <div class="fbr-num t-nums">{{ number }}</div>
+      </div>
+    {% else %}
+      {# Not yet submitted. Say so plainly rather than printing an empty box
+         that looks like a rendering fault. #}
+      <div class="fbr-cap" style="padding:2mm 0">Not yet submitted to FBR &mdash;
+        QR code and FBR invoice number appear here once submitted.</div>
+    {% endif %}
+  </div>
+{% endmacro %}
+
+
+{# ----------------------------------------------------------- signature -- #}
+{% macro signature(d, T, label='Authorised Signature') %}
+  <div class="sig t-body t-muted">{{ label }}</div>
+{% endmacro %}
+
+
+{# ---------------------------------------------------------- letterhead -- #}
+{#- Printed into the space `@page :first` reserved above the content. A client
+    with pre-printed paper uploads no image and keeps the blank space. -#}
+{% macro letterhead(T) %}
+  {% if T.letterhead_mm and T.letterhead_image %}
+    <div class="letterhead"><img src="{{ T.letterhead_image }}" alt=""></div>
+  {% endif %}
+{% endmacro %}

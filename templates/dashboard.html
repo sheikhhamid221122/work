@@ -203,117 +203,6 @@
             transform: scale(1.05);
         }
 
-        /* Table row hover effect */
-        .table-row:hover {
-            background-color: #f8fafc;
-            transition: background-color 0.2s ease;
-        }
-
-        /* Button hover effects */
-        .btn-hover-effect {
-            transition: all 0.2s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .btn-hover-effect:after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(255, 255, 255, 0.1);
-            transform: translateX(-100%);
-            transition: transform 0.3s ease;
-        }
-
-        .btn-hover-effect:hover:after {
-            transform: translateX(0);
-        }
-
-        /* Improved card styles */
-        .card-shadow {
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            transition: box-shadow 0.3s ease, transform 0.3s ease;
-        }
-
-        .card-shadow:hover {
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            transform: translateY(-2px);
-        }
-
-        /* Status message container */
-        .status-container {
-            position: relative;
-            min-height: 60px;
-            /* Fixed height for button + status area */
-        }
-
-        .action-button {
-            width: 100%;
-        }
-
-        .status-message {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            text-align: center;
-            height: 30px;
-            /* Fixed height for status message */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* Modern table styles */
-        .records-table-wrapper {
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        }
-        
-        /* Checkbox styling */
-        .invoice-select-checkbox:checked {
-            background-color: #0284c7;
-            border-color: #0284c7;
-        }
-
-        /* Action button hover animations */
-        .view-invoice-btn, .delete-invoice-btn {
-            transform: translateY(0);
-            transition: all 0.2s ease;
-        }
-        
-        .view-invoice-btn:hover, .delete-invoice-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-        }
-
-        .view-invoice-btn:active, .delete-invoice-btn:active {
-            transform: translateY(0);
-        }
-
-        /* Stats card enhancement */
-        .stats-card {
-            transition: all 0.3s ease;
-            border-radius: 12px;
-        }
-        
-        .stats-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 20px -8px rgba(0, 0, 0, 0.15);
-        }
-
-        /* Gradient text for totals */
-        .gradient-text {
-            background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
         /* Loading spinner animation */
         @keyframes pulse-ring {
             0% {
@@ -335,6 +224,11 @@
         }
     </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/taxlink-theme.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <!-- Date-range control: the same component as Reports & Analytics -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/master-data.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/reports.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
   <script>
     // Applied before first paint so a dark-mode user never sees a light flash.
     // No stored value falls through to prefers-color-scheme in taxlink-theme.css.
@@ -356,226 +250,209 @@
 
         <!-- Main content -->
         <div class="flex flex-col flex-1 overflow-hidden">
+            {% include 'partials/topbar.html' %}
             <!-- Main content area -->
-            <main class="flex-1 overflow-y-auto min-h-0 p-3 sm:p-4 md:p-5 bg-gray-50">
+            <main class="flex-1 overflow-y-auto min-h-0">
+                {% set dash_env = session.get('env', 'sandbox') %}
+                {% set dash_env_label = 'Production' if dash_env == 'production' else 'Sandbox' %}
                 <div id="dashboard-content" class="content-section">
-                    <!-- Dashboard Header -->
-                    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
-                        <h1 class="text-xl font-bold text-gray-800">Dashboard Overview</h1>
-                        
-                        <!-- Bulk Action Bar (hidden by default) -->
-                        <div id="bulk-action-bar" class="hidden mt-2 md:mt-0 flex items-center gap-2 bg-primary-50 border border-primary-200 rounded-lg px-3 py-2">
-                            <span class="text-sm text-primary-700 font-medium"><span id="selected-count-display">0</span> selected</span>
-                            <button id="view-summary-btn" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium py-1.5 px-3 rounded-md transition flex items-center">
-                                <i class="fas fa-chart-pie mr-1.5"></i>View Summary
-                            </button>
-                            <button id="delete-selected-btn" class="bg-red-600 hover:bg-red-700 text-white text-sm font-medium py-1.5 px-3 rounded-md transition flex items-center">
-                                <i class="fas fa-trash-alt mr-1.5"></i>Delete Selected
-                            </button>
+                    <!-- Header -->
+                    <div class="dash-header">
+                        <div>
+                            <h1>Dashboard</h1>
+                            <div class="dash-subtitle">
+                                <span>Operational overview for {{ session.get('name', 'your business') }} · <span id="dash-period"></span></span>
+                            </div>
+                        </div>
+                        <div class="dash-header-actions">
+                            <div class="rp-range">
+                                <div class="rp-select-wrap">
+                                    <i class="fas fa-calendar" aria-hidden="true"></i>
+                                    <select class="md-select" id="range-select" aria-label="Date range">
+                                        <option value="7d">Last 7 days</option>
+                                        <option value="30d" selected>Last 30 days</option>
+                                        <option value="90d">Last 90 days</option>
+                                        <option value="ytd">Year to date</option>
+                                        <option value="custom">Custom range…</option>
+                                    </select>
+                                </div>
+                                <div class="rp-custom" id="custom-range" hidden>
+                                    <input type="date" id="range-start" aria-label="From">
+                                    <span>to</span>
+                                    <input type="date" id="range-end" aria-label="To">
+                                    <button type="button" class="md-btn md-btn-primary md-btn-sm" id="apply-date-range">Apply</button>
+                                </div>
+                            </div>
+                            <a href="/draft-invoices" class="dash-btn dash-btn-outline"><i class="fas fa-file-pen"></i> Drafts</a>
+                            <a href="/create-invoice" class="dash-btn dash-btn-primary"><i class="fas fa-plus"></i> New Invoice</a>
                         </div>
                     </div>
 
-                    <!-- Summary Cards -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-                        <div class="bg-white p-4 rounded-xl shadow-md stats-card border-l-4 border-primary-500 hover:border-primary-600">
-                            <div class="flex items-center">
-                                <div class="p-2.5 rounded-xl bg-gradient-to-br from-primary-100 to-primary-200 text-primary-600 mr-3">
-                                    <i class="fas fa-file-invoice text-lg"></i>
-                                </div>
-                                <div>
-                                    <h3 class="text-gray-500 text-xs font-medium">Total Invoices</h3>
-                                    <p class="text-xl font-bold text-gray-800" id="total-invoices-count">0</p>
-                                </div>
-                            </div>
+                    <!-- KPI grid -->
+                    <div class="dash-kpis">
+                        <div class="dash-card dash-kpi">
+                            <div class="dash-kpi-top"><span class="dash-kpi-label">Total invoices</span><span class="dash-kpi-icon"><i class="fas fa-file-invoice"></i></span></div>
+                            <div class="dash-kpi-row"><span class="dash-kpi-value" id="total-invoices-count">0</span></div>
+                            <div class="dash-kpi-hint" id="kpi-invoices-hint">All time in {{ dash_env_label }}</div>
                         </div>
-                        <div class="bg-white p-4 rounded-xl shadow-md stats-card border-l-4 border-green-500 hover:border-green-600">
-                            <div class="flex items-center">
-                                <div class="p-2.5 rounded-xl bg-gradient-to-br from-green-100 to-green-200 text-green-600 mr-3">
-                                    <i class="fas fa-check-circle text-lg"></i>
-                                </div>
-                                <div>
-                                    <h3 class="text-gray-500 text-xs font-medium">Successful Submissions</h3>
-                                    <p class="text-xl font-bold text-gray-800" id="success-count">0</p>
-                                </div>
-                            </div>
+                        <div class="dash-card dash-kpi">
+                            <div class="dash-kpi-top"><span class="dash-kpi-label">Successful submissions</span><span class="dash-kpi-icon"><i class="fas fa-circle-check"></i></span></div>
+                            <div class="dash-kpi-row"><span class="dash-kpi-value" id="success-count">0</span></div>
+                            <div class="dash-kpi-hint" id="kpi-success-hint">&nbsp;</div>
                         </div>
-                        <div class="bg-white p-4 rounded-xl shadow-md stats-card border-l-4 border-red-500 hover:border-red-600">
-                            <div class="flex items-center">
-                                <div class="p-2.5 rounded-xl bg-gradient-to-br from-red-100 to-red-200 text-red-600 mr-3">
-                                    <i class="fas fa-exclamation-circle text-lg"></i>
-                                </div>
-                                <div>
-                                    <h3 class="text-gray-500 text-xs font-medium">Failed Submissions</h3>
-                                    <p class="text-xl font-bold text-gray-800" id="failed-count">0</p>
-                                </div>
-                            </div>
+                        <div class="dash-card dash-kpi">
+                            <div class="dash-kpi-top"><span class="dash-kpi-label">Failed submissions</span><span class="dash-kpi-icon"><i class="fas fa-circle-xmark"></i></span></div>
+                            <div class="dash-kpi-row"><span class="dash-kpi-value" id="failed-count">0</span></div>
+                            <div class="dash-kpi-hint" id="kpi-failed-hint">&nbsp;</div>
+                        </div>
+                        <div class="dash-card dash-kpi">
+                            <div class="dash-kpi-top"><span class="dash-kpi-label">Drafts pending</span><span class="dash-kpi-icon"><i class="fas fa-file-pen"></i></span></div>
+                            <div class="dash-kpi-row"><span class="dash-kpi-value" id="kpi-drafts">&ndash;</span></div>
+                            <div class="dash-kpi-hint"><a href="/draft-invoices" class="dash-kpi-link">Saved, not yet submitted <i class="fas fa-arrow-right"></i></a></div>
+                        </div>
+                        <div class="dash-card dash-kpi">
+                            <div class="dash-kpi-top"><span class="dash-kpi-label">Buyers</span><span class="dash-kpi-icon"><i class="fas fa-users"></i></span></div>
+                            <div class="dash-kpi-row"><span class="dash-kpi-value" id="kpi-buyers">&ndash;</span></div>
+                            <div class="dash-kpi-hint">Saved in your buyer list</div>
+                        </div>
+                        <div class="dash-card dash-kpi">
+                            <div class="dash-kpi-top"><span class="dash-kpi-label">Products</span><span class="dash-kpi-icon"><i class="fas fa-box"></i></span></div>
+                            <div class="dash-kpi-row"><span class="dash-kpi-value" id="kpi-products">&ndash;</span></div>
+                            <div class="dash-kpi-hint">Saved in your catalogue</div>
+                        </div>
+                        <div class="dash-card dash-kpi">
+                            <div class="dash-kpi-top"><span class="dash-kpi-label">Sales value</span><span class="dash-kpi-icon"><i class="fas fa-arrow-trend-up"></i></span></div>
+                            <div class="dash-kpi-row"><span class="dash-kpi-value" id="kpi-revenue">&ndash;</span><span class="dash-trend" id="kpi-revenue-trend" hidden></span></div>
+                            <div class="dash-kpi-hint" id="kpi-revenue-hint">Excl. tax · submitted invoices</div>
+                        </div>
+                        <div class="dash-card dash-kpi">
+                            <div class="dash-kpi-top"><span class="dash-kpi-label">Sales tax</span><span class="dash-kpi-icon"><i class="fas fa-shield-halved"></i></span></div>
+                            <div class="dash-kpi-row"><span class="dash-kpi-value" id="kpi-tax">&ndash;</span><span class="dash-trend" id="kpi-tax-trend" hidden></span></div>
+                            <div class="dash-kpi-hint" id="kpi-tax-hint">vs. the previous period</div>
                         </div>
                     </div>
 
-                    <!-- Records Table -->
-                    <div class="bg-white shadow-lg rounded-xl overflow-hidden border border-gray-100">
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full divide-y divide-gray-200 p-3">
-                                <thead class="bg-gradient-to-r from-primary-600 to-primary-700">
+                    <!-- Charts -->
+                    <div class="dash-charts">
+                        <section class="dash-card dash-chart-card">
+                            <div class="dash-card-head plain">
+                                <div>
+                                    <div class="dash-card-title">Sales &amp; tax trend</div>
+                                    <div class="dash-card-sub" id="trend-sub">Submitted invoices, by invoice date</div>
+                                </div>
+                                <div class="dash-legend">
+                                    <span style="--swatch: var(--tlp-purple)">Sales value</span>
+                                    <span style="--swatch: var(--tlp-chart-tax)">Sales tax</span>
+                                </div>
+                            </div>
+                            <div class="dash-card-body">
+                                <div class="dash-chart">
+                                    <canvas id="chart-trend" aria-label="Sales and tax by month"></canvas>
+                                    <div class="dash-chart-empty" id="chart-trend-empty" hidden>No submitted invoices in the last 6 months</div>
+                                </div>
+                            </div>
+                        </section>
+                        <section class="dash-card dash-chart-card">
+                            <div class="dash-card-head plain">
+                                <div>
+                                    <div class="dash-card-title">Submission health</div>
+                                    <div class="dash-card-sub" id="health-sub">By submission date</div>
+                                </div>
+                                <div class="dash-legend">
+                                    <span style="--swatch: var(--tlp-chart-tax)">Success</span>
+                                    <span style="--swatch: var(--tlp-red)">Failed</span>
+                                </div>
+                            </div>
+                            <div class="dash-card-body">
+                                <div class="dash-chart dash-chart-sm">
+                                    <canvas id="chart-health" aria-label="Submissions per day"></canvas>
+                                    <div class="dash-chart-empty" id="chart-health-empty" hidden>No submissions in the last 7 days</div>
+                                </div>
+                                <div class="dash-health-foot">
+                                    <div><div class="k">Success rate (period)</div><div class="v good" id="health-rate">&ndash;</div></div>
+                                    <div><div class="k">Submissions (period)</div><div class="v" id="health-count">&ndash;</div></div>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+
+                    <!-- Invoice table -->
+                    <section class="dash-card">
+                        <div class="dash-card-head">
+                            <div>
+                                <div class="dash-card-title">Recent invoice activity</div>
+                                <div class="dash-card-sub" id="table-sub">Newest first · {{ dash_env_label }}</div>
+                            </div>
+                            <div class="dash-table-head-actions">
+                                <!-- Which environment's invoices the table lists; independent of the session env -->
+                                <div class="dash-env-toggle" role="group" aria-label="Environment">
+                                    <button type="button" class="dash-env-opt{{ ' is-active' if dash_env != 'production' else '' }}" data-table-env="sandbox" aria-pressed="{{ 'true' if dash_env != 'production' else 'false' }}"><span class="dot sandbox"></span>Sandbox</button>
+                                    <button type="button" class="dash-env-opt{{ ' is-active' if dash_env == 'production' else '' }}" data-table-env="production" aria-pressed="{{ 'true' if dash_env == 'production' else 'false' }}"><span class="dot production"></span>Production</button>
+                                </div>
+                                <!-- Bulk Action Bar (hidden by default) -->
+                                <div id="bulk-action-bar" class="hidden">
+                                    <span class="count"><span id="selected-count-display">0</span> selected</span>
+                                    <button id="view-summary-btn" class="dash-btn dash-btn-outline dash-btn-sm"><i class="fas fa-chart-pie"></i> View Summary</button>
+                                    <button id="delete-selected-btn" class="dash-btn dash-btn-danger dash-btn-sm"><i class="fas fa-trash-alt"></i> Delete Selected</button>
+                                </div>
+                                <a href="/reports" class="dash-btn dash-btn-ghost">Reports <i class="fas fa-arrow-right"></i></a>
+                            </div>
+                        </div>
+                        <div class="dash-table-wrap">
+                            <table class="dash-table">
+                                <thead>
                                     <tr>
-                                        <th scope="col" class="px-3 py-2.5 text-center">
-                                            <input type="checkbox" id="select-all-invoices" 
-                                                class="w-4 h-4 text-primary-600 bg-white border-gray-300 rounded focus:ring-primary-500 cursor-pointer">
+                                        <th scope="col" class="w-check">
+                                            <input type="checkbox" id="select-all-invoices" class="w-4 h-4 cursor-pointer" aria-label="Select all invoices on this page">
                                         </th>
-                                        <th scope="col"
-                                            class="px-3 py-2.5 text-left text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-primary-500/50 transition-colors"
-                                            id="sort-sr">
-                                            Sr # <i class="fas fa-sort ml-1 opacity-70"></i></th>
-                                        <th scope="col"
-                                            class="px-3 py-2.5 text-left text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-primary-500/50 transition-colors"
-                                            id="sort-number">
-                                            Invoice Number <i class="fas fa-sort ml-1 opacity-70"></i></th>
-                                        <th scope="col"
-                                            class="px-4 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-primary-500/50 transition-colors"
-                                            id="sort-refno">
-                                            Invoice Ref # <i class="fas fa-sort ml-1 opacity-70"></i></th>
-                                        <th scope="col"
-                                            class="px-4 py-2.5 text-left text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-primary-500/50 transition-colors"
-                                            id="sort-date">
-                                            Date <i class="fas fa-sort ml-1 opacity-70"></i></th>
-                                        <th scope="col"
-                                            class="px-4 py-2.5 text-left text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-primary-500/50 transition-colors"
-                                            id="sort-buyer">
-                                            Buyer <i class="fas fa-sort ml-1 opacity-70"></i></th>
-                                        <th scope="col"
-                                            class="px-4 py-2.5 text-left text-xs font-semibold text-white uppercase tracking-wider cursor-pointer hover:bg-primary-500/50 transition-colors"
-                                            id="sort-value">
-                                            Total Value <i class="fas fa-sort ml-1 opacity-70"></i></th>
-                                        <th scope="col"
-                                            class="px-3 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider">
-                                            View</th>
-                                        <th scope="col" id="status-column-header"
-                                            class="px-3 py-2.5 text-center text-xs font-semibold text-white uppercase tracking-wider">
-                                            Delete</th>
+                                        <th scope="col" id="sort-sr">#<i class="fas fa-sort"></i></th>
+                                        <th scope="col" id="sort-number">Invoice number<i class="fas fa-sort"></i></th>
+                                        <th scope="col" id="sort-refno">Invoice ref #<i class="fas fa-sort"></i></th>
+                                        <th scope="col" id="sort-date">Date<i class="fas fa-sort"></i></th>
+                                        <th scope="col" id="sort-buyer">Buyer<i class="fas fa-sort"></i></th>
+                                        <th scope="col" class="num">Sales tax</th>
+                                        <th scope="col" id="sort-value" class="num">Total value<i class="fas fa-sort"></i></th>
+                                        <th scope="col">Status</th>
+                                        <th scope="col" id="status-column-header" class="center">Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody id="records-table-body" class="bg-white divide-y divide-gray-100">
+                                <tbody id="records-table-body">
                                     <!-- Records will be loaded here -->
                                 </tbody>
                             </table>
                         </div>
-                    </div>
-
-                    <!-- Pagination -->
-                    <div id="records-pagination" class="flex justify-center items-center mt-3 space-x-2"></div>
-
-                    <!-- Action Buttons with Fixed Height Status Messages -->
-                    <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                        <!-- Import Excel Button -->
-                        <div class="status-container">
-                            <button id="import-excel-btn"
-                                class="action-button w-full bg-gradient-to-r from-primary-600 to-primary-700 hover:from-primary-700 hover:to-primary-800 text-white font-semibold py-2 px-3 rounded-xl transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
-                                <i class="fas fa-file-excel mr-2"></i> Import Excel
-                            </button>
-                            <div id="excel-upload-status" class="status-message text-sm"></div>
+                        <div class="dash-table-foot">
+                            <div id="records-range"></div>
+                            <!-- Pagination -->
+                            <div id="records-pagination"></div>
                         </div>
+                    </section>
 
-                        <!-- Validate JSON Button -->
-                        <div class="status-container">
-                            <button id="validate-json-btn"
-                                class="action-button w-full bg-gradient-to-r from-secondary-600 to-secondary-700 hover:from-secondary-700 hover:to-secondary-800 text-white font-semibold py-2 px-3 rounded-xl transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
-                                <i class="fas fa-check-circle mr-2"></i> Validate JSON
-                            </button>
-                            <div id="json-validate-status" class="status-message text-sm"></div>
-                        </div>
-
-                        <!-- Submit to FBR Button -->
-                        <div class="status-container">
-                            <button id="submit-fbr-btn"
-                                class="action-button w-full bg-gradient-to-r from-accent-600 to-accent-700 hover:from-accent-700 hover:to-accent-800 text-white font-semibold py-2 px-3 rounded-xl transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
-                                <i class="fas fa-paper-plane mr-2"></i> <span id="submit-btn-text">Submit to FBR</span>
-                            </button>
-                            <div class="status-message text-sm"></div>
-                        </div>
-
-                        <!-- Download PDF Button -->
-                        <div class="status-container">
-                            <button id="get-excel-btn"
-                                class="action-button w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold py-2 px-3 rounded-xl transition-all duration-200 flex items-center justify-center shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
-                                <i class="fas fa-file-pdf mr-2"></i> Download PDF
-                            </button>
-                            <div class="status-message text-sm"></div>
-                        </div>
+                    <!-- Top buyers / products -->
+                    <div class="dash-tops">
+                        <section class="dash-card">
+                            <div class="dash-card-head">
+                                <div>
+                                    <div class="dash-card-title">Top buyers</div>
+                                    <div class="dash-card-sub">By total value incl. tax, submitted invoices</div>
+                                </div>
+                                <a href="/reports" class="dash-btn dash-btn-ghost">View all</a>
+                            </div>
+                            <div class="dash-rank-list" id="top-buyers"></div>
+                        </section>
+                        <section class="dash-card">
+                            <div class="dash-card-head">
+                                <div>
+                                    <div class="dash-card-title">Top products</div>
+                                    <div class="dash-card-sub">By total value incl. tax, submitted invoices</div>
+                                </div>
+                                <a href="/reports" class="dash-btn dash-btn-ghost">View all</a>
+                            </div>
+                            <div class="dash-rank-list" id="top-products"></div>
+                        </section>
                     </div>
                 </div>
             </main>
-        </div>
-    </div>
-
-    <!-- Import Excel File Input (hidden) -->
-    <input type="file" id="excel-file-input" accept=".xls,.xlsx" class="hidden">
-
-    <!-- JSON Validation Modal -->
-    <div id="json-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
-        <div class="modal-overlay absolute inset-0"></div>
-        <div class="bg-white rounded-lg shadow-xl z-50 w-full max-w-3xl max-h-screen overflow-auto">
-            <div class="p-6">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-semibold text-gray-900">Validate JSON Data</h3>
-                    <button id="close-json-modal" class="text-gray-400 hover:text-gray-500">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="mb-4">
-                    <textarea id="json-textarea"
-                        class="w-full h-64 p-3 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500 font-mono text-base"
-                        placeholder="JSON data will appear here..." readonly></textarea>
-                </div>
-                <div class="flex justify-end space-x-3">
-                    <button id="cancel-json-btn"
-                        class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50">
-                        Cancel
-                    </button>
-                    <button id="validate-json-data-btn"
-                        class="px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-secondary-600 hover:bg-secondary-700">
-                        Continue
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Submission Status Modal -->
-    <div id="submission-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
-        <div class="modal-overlay absolute inset-0"></div>
-        <div class="bg-white rounded-lg shadow-xl z-50 w-full max-w-md">
-            <div class="p-6 text-center">
-                <div id="success-icon" class="hidden">
-                    <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
-                        <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none" />
-                        <path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8" />
-                    </svg>
-                    <h3 class="text-xl font-semibold text-gray-900 mb-2">Submitted Successfully!</h3>
-                    <p class="text-gray-600">Your data has been successfully submitted to FBR.</p>
-                    <p id="invoice-number-success" class="text-gray-600 mt-2"></p>
-                </div>
-                <div id="failed-icon" class="hidden">
-                    <svg class="crossmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
-                        <circle class="crossmark__circle" cx="26" cy="26" r="25" fill="none" />
-                        <path class="crossmark__cross" fill="none" d="M16 16 36 36 M36 16 16 36" />
-                    </svg>
-                    <h3 class="text-xl font-semibold text-gray-900 mb-2">Submission Failed</h3>
-                    <p id="error-message" class="text-gray-600">There was an error submitting your data to FBR.</p>
-                </div>
-                <div id="loading-spinner" class="hidden">
-                    <div class="flex justify-center mb-4">
-                        <i class="fas fa-circle-notch fa-spin text-4xl text-primary-600 spinner"></i>
-                    </div>
-                    <h3 class="text-xl font-semibold text-gray-900 mb-2" id="submitting-title">Submitting to FBR</h3>
-                    <p class="text-gray-600">Please wait while we process your request...</p>
-                </div>
-                <div class="mt-6">
-                    <button id="close-submission-modal"
-                        class="px-4 py-2 border border-transparent rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700">
-                        Close
-                    </button>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -711,20 +588,26 @@
 
         // API endpoints
         const API_ENDPOINTS = {
-            UPLOAD_EXCEL: '/upload-excel',
-            GET_JSON: '/get-json',
-            SUBMIT_FBR: '/submit-fbr',
             GET_RECORDS: '/records',
             DELETE_INVOICE: '/delete-invoice'
         };
 
-        // Track last uploaded file name
-        let lastUploadedFileName = "";
-
         // Add these variables at the top of your <script>
-        let allRecords = [];
+        let allRecords = [];            // session environment: tiles, charts, top lists
+
+        // Date range for everything on the dashboard (same choices as Reports).
+        let rangeState = { key: '30d', start: null, end: null };
+        // The invoice table can show either environment, independently of the
+        // session; each environment's records are fetched once and cached.
+        let tableEnv = ENV;
+        const tableSources = {};
+        let tableRecords = [];          // tableSources[tableEnv], in range, sorted
+        let tableSort = { field: null, dir: 'desc' };  // null = newest first
         let currentPage = 1;
-        const pageSize = 5;
+        // Rows are ~42px at the app's display density, so five of them left most
+        // of the table card empty. Ten fills the card on a laptop screen and
+        // scrolls within it on a shorter one.
+        const pageSize = 10;
 
         // Store the invoice to be deleted
         let invoiceToDelete = null;
@@ -777,14 +660,6 @@
 
         // On page load, fetch records
         document.addEventListener('DOMContentLoaded', function () {
-            let env = "{{ session['env'] }}";
-
-            // Update table header and submit button based on environment
-            if (env === "sandbox") {
-                document.getElementById('submit-btn-text').textContent = "Submit to Sandbox";
-                document.getElementById('submitting-title').textContent = "Submitting to Sandbox";
-            }
-
             // Mobile menu toggle functionality
             const mobileMenuButton = document.getElementById('mobile-menu-button');
             const closeMobileMenuButton = document.getElementById('close-mobile-menu');
@@ -806,7 +681,17 @@
             // Setup invoice details modal
             setupInvoiceDetailsModal();
 
+            initRange();
+            initTableEnv();
             loadRecords();
+            loadSideCounts();
+
+            // Top-bar search links an invoice here as /dashboard?invoice=<id>.
+            const linkedInvoice = new URLSearchParams(window.location.search).get('invoice');
+            if (linkedInvoice) {
+                viewInvoiceDetails(linkedInvoice);
+                history.replaceState(null, '', window.location.pathname);
+            }
         });
 
         // Load past records from backend
@@ -816,8 +701,8 @@
                 .then(data => {
                     // Sort records by date descending (newest first)
                     allRecords = data.sort((a, b) => new Date(b.date) - new Date(a.date));
-                    renderRecordsTable(getCurrentPageRecords());
-                    renderPaginationControls();
+                    tableSources[ENV] = allRecords;
+                    if (tableEnv === ENV) rebuildTable();
 
                     // Update dashboard counters
                     const totalInvoices = allRecords.length;
@@ -827,6 +712,7 @@
                     document.getElementById('total-invoices-count').textContent = totalInvoices;
                     document.getElementById('success-count').textContent = successCount;
                     document.getElementById('failed-count').textContent = failedCount;
+                    renderInsights();
                 })
                 .catch(error => {
                     console.error('Error loading records:', error);
@@ -834,10 +720,494 @@
                 });
         }
 
+        // ---- Dashboard insights: KPI tiles, charts, top buyers/products ----
+        // Derived from allRecords plus three read-only count endpoints; nothing
+        // here writes. Money is summed in integer paisa so the totals don't
+        // pick up float drift from adding many decimal amounts.
+        const dashCharts = {};
+        let lastChartData = null;
+
+        function escapeHtml(value) {
+            return String(value === null || value === undefined ? '' : value)
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        // Same test the counters have always used.
+        function isSuccessRecord(record) {
+            return !!(record.status && String(record.status).toLowerCase() === 'success');
+        }
+
+        function toPaisa(value) {
+            const n = parseFloat(value);
+            return Number.isFinite(n) ? Math.round(n * 100) : 0;
+        }
+
+        function formatPaisa(paisa, decimals) {
+            const d = decimals === undefined ? 2 : decimals;
+            return 'PKR ' + (paisa / 100).toLocaleString('en-PK', { minimumFractionDigits: d, maximumFractionDigits: d });
+        }
+
+        function compactPkr(rupees) {
+            const abs = Math.abs(rupees);
+            if (abs >= 1e9) return (rupees / 1e9).toFixed(1).replace(/\.0$/, '') + 'B';
+            if (abs >= 1e6) return (rupees / 1e6).toFixed(1).replace(/\.0$/, '') + 'M';
+            if (abs >= 1e3) return (rupees / 1e3).toFixed(0) + 'K';
+            return String(Math.round(rupees));
+        }
+
+        function parseYmd(value) {
+            const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value || '');
+            return m ? { y: +m[1], m: +m[2] - 1, d: +m[3] } : null;
+        }
+
+        function dayKey(date) {
+            return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0') + '-' + String(date.getDate()).padStart(2, '0');
+        }
+
+        function cssVar(name) {
+            return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+        }
+
+        function withAlpha(hex, alpha) {
+            const m = /^#([0-9a-f]{6})$/i.exec(hex);
+            if (!m) return hex;
+            const n = parseInt(m[1], 16);
+            return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+        }
+
+        function setTrend(id, current, previous) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (!(previous > 0)) { el.hidden = true; return; }
+            const pct = Math.round((current - previous) / previous * 100);
+            el.hidden = false;
+            el.className = 'dash-trend ' + (pct >= 0 ? 'up' : 'down');
+            el.textContent = (pct >= 0 ? '▲ ' : '▼ ') + Math.abs(pct) + '%';
+            el.title = 'Compared with the same days last month';
+        }
+
+        // ---- Date range ------------------------------------------------------
+        // Same five choices as Reports & Analytics; remembered per browser.
+        function rangeDates(key) {
+            const today = new Date();
+            const back = n => { const d = new Date(today); d.setDate(d.getDate() - n); return d; };
+            if (key === '7d') return [dayKey(back(6)), dayKey(today)];
+            if (key === '30d') return [dayKey(back(29)), dayKey(today)];
+            if (key === '90d') return [dayKey(back(89)), dayKey(today)];
+            if (key === 'ytd') return [dayKey(new Date(today.getFullYear(), 0, 1)), dayKey(today)];
+            return [document.getElementById('range-start').value, document.getElementById('range-end').value];
+        }
+        function formatDay(iso) {
+            const d = parseYmd(iso);
+            return d ? new Date(d.y, d.m, d.d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+        }
+        function rangeLabel() {
+            return ({ '7d': 'Last 7 days', '30d': 'Last 30 days', '90d': 'Last 90 days', 'ytd': 'Year to date' })[rangeState.key]
+                || `${formatDay(rangeState.start)} – ${formatDay(rangeState.end)}`;
+        }
+        // A record's day for date filters: its invoice date, else when it was created.
+        function recordDay(record) {
+            const d = parseYmd(record.invoiceDate) || parseYmd(record.date);
+            return d ? `${d.y}-${String(d.m + 1).padStart(2, '0')}-${String(d.d).padStart(2, '0')}` : '';
+        }
+        function inRange(record) {
+            const day = recordDay(record);
+            return !!day && (!rangeState.start || day >= rangeState.start) && (!rangeState.end || day <= rangeState.end);
+        }
+        function applyRange(key) {
+            const [start, end] = rangeDates(key);
+            if (!start || !end) { showNotification('error', 'Date range', 'Choose both a start and an end date.'); return false; }
+            if (start > end) { showNotification('error', 'Date range', 'The start date must be before the end date.'); return false; }
+            rangeState = { key, start, end };
+            // Kept for this login only — the login page clears it, so each login starts on Last 30 days.
+            try { sessionStorage.setItem('tlp:dashboard-range', JSON.stringify(rangeState)); } catch (e) { }
+            document.getElementById('dash-period').textContent = rangeLabel();
+            currentPage = 1;
+            rebuildTable();
+            renderInsights();
+            return true;
+        }
+        function initRange() {
+            const select = document.getElementById('range-select');
+            const custom = document.getElementById('custom-range');
+            let saved = null;
+            try { saved = JSON.parse(sessionStorage.getItem('tlp:dashboard-range') || 'null'); } catch (e) { }
+            let key = saved && saved.key ? saved.key : '30d';
+            if (key === 'custom' && saved.start && saved.end) {
+                document.getElementById('range-start').value = saved.start;
+                document.getElementById('range-end').value = saved.end;
+                custom.hidden = false;
+            } else if (key === 'custom') {
+                key = '30d';
+            }
+            select.value = key;
+            select.addEventListener('change', function () {
+                custom.hidden = this.value !== 'custom';
+                if (this.value === 'custom') {
+                    if (!document.getElementById('range-start').value) document.getElementById('range-start').value = rangeState.start || '';
+                    if (!document.getElementById('range-end').value) document.getElementById('range-end').value = rangeState.end || '';
+                    document.getElementById('range-start').focus();
+                    return;
+                }
+                applyRange(this.value);
+            });
+            document.getElementById('apply-date-range').addEventListener('click', () => applyRange('custom'));
+            applyRange(key);
+        }
+
+        // ---- Invoice table: environment, range and sort ------------------------
+        function compareRecords(a, b) {
+            const { field, dir } = tableSort;
+            const sign = dir === 'asc' ? 1 : -1;
+            if (!field) return new Date(b.date) - new Date(a.date);  // newest first
+            let x = a[field], y = b[field];
+            if (field === 'invoiceDate') { x = new Date(x || '1970-01-01'); y = new Date(y || '1970-01-01'); }
+            else if (field === 'totalValue' || field === 'sr') { x = Number(x); y = Number(y); }
+            else {
+                // Text columns (invoice ref # especially) sort naturally: INV-10 after INV-9.
+                return sign * String(x || '').localeCompare(String(y || ''), undefined, { numeric: true, sensitivity: 'base' });
+            }
+            if (x < y) return -sign;
+            if (x > y) return sign;
+            return 0;
+        }
+        function rebuildTable() {
+            const source = tableSources[tableEnv] || [];
+            tableRecords = source.filter(inRange).sort(compareRecords);
+            const pages = Math.max(1, Math.ceil(tableRecords.length / pageSize));
+            if (currentPage > pages) currentPage = pages;
+            renderRecordsTable(getCurrentPageRecords());
+            renderPaginationControls();
+            const envName = tableEnv === 'production' ? 'Production' : 'Sandbox';
+            const order = tableSort.field === 'invoiceRefNo' ? 'Sorted by invoice ref #' : tableSort.field ? 'Sorted' : 'Newest first';
+            document.getElementById('table-sub').textContent = `${order} · ${envName} · ${rangeLabel()}`;
+            // FBR invoices can only be deleted in sandbox (the server enforces it too).
+            document.getElementById('delete-selected-btn').hidden = tableEnv !== 'sandbox';
+        }
+        function removeRecord(invoiceRef) {
+            const keep = r => r.invoiceReference !== invoiceRef;
+            tableSources[tableEnv] = (tableSources[tableEnv] || []).filter(keep);
+            if (tableEnv === ENV) allRecords = tableSources[ENV];
+        }
+        function setTableEnv(env) {
+            tableEnv = env;
+            document.querySelectorAll('[data-table-env]').forEach(b => {
+                const on = b.dataset.tableEnv === env;
+                b.classList.toggle('is-active', on);
+                b.setAttribute('aria-pressed', String(on));
+            });
+            // Switching environment lists that environment's invoices by invoice ref #.
+            tableSort = { field: 'invoiceRefNo', dir: 'desc' };
+            document.querySelectorAll('[id^="sort-"]').forEach(h => {
+                h.removeAttribute('data-sort-dir');
+                h.querySelector('i').className = 'fas fa-sort ml-1';
+            });
+            const refHeader = document.getElementById('sort-refno');
+            refHeader.setAttribute('data-sort-dir', 'desc');
+            refHeader.querySelector('i').className = 'fas fa-sort-down ml-1';
+            selectedInvoices.clear();
+            updateBulkActionBar();
+            currentPage = 1;
+            if (tableSources[env]) { rebuildTable(); return; }
+            document.getElementById('records-table-body').innerHTML =
+                '<tr><td colspan="10" class="dash-table-empty"><div class="dash-empty-sub"><i class="fas fa-circle-notch fa-spin"></i> Loading ' + env + ' invoices…</div></td></tr>';
+            fetch(`${API_ENDPOINTS.GET_RECORDS}?env=${env}`)
+                .then(r => (r.ok ? r.json() : Promise.reject(r.status)))
+                .then(data => {
+                    tableSources[env] = Array.isArray(data) ? data : [];
+                    if (env === ENV) allRecords = tableSources[env];
+                    if (tableEnv === env) rebuildTable();
+                })
+                .catch(() => {
+                    if (tableEnv === env) showNotification('error', 'Error', `Failed to load ${env} invoices.`);
+                });
+        }
+        function initTableEnv() {
+            document.querySelectorAll('[data-table-env]').forEach(b => b.addEventListener('click', () => setTableEnv(b.dataset.tableEnv)));
+        }
+
+        function renderInsights() {
+            // Everything below covers the selected range; the sales tiles are
+            // compared with the period of the same length just before it.
+            const start = rangeState.start, end = rangeState.end;
+            if (!start || !end) return;
+            const s = parseYmd(start), e = parseYmd(end);
+            const startDate = new Date(s.y, s.m, s.d), endDate = new Date(e.y, e.m, e.d);
+            const spanDays = Math.round((endDate - startDate) / 86400000) + 1;
+            const prevEnd = new Date(startDate); prevEnd.setDate(prevEnd.getDate() - 1);
+            const prevStart = new Date(prevEnd); prevStart.setDate(prevStart.getDate() - (spanDays - 1));
+            const prevStartKey = dayKey(prevStart), prevEndKey = dayKey(prevEnd);
+
+            // Daily points for ranges up to ~2 months, monthly beyond that.
+            const monthly = spanDays > 62;
+            const bucketKey = day => monthly ? day.slice(0, 7) : day;
+            const points = [];
+            const index = {};
+            for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                const key = bucketKey(dayKey(d));
+                if (index[key] !== undefined) continue;
+                index[key] = points.length;
+                points.push({
+                    label: monthly ? d.toLocaleString('en-US', { month: 'short', year: '2-digit' })
+                                   : d.toLocaleString('en-US', { day: 'numeric', month: 'short' }),
+                    sales: 0, tax: 0, ok: 0, bad: 0
+                });
+            }
+
+            let total = 0, success = 0, salesCur = 0, salesPrev = 0, taxCur = 0, taxPrev = 0;
+            const buyers = new Map(), products = new Map();
+
+            allRecords.forEach(record => {
+                const ok = isSuccessRecord(record);
+                const day = recordDay(record);
+                const inCur = !!day && day >= start && day <= end;
+                const inPrev = !!day && day >= prevStartKey && day <= prevEndKey;
+
+                // Submission health is by when it was submitted, not the invoice date.
+                const submitted = String(record.date || '').slice(0, 10);
+                if (submitted >= start && submitted <= end) {
+                    const p = points[index[bucketKey(submitted)]];
+                    if (p) { if (ok) p.ok++; else p.bad++; }
+                }
+
+                if (inCur) { total++; if (ok) success++; }
+                // Sales figures only count invoices FBR accepted.
+                if (!ok) return;
+                const sales = toPaisa(record.valueSalesExcludingST);
+                const tax = toPaisa(record.salesTaxApplicable);
+                if (inPrev) { salesPrev += sales; taxPrev += tax; }
+                if (!inCur) return;
+                salesCur += sales; taxCur += tax;
+                const p = points[index[bucketKey(day)]];
+                if (p) { p.sales += sales; p.tax += tax; }
+
+                const buyerName = record.buyerName || 'Unknown buyer';
+                const buyer = buyers.get(buyerName) || { name: buyerName, total: 0, count: 0 };
+                buyer.total += sales + tax;
+                buyer.count++;
+                buyers.set(buyerName, buyer);
+
+                (record.items || []).forEach(item => {
+                    const name = item.productDescription || 'Unnamed item';
+                    const key = name + '|' + (item.hsCode || '');
+                    const product = products.get(key) || { name: name, hs: item.hsCode || '', total: 0, qty: 0 };
+                    product.total += toPaisa(item.valueSalesExcludingST) + toPaisa(item.salesTaxApplicable);
+                    const qty = parseFloat(item.quantity);
+                    if (Number.isFinite(qty)) product.qty += qty;
+                    products.set(key, product);
+                });
+            });
+
+            const failed = total - success;
+            document.getElementById('total-invoices-count').textContent = total.toLocaleString();
+            document.getElementById('success-count').textContent = success.toLocaleString();
+            document.getElementById('failed-count').textContent = failed.toLocaleString();
+            document.getElementById('kpi-invoices-hint').textContent = `${rangeLabel()} · ${ENV === 'production' ? 'Production' : 'Sandbox'}`;
+            document.getElementById('kpi-success-hint').textContent =
+                total ? `${(success / total * 100).toFixed(1)}% success rate` : 'No submissions in this period';
+            document.getElementById('kpi-failed-hint').textContent =
+                failed ? 'Needs attention' : 'All clear';
+
+            const revenueEl = document.getElementById('kpi-revenue');
+            revenueEl.textContent = formatPaisa(salesCur, 0);
+            revenueEl.title = formatPaisa(salesCur);
+            const taxEl = document.getElementById('kpi-tax');
+            taxEl.textContent = formatPaisa(taxCur, 0);
+            taxEl.title = formatPaisa(taxCur);
+            document.getElementById('kpi-tax-hint').textContent = `vs. the previous ${spanDays} day${spanDays === 1 ? '' : 's'}`;
+
+            setTrend('kpi-revenue-trend', salesCur, salesPrev);
+            setTrend('kpi-tax-trend', taxCur, taxPrev);
+            ['kpi-revenue-trend', 'kpi-tax-trend'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.title = `Compared with the previous ${spanDays} days`;
+            });
+
+            const periodOk = points.reduce((n, p) => n + p.ok, 0);
+            const periodAll = points.reduce((n, p) => n + p.ok + p.bad, 0);
+            document.getElementById('health-rate').textContent = periodAll ? (periodOk / periodAll * 100).toFixed(1) + '%' : '–';
+            document.getElementById('health-count').textContent = periodAll.toLocaleString();
+            document.getElementById('trend-sub').textContent = `${rangeLabel()} · submitted invoices, by ${monthly ? 'month' : 'day'}`;
+            document.getElementById('health-sub').textContent = `${rangeLabel()} · by submission date`;
+            document.getElementById('chart-trend-empty').textContent = 'No submitted invoices in this period';
+            document.getElementById('chart-health-empty').textContent = 'No submissions in this period';
+
+            const topBuyers = [...buyers.values()].sort((a, b) => b.total - a.total).slice(0, 5);
+            renderRankList('top-buyers', topBuyers, [...buyers.values()].reduce((n, b) => n + b.total, 0),
+                b => `${b.count.toLocaleString()} invoice${b.count === 1 ? '' : 's'}`,
+                'No submitted invoices in this period');
+
+            const topProducts = [...products.values()].sort((a, b) => b.total - a.total).slice(0, 5);
+            renderRankList('top-products', topProducts, [...products.values()].reduce((n, p) => n + p.total, 0),
+                p => [p.hs ? `HS ${p.hs}` : '', p.qty ? `${p.qty.toLocaleString()} units` : ''].filter(Boolean).join(' · '),
+                'No submitted items in this period');
+
+            lastChartData = {
+                months: points.map(p => ({ label: p.label, sales: p.sales, tax: p.tax })),
+                days: points.map(p => ({ label: p.label, ok: p.ok, bad: p.bad }))
+            };
+            renderCharts();
+        }
+
+        function renderRankList(id, rows, grandTotal, meta, emptyText) {
+            const el = document.getElementById(id);
+            if (!rows.length) {
+                el.innerHTML = `<div class="dash-rank-empty">${escapeHtml(emptyText)}</div>`;
+                return;
+            }
+            el.innerHTML = rows.map((row, i) => {
+                const share = grandTotal > 0 ? row.total / grandTotal * 100 : 0;
+                return `
+                    <div class="dash-rank">
+                        <span class="dash-rank-no">#${i + 1}</span>
+                        <div class="dash-rank-main">
+                            <div class="dash-rank-name" title="${escapeHtml(row.name)}">${escapeHtml(row.name)}</div>
+                            <div class="dash-rank-meta">${escapeHtml(meta(row))}</div>
+                            <div class="dash-rank-bar"><span style="width:${share.toFixed(1)}%"></span></div>
+                        </div>
+                        <div class="dash-rank-amt">
+                            <div class="v" title="${escapeHtml(formatPaisa(row.total))}">${formatPaisa(row.total, 0)}</div>
+                            <div class="k">${share.toFixed(1)}% of total</div>
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
+        function renderCharts() {
+            if (!lastChartData) return;
+            const { months, days } = lastChartData;
+            const trendEmpty = document.getElementById('chart-trend-empty');
+            const healthEmpty = document.getElementById('chart-health-empty');
+
+            if (typeof Chart === 'undefined') {
+                trendEmpty.textContent = healthEmpty.textContent = 'Chart could not be loaded';
+                trendEmpty.hidden = healthEmpty.hidden = false;
+                return;
+            }
+
+            const purple = cssVar('--tlp-purple');
+            const teal = cssVar('--tlp-chart-tax');
+            const red = cssVar('--tlp-red');
+            const line = cssVar('--tlp-line');
+            const muted = cssVar('--tlp-muted-2');
+            Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+            Chart.defaults.font.size = 11;
+            Chart.defaults.color = muted;
+
+            const tooltip = {
+                backgroundColor: cssVar('--tlp-card'),
+                titleColor: cssVar('--tlp-heading'),
+                bodyColor: cssVar('--tlp-text'),
+                borderColor: cssVar('--tlp-line-strong'),
+                borderWidth: 1,
+                padding: 10,
+                boxPadding: 4,
+                usePointStyle: true
+            };
+            const axes = (yTicks) => ({
+                x: { grid: { display: false }, border: { display: false }, ticks: { autoSkip: true, maxRotation: 0, maxTicksLimit: 8 } },
+                y: { beginAtZero: true, grid: { color: line }, border: { display: false }, ticks: Object.assign({ maxTicksLimit: 5 }, yTicks) }
+            });
+            const fade = (hex) => (ctx) => {
+                const area = ctx.chart.chartArea;
+                if (!area) return withAlpha(hex, 0.15);
+                const g = ctx.chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+                g.addColorStop(0, withAlpha(hex, 0.28));
+                g.addColorStop(1, withAlpha(hex, 0));
+                return g;
+            };
+
+            Object.keys(dashCharts).forEach(k => { dashCharts[k].destroy(); delete dashCharts[k]; });
+
+            const hasTrend = months.some(m => m.sales || m.tax);
+            trendEmpty.hidden = hasTrend;
+            // With nothing to plot, show the message alone rather than an empty axis.
+            if (hasTrend) dashCharts.trend = new Chart(document.getElementById('chart-trend'), {
+                type: 'line',
+                data: {
+                    labels: months.map(m => m.label),
+                    datasets: [
+                        { label: 'Sales value', data: months.map(m => m.sales / 100), borderColor: purple, backgroundColor: fade(purple), fill: true },
+                        { label: 'Sales tax', data: months.map(m => m.tax / 100), borderColor: teal, backgroundColor: fade(teal), fill: true }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    elements: { line: { cubicInterpolationMode: 'monotone', borderWidth: 2 }, point: { radius: 0, hoverRadius: 4 } },
+                    scales: axes({ callback: v => compactPkr(v) }),
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: Object.assign({}, tooltip, {
+                            callbacks: { label: c => ` ${c.dataset.label}: ${formatPaisa(Math.round(c.parsed.y * 100))}` }
+                        })
+                    }
+                }
+            });
+
+            const hasHealth = days.some(d => d.ok || d.bad);
+            healthEmpty.hidden = hasHealth;
+            if (hasHealth) dashCharts.health = new Chart(document.getElementById('chart-health'), {
+                type: 'bar',
+                data: {
+                    labels: days.map(d => d.label),
+                    datasets: [
+                        { label: 'Success', data: days.map(d => d.ok), backgroundColor: teal, stack: 's', maxBarThickness: 22 },
+                        { label: 'Failed', data: days.map(d => d.bad), backgroundColor: red, stack: 's', maxBarThickness: 22, borderRadius: { topLeft: 3, topRight: 3 } }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: (() => {
+                        const s = axes({ precision: 0 });
+                        s.x.stacked = s.y.stacked = true;
+                        return s;
+                    })(),
+                    plugins: { legend: { display: false }, tooltip: tooltip }
+                }
+            });
+        }
+
+        // Charts draw in canvas colours read from the theme, so repaint them
+        // when the theme changes.
+        new MutationObserver(() => renderCharts())
+            .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+        if (window.matchMedia) {
+            const mq = window.matchMedia('(prefers-color-scheme: dark)');
+            if (mq.addEventListener) mq.addEventListener('change', () => renderCharts());
+        }
+
+        // Counts for the drafts / buyers / products tiles (read-only GETs).
+        function loadSideCounts() {
+            const setCount = (id, url) => fetch(url)
+                .then(r => (r.ok ? r.json() : null))
+                .then(data => {
+                    document.getElementById(id).textContent = Array.isArray(data) ? data.length.toLocaleString() : '–';
+                })
+                .catch(() => { /* leave the dash placeholder */ });
+            // Unsubmitted drafts, counted exactly as the Drafts page lists them
+            // (all environments). The shell makes the request once for this
+            // tile and the sidebar badge.
+            const draftsEl = document.getElementById('kpi-drafts');
+            const draftCount = window.TLP && window.TLP.draftCount
+                ? window.TLP.draftCount
+                : fetch('/api/draft-invoices?filter_submitted=not_submitted&filter_date=all')
+                    .then(r => (r.ok ? r.json() : null))
+                    .then(d => (Array.isArray(d) ? d.length : null))
+                    .catch(() => null);
+            draftCount.then(n => { draftsEl.textContent = n === null ? '–' : n.toLocaleString(); });
+
+            setCount('kpi-buyers', '/api/buyers');
+            setCount('kpi-products', '/api/products');
+        }
+
         // Helper to get records for the current page
         function getCurrentPageRecords() {
             const start = (currentPage - 1) * pageSize;
-            return allRecords.slice(start, start + pageSize);
+            return tableRecords.slice(start, start + pageSize);
         }
 
         // Update renderRecordsTable to only render the records passed in
@@ -845,14 +1215,16 @@
             const tableBody = document.getElementById('records-table-body');
             tableBody.innerHTML = '';
 
+            const rangeEl = document.getElementById('records-range');
+
             if (records.length === 0) {
+                rangeEl.textContent = '';
                 const emptyRow = document.createElement('tr');
                 emptyRow.innerHTML = `
-                    <td colspan="9" class="px-4 py-4 text-center">
-                        <div class="flex flex-col items-center">
-                            <i class="fas fa-file-invoice text-gray-300 text-2xl mb-2"></i>
-                            <span class="text-gray-500 text-sm font-medium">No records found</span>
-                        </div>
+                    <td colspan="10" class="dash-table-empty">
+                        <div class="dash-empty-icon"><i class="fas fa-file-invoice"></i></div>
+                        <div class="dash-empty-title">${(tableSources[tableEnv] || []).length ? 'No invoices in this period' : 'No invoices yet'}</div>
+                        <div class="dash-empty-sub">${(tableSources[tableEnv] || []).length ? 'Try a longer date range, or switch environment.' : 'Invoices you submit in this environment will appear here.'}</div>
                     </td>
                 `;
                 tableBody.appendChild(emptyRow);
@@ -861,45 +1233,36 @@
 
             // Calculate the starting serial number for the current page
             const startSr = (currentPage - 1) * pageSize + 1;
+            rangeEl.textContent = `Showing ${startSr}–${startSr + records.length - 1} of ${tableRecords.length}`;
 
             records.forEach((record, idx) => {
                 const row = document.createElement('tr');
-                row.className = 'hover:bg-primary-50/50 transition-all duration-200 border-b border-gray-50';
+                const ok = isSuccessRecord(record);
 
                 row.innerHTML = `
-                    <td class="px-3 py-2.5 text-center">
-                        <input type="checkbox" class="invoice-select-checkbox w-4 h-4 text-primary-600 bg-gray-100 border-gray-300 rounded focus:ring-primary-500 cursor-pointer" 
-                            value="${record.invoiceReference}">
+                    <td class="w-check">
+                        <input type="checkbox" class="invoice-select-checkbox w-4 h-4 cursor-pointer"
+                            value="${escapeHtml(record.invoiceReference)}" aria-label="Select invoice">
                     </td>
-                    <td class="px-3 py-2.5 whitespace-nowrap">
-                        <span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-100 text-gray-600 text-xs font-medium">${startSr + idx}</span>
-                    </td>
-                    <td class="px-3 py-2.5 whitespace-nowrap">
-                        <span class="text-sm font-semibold text-primary-700">${record.invoiceReference}</span>
-                    </td>
-                    <td class="px-4 py-2.5 whitespace-nowrap text-center">
-                        <span class="text-sm text-gray-600">${record.invoiceRefNo || 'N/A'}</span>
-                    </td>
-                    <td class="px-4 py-2.5 whitespace-nowrap">
-                        <span class="text-sm text-gray-500">${record.invoiceDate ? record.invoiceDate : ''}</span>
-                    </td>
-                    <td class="px-4 py-2.5 whitespace-nowrap">
-                        <span class="text-sm font-medium text-gray-700">${record.buyerName}</span>
-                    </td>
-                    <td class="px-4 py-2.5 whitespace-nowrap">
-                        <span class="text-sm font-semibold text-green-600">PKR ${record.totalValue.toFixed(2)}</span>
-                    </td>
-                    <td class="px-3 py-2.5 whitespace-nowrap text-center">
-                        <button class="view-invoice-btn inline-flex items-center justify-center w-8 h-8 rounded-lg bg-primary-100 text-primary-600 hover:bg-primary-200 hover:text-primary-700 transition-all duration-200 shadow-sm"
-                            data-invoice-id="${record.id}" title="View Invoice">
-                            <i class="fas fa-eye text-sm"></i>
-                        </button>
-                    </td>
-                    <td class="px-3 py-2.5 whitespace-nowrap text-center">
-                        <button class="delete-invoice-btn inline-flex items-center justify-center w-8 h-8 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 hover:text-red-700 transition-all duration-200 shadow-sm"
-                            data-invoice-ref="${record.invoiceReference}" title="Delete Invoice">
-                            <i class="fas fa-trash-alt text-sm"></i>
-                        </button>
+                    <td><span class="dash-sr">${startSr + idx}</span></td>
+                    <td><span class="dash-inv">${escapeHtml(record.invoiceReference)}</span></td>
+                    <td class="dash-muted">${escapeHtml(record.invoiceRefNo || 'N/A')}</td>
+                    <td class="dash-muted">${escapeHtml(record.invoiceDate || '')}</td>
+                    <td><span class="dash-buyer" title="${escapeHtml(record.buyerName)}">${escapeHtml(record.buyerName)}</span></td>
+                    <td class="num dash-muted">${formatCurrency(record.salesTaxApplicable)}</td>
+                    <td class="num"><span class="dash-inv">${formatCurrency(record.totalValue)}</span></td>
+                    <td>${ok
+                        ? '<span class="dash-badge dash-badge-success"><i class="fas fa-circle-check"></i> Submitted</span>'
+                        : '<span class="dash-badge dash-badge-failed"><i class="fas fa-circle-xmark"></i> Failed</span>'}</td>
+                    <td class="center">
+                        <span class="dash-row-actions">
+                            <button class="view-invoice-btn" data-invoice-id="${escapeHtml(record.id)}" title="View Invoice" aria-label="View invoice">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="delete-invoice-btn" data-invoice-ref="${escapeHtml(record.invoiceReference)}" ${tableEnv === 'sandbox' ? 'title="Delete Invoice"' : 'disabled title="Only sandbox invoices can be deleted"'} aria-label="Delete invoice">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </span>
                     </td>
                 `;
                 tableBody.appendChild(row);
@@ -909,7 +1272,7 @@
             document.querySelectorAll('.view-invoice-btn').forEach(btn => {
                 btn.addEventListener('click', function () {
                     const invoiceId = this.getAttribute('data-invoice-id');
-                    viewInvoiceDetails(invoiceId);
+                    viewInvoiceDetails(invoiceId, tableEnv);
                 });
             });
 
@@ -995,7 +1358,7 @@
         }
 
         // View invoice details function
-        function viewInvoiceDetails(invoiceId) {
+        function viewInvoiceDetails(invoiceId, env) {
             // Show loading state in the modal
             const contentDiv = document.getElementById('invoice-details-content');
             contentDiv.innerHTML = `
@@ -1006,7 +1369,7 @@
             `;
             document.getElementById('invoice-details-modal').classList.remove('hidden');
 
-            fetch(`/api/reports/invoice/${invoiceId}?env=${ENV}`)
+            fetch(`/api/reports/invoice/${invoiceId}?env=${env || ENV}`)
                 .then(response => {
                     if (!response.ok) {
                         throw new Error('Network response was not ok');
@@ -1115,7 +1478,7 @@
 
         // Delete invoice function
         function deleteInvoice(invoiceRef) {
-            fetch(apiUrl(API_ENDPOINTS.DELETE_INVOICE), {
+            fetch(`${API_ENDPOINTS.DELETE_INVOICE}?env=${tableEnv}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -1126,11 +1489,10 @@
                 .then(data => {
                     if (data.success) {
                         // Remove the invoice from the local records array
-                        allRecords = allRecords.filter(record => record.invoiceReference !== invoiceRef);
+                        removeRecord(invoiceRef);
 
                         // Re-render the table
-                        renderRecordsTable(getCurrentPageRecords());
-                        renderPaginationControls();
+                        rebuildTable();
 
                         // Update dashboard counters
                         const totalInvoices = allRecords.length;
@@ -1140,6 +1502,7 @@
                         document.getElementById('total-invoices-count').textContent = totalInvoices;
                         document.getElementById('success-count').textContent = successCount;
                         document.getElementById('failed-count').textContent = failedCount;
+                        renderInsights();
 
                         // Show success message
                         showNotification('success', 'Invoice Deleted', `Invoice ${invoiceRef} has been deleted successfully.`);
@@ -1180,188 +1543,10 @@
             document.getElementById('dashboard-content').classList.remove('hidden');
         });
 
-        // Import Excel button
-        document.getElementById('import-excel-btn').addEventListener('click', function () {
-            document.getElementById('excel-file-input').click();
-        });
-
-        document.getElementById('excel-file-input').addEventListener('change', function (e) {
-            if (e.target.files.length > 0) {
-                const file = e.target.files[0];
-                const formData = new FormData();
-                formData.append('file', file);
-
-                fetch(apiUrl(API_ENDPOINTS.UPLOAD_EXCEL), {
-                    method: 'POST',
-                    body: formData
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.error) {
-                            document.getElementById('excel-upload-status').innerHTML =
-                                `<span class="text-red-600"><i class="fas fa-times-circle mr-1"></i>Error: ${data.error}</span>`;
-                        } else {
-                            lastUploadedFileName = file.name;
-                            document.getElementById('excel-upload-status').innerHTML =
-                                `<i class="fas fa-check-circle text-green-600 mr-1"></i>Uploaded: <span class="font-semibold">${file.name}</span>`;
-                            showNotification('success', 'Excel Uploaded', `File "${file.name}" has been uploaded successfully.`);
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error uploading file:', error);
-                        document.getElementById('excel-upload-status').innerHTML =
-                            `<span class="text-red-600"><i class="fas fa-times-circle mr-1"></i>Failed to upload file. Please try again.</span>`;
-                    });
-            }
-        });
-
-        // JSON Validation Modal
-        document.getElementById('validate-json-btn').addEventListener('click', function () {
-            // Clear previous validation status
-            document.getElementById('json-validate-status').innerHTML = "";
-            // Get the JSON data from the backend
-            fetch(apiUrl(API_ENDPOINTS.GET_JSON))
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        showNotification('error', 'Error', data.error);
-                    } else {
-                        document.getElementById('json-textarea').value = JSON.stringify(data, null, 2);
-                        document.getElementById('json-modal').classList.remove('hidden');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error getting JSON:', error);
-                    showNotification('error', 'Error', 'Failed to get JSON data. Please upload an Excel file first.');
-                });
-        });
-
-        document.getElementById('close-json-modal').addEventListener('click', function () {
-            document.getElementById('json-modal').classList.add('hidden');
-        });
-
-        document.getElementById('cancel-json-btn').addEventListener('click', function () {
-            document.getElementById('json-modal').classList.add('hidden');
-        });
-
-        document.getElementById('validate-json-data-btn').addEventListener('click', function () {
-            try {
-                const jsonData = JSON.parse(document.getElementById('json-textarea').value);
-                document.getElementById('json-modal').classList.add('hidden');
-                // Show tick and message under the Validate JSON button
-                document.getElementById('json-validate-status').innerHTML =
-                    `<i class="fas fa-check-circle text-green-600 mr-1"></i>JSON validated successfully`;
-                showNotification('success', 'JSON Validated', 'The JSON data has been validated successfully.');
-            } catch (e) {
-                showNotification('error', 'JSON Error', 'Invalid JSON: ' + e.message);
-                document.getElementById('json-validate-status').innerHTML = "";
-            }
-        });
-
-        // FBR Submission
-        document.getElementById('submit-fbr-btn').addEventListener('click', function () {
-            const submissionModal = document.getElementById('submission-modal');
-            const loadingSpinner = document.getElementById('loading-spinner');
-            const successIcon = document.getElementById('success-icon');
-            const failedIcon = document.getElementById('failed-icon');
-
-            // Show modal with loading spinner
-            submissionModal.classList.remove('hidden');
-            loadingSpinner.classList.remove('hidden');
-            successIcon.classList.add('hidden');
-            failedIcon.classList.add('hidden');
-
-            // Submit data to FBR via backend API
-            fetch(apiUrl(API_ENDPOINTS.SUBMIT_FBR), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            })
-                .then(async response => {
-                    const status = response.status;
-                    let data;
-                    try {
-                        data = await response.json();
-                    } catch (e) {
-                        data = await response.text();
-                    }
-                    loadingSpinner.classList.add('hidden');
-
-                    // Show the raw API response in the modal (pretty-printed)
-                    let responseText = '';
-                    if (typeof data === 'object') {
-                        if (data.response_text) {
-                            responseText = data.response_text;
-                        } else {
-                            responseText = JSON.stringify(data, null, 2);
-                        }
-                    } else {
-                        responseText = data;
-                    }
-
-                    let fullResponse = `Response Code: ${status}\nResponse Content:\n${responseText}`;
-
-                    // Only check for invoiceNumber in the response
-                    const isSuccess = data && typeof data === 'object' && data.status === "Success" && data.invoiceNumber && data.invoiceNumber !== "N/A";
-
-                    if (isSuccess) {
-                        successIcon.classList.remove('hidden');
-                        document.getElementById('invoice-number-success').textContent = fullResponse;
-                        loadRecords();
-                    } else {
-                        failedIcon.classList.remove('hidden');
-                        document.getElementById('error-message').textContent = fullResponse;
-                        loadRecords();
-                    }
-                })
-                .catch(error => {
-                    console.error('Error submitting to FBR:', error);
-                    loadingSpinner.classList.add('hidden');
-                    failedIcon.classList.remove('hidden');
-                    document.getElementById('error-message').textContent = 'Network error. Please try again.';
-                });
-        });
-
-        document.getElementById('close-submission-modal').addEventListener('click', function () {
-            document.getElementById('submission-modal').classList.add('hidden');
-        });
-
-        document.getElementById('get-excel-btn').addEventListener('click', function () {
-            const btn = this;
-            const originalHTML = btn.innerHTML;
-            btn.innerHTML = `<i class="fas fa-circle-notch fa-spin mr-2"></i>Generating...`;
-            btn.disabled = true;
-
-            fetch(apiUrl('/generate-invoice-excel'))
-                .then(response => {
-                    if (!response.ok) {
-                        return response.json().then(data => { throw new Error(data.error || 'Failed to generate PDF'); });
-                    }
-                    return response.blob();
-                })
-                .then(blob => {
-                    const url = window.URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'generated_invoice.pdf';
-                    document.body.appendChild(a);
-                    a.click();
-                    a.remove();
-                    window.URL.revokeObjectURL(url);
-                })
-                .catch(error => {
-                    showNotification('error', 'PDF Generation Failed', error.message);
-                })
-                .finally(() => {
-                    location.reload();
-                });
-        });
-
         // Add this function to render pagination controls
         function renderPaginationControls(totalPages) {
             const pagination = document.getElementById('records-pagination');
-            totalPages = totalPages || Math.ceil(allRecords.length / pageSize);
+            totalPages = totalPages || Math.ceil(tableRecords.length / pageSize);
             const maxVisiblePages = 4;
 
             if (totalPages <= 1) {
@@ -1451,31 +1636,11 @@
 
                 this.querySelector('i').className = `fas fa-sort-${newDir === 'asc' ? 'up' : 'down'} ml-1`;
 
-                // Sort records
-                allRecords.sort((a, b) => {
-                    let valueA = a[field];
-                    let valueB = b[field];
-
-                    // Handle date sorting
-                    if (field === 'invoiceDate') {
-                        valueA = new Date(valueA || '1970-01-01');
-                        valueB = new Date(valueB || '1970-01-01');
-                    }
-
-                    // Handle numeric sorting
-                    if (field === 'totalValue' || field === 'sr') {
-                        valueA = Number(valueA);
-                        valueB = Number(valueB);
-                    }
-
-                    if (valueA < valueB) return newDir === 'asc' ? -1 : 1;
-                    if (valueA > valueB) return newDir === 'asc' ? 1 : -1;
-                    return 0;
-                });
-
+                // Sort the table's rows (and remember the order for range /
+                // environment changes).
+                tableSort = { field: field, dir: newDir };
                 currentPage = 1;
-                renderRecordsTable(getCurrentPageRecords());
-                renderPaginationControls();
+                rebuildTable();
             });
         });
         document.addEventListener('DOMContentLoaded', function () {
@@ -1543,7 +1708,7 @@
 
             for (const invoiceRef of invoiceRefs) {
                 try {
-                    const response = await fetch(apiUrl(API_ENDPOINTS.DELETE_INVOICE), {
+                    const response = await fetch(`${API_ENDPOINTS.DELETE_INVOICE}?env=${tableEnv}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ invoiceReference: invoiceRef })
@@ -1551,7 +1716,7 @@
                     const data = await response.json();
                     if (data.success) {
                         successCount++;
-                        allRecords = allRecords.filter(record => record.invoiceReference !== invoiceRef);
+                        removeRecord(invoiceRef);
                     } else {
                         failCount++;
                     }
@@ -1565,8 +1730,7 @@
             selectedInvoices.clear();
 
             // Re-render table
-            renderRecordsTable(getCurrentPageRecords());
-            renderPaginationControls();
+            rebuildTable();
 
             // Update dashboard counters
             const totalInvoices = allRecords.length;
@@ -1576,6 +1740,7 @@
             document.getElementById('total-invoices-count').textContent = totalInvoices;
             document.getElementById('success-count').textContent = successCountStat;
             document.getElementById('failed-count').textContent = failedCount;
+            renderInsights();
 
             // Show result notification
             if (failCount === 0) {
@@ -1588,7 +1753,7 @@
         // Show summary of selected invoices
         function showSelectedSummary() {
             const invoiceRefs = Array.from(selectedInvoices);
-            const selectedRecords = allRecords.filter(record => invoiceRefs.includes(record.invoiceReference));
+            const selectedRecords = tableRecords.filter(record => invoiceRefs.includes(record.invoiceReference));
 
             if (selectedRecords.length === 0) {
                 showNotification('info', 'No Data', 'No invoice data found for selected items');

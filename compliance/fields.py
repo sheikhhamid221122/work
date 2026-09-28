@@ -31,7 +31,109 @@ FIELD_CATALOG = {
     "time_of_issue":  ("TIME OF ISSUE",  lambda d: clean_text(d.get("issueTime"))),
     "sale_type":      ("SALE TYPE",      lambda d: clean_text(d.get("saleType"))),
     "delivery_date":  ("DELIVERY DATE",  lambda d: clean_text(d.get("deliveryDate"))),
+
+    # --- document identifiers ------------------------------------------
+    # These are printed by the `meta` block on every layout, so they were
+    # never needed as individual rows. The template designer places single
+    # fields, though, and a user who wants the invoice number in its own box
+    # in the corner needs them addressable. Adding keys here is safe: a row
+    # only prints when a profile lists it in `rows`, and DEFAULT_ROW_ORDER is
+    # unchanged.
+    "invoice_no":     ("INVOICE #",      lambda d: clean_text(d.get("invoiceRefNo"))),
+    "invoice_date":   ("INVOICE DATE",   lambda d: clean_text(
+                                             d.get("invoiceDateDisplay") or d.get("invoiceDate"))),
+    "invoice_type":   ("INVOICE TYPE",   lambda d: clean_text(d.get("invoiceType"))),
+    "seller_province": ("SELLER PROVINCE", lambda d: clean_text(d.get("sellerProvince"))),
+    "seller_ntn":     ("SELLER NTN/CNIC", lambda d: clean_text(d.get("sellerNTNCNIC"))),
+    "seller_strn":    ("SELLER STRN",    lambda d: clean_text(d.get("sellerSTRN"))),
+    "buyer_name":     ("BUYER",          lambda d: clean_text(d.get("buyerBusinessName"))),
+    "amount_in_words": ("AMOUNT IN WORDS", lambda d: clean_text(d.get("amountInWords"))),
 }
+
+
+def resolve_field(data, key, label=None):
+    """Resolve one catalogue field into {"label", "value"} for a template.
+
+    Prefers the already-resolved `infoRows`, so a client whose profile
+    relabels P.O # to PURCHASE ORDER # sees that label here too -- a single
+    field dropped on the designer canvas must not contradict the info block
+    printed beside it. Falls back to the catalogue default for clients with
+    no profile, and to an empty value for an unknown key.
+
+    Exposed to Jinja as the `invoice_field` global; see add_template_routes.
+    """
+    data = data if isinstance(data, dict) else {}
+    override = clean_text(label)
+
+    for row in (data.get("infoRows") or []):
+        if row.get("key") == key:
+            return {"label": override or row.get("label") or "",
+                    "value": row.get("value") or ""}
+
+    entry = FIELD_CATALOG.get(key)
+    if not entry:
+        return {"label": override, "value": ""}
+    default_label, resolver = entry
+    try:
+        value = resolver(data)
+    except Exception:
+        value = ""
+    return {"label": override or default_label, "value": value}
+
+
+def catalog():
+    """The catalogue as plain data, for the designer's field picker."""
+    return [{"key": key, "label": label}
+            for key, (label, _resolver) in FIELD_CATALOG.items()]
+
+
+# Rows the `meta` / Invoice Details block prints, for clients with a profile
+# and without. Assembled here rather than in parts.html so the template
+# designer's canvas and the printed PDF cannot drift: both read this.
+_STANDARD_ROWS = (
+    ("Invoice #", lambda d: d.get("invoiceRefNo")),
+    ("Invoice Date", lambda d: d.get("invoiceDateDisplay") or d.get("invoiceDate")),
+    ("P.O #", lambda d: d.get("PO")),
+    ("D.N #", lambda d: d.get("DN")),
+    ("D.C #", lambda d: d.get("CNIC")),
+)
+
+
+def meta_rows(data):
+    """Resolve the invoice-details block into [{"label", "value"}, ...].
+
+    A client with a compliance profile gets the rows that profile chose, in
+    its order, with its labels. Everyone else gets the standard set. Per
+    invoice custom fields are appended either way, which is how a user who
+    types "Vehicle No." on the create-invoice form sees it on the printed
+    invoice -- and, because the designer reads this same function, in the
+    designer canvas too.
+
+    Exposed to Jinja as the `meta_rows` global; see add_template_routes.
+    """
+    data = data if isinstance(data, dict) else {}
+    rows = []
+
+    info = data.get("infoRows") or []
+    if info:
+        for row in info:
+            if row.get("value"):
+                rows.append({"label": row.get("label") or "",
+                             "value": row.get("value")})
+    else:
+        for label, resolver in _STANDARD_ROWS:
+            try:
+                value = resolver(data)
+            except Exception:
+                value = None
+            if value:
+                rows.append({"label": label, "value": value})
+
+    for field in (data.get("customFields") or []):
+        if field.get("label") and field.get("value"):
+            rows.append({"label": field["label"], "value": field["value"]})
+
+    return rows
 
 # Some invoice fields have no dedicated input on the create-invoice form and
 # are typed as free-form custom fields ("PO#", "Sales Tax No."). When the main

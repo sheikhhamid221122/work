@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title }} — TaxLink Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/taxlinkpro-favicon.svg') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/taxlink-theme.css') }}">
+    <script>
+        // Applied before first paint so a dark-mode user never sees a light flash.
+        (function () {
+            try {
+                var t = localStorage.getItem("tlp-theme");
+                if (t === "dark" || t === "light") document.documentElement.setAttribute("data-theme", t);
+            } catch (e) { /* storage blocked; fall back to the OS preference */ }
+        })();
+    </script>
+    <style>
+        .cs-wrap { max-width: 720px; margin: 48px auto 0; }
+        .cs-card {
+            padding: 36px 32px;
+            border: 1px solid var(--tlp-line);
+            border-radius: 12px;
+            background: var(--tlp-card);
+            box-shadow: var(--tlp-shadow-card);
+            text-align: center;
+        }
+        .cs-icon {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 52px; height: 52px; margin-bottom: 14px;
+            border-radius: 50%;
+            background: var(--tlp-purple-soft); color: var(--tlp-purple); font-size: 20px;
+        }
+        .cs-title { margin: 0; color: var(--tlp-heading); font-size: 20px; font-weight: 600; }
+        .cs-badge {
+            display: inline-block; margin-top: 8px; padding: 2px 10px;
+            border-radius: 999px; background: var(--tlp-amber-tint); color: var(--tlp-amber-text);
+            font-size: 11.5px; font-weight: 500;
+        }
+        .cs-text { max-width: 440px; margin: 12px auto 0; color: var(--tlp-muted); font-size: 13.5px; line-height: 1.6; }
+        .cs-query {
+            margin: 16px auto 0; padding: 8px 12px; max-width: 440px;
+            border-radius: 8px; background: var(--tlp-surface-2); color: var(--tlp-text); font-size: 13px;
+        }
+        .cs-links { display: grid; gap: 10px; margin-top: 18px; }
+        .cs-link {
+            display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+            border: 1px solid var(--tlp-line); border-radius: 10px; background: var(--tlp-card);
+            color: var(--tlp-text); text-decoration: none; text-align: left;
+            transition: background-color .15s ease;
+        }
+        .cs-link:hover { background: var(--tlp-surface-2); }
+        .cs-link .t { color: var(--tlp-heading); font-size: 13.5px; font-weight: 500; }
+        .cs-link .d { color: var(--tlp-muted-2); font-size: 12px; }
+        .cs-link .fa-arrow-right { margin-left: auto; color: var(--tlp-muted-2); }
+    </style>
+</head>
+
+<body class="font-sans">
+    <div class="flex h-screen overflow-hidden">
+        {% include 'partials/sidebar.html' %}
+
+        <div class="flex flex-col flex-1 overflow-hidden">
+            {% include 'partials/topbar.html' %}
+            <main class="flex-1 overflow-y-auto min-h-0">
+                <div class="cs-wrap">
+                    <div class="cs-card">
+                        <div class="cs-icon"><i class="fas {{ page_icon }}" aria-hidden="true"></i></div>
+                        <h1 class="cs-title">{{ page_title }}</h1>
+                        <span class="cs-badge">Coming soon</span>
+                        <p class="cs-text">{{ page_blurb }} This page is being built.</p>
+                        {% if query %}
+                        <div class="cs-query">You searched for <strong>{{ query }}</strong>.</div>
+                        {% endif %}
+                    </div>
+
+                    {% if active_page == 'settings' %}
+                    <div class="cs-links">
+                        <a href="/settings/templates" class="cs-link">
+                            <span class="cs-icon" style="width:36px;height:36px;margin:0;font-size:14px"><i class="fas fa-file-invoice"></i></span>
+                            <span><span class="t">Invoice template</span><br><span class="d">Letterhead, logo and how your invoices print</span></span>
+                            <i class="fas fa-arrow-right" aria-hidden="true"></i>
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </main>
+        </div>
+    </div>
+</body>
+
+</html>

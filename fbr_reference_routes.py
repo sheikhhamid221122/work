@@ -277,6 +277,92 @@ def fetch_provinces(get_db_connection, get_env):
     return normalized, "api"
 
 
+# Fallback sale/transaction types, used ONLY when the live FBR transaction
+# types API (5.5) cannot be reached. These are the values from the DI Technical
+# Doc's Section 9 "Scenarios for Sandbox Testing" table -- the same static list
+# this file used to hardcode -- so behaviour is unchanged when FBR is down.
+# transactioN_TYPE_ID is unknown for these (we only have the description from
+# the doc), so it is None; callers that need an ID for 5.8 SaleTypeToRate must
+# treat a missing code as "use the static tax rate list instead".
+FALLBACK_TRANSACTION_TYPES = [
+    {"transactioN_TYPE_ID": None, "transactioN_DESC": desc}
+    for desc in [
+        "Goods at Standard Rate (default)",
+        "Steel melting and re-rolling",
+        "Ship breaking",
+        "Goods at Reduced Rate",
+        "Exempt Goods",
+        "Goods at zero-rate",
+        "3rd Schedule Goods",
+        "Cotton Ginners",
+        "Telecommunication services",
+        "Toll Manufacturing",
+        "Petroleum Products",
+        "Electricity Supply to Retailers",
+        "Gas to CNG stations",
+        "Mobile Phones",
+        "Processing/ Conversion of Goods",
+        "Goods (FED in ST Mode)",
+        "Services (FED in ST Mode)",
+        "Services",
+        "Electric Vehicle",
+        "Cement /Concrete Block",
+        "Potassium Chlorate",
+        "CNG Sales",
+        "Goods as per SRO.297(|)/2023",
+        "Non-Adjustable Supplies",
+    ]
+]
+
+
+def fetch_transaction_types(get_db_connection, get_env):
+    """
+    Single source of truth for sale/transaction types (FBR DI API 5.5,
+    GET https://gw.fbr.gov.pk/pdi/v1/transtypecode).
+
+    Returns (transaction_types, source) where transaction_types is a list of
+    {"transactioN_TYPE_ID": int, "transactioN_DESC": str} and source is one of
+    "cache", "api" or "fallback".
+    """
+    client_id = session.get("client_id")
+    cache_key = f"transtypes_{client_id}"
+
+    cached = _get_cache(cache_key)
+    if cached:
+        return cached, "cache"
+
+    _, token = get_client_fbr_token(get_db_connection, get_env)
+    if not token:
+        return FALLBACK_TRANSACTION_TYPES, "fallback"
+
+    data, error = fbr_get("/pdi/v1/transtypecode", token)
+    if error or not isinstance(data, list):
+        if error:
+            print(f"[Transaction Types API] Error: {error}")
+        return FALLBACK_TRANSACTION_TYPES, "fallback"
+
+    normalized = []
+    for row in data:
+        if not isinstance(row, dict):
+            continue
+        desc = (row.get("transactioN_DESC") or "").strip()
+        if not desc:
+            continue
+        normalized.append(
+            {
+                "transactioN_TYPE_ID": row.get("transactioN_TYPE_ID"),
+                "transactioN_DESC": desc,
+            }
+        )
+
+    if not normalized:
+        return FALLBACK_TRANSACTION_TYPES, "fallback"
+
+    normalized.sort(key=lambda t: t["transactioN_DESC"])
+    _set_cache(cache_key, normalized, CACHE_DURATION_REFERENCE)
+    return normalized, "api"
+
+
 def add_fbr_reference_routes(app, get_db_connection, get_env):
     """Add FBR reference data routes to the Flask app."""
 
@@ -910,37 +996,20 @@ def add_fbr_reference_routes(app, get_db_connection, get_env):
     @app.route("/api/reference/transaction-types", methods=["GET"])
     def get_transaction_types():
         """
-        Fetch transaction types from FBR API 5.5.
+        Fetch transaction/sale types from FBR API 5.5.
         URL: https://gw.fbr.gov.pk/pdi/v1/transtypecode
         Returns: [{transactioN_TYPE_ID, transactioN_DESC}, ...]
         """
         client_id = session.get("client_id")
         if not client_id:
             return jsonify({"error": "No client ID in session"}), 401
-        
-        cache_key = f"transtypes_{client_id}"
-        
-        # Check cache first
-        cached_data = _get_cache(cache_key)
-        if cached_data:
-            return jsonify({"transaction_types": cached_data, "source": "cache"})
-        
-        # Fetch from FBR API
-        _, token = _get_client_token()
-        if not token:
-            return jsonify({"transaction_types": [], "source": "fallback", "message": "API token not configured"})
-        
-        data, error = _make_fbr_request("/pdi/v1/transtypecode", token)
-        
-        if error:
-            print(f"[Transaction Types API] Error: {error}")
-            return jsonify({"transaction_types": [], "source": "error", "error": error})
-        
-        if isinstance(data, list):
-            _set_cache(cache_key, data, CACHE_DURATION_REFERENCE)
-            return jsonify({"transaction_types": data, "source": "api", "count": len(data)})
-        
-        return jsonify({"transaction_types": [], "source": "api", "error": "Unexpected response format"})
+
+        transaction_types, source = fetch_transaction_types(get_db_connection, get_env)
+        return jsonify({
+            "transaction_types": transaction_types,
+            "source": source,
+            "count": len(transaction_types),
+        })
 
     # -------------------- Sale Type To Rate API (5.8) --------------------
     @app.route("/api/reference/sale-type-rates", methods=["GET"])
@@ -1201,19 +1270,31 @@ def add_fbr_reference_routes(app, get_db_connection, get_env):
             )
             print(f"[Registration Type API] POST Response status: {response.status_code}")
             print(f"[Registration Type API] POST Response body: {response.text[:500] if response.text else 'empty'}")
-            
-            response.raise_for_status()
-            
-            result = response.json()
+
+            # FBR's sandbox has been observed returning HTTP 500 for a
+            # perfectly legitimate result (e.g. REGISTRATION_TYPE
+            # "unregistered" is the real answer, not a server error). The
+            # JSON body is the actual signal, not the HTTP status code, so
+            # parse it first and only fall back to raise_for_status() when
+            # the body isn't the shape we expect.
+            try:
+                result = response.json()
+            except ValueError:
+                result = None
+
+            if not isinstance(result, dict) or "REGISTRATION_TYPE" not in result:
+                response.raise_for_status()
+                raise ValueError(f"Unexpected response from FBR: {response.text[:200]}")
+
             print(f"[Registration Type API] Result: {result}")
-            
+
             # Normalize the response
             # statuscode "00" = Registered, "01" = Unregistered
             normalized = {
                 "registration_no": result.get("REGISTRATION_NO") or registration_no,
-                "registration_type": result.get("REGISTRATION_TYPE", "").lower(),
+                "registration_type": (result.get("REGISTRATION_TYPE") or "").lower(),
                 "status_code": result.get("statuscode"),
-                "is_registered": result.get("statuscode") == "00" or result.get("REGISTRATION_TYPE", "").lower() == "registered",
+                "is_registered": result.get("statuscode") == "00" or (result.get("REGISTRATION_TYPE") or "").lower() == "registered",
                 "source": "api"
             }
             
@@ -1312,9 +1393,19 @@ def add_fbr_reference_routes(app, get_db_connection, get_env):
             response = requests.post(url, headers=headers, json=payload, timeout=30)
             print(f"[STATL API] POST Response status: {response.status_code}")
             print(f"[STATL API] Response body: {response.text[:500] if response.text else 'empty'}")
-            response.raise_for_status()
-            
-            result = response.json()
+
+            # Same FBR quirk as Get_Reg_Type (5.12): a legitimate "In-Active"
+            # result can arrive on an HTTP 500. Parse the body first and only
+            # treat this as a real failure if it isn't the expected shape.
+            try:
+                result = response.json()
+            except ValueError:
+                result = None
+
+            if not isinstance(result, dict) or "status" not in result:
+                response.raise_for_status()
+                raise ValueError(f"Unexpected response from FBR: {response.text[:200]}")
+
             print(f"[STATL API] Result: {result}")
             
             # Normalize the response

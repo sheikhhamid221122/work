@@ -1,0 +1,1447 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Template Designer - TaxLink Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='images/taxlinkpro-favicon.svg') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/taxlink-theme.css') }}">
+    <script>
+        (function () {
+            try {
+                var t = localStorage.getItem("tlp-theme");
+                if (t === "dark" || t === "light") document.documentElement.setAttribute("data-theme", t);
+            } catch (e) { }
+        })();
+    </script>
+    <style>
+        /* ---------------------------------------------------------- toolbar */
+        .tb-bar {
+            display: flex; align-items: center; gap: 7px; flex-wrap: nowrap;
+            padding: 9px 12px; background: #fff;
+            border-bottom: 1px solid #e5e7eb; overflow-x: auto;
+        }
+        .tb-btn {
+            display: inline-flex; align-items: center; gap: 6px;
+            font-size: 12.5px; font-weight: 600; line-height: 1;
+            padding: 9px 11px; border-radius: 7px; white-space: nowrap;
+            border: 1px solid #d1d5db; background: #fff; color: #374151;
+            cursor: pointer;
+        }
+        .tb-btn:hover:not(:disabled) { background: #f9fafb; }
+        .tb-btn:disabled { opacity: .45; cursor: not-allowed; }
+        .tb-btn.grey { background: #e5e7eb; border-color: #d1d5db; color: #4b5563; }
+        .tb-btn.blue { background: #2563eb; border-color: #2563eb; color: #fff; }
+        .tb-btn.purple { background: #7c3aed; border-color: #7c3aed; color: #fff; }
+        .tb-btn.green { background: #16a34a; border-color: #16a34a; color: #fff; }
+        .tb-btn.dark { background: #1f2937; border-color: #1f2937; color: #fff; padding: 9px 11px; }
+        .tb-name {
+            font-size: 14px; font-weight: 700; color: #111827;
+            padding: 9px 12px; border: 1px solid #d1d5db; border-radius: 7px;
+            width: 210px; flex: none; background: #fff;
+        }
+        .tb-name:focus { outline: 2px solid #a78bfa; outline-offset: -1px; }
+        .tb-sep { width: 1px; align-self: stretch; background: #e5e7eb; margin: 0 2px; }
+        .tb-zoom {
+            font-size: 13px; padding: 9px 10px; border: 1px solid #d1d5db;
+            border-radius: 7px; background: #fff; color: #374151; cursor: pointer;
+        }
+        .tb-check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #6b7280; cursor: pointer; }
+        @media (max-width: 1700px) {
+            #btn-all .lbl, #btn-group .lbl, #btn-ungroup .lbl { display: none; }
+            .tb-name { width: 180px; }
+        }
+        @media (max-width: 1400px) {
+            .tb-btn { padding: 9px 9px; }
+            #btn-print .lbl, #btn-save .lbl { display: none; }
+            .tb-name { width: 150px; }
+        }
+
+        /* ------------------------------------------------------ left panel */
+        .panel { width: 320px; flex: none; background: #fff; border-right: 1px solid #e5e7eb; overflow-y: auto; }
+        .panel.is-hidden { display: none; }
+        .panel-h {
+            display: flex; align-items: center; gap: 7px;
+            font-size: 12px; font-weight: 700; letter-spacing: .04em;
+            text-transform: uppercase; color: #374151;
+            padding: 14px 14px 10px;
+        }
+        .comp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0 14px 14px; }
+        .comp {
+            font-size: 12.5px; text-align: left; color: #374151;
+            padding: 9px 10px; border: 1px solid #d1d5db; border-radius: 6px;
+            background: #fff; cursor: pointer;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .comp:hover:not(:disabled) { border-color: #7c3aed; background: #f5f3ff; color: #6d28d9; }
+        .comp:disabled { opacity: .4; cursor: not-allowed; }
+        .props { padding: 0 14px 40px; border-top: 1px solid #f3f4f6; }
+        .props-empty { font-size: 12.5px; color: #9ca3af; padding: 2px 0 20px; }
+        .fld { margin-bottom: 10px; }
+        .fld > label { display: block; font-size: 11px; font-weight: 600; color: #6b7280; margin-bottom: 4px; }
+        .fld input[type=text], .fld input[type=number], .fld select, .fld textarea {
+            width: 100%; font-size: 12.5px; padding: 6px 8px;
+            border: 1px solid #d1d5db; border-radius: 6px; background: #fff; color: #111827;
+        }
+        .fld-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .seg { display: flex; gap: 0; }
+        .seg button {
+            flex: 1; font-size: 11.5px; padding: 6px 4px; border: 1px solid #d1d5db;
+            background: #fff; color: #4b5563; cursor: pointer; text-transform: capitalize;
+        }
+        .seg button:first-child { border-radius: 6px 0 0 6px; }
+        .seg button:last-child { border-radius: 0 6px 6px 0; }
+        .seg button + button { border-left: 0; }
+        .seg button.on { background: #7c3aed; border-color: #7c3aed; color: #fff; }
+        .prop-sec { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+                    color: #9ca3af; margin: 14px 0 8px; }
+
+        /* ---------------------------------------------------------- canvas */
+        .stage { flex: 1; min-width: 0; overflow: auto; background: #f3f4f6; padding: 26px; }
+        .sheet {
+            position: relative; margin: 0 auto; background: #fff;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, .18), 0 8px 24px rgba(0, 0, 0, .06);
+        }
+        .sheet.grid-on .area {
+            background-image:
+                linear-gradient(to right, #eef0f3 1px, transparent 1px),
+                linear-gradient(to bottom, #eef0f3 1px, transparent 1px);
+        }
+        .area { position: absolute; }
+        .el {
+            position: absolute; box-sizing: border-box; overflow: hidden;
+            background: #ededed; cursor: move; user-select: none;
+            display: flex; flex-direction: column;
+        }
+        .el.sel { outline: 2px solid #111827; outline-offset: 0; z-index: 50 !important; }
+        .el.ghost { background: transparent; }
+        .el-in { padding: 2px 4px; pointer-events: none; overflow: hidden; flex: 1; min-height: 0; }
+        .hdl {
+            position: absolute; width: 8px; height: 8px; background: #fff;
+            border: 1.5px solid #111827; z-index: 60;
+        }
+        .hdl.nw { cursor: nwse-resize; } .hdl.ne { cursor: nesw-resize; }
+        .hdl.sw { cursor: nesw-resize; } .hdl.se { cursor: nwse-resize; }
+        .hdl.n, .hdl.s { cursor: ns-resize; } .hdl.e, .hdl.w { cursor: ew-resize; }
+        .marquee { position: absolute; border: 1px dashed #2563eb; background: rgba(37, 99, 235, .08); z-index: 70; pointer-events: none; }
+        .locked-pill {
+            position: absolute; bottom: 2px; right: 3px; font-size: 9px; color: #fff;
+            background: #111827; border-radius: 3px; padding: 1px 4px;
+            pointer-events: none; display: none;
+        }
+        .el.sel .locked-pill { display: block; }
+
+        /* --------------------------------------------------- preview frame */
+        .pv { width: 100%; height: 100%; border: 0; background: #fff; }
+        .toast {
+            position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%);
+            background: #111827; color: #fff; font-size: 13px; padding: 10px 16px;
+            border-radius: 8px; z-index: 200; box-shadow: 0 6px 20px rgba(0, 0, 0, .25);
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 font-sans template-builder-page">
+    <div class="flex h-screen overflow-hidden">
+        {% with active_page = "templates" %}{% include "partials/sidebar.html" %}{% endwith %}
+
+        <div class="flex flex-col flex-1 min-w-0">
+            {% include 'partials/topbar.html' %}
+
+            <!-- ============================================ toolbar -->
+            <div class="tb-bar">
+                <a href="/settings/templates" class="tb-btn"><i class="fas fa-arrow-left"></i> Back</a>
+
+                <input id="tpl-name" class="tb-name" type="text" maxlength="60"
+                    value="{{ name }}" aria-label="Template name" />
+
+                <div class="tb-sep"></div>
+
+                <button id="btn-all" class="tb-btn grey" title="Select All">
+                    <i class="fas fa-border-all"></i> <span class="lbl">Select All</span>
+                </button>
+                <button id="btn-group" class="tb-btn grey" disabled title="Group">
+                    <i class="fas fa-object-group"></i> <span class="lbl">Group</span>
+                </button>
+                <button id="btn-ungroup" class="tb-btn grey" disabled title="Ungroup">
+                    <i class="fas fa-object-ungroup"></i> <span class="lbl">Ungroup</span>
+                </button>
+
+                <label class="tb-check">
+                    <input id="chk-grid" type="checkbox" checked /> Grid
+                </label>
+
+                <select id="sel-zoom" class="tb-zoom">
+                    <option value="fit">Fit</option>
+                    <option value="0.5">50%</option>
+                    <option value="0.75">75%</option>
+                    <option value="1" selected>100%</option>
+                    <option value="1.25">125%</option>
+                    <option value="1.5">150%</option>
+                </select>
+
+                <div class="tb-sep"></div>
+
+                <button id="btn-canvas" class="tb-btn blue"><i class="fas fa-vector-square"></i> Canvas</button>
+                <button id="btn-preview" class="tb-btn"><i class="far fa-eye"></i> Preview</button>
+                <button id="btn-print" class="tb-btn purple" title="Open Print Preview">
+                    <i class="fas fa-print"></i> <span class="lbl">Open Print Preview</span>
+                </button>
+                <button id="btn-save" class="tb-btn green" title="Save Template">
+                    <i class="fas fa-floppy-disk"></i> <span class="lbl">Save Template</span>
+                </button>
+                <button id="btn-panel" class="tb-btn dark" title="Hide the components panel">
+                    <i class="fas fa-table-columns"></i>
+                </button>
+            </div>
+
+            <div class="flex flex-1 min-h-0">
+
+                <!-- ======================================= left panel -->
+                <aside id="panel" class="panel">
+                    <div class="panel-h"><i class="fas fa-cube text-gray-400"></i> Components</div>
+                    <div id="comp-grid" class="comp-grid"></div>
+
+                    <div class="panel-h"><i class="fas fa-sliders text-gray-400"></i> Properties</div>
+                    <div id="props" class="props">
+                        <div class="props-empty">Select a component to edit its properties</div>
+                    </div>
+                </aside>
+
+                <!-- =========================================== stage -->
+                <div id="stage" class="stage">
+                    <div id="sheet" class="sheet grid-on">
+                        <div id="area" class="area"></div>
+                    </div>
+                    <div id="pv-wrap" class="hidden" style="height:100%">
+                        <iframe id="pv" class="pv" title="Invoice preview"></iframe>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const VOCAB = {{ vocabulary | tojson }};
+        const SPEC_IN = {{ spec | tojson }};
+        // The client's own invoice, not placeholders: their registered seller
+        // details, the info rows their compliance profile actually produces,
+        // and every catalogue field resolved from the same payload the PDF
+        // preview renders. See template_routes._preview_data.
+        const SAMPLE = {{ sample | tojson }};
+        const SAMPLE_ROWS = {{ sample_rows | tojson }};
+        const SAMPLE_FIELDS = {{ sample_fields | tojson }};
+        const ASSETS = {
+            logo: {{ logo_url | tojson }},
+            letterhead: {{ letterhead_url | tojson }},
+            letterheadOn: {{ (settings.letterhead_enabled | default(false)) | tojson }},
+            letterheadMm: {{ (settings.letterhead_mm | default(120)) | tojson }},
+            hasSellerProfile: {{ has_seller_profile | tojson }}
+        };
+    </script>
+    <script>
+    (function () {
+        "use strict";
+
+        const PAGE = VOCAB.page;                    // mm geometry, from invoice_spec
+        const MM = 96 / 25.4;                       // css px per mm at 100% zoom
+        const BY_TYPE = {};
+        VOCAB.elements.forEach(function (v) { BY_TYPE[v.type] = v; });
+        const DEFAULT_COLS = VOCAB.item_columns
+            .filter(function (c) { return c.default; })
+            .map(function (c) { return c.key; });
+        const FIELD_LABEL = {};
+        (VOCAB.fields_catalog || []).forEach(function (f) { FIELD_LABEL[f.key] = f.label; });
+
+        // Palette order and wording follow the component list a user expects
+        // to see; the second value is the spec type it creates.
+        const PALETTE = [
+            ["Invoice Header", "header", 186, 14],
+            ["Company Logo", "logo", 56, 26],
+            ["Company Information", "seller", 80, 26],
+            ["Buyer Information", "buyer", 90, 34],
+            ["Invoice Details", "meta", 90, 34],
+            ["Items Table", "items", 186, 90],
+            ["Totals Section", "totals", 90, 34],
+            ["QR Code", "fbr", 40, 34],
+            ["Notes", "notes", 186, 20],
+            ["Footer", "footer", 186, 8],
+            ["Custom Text", "text", 60, 10],
+            ["Horizontal Line", "divider", 186, 4],
+            ["Empty Box", "box", 60, 30],
+            ["Invoice Field", "field", 60, 8],
+        ];
+        const LABEL = {};
+        PALETTE.forEach(function (p) { LABEL[p[1]] = p[0]; });
+
+        const $ = function (s) { return document.querySelector(s); };
+
+        // ------------------------------------------------------- state
+        let els = (SPEC_IN.elements || []).map(function (e) { return Object.assign({}, e); });
+        let sel = new Set();          // ids
+        let zoom = 1;
+        let snap = true;
+        let mode = "canvas";
+        const undos = [];
+        const redos = [];
+
+        function ppm() { return MM * zoom; }
+        function clone() { return JSON.stringify(els); }
+        function pushUndo() {
+            undos.push(clone());
+            if (undos.length > 60) undos.shift();
+            redos.length = 0;
+        }
+        function nextId() {
+            let n = 1;
+            const taken = new Set(els.map(function (e) { return e.id; }));
+            while (taken.has("e" + n)) n++;
+            return "e" + n;
+        }
+        function byId(id) {
+            return els.filter(function (e) { return e.id === id; })[0];
+        }
+        function selected() {
+            return els.filter(function (e) { return sel.has(e.id); });
+        }
+
+        function toast(msg) {
+            const old = $(".toast");
+            if (old) old.remove();
+            const t = document.createElement("div");
+            t.className = "toast";
+            t.textContent = msg;
+            document.body.appendChild(t);
+            setTimeout(function () { t.remove(); }, 2600);
+        }
+
+        // --------------------------------------------------- geometry
+        function clampEl(e) {
+            const minW = e.type === "fbr" ? PAGE.fbr_min : PAGE.min_w;
+            const minH = e.type === "fbr" ? PAGE.fbr_min : PAGE.min_h;
+            e.w = Math.max(minW, Math.min(PAGE.canvas_w, e.w));
+            e.h = Math.max(minH, Math.min(PAGE.canvas_h, e.h));
+            e.x = Math.max(0, Math.min(PAGE.canvas_w - e.w, e.x));
+            e.y = Math.max(0, Math.min(PAGE.canvas_h - e.h, e.y));
+            return e;
+        }
+        function snapMm(v) {
+            return snap ? Math.round(v / PAGE.grid) * PAGE.grid : Math.round(v * 10) / 10;
+        }
+
+        // --------------------------------------------------- painting
+        // What an element looks like on the canvas, painted from SAMPLE --
+        // the client's own seller details and the info rows their profile
+        // actually produces. Exact typography and column widths still come
+        // from the PDF preview; what matters here is that the *content* is
+        // theirs, so they never arrange a layout around a field their
+        // invoices do not carry (or leave no room for one they do).
+        function paint(e) {
+            const t = e.type;
+            const S = SAMPLE || {};
+            if (t === "header") return '<div style="font-weight:700;letter-spacing:.04em">' + esc(e.text || "INVOICE") + "</div>";
+            if (t === "logo") return paintLogo();
+            if (t === "seller") return lines([
+                e.heading || "",
+                S.sellerLegalName || S.sellerBusinessName,
+                S.sellerAddress,
+                S.sellerProvince ? "Province: " + S.sellerProvince : "",
+                S.sellerNTNCNIC ? "NTN/CNIC: " + S.sellerNTNCNIC : "",
+                S.sellerSTRN ? "STRN: " + S.sellerSTRN : ""
+            ]);
+            if (t === "buyer") return lines([
+                e.heading || "Bill To",
+                S.buyerBusinessName,
+                S.buyerAddress,
+                S.buyerProvince ? "Province: " + S.buyerProvince : "",
+                S.buyerNTNCNIC ? "NTN/CNIC: " + S.buyerNTNCNIC : "",
+                S.buyerRegistrationType ? "Status: " + S.buyerRegistrationType : ""
+            ]);
+            if (t === "meta") return kv((SAMPLE_ROWS || []).map(function (r) {
+                return [r.label, r.value];
+            }));
+            if (t === "items") return itemsTable(e);
+            if (t === "totals") return kv([
+                ["Total excl. Sales Tax", money(S.totalExcl)],
+                ["Sales Tax", money(S.totalTax)],
+                ["Total Amount", "PKR " + money(S.totalInclusive)]
+            ]);
+            if (t === "fbr") return '<div style="display:flex;gap:4px;align-items:center;height:100%">'
+                + '<div style="width:26px;height:26px;background:#111;flex:none"></div>'
+                + '<div style="font-size:8px;line-height:1.3;color:#374151">FBR INVOICE NUMBER<br>'
+                + esc(S.fbrInvoiceNumber || "") + "</div></div>";
+            if (t === "notes") return '<div style="font-weight:600">' + esc(e.heading || "Notes") + "</div><div>" + esc(e.text || "") + "</div>";
+            if (t === "footer" || t === "text") return "<div>" + esc(e.text || (t === "footer" ? "Footer text" : "Custom text")) + "</div>";
+            if (t === "divider") return '<div style="border-top:1px solid #9ca3af;width:100%;margin-top:4px"></div>';
+            if (t === "field") return paintField(e);
+            return "";
+        }
+
+        function paintLogo() {
+            if (ASSETS.logo) {
+                return '<div style="display:flex;align-items:center;justify-content:center;height:100%">'
+                    + '<img src="' + esc(ASSETS.logo) + '" alt="" '
+                    + 'style="max-width:100%;max-height:100%;object-fit:contain"></div>';
+            }
+            return '<div style="display:flex;flex-direction:column;align-items:center;'
+                + 'justify-content:center;height:100%;color:#9ca3af;gap:2px">'
+                + '<i class="fas fa-image"></i>'
+                + '<span style="font-size:8px">No logo uploaded</span></div>';
+        }
+
+        function paintField(e) {
+            const f = (SAMPLE_FIELDS || {})[e.key] || { label: "", value: "" };
+            const label = e.label || f.label || "";
+            const value = f.value || "";
+            if (e.stacked) {
+                return (label ? '<div style="font-size:.82em;opacity:.7">' + esc(label) + "</div>" : "")
+                    + '<div style="font-weight:700">' + esc(value) + "</div>";
+            }
+            return "<div>" + (label ? '<span style="font-size:.82em;opacity:.7">' + esc(label) + "</span> " : "")
+                + '<span style="font-weight:700">' + esc(value) + "</span></div>";
+        }
+
+        function money(v) {
+            const n = parseFloat(String(v == null ? "" : v).replace(/,/g, ""));
+            if (isNaN(n)) return String(v == null ? "" : v);
+            return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        // Resolve one item cell the way parts.item_cell() does: the first
+        // candidate payload key that actually carries something.
+        function cellValue(col, item) {
+            if (col.kind === "index") return "1";
+            if (col.kind === "total") {
+                const excl = parseFloat(item.valueSalesExcludingST || 0) || 0;
+                const tax = parseFloat(item.salesTaxApplicable || 0) || 0;
+                return money(excl + tax);
+            }
+            let v = null;
+            (col.sources || []).forEach(function (k) {
+                if (v === null && item[k] !== undefined && item[k] !== null && item[k] !== "") v = item[k];
+            });
+            if (col.kind === "money") return money(v === null ? 0 : v);
+            return v === null ? "" : String(v);
+        }
+        function esc(s) {
+            return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+                return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+            });
+        }
+        // A heading (first entry) plus detail lines. Empty entries are
+        // dropped so a party block with no STRN on file does not show a gap.
+        function lines(arr) {
+            return arr.filter(function (l) { return l; }).map(function (l, i) {
+                return '<div style="' + (i === 0 ? "font-weight:700" : "opacity:.85") + '">'
+                    + esc(l) + "</div>";
+            }).join("");
+        }
+        function kv(pairs) {
+            if (!pairs.length) return '<div style="opacity:.5">No rows configured</div>';
+            return pairs.map(function (p) {
+                return '<div style="display:flex;justify-content:space-between;gap:8px">'
+                    + '<span style="font-weight:600">' + esc(p[0]) + "</span><span>" + esc(p[1]) + "</span></div>";
+            }).join("");
+        }
+
+        // The columns the element actually carries, in catalogue order, with
+        // the description restored if it was somehow dropped -- the same
+        // guarantees invoice_spec.item_columns() makes server-side.
+        function resolvedColumns(keys) {
+            const chosen = keys && keys.length ? keys : DEFAULT_COLS;
+            const out = VOCAB.item_columns.filter(function (c) {
+                return chosen.indexOf(c.key) > -1 || c.locked;
+            });
+            return out;
+        }
+
+        // Mirrors invoice_spec.item_columns(): fixed widths scale down
+        // proportionally until the description keeps its minimum share, so
+        // the canvas is proportioned like the printed table.
+        function columnWidths(cols) {
+            const fixed = cols.reduce(function (sum, c) {
+                return sum + (c.locked ? 0 : c.width);
+            }, 0);
+            const budget = 100 - PAGE.min_desc_pct;
+            const scale = fixed > budget ? budget / fixed : 1;
+            return cols.map(function (c) {
+                return c.locked ? null : +(c.width * scale).toFixed(2);
+            });
+        }
+
+        function itemsTable(e) {
+            const cols = resolvedColumns(e.columns);
+            const widths = columnWidths(cols);
+            const item = ((SAMPLE || {}).items || [{}])[0] || {};
+            const cell = function (c, i, tag, body) {
+                const right = c.kind !== "text" && c.kind !== "desc" && c.kind !== "index";
+                return "<" + tag + ' style="text-align:' + (right ? "right" : "left")
+                    + (widths[i] === null ? "" : ";width:" + widths[i] + "%")
+                    + (tag === "th" ? ";border-bottom:1px solid #9ca3af;font-weight:700" : "")
+                    + ';padding:1px 3px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">'
+                    + esc(body) + "</" + tag + ">";
+            };
+            let h = '<table style="width:100%;border-collapse:collapse;font-size:inherit;table-layout:fixed">';
+            h += "<tr>" + cols.map(function (c, i) { return cell(c, i, "th", c.label); }).join("") + "</tr>";
+            h += "<tr>" + cols.map(function (c, i) { return cell(c, i, "td", cellValue(c, item)); }).join("") + "</tr>";
+            return h + "</table>";
+        }
+
+        function skin(e, node) {
+            const s = node.style;
+            s.left = (e.x * ppm()) + "px";
+            s.top = (e.y * ppm()) + "px";
+            s.width = (e.w * ppm()) + "px";
+            s.height = (e.h * ppm()) + "px";
+            s.zIndex = String(e.z || 0);
+            s.fontSize = Math.max(5, (e.font_size || 9) * 1.333 * zoom) + "px";
+            s.fontWeight = e.bold ? "700" : "400";
+            s.fontStyle = e.italic ? "italic" : "normal";
+            s.textAlign = e.align || "left";
+            s.justifyContent = e.valign === "middle" ? "center" : (e.valign === "bottom" ? "flex-end" : "flex-start");
+            s.color = e.color || "#111827";
+            s.background = e.fill === "accent" ? "#ddd6fe"
+                : (e.fill === "light" ? "#ededed" : "transparent");
+            s.border = e.border === "thin" ? "1px solid #9ca3af"
+                : (e.border === "thick" ? "2px solid #7c3aed" : "1px dashed #d1d5db");
+        }
+
+        // ------------------------------------------------------ render
+        function renderSheet() {
+            const sheet = $("#sheet");
+            sheet.style.width = (PAGE.w * ppm()) + "px";
+            sheet.style.height = (PAGE.h * ppm()) + "px";
+            sheet.classList.toggle("grid-on", snap);
+
+            const area = $("#area");
+            area.style.left = (PAGE.margin * ppm()) + "px";
+            area.style.top = (PAGE.margin * ppm()) + "px";
+            area.style.width = (PAGE.canvas_w * ppm()) + "px";
+            area.style.height = (PAGE.canvas_h * ppm()) + "px";
+            area.style.backgroundSize = (PAGE.grid * ppm()) + "px " + (PAGE.grid * ppm()) + "px";
+
+            area.innerHTML = "";
+            els.forEach(function (e) {
+                const node = document.createElement("div");
+                node.className = "el" + (sel.has(e.id) ? " sel" : "");
+                node.dataset.id = e.id;
+                skin(e, node);
+                node.innerHTML = '<div class="el-in">' + paint(e) + "</div>"
+                    + (BY_TYPE[e.type] && BY_TYPE[e.type].singleton
+                        ? '<span class="locked-pill">' + (e.type === "fbr" ? "required" : "flows") + "</span>" : "");
+                area.appendChild(node);
+            });
+
+            if (sel.size === 1) addHandles(byId(Array.from(sel)[0]));
+            paintToolbar();
+        }
+
+        function addHandles(e) {
+            if (!e) return;
+            const area = $("#area");
+            const spots = [["nw", 0, 0], ["n", .5, 0], ["ne", 1, 0], ["e", 1, .5],
+                           ["se", 1, 1], ["s", .5, 1], ["sw", 0, 1], ["w", 0, .5]];
+            spots.forEach(function (sp) {
+                const h = document.createElement("div");
+                h.className = "hdl " + sp[0];
+                h.dataset.dir = sp[0];
+                h.dataset.id = e.id;
+                h.style.left = ((e.x + e.w * sp[1]) * ppm() - 4) + "px";
+                h.style.top = ((e.y + e.h * sp[2]) * ppm() - 4) + "px";
+                area.appendChild(h);
+            });
+        }
+
+        function paintToolbar() {
+            const s = selected();
+            $("#btn-group").disabled = s.length < 2;
+            $("#btn-ungroup").disabled = !s.some(function (e) { return e.group; });
+            document.querySelectorAll(".comp").forEach(function (b) {
+                const v = BY_TYPE[b.dataset.type];
+                const present = els.some(function (e) { return e.type === b.dataset.type; });
+                b.disabled = !!(v && v.singleton && present);
+                b.title = b.disabled
+                    ? LABEL[b.dataset.type] + " can only appear once on a template"
+                    : "Add " + LABEL[b.dataset.type];
+            });
+        }
+
+        // -------------------------------------------------- properties
+        function renderProps() {
+            const box = $("#props");
+            const s = selected();
+            if (s.length === 0) {
+                renderPageProps(box);
+                return;
+            }
+            if (s.length > 1) {
+                box.innerHTML = '<div class="props-empty">' + s.length
+                    + " components selected. Drag to move them together, or Group them so they always travel as one.</div>";
+                return;
+            }
+            const e = s[0];
+            const v = BY_TYPE[e.type] || { fields: [] };
+            box.innerHTML = "";
+
+            const head = document.createElement("div");
+            head.style.cssText = "font-size:13px;font-weight:700;color:#111827;margin:2px 0 10px";
+            head.textContent = LABEL[e.type] || e.type;
+            box.appendChild(head);
+
+            if (v.elastic) {
+                box.appendChild(note("This table grows when an invoice has more rows than fit. "
+                    + "The height you set is its minimum, and anything below it is pushed down."));
+            }
+            if (v.required) {
+                box.appendChild(note("Required on every invoice by FBR. It cannot be deleted, "
+                    + "and will not save smaller than " + PAGE.fbr_min + "mm."));
+            }
+
+            // ---- position and size
+            box.appendChild(section("Position & size"));
+            const grid = document.createElement("div");
+            grid.className = "fld-row";
+            [["x", "X (mm)"], ["y", "Y (mm)"], ["w", "Width (mm)"], ["h", "Height (mm)"]].forEach(function (g) {
+                grid.appendChild(numField(e, g[0], g[1]));
+            });
+            box.appendChild(grid);
+
+            // ---- type-specific content
+            if (v.fields && v.fields.length) {
+                box.appendChild(section("Content"));
+                v.fields.forEach(function (f) {
+                    if (f.name === "columns") {
+                        const lab = document.createElement("div");
+                        lab.className = "fld";
+                        lab.innerHTML = "<label>Columns</label>";
+                        box.appendChild(lab);
+                        box.appendChild(columnPicker(e));
+                    } else {
+                        box.appendChild(field(e, f));
+                    }
+                });
+            }
+
+            // ---- the logo is an uploaded image, not a typed value
+            if (e.type === "logo") {
+                box.appendChild(section("Logo image"));
+                box.appendChild(imageUpload({
+                    url: ASSETS.logo,
+                    endpoint: "/api/client-logo",
+                    hint: "Used by every invoice this account prints, not just "
+                        + "this template. PNG, JPG or WebP up to 2MB.",
+                    onChange: function (url) { ASSETS.logo = url; draw(); }
+                }));
+            }
+
+            // ---- where a party block's content comes from
+            if (e.type === "seller") {
+                box.appendChild(note(ASSETS.hasSellerProfile
+                    ? "Filled from your registered business details, so this "
+                      + "block shows what your invoices actually print. Change "
+                      + "them under your business profile, not here."
+                    : "You have not saved a business profile yet, so this block "
+                      + "is showing placeholders. Add your registered details "
+                      + "and they will appear here and on every invoice."));
+            }
+            if (e.type === "meta") {
+                box.appendChild(note((SAMPLE_ROWS || []).length
+                    ? "Shows the " + SAMPLE_ROWS.length + " row(s) your invoices "
+                      + "carry, including any custom fields typed on the "
+                      + "create-invoice form. Which rows appear is part of your "
+                      + "account's invoice configuration, not the template."
+                    : "No identifier rows are configured for this account yet."));
+            }
+
+            // ---- universal style
+            box.appendChild(section("Style"));
+            VOCAB.style.forEach(function (f) {
+                if (f.name === "z") return;              // offered as buttons below
+                box.appendChild(field(e, f));
+            });
+
+            const layer = document.createElement("div");
+            layer.className = "fld";
+            layer.innerHTML = '<label>Layer</label>';
+            const seg = document.createElement("div");
+            seg.className = "seg";
+            [["Back", -1], ["Front", 1]].forEach(function (b) {
+                const btn = document.createElement("button");
+                btn.textContent = b[0];
+                btn.addEventListener("click", function () {
+                    pushUndo();
+                    e.z = Math.max(0, Math.min(99, (e.z || 0) + b[1] * 5));
+                    draw();
+                });
+                seg.appendChild(btn);
+            });
+            layer.appendChild(seg);
+            box.appendChild(layer);
+
+            const del = document.createElement("button");
+            del.className = "tb-btn";
+            del.style.cssText = "width:100%;justify-content:center;margin-top:14px;color:#b91c1c;border-color:#fecaca";
+            del.innerHTML = '<i class="fas fa-trash"></i> Delete component';
+            del.disabled = !!v.singleton;
+            if (v.singleton) {
+                del.title = e.type === "fbr"
+                    ? "The FBR block is required on every invoice"
+                    : "Every invoice needs its items table";
+            }
+            del.addEventListener("click", function () { removeSelected(); });
+            box.appendChild(del);
+        }
+
+        // ---------------------------------------------- items columns
+        // Every field the FBR DI API carries at item level. The ones marked
+        // "in FBR payload" are sent to FBR whether or not they are printed --
+        // switching one off changes the paper, never the submission -- which
+        // is the distinction a user needs to make this choice safely.
+        function columnPicker(e) {
+            const wrap = document.createElement("div");
+            const chosen = (e.columns && e.columns.length) ? e.columns.slice() : DEFAULT_COLS.slice();
+
+            const count = document.createElement("div");
+            count.style.cssText = "font-size:11.5px;color:#6b7280;margin:0 0 8px";
+            wrap.appendChild(count);
+
+            const warn = document.createElement("p");
+            warn.style.cssText = "font-size:11.5px;line-height:1.45;color:#92400e;"
+                + "background:#fffbeb;border-left:2px solid #f59e0b;padding:7px 9px;margin:0 0 10px";
+            wrap.appendChild(warn);
+
+            function refresh() {
+                const n = chosen.length;
+                count.textContent = n + " of " + VOCAB.item_columns.length + " columns";
+                const over = n > PAGE.legible_columns;
+                warn.hidden = !over;
+                warn.textContent = over
+                    ? n + " columns still fit the page -- widths are scaled so nothing "
+                      + "overflows -- but figures start wrapping onto two lines past "
+                      + PAGE.legible_columns + " on A4 portrait. Consider printing landscape."
+                    : "";
+            }
+
+            VOCAB.item_columns.forEach(function (c) {
+                const row = document.createElement("label");
+                row.style.cssText = "display:flex;align-items:flex-start;gap:7px;"
+                    + "font-size:12.5px;color:#374151;padding:3px 0;cursor:pointer";
+                const cb = document.createElement("input");
+                cb.type = "checkbox";
+                cb.style.marginTop = "2px";
+                cb.checked = c.locked || chosen.indexOf(c.key) > -1;
+                cb.disabled = !!c.locked;
+                cb.addEventListener("change", function () {
+                    pushUndo();
+                    const at = chosen.indexOf(c.key);
+                    if (cb.checked && at === -1) chosen.push(c.key);
+                    else if (!cb.checked && at > -1) chosen.splice(at, 1);
+                    e.columns = chosen.slice();
+                    refresh();
+                    renderSheet();
+                });
+                const text = document.createElement("span");
+                text.innerHTML = esc(c.label)
+                    + (c.locked ? ' <span style="color:#9ca3af">(always shown)</span>' : "")
+                    + (c.payload ? '<br><span style="font-size:10.5px;color:#9ca3af">in FBR payload</span>' : "");
+                row.appendChild(cb);
+                row.appendChild(text);
+                wrap.appendChild(row);
+            });
+
+            refresh();
+            return wrap;
+        }
+
+        // ------------------------------------------------- image upload
+        function imageUpload(opts) {
+            const wrap = document.createElement("div");
+
+            const frame = document.createElement("div");
+            frame.style.cssText = "border:1px dashed #d1d5db;border-radius:6px;padding:8px;"
+                + "display:flex;align-items:center;justify-content:center;min-height:64px;"
+                + "background:#fafafa;margin-bottom:8px";
+            wrap.appendChild(frame);
+
+            const row = document.createElement("div");
+            row.style.cssText = "display:flex;gap:6px";
+            wrap.appendChild(row);
+
+            const picker = document.createElement("input");
+            picker.type = "file";
+            picker.accept = "image/png,image/jpeg,image/webp";
+            picker.hidden = true;
+            wrap.appendChild(picker);
+
+            const choose = document.createElement("button");
+            choose.className = "tb-btn";
+            choose.style.cssText = "flex:1;justify-content:center;font-size:11.5px";
+            row.appendChild(choose);
+
+            const remove = document.createElement("button");
+            remove.className = "tb-btn";
+            remove.style.cssText = "font-size:11.5px;color:#b91c1c;border-color:#fecaca";
+            remove.innerHTML = '<i class="fas fa-trash"></i>';
+            remove.title = "Remove";
+            row.appendChild(remove);
+
+            function paintState(url) {
+                frame.innerHTML = url
+                    ? '<img src="' + esc(url) + '" alt="" style="max-height:80px;max-width:100%;object-fit:contain">'
+                    : '<span style="font-size:11.5px;color:#9ca3af">Nothing uploaded yet</span>';
+                choose.innerHTML = '<i class="fas fa-upload"></i> ' + (url ? "Replace" : "Upload");
+                remove.hidden = !url;
+            }
+
+            async function send(method, body) {
+                choose.disabled = remove.disabled = true;
+                try {
+                    const res = await fetch(opts.endpoint, { method: method, body: body });
+                    const json = await res.json();
+                    if (!res.ok) throw new Error(json.error || "Upload failed");
+                    paintState(json.url);
+                    opts.onChange(json.url || "");
+                    toast(json.url ? "Image saved." : "Image removed.");
+                } catch (err) {
+                    toast(err.message);
+                } finally {
+                    choose.disabled = remove.disabled = false;
+                }
+            }
+
+            choose.addEventListener("click", function () { picker.click(); });
+            picker.addEventListener("change", function () {
+                if (!picker.files || !picker.files[0]) return;
+                const fd = new FormData();
+                fd.append("file", picker.files[0]);
+                send("POST", fd);
+                picker.value = "";
+            });
+            remove.addEventListener("click", function () { send("DELETE", null); });
+
+            paintState(opts.url);
+            if (opts.hint) wrap.appendChild(note(opts.hint));
+            return wrap;
+        }
+
+        // -------------------------------------------- page properties
+        // Shown when nothing is selected. The letterhead and the logo are
+        // account-level images rather than element properties, and this is
+        // where a user looks for them.
+        function renderPageProps(box) {
+            box.innerHTML = "";
+            box.appendChild(note("Nothing selected. Click a component on the page "
+                + "to edit it, or set up the images every invoice uses below."));
+
+            box.appendChild(section("Logo"));
+            box.appendChild(imageUpload({
+                url: ASSETS.logo,
+                endpoint: "/api/client-logo",
+                hint: "Printed by the Company Logo component, and by the built-in "
+                    + "templates. PNG, JPG or WebP up to 2MB.",
+                onChange: function (url) { ASSETS.logo = url; draw(); }
+            }));
+
+            box.appendChild(section("Letterhead"));
+            box.appendChild(imageUpload({
+                url: ASSETS.letterhead,
+                endpoint: "/api/letterhead",
+                hint: "Printed into the space reserved at the top of page 1. Leave "
+                    + "empty if you print on pre-printed paper -- the space is "
+                    + "still reserved, so nothing overlaps your masthead.",
+                onChange: function (url) { ASSETS.letterhead = url; }
+            }));
+
+            const on = document.createElement("label");
+            on.style.cssText = "display:flex;align-items:center;gap:7px;font-size:12.5px;"
+                + "color:#374151;margin:4px 0 10px;cursor:pointer";
+            const cb = document.createElement("input");
+            cb.type = "checkbox";
+            cb.checked = !!ASSETS.letterheadOn;
+            const mmWrap = document.createElement("div");
+
+            function saveLetterhead() {
+                fetch("/api/template-settings", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        letterhead_enabled: cb.checked,
+                        letterhead_mm: ASSETS.letterheadMm
+                    })
+                }).then(function (res) {
+                    if (!res.ok) throw new Error();
+                    toast("Letterhead settings saved.");
+                }).catch(function () { toast("Could not save letterhead settings."); });
+            }
+
+            cb.addEventListener("change", function () {
+                ASSETS.letterheadOn = cb.checked;
+                mmWrap.hidden = !cb.checked;
+                saveLetterhead();
+            });
+            on.appendChild(cb);
+            on.appendChild(document.createTextNode("Reserve space for a letterhead"));
+            box.appendChild(on);
+
+            mmWrap.className = "fld";
+            mmWrap.hidden = !ASSETS.letterheadOn;
+            mmWrap.innerHTML = "<label>Space reserved on page 1 (mm)</label>";
+            const mm = document.createElement("input");
+            mm.type = "number";
+            mm.min = "20";
+            mm.max = "200";
+            mm.value = ASSETS.letterheadMm;
+            mm.addEventListener("change", function () {
+                ASSETS.letterheadMm = Math.max(20, Math.min(200, parseInt(mm.value, 10) || 120));
+                mm.value = ASSETS.letterheadMm;
+                saveLetterhead();
+            });
+            mmWrap.appendChild(mm);
+            box.appendChild(mmWrap);
+        }
+
+        function note(text) {
+            const p = document.createElement("p");
+            p.style.cssText = "font-size:11.5px;line-height:1.45;color:#6b7280;background:#f9fafb;"
+                + "border-left:2px solid #d1d5db;padding:7px 9px;margin:0 0 10px";
+            p.textContent = text;
+            return p;
+        }
+        function section(title) {
+            const d = document.createElement("div");
+            d.className = "prop-sec";
+            d.textContent = title;
+            return d;
+        }
+        function numField(e, key, label) {
+            const w = document.createElement("div");
+            w.className = "fld";
+            w.innerHTML = "<label>" + label + "</label>";
+            const i = document.createElement("input");
+            i.type = "number";
+            i.step = "0.5";
+            i.value = e[key];
+            i.addEventListener("change", function () {
+                pushUndo();
+                e[key] = parseFloat(i.value) || 0;
+                clampEl(e);
+                draw();
+            });
+            w.appendChild(i);
+            return w;
+        }
+        const ACRONYM = { ntn: "NTN", qr: "QR", fbr: "FBR", po: "P.O" };
+        function labelFor(name) {
+            return name.split("_").map(function (word, i) {
+                if (ACRONYM[word]) return ACRONYM[word];
+                return i === 0 ? word.charAt(0).toUpperCase() + word.slice(1) : word;
+            }).join(" ");
+        }
+
+        function field(e, f) {
+            const w = document.createElement("div");
+            w.className = "fld";
+            const nice = labelFor(f.name);
+
+            if (f.kind === "bool") {
+                const l = document.createElement("label");
+                l.style.cssText = "display:flex;align-items:center;gap:7px;"
+                    + "font-size:12.5px;color:#374151;font-weight:500";
+                const i = document.createElement("input");
+                i.type = "checkbox";
+                i.checked = !!e[f.name];
+                i.addEventListener("change", function () {
+                    pushUndo(); e[f.name] = i.checked; draw();
+                });
+                l.appendChild(i);
+                l.appendChild(document.createTextNode(nice));
+                w.appendChild(l);
+                return w;
+            }
+
+            w.innerHTML = "<label>" + nice + "</label>";
+
+            // The field key is an enum over the compliance catalogue, so it
+            // is shown with the catalogue's own labels ("P.O #", "TIME OF
+            // ISSUE") rather than raw keys, and sorted to match.
+            if (f.kind === "enum" && f.name === "key" && e.type === "field") {
+                const s = document.createElement("select");
+                f.choices.slice().sort(function (a, b) {
+                    return (FIELD_LABEL[a] || a).localeCompare(FIELD_LABEL[b] || b);
+                }).forEach(function (c) {
+                    const o = document.createElement("option");
+                    o.value = c;
+                    o.textContent = FIELD_LABEL[c] || c;
+                    o.selected = e[f.name] === c;
+                    s.appendChild(o);
+                });
+                s.addEventListener("change", function () {
+                    pushUndo(); e[f.name] = s.value; draw();
+                });
+                w.appendChild(s);
+                const f2 = (SAMPLE_FIELDS || {})[e.key];
+                if (f2 && !f2.value) {
+                    w.appendChild(note("This field is empty on a sample invoice. It "
+                        + "will print only when an invoice actually carries it."));
+                }
+                return w;
+            }
+
+            if (f.kind === "enum") {
+                if (f.choices.length <= 3) {
+                    const seg = document.createElement("div");
+                    seg.className = "seg";
+                    f.choices.forEach(function (c) {
+                        const b = document.createElement("button");
+                        b.textContent = c;
+                        if (e[f.name] === c) b.className = "on";
+                        b.addEventListener("click", function () {
+                            pushUndo(); e[f.name] = c; draw();
+                        });
+                        seg.appendChild(b);
+                    });
+                    w.appendChild(seg);
+                    return w;
+                }
+                const s = document.createElement("select");
+                f.choices.forEach(function (c) {
+                    const o = document.createElement("option");
+                    o.value = c; o.textContent = c; o.selected = e[f.name] === c;
+                    s.appendChild(o);
+                });
+                s.addEventListener("change", function () {
+                    pushUndo(); e[f.name] = s.value; draw();
+                });
+                w.appendChild(s);
+                return w;
+            }
+
+            if (f.kind === "number") {
+                const i = document.createElement("input");
+                i.type = "number";
+                i.min = f.range[0]; i.max = f.range[1];
+                i.value = e[f.name];
+                i.addEventListener("change", function () {
+                    pushUndo();
+                    e[f.name] = Math.max(f.range[0], Math.min(f.range[1], parseFloat(i.value) || f.default));
+                    draw();
+                });
+                w.appendChild(i);
+                return w;
+            }
+
+            if (f.kind === "color") {
+                const row = document.createElement("div");
+                row.style.cssText = "display:flex;gap:6px;align-items:center";
+                const i = document.createElement("input");
+                i.type = "color";
+                i.value = e[f.name] || "#111827";
+                i.style.cssText = "width:36px;height:30px;padding:0;border:1px solid #d1d5db;border-radius:6px";
+                i.addEventListener("input", function () {
+                    pushUndo(); e[f.name] = i.value; draw();
+                });
+                const clr = document.createElement("button");
+                clr.className = "tb-btn";
+                clr.style.cssText = "padding:6px 9px;font-size:11.5px";
+                clr.textContent = "Default";
+                clr.addEventListener("click", function () {
+                    pushUndo(); e[f.name] = ""; draw();
+                });
+                row.appendChild(i); row.appendChild(clr);
+                w.appendChild(row);
+                return w;
+            }
+
+            // text -- multi-line for the fields that hold real prose
+            const long = f.name === "text" && (e.type === "notes" || e.type === "text" || e.type === "footer");
+            const i = document.createElement(long ? "textarea" : "input");
+            if (long) i.rows = 3; else i.type = "text";
+            i.value = e[f.name] || "";
+            let t = null;
+            i.addEventListener("input", function () {
+                e[f.name] = i.value;
+                clearTimeout(t);
+                t = setTimeout(function () { pushUndo(); }, 600);
+                renderSheet();
+            });
+            w.appendChild(i);
+            return w;
+        }
+
+        function draw() { renderSheet(); renderProps(); }
+
+        // ----------------------------------------------------- palette
+        PALETTE.forEach(function (p) {
+            const b = document.createElement("button");
+            b.className = "comp";
+            b.dataset.type = p[1];
+            b.textContent = "+ " + p[0];
+            b.addEventListener("click", function () {
+                if (els.length >= PAGE.max_elements) {
+                    toast("A template can hold " + PAGE.max_elements + " components.");
+                    return;
+                }
+                pushUndo();
+                const v = BY_TYPE[p[1]] || { fields: [] };
+                const e = { id: nextId(), type: p[1], group: "", x: 0, y: 0, w: p[2], h: p[3] };
+                (v.fields || []).forEach(function (f) { e[f.name] = f.default; });
+                VOCAB.style.forEach(function (f) { e[f.name] = f.default; });
+                // Drop it under the lowest thing on the page, so a new
+                // component never lands on top of existing work.
+                e.y = els.reduce(function (m, o) { return Math.max(m, o.y + o.h + 2); }, 0);
+                clampEl(e);
+                els.push(e);
+                sel = new Set([e.id]);
+                draw();
+                $("#props").scrollIntoView({ block: "nearest" });
+            });
+            $("#comp-grid").appendChild(b);
+        });
+
+        // ------------------------------------------------- selection
+        function selectEl(id, additive) {
+            const e = byId(id);
+            if (!e) return;
+            // A grouped element never moves alone: picking one picks the set.
+            const ids = e.group
+                ? els.filter(function (o) { return o.group === e.group; }).map(function (o) { return o.id; })
+                : [id];
+            if (!additive) sel = new Set(ids);
+            else {
+                const on = ids.every(function (i) { return sel.has(i); });
+                ids.forEach(function (i) { if (on) sel.delete(i); else sel.add(i); });
+            }
+        }
+
+        function removeSelected() {
+            const keep = [];
+            let blocked = null;
+            els.forEach(function (e) {
+                const v = BY_TYPE[e.type] || {};
+                if (sel.has(e.id) && v.singleton) { blocked = e.type; keep.push(e); }
+                else if (!sel.has(e.id)) keep.push(e);
+            });
+            if (keep.length === els.length && blocked) {
+                toast(blocked === "fbr"
+                    ? "The FBR block is required on every invoice and cannot be removed."
+                    : "Every invoice needs its items table.");
+                return;
+            }
+            pushUndo();
+            els = keep;
+            sel = new Set(keep.filter(function (e) {
+                return sel.has(e.id) && (BY_TYPE[e.type] || {}).singleton;
+            }).map(function (e) { return e.id; }));
+            if (blocked) {
+                toast(blocked === "fbr"
+                    ? "Deleted the rest; the FBR block has to stay."
+                    : "Deleted the rest; the items table has to stay.");
+            }
+            draw();
+        }
+
+        // --------------------------------------------- drag and resize
+        let drag = null;
+
+        $("#area").addEventListener("mousedown", function (ev) {
+            if (mode !== "canvas") return;
+            const handle = ev.target.closest(".hdl");
+            const node = ev.target.closest(".el");
+            const rect = $("#area").getBoundingClientRect();
+            // Snapshot now, while nothing has moved yet. Taking it on mouseup
+            // would record the finished drag and make undo a no-op.
+            const before = clone();
+
+            if (handle) {
+                const e = byId(handle.dataset.id);
+                drag = {
+                    kind: "resize", dir: handle.dataset.dir, id: e.id,
+                    ox: ev.clientX, oy: ev.clientY, before: before,
+                    start: { x: e.x, y: e.y, w: e.w, h: e.h }, moved: false
+                };
+                ev.preventDefault();
+                return;
+            }
+
+            if (node) {
+                const additive = ev.shiftKey || ev.ctrlKey || ev.metaKey;
+                if (!sel.has(node.dataset.id) || additive) selectEl(node.dataset.id, additive);
+                drag = {
+                    kind: "move", ox: ev.clientX, oy: ev.clientY, moved: false,
+                    before: before,
+                    start: selected().map(function (e) {
+                        return { id: e.id, x: e.x, y: e.y };
+                    })
+                };
+                draw();
+                ev.preventDefault();
+                return;
+            }
+
+            // empty canvas -- rubber-band select
+            sel = new Set();
+            drag = {
+                kind: "marquee", moved: false,
+                x0: (ev.clientX - rect.left) / ppm(), y0: (ev.clientY - rect.top) / ppm()
+            };
+            const m = document.createElement("div");
+            m.className = "marquee";
+            m.id = "marquee";
+            $("#area").appendChild(m);
+            draw();
+            ev.preventDefault();
+        });
+
+        window.addEventListener("mousemove", function (ev) {
+            if (!drag) return;
+            const rect = $("#area").getBoundingClientRect();
+            drag.moved = true;
+
+            if (drag.kind === "move") {
+                const dx = (ev.clientX - drag.ox) / ppm();
+                const dy = (ev.clientY - drag.oy) / ppm();
+                drag.start.forEach(function (s) {
+                    const e = byId(s.id);
+                    if (!e) return;
+                    e.x = snapMm(s.x + dx);
+                    e.y = snapMm(s.y + dy);
+                    clampEl(e);
+                });
+                renderSheet();
+                return;
+            }
+
+            if (drag.kind === "resize") {
+                const e = byId(drag.id);
+                const s = drag.start;
+                const dx = (ev.clientX - drag.ox) / ppm();
+                const dy = (ev.clientY - drag.oy) / ppm();
+                const d = drag.dir;
+                if (d.indexOf("e") > -1) e.w = snapMm(s.w + dx);
+                if (d.indexOf("s") > -1) e.h = snapMm(s.h + dy);
+                if (d.indexOf("w") > -1) { e.x = snapMm(s.x + dx); e.w = snapMm(s.w - dx); }
+                if (d.indexOf("n") > -1) { e.y = snapMm(s.y + dy); e.h = snapMm(s.h - dy); }
+                clampEl(e);
+                renderSheet();
+                return;
+            }
+
+            if (drag.kind === "marquee") {
+                const x1 = (ev.clientX - rect.left) / ppm();
+                const y1 = (ev.clientY - rect.top) / ppm();
+                const x = Math.min(drag.x0, x1), y = Math.min(drag.y0, y1);
+                const w = Math.abs(x1 - drag.x0), h = Math.abs(y1 - drag.y0);
+                const m = $("#marquee");
+                if (m) {
+                    m.style.left = (x * ppm()) + "px";
+                    m.style.top = (y * ppm()) + "px";
+                    m.style.width = (w * ppm()) + "px";
+                    m.style.height = (h * ppm()) + "px";
+                }
+                drag.box = { x: x, y: y, w: w, h: h };
+            }
+        });
+
+        window.addEventListener("mouseup", function () {
+            if (!drag) return;
+            if (drag.kind === "marquee") {
+                const m = $("#marquee");
+                if (m) m.remove();
+                const b = drag.box;
+                if (b && b.w > 1 && b.h > 1) {
+                    sel = new Set(els.filter(function (e) {
+                        return e.x < b.x + b.w && e.x + e.w > b.x
+                            && e.y < b.y + b.h && e.y + e.h > b.y;
+                    }).map(function (e) { return e.id; }));
+                }
+            } else if (drag.moved && drag.before && drag.before !== clone()) {
+                // Only now do we know the drag actually changed something.
+                undos.push(drag.before);
+                if (undos.length > 60) undos.shift();
+                redos.length = 0;
+            }
+            drag = null;
+            draw();
+        });
+
+        // ---------------------------------------------------- keyboard
+        window.addEventListener("keydown", function (ev) {
+            const tag = (ev.target.tagName || "").toLowerCase();
+            if (tag === "input" || tag === "textarea" || tag === "select") return;
+
+            const meta = ev.ctrlKey || ev.metaKey;
+            if (meta && ev.key.toLowerCase() === "z") {
+                ev.preventDefault();
+                if (ev.shiftKey) {
+                    if (redos.length) { undos.push(clone()); els = JSON.parse(redos.pop()); sel = new Set(); draw(); }
+                } else if (undos.length) {
+                    redos.push(clone()); els = JSON.parse(undos.pop()); sel = new Set(); draw();
+                }
+                return;
+            }
+            if (meta && ev.key.toLowerCase() === "a") { ev.preventDefault(); selectAll(); return; }
+            if (meta && ev.key.toLowerCase() === "s") { ev.preventDefault(); save(); return; }
+
+            if (ev.key === "Delete" || ev.key === "Backspace") {
+                if (sel.size) { ev.preventDefault(); removeSelected(); }
+                return;
+            }
+            if (ev.key === "Escape") { sel = new Set(); draw(); return; }
+
+            const step = ev.shiftKey ? PAGE.grid : 1;
+            const nudge = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[ev.key];
+            if (nudge && sel.size) {
+                ev.preventDefault();
+                pushUndo();
+                selected().forEach(function (e) {
+                    e.x += nudge[0]; e.y += nudge[1]; clampEl(e);
+                });
+                draw();
+            }
+        });
+
+        // ----------------------------------------------------- toolbar
+        function selectAll() {
+            sel = new Set(els.map(function (e) { return e.id; }));
+            draw();
+        }
+        $("#btn-all").addEventListener("click", selectAll);
+
+        $("#btn-group").addEventListener("click", function () {
+            const s = selected();
+            if (s.length < 2) return;
+            pushUndo();
+            const gid = "g" + Date.now().toString(36).slice(-6);
+            s.forEach(function (e) { e.group = gid; });
+            toast(s.length + " components grouped. They now move together.");
+            draw();
+        });
+
+        $("#btn-ungroup").addEventListener("click", function () {
+            const s = selected().filter(function (e) { return e.group; });
+            if (!s.length) return;
+            pushUndo();
+            s.forEach(function (e) { e.group = ""; });
+            toast("Ungrouped.");
+            draw();
+        });
+
+        $("#chk-grid").addEventListener("change", function () {
+            snap = this.checked;
+            renderSheet();
+        });
+
+        $("#sel-zoom").addEventListener("change", function () {
+            if (this.value === "fit") {
+                const avail = $("#stage").clientWidth - 60;
+                zoom = Math.max(.3, Math.min(2, avail / (PAGE.w * MM)));
+            } else {
+                zoom = parseFloat(this.value);
+            }
+            renderSheet();
+        });
+
+        $("#btn-panel").addEventListener("click", function () {
+            const p = $("#panel");
+            p.classList.toggle("is-hidden");
+            this.title = p.classList.contains("is-hidden")
+                ? "Show the components panel" : "Hide the components panel";
+        });
+
+        // ---------------------------------------------- canvas / preview
+        function setMode(next) {
+            mode = next;
+            const canvasOn = mode === "canvas";
+            $("#sheet").classList.toggle("hidden", !canvasOn);
+            $("#pv-wrap").classList.toggle("hidden", canvasOn);
+            $("#btn-canvas").className = "tb-btn" + (canvasOn ? " blue" : "");
+            $("#btn-preview").className = "tb-btn" + (canvasOn ? "" : " blue");
+            if (!canvasOn) loadPreview();
+        }
+        $("#btn-canvas").addEventListener("click", function () { setMode("canvas"); });
+        $("#btn-preview").addEventListener("click", function () { setMode("preview"); });
+
+        let pvInflight = null;
+        async function previewBlobUrl() {
+            if (pvInflight) pvInflight.abort();
+            pvInflight = new AbortController();
+            const res = await fetch("/api/custom-template/preview", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ spec: { elements: els } }),
+                signal: pvInflight.signal
+            });
+            if (!res.ok) throw new Error("Preview failed");
+            return URL.createObjectURL(await res.blob());
+        }
+
+        async function loadPreview() {
+            const frame = $("#pv");
+            try {
+                const url = await previewBlobUrl();
+                if (frame.dataset.url) URL.revokeObjectURL(frame.dataset.url);
+                frame.dataset.url = url;
+                frame.src = url;
+            } catch (err) {
+                if (err.name !== "AbortError") toast("Could not render the preview.");
+            }
+        }
+
+        $("#btn-print").addEventListener("click", async function () {
+            // Opened before the await so the click still counts as a user
+            // gesture; popup blockers reject a window opened after one.
+            const win = window.open("", "_blank");
+            try {
+                const url = await previewBlobUrl();
+                if (win) win.location = url;
+                else toast("Allow pop-ups to open the print preview.");
+            } catch (err) {
+                if (win) win.close();
+                toast("Could not render the print preview.");
+            }
+        });
+
+        // --------------------------------------------------------- save
+        async function save() {
+            const btn = $("#btn-save");
+            const original = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving';
+            try {
+                const res = await fetch("/api/custom-template", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ spec: { elements: els }, name: $("#tpl-name").value })
+                });
+                const json = await res.json();
+                if (!res.ok) throw new Error(json.error || "Could not save");
+                // The server-validated copy wins: it may have clamped a box
+                // or restored a component the template cannot do without.
+                els = json.spec.elements;
+                sel = new Set();
+                draw();
+                btn.innerHTML = '<i class="fas fa-check"></i> Saved';
+            } catch (err) {
+                btn.innerHTML = '<i class="fas fa-triangle-exclamation"></i> ' + err.message;
+            } finally {
+                setTimeout(function () {
+                    btn.innerHTML = original;
+                    btn.disabled = false;
+                }, 1800);
+            }
+        }
+        $("#btn-save").addEventListener("click", save);
+
+        window.addEventListener("resize", function () {
+            if ($("#sel-zoom").value === "fit") $("#sel-zoom").dispatchEvent(new Event("change"));
+        });
+
+        draw();
+    })();
+    </script>
+</body>
+
+</html>

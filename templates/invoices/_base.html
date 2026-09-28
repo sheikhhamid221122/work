@@ -1,0 +1,28 @@
+{#
+  The sheet every invoice layout sits on.
+
+  Owns the things that must be identical across all thirteen layouts -- the
+  paper, the typeface, the density, the letterhead reservation and the FBR
+  compliance block -- so a layout file is purely an arrangement.
+
+  A layout fills `{% block sheet %}`. It reaches the shared parts through the
+  `P` alias imported below, and the resolved theme through `T`.
+#}
+{%- import "invoices/parts.html" as P with context -%}
+{%- set T = theme -%}
+{%- set d = data -%}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Invoice {{ d.invoiceRefNo or d.fbrInvoiceNumber or '' }}</title>
+  {% include "invoices/_theme.html" %}
+  {% block extra_style %}{% endblock %}
+</head>
+<body>
+  {#- Printed into the space @page :first reserved above the content. -#}
+  {{ P.letterhead(T) }}
+
+  {% block sheet %}{% endblock %}
+</body>
+</html>

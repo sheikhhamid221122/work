@@ -1,0 +1,362 @@
+{#
+  Apple International (username 3520224169621) -- sales tax invoice.
+
+  A replica of the client's own pre-existing invoice, which they produced in
+  Excel, with the FBR compliance marks added. Built by hand for this client
+  rather than assembled from the shared layouts, because what they asked for
+  is *their* sheet, not a tidy approximation of it.
+
+  What is copied from their original
+  ----------------------------------
+  The centred masthead, the Reg #/NTN line, the underlined title, the
+  ORIGINAL / DUPLICATE mark, the label-and-value buyer block, the seven-column
+  items table with its blank filler rows and in-table totals row, the small
+  two-row summary box at bottom left, "Signature & Stamp" at bottom right, and
+  the vertical stationery strapline down the right edge.
+
+  What is ADDED, and must never be removed
+  ----------------------------------------
+    1. the FBR invoice number   -- top right with the other identifiers
+                                   (once only: the QR already carries it)
+    2. the FBR Digital Invoicing logo
+    3. the QR code
+  These are what make the document a valid digital invoice; the client's Excel
+  sheet had none of them. They sit in the empty band their original left below
+  the summary box, so nothing of theirs had to move.
+
+  Deliberate departures from the original
+  ---------------------------------------
+  * Figures are comma-grouped (127,779 rather than 127779). Their sheet simply
+    had no number format applied; every other invoice this software produces
+    groups thousands, and 150779 is easy to misread. To go back, drop the
+    `| comma_format` filters.
+  * The blue fill behind "Kg" in their header is not reproduced -- it is a
+    selected cell in Excel, not a design choice. The unit of measure is taken
+    from the items themselves, so it follows the goods rather than being
+    hard-coded to Kg.
+
+  Contract: rendered by app.py with data, qr_base64, client_logo_url,
+  fbr_logo_url, username, settings, theme. See invoice_template3.html for the
+  same contract in the template this client used before.
+#}
+{% import "brand/3520224169621.html" as brand %}
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>Sales Tax Invoice {{ data.invoiceRefNo or '' }}</title>
+  <style>
+    @page {
+      size: A4;
+      /* Wider right margin than left: the strapline lives in it, the way it
+         occupies the edge of their pre-printed sheet. */
+      margin: 12mm 24mm 12mm 14mm;
+    }
+
+    body {
+      font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+      font-size: 11px;
+      color: #000;
+      margin: 0;
+      padding: 0;
+    }
+
+    .u { text-decoration: underline; }
+    .b { font-weight: bold; }
+    .c { text-align: center; }
+    .r { text-align: right; }
+    .l { text-align: left; }
+
+    /* ---- Masthead ---------------------------------------------------- */
+    .masthead { text-align: center; }
+    /* Sized by width, not height: the wordmark-and-ribbon lockup is very wide
+       and very short, and capping its height would leave it tiny and lost. The
+       width is what it occupies on their own sheet. */
+    .brand-masthead { width: 129mm; height: auto; }   /* its width on their own sheet */
+    .reg-line {
+      width: 100%;
+      margin-top: 1.5mm;
+      font-size: 11px;
+      font-weight: bold;
+    }
+    .addr-line {
+      margin-top: 1mm;
+      font-size: 11px;
+      font-weight: bold;
+    }
+
+    .title {
+      font-size: 20px;
+      font-weight: bold;
+      text-align: center;
+      text-decoration: underline;
+      margin: 7mm 0 0 0;
+      letter-spacing: .5px;
+    }
+    .copy-mark {
+      text-align: right;
+      font-weight: bold;
+      text-decoration: underline;
+      font-size: 11px;
+      margin-top: 5mm;
+    }
+
+    /* ---- Buyer / invoice identifiers --------------------------------- */
+    .party { width: 100%; margin-top: 5mm; border-collapse: collapse; }
+    .party td { vertical-align: top; padding: 1mm 0; font-size: 11px; }
+    .party .lab { white-space: nowrap; padding-right: 2mm; }
+    /* A long buyer address otherwise runs straight into the "Date:" label in
+       the next column -- there is no cell border here to stop it. */
+    .party td:nth-child(2) { padding-right: 6mm; }
+    /* The FBR invoice number is now printed here and nowhere else, so it has
+       to hold its own. Courier at 9.5px came out noticeably lighter than the
+       values around it; bold at a slightly larger size matches their weight
+       while still fitting 27 characters on one line. */
+    .party .fbr-no {
+      font-family: "Courier New", monospace;
+      font-size: 10px;
+      font-weight: bold;
+      letter-spacing: -.3px;
+      white-space: nowrap;
+    }
+    .buyer-name { font-weight: bold; font-style: italic; text-decoration: underline; }
+
+    /* ---- Items ------------------------------------------------------- */
+    .items {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 6mm;
+      font-size: 11px;
+    }
+    .items th, .items td {
+      border: 1px solid #000;
+      padding: 1.6mm 1.2mm;
+      text-align: center;
+    }
+    .items th { font-weight: bold; }
+    /* A line item must not split across a page break: its description would
+       land on one page and its figures on the other. */
+    .items tr { page-break-inside: avoid; }
+    .items td.desc { text-align: left; }
+    /* Filler rows keep the box the depth their printed sheet has, so a
+       one-line invoice does not leave the totals row floating up the page. */
+    .items td.filler { height: 6.5mm; }
+    .items tr.totals td { font-weight: bold; }
+
+    /* ---- Summary + signature ----------------------------------------- */
+    .foot { width: 100%; margin-top: 8mm; border-collapse: collapse; }
+    .foot > tbody > tr > td { vertical-align: top; border: none; }
+
+    .summary { border-collapse: collapse; width: 72mm; }
+    .summary td {
+      border: 1px solid #000;
+      padding: 1.8mm 2.5mm;
+      font-weight: bold;
+      font-size: 12px;
+    }
+    .summary td.num { text-align: right; }
+
+    .sign { text-align: center; font-weight: bold; font-size: 12px; padding-top: 4mm; }
+
+    /* ---- FBR compliance block ---------------------------------------- *
+       The three marks the client's own sheet could not have had. Kept
+       together so they read as one stamp, and placed in the empty band below
+       the summary box rather than anywhere that displaces their layout. */
+    .fbr { margin-top: 10mm; border-collapse: collapse; }
+    .fbr td { border: none; vertical-align: middle; padding: 0 5mm 0 0; }
+    .fbr .qr img { width: 26mm; height: 26mm; display: block; }
+    /* Sized to sit level with the QR rather than to its own natural height,
+       so the two marks read as one stamp on a single line. */
+    .fbr .di img { width: 26mm; height: auto; display: block; }
+    .fbr .pending { font-size: 9px; color: #b00; font-weight: bold; }
+
+    /* ---- Stationery strapline ----------------------------------------
+       Their pre-printed sheet carries this down the right edge, and the
+       artwork lifted from their PDF is already vertical -- 103 x 2938 px. So
+       there is nothing to rotate: rotating it as well made it 0.4mm wide.
+       position: fixed repeats it on every page, which is what a pre-printed
+       sheet would do. Placed in the page's right margin, clear of content. */
+    .strapline {
+      position: fixed;
+      top: 0;
+      left: 182mm;
+    }
+    .brand-strapline {
+      height: 249mm;       /* the height it occupies on their own sheet */
+      width: auto;         /* never both: fixing both would stretch it */
+      display: block;
+    }
+  </style>
+</head>
+
+<body>
+
+  {#- Their pre-printed strapline, the same artwork from their own sheet. -#}
+  <div class="strapline">{{ brand.strapline("Computer, Office Stationery & General Order Suppliers") }}</div>
+
+  {# ---------------------------------------------------------- masthead #}
+  {#- Their own wordmark and ribbon, inlined by the brand partial. Not
+      client_logo_url: that is a database column resolved through three
+      different PDF routes, two of which hand WeasyPrint no base_url, so it
+      renders on some and prints a typed fallback on others. Artwork that
+      travels inside the template cannot fail that way. -#}
+  <div class="masthead">{{ brand.masthead(data.sellerBusinessName or "Apple International") }}</div>
+
+  <table class="reg-line">
+    <tr>
+      <td class="l" style="width:50%">
+        {% if data.sellerSTRN %}(Reg # {{ data.sellerSTRN }}){% endif %}
+      </td>
+      <td class="r" style="width:50%">
+        {% if data.sellerNTNCNIC %}NTN: {{ data.sellerNTNCNIC }}{% endif %}
+      </td>
+    </tr>
+  </table>
+
+  <div class="addr-line c">{{ data.sellerAddress }}</div>
+
+  <div class="title">SALES TAX INVOICE</div>
+  <div class="copy-mark">ORIGINAL / DUPLICATE</div>
+
+  {# ------------------------------------------------- buyer + identifiers #}
+  <table class="party">
+    <tr>
+      <td class="lab r" style="width:13%">Buyer: </td>
+      <td class="buyer-name" style="width:37%">{{ data.buyerBusinessName }}</td>
+      <td class="lab" style="width:18%">Invoice No:</td>
+      <td style="width:32%">{{ data.invoiceRefNo }}</td>
+    </tr>
+    <tr>
+      <td class="lab r">Address:</td>
+      <td>{{ data.buyerAddress }}</td>
+      <td class="lab">Date:</td>
+      <td>{{ data.invoiceDate | datetimeformat }}</td>
+    </tr>
+    <tr>
+      <td class="lab r">Registration #</td>
+      <td class="b">{{ data.buyerSTRN }}</td>
+      {#- The FBR invoice number belongs with the other identifiers, not
+          only under the QR: it is what a buyer quotes back. -#}
+      <td class="lab">FBR Invoice No:</td>
+      <td class="fbr-no">{{ data.fbrInvoiceNumber or "—" }}</td>
+    </tr>
+    <tr>
+      <td class="lab r">NTN:</td>
+      <td class="b">{{ data.buyerNTNCNIC }}</td>
+      <td class="lab">Status:</td>
+      <td>
+        {%- if data.buyerRegistrationType and (data.buyerRegistrationType|string).lower() in ['registered', 'r', 'yes', '1'] -%}
+          Registered
+        {%- else -%}
+          Unregistered
+        {%- endif -%}
+      </td>
+    </tr>
+  </table>
+
+  {# ------------------------------------------------------------- items #}
+  {#- Their header carries the unit under "Quantity". Taken from the goods
+      rather than hard-coded, and only when every line shares one unit --
+      otherwise the header would claim something untrue of some rows. -#}
+  {% set units = data['items'] | map(attribute='uoM', default='') | select | list | unique | list %}
+  {% set one_unit = units[0] if units | length == 1 else '' %}
+  {% set rows = data['items'] | length %}
+
+  <table class="items">
+    <thead>
+      <tr>
+        <th style="width:26%">Description</th>
+        <th style="width:13%">HS<br>Code</th>
+        <th style="width:11%">Quantity{% if one_unit %}<br>{{ one_unit }}{% endif %}</th>
+        <th style="width:10%">Price</th>
+        <th style="width:14%">Value Ex.<br>Sales tax</th>
+        <th style="width:12%">Sales<br>Tax</th>
+        <th style="width:14%">V.Incl<br>Sales Tax</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in data['items'] %}
+        <tr>
+          <td class="desc">{{ item.productDescription }}</td>
+          <td>{{ item.hs_code or item.hsCode or "" }}</td>
+          <td>{{ item.quantity }}</td>
+          <td>{{ item.unitrate | comma_format }}</td>
+          <td>{{ item.valueSalesExcludingST | comma_format }}</td>
+          <td>{{ item.salesTaxApplicable | comma_format }}</td>
+          <td>
+            {{- (item.totalValues if item.totalValues is not none
+                 else (item.valueSalesExcludingST + item.salesTaxApplicable)) | comma_format -}}
+          </td>
+        </tr>
+      {% endfor %}
+
+      {#- Blank rows to the depth of their printed box. -#}
+      {% for _ in range(rows, 6) %}
+        <tr>
+          <td class="filler">&nbsp;</td>
+          <td class="filler"></td><td class="filler"></td><td class="filler"></td>
+          <td class="filler"></td><td class="filler"></td><td class="filler"></td>
+        </tr>
+      {% endfor %}
+
+      <tr class="totals">
+        <td></td><td></td><td></td><td></td>
+        <td>{{ data.totalExcl | comma_format }}</td>
+        <td>{{ data.totalTax | comma_format }}</td>
+        <td>{{ data.totalInclusive | comma_format }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  {# ------------------------------------------- summary, signature, FBR #}
+  <table class="foot">
+    <tr>
+      <td style="width:58%">
+        <table class="summary">
+          <tr>
+            <td>Sales Tax</td>
+            <td class="num">{{ data.totalTax | comma_format }}</td>
+          </tr>
+          <tr>
+            <td>Value Incl. S.Tax</td>
+            <td class="num">{{ data.totalInclusive | comma_format }}</td>
+          </tr>
+        </table>
+      </td>
+      <td style="width:42%">
+        <div class="sign">Signature &amp; Stamp</div>
+      </td>
+    </tr>
+  </table>
+
+  {#- The compliance stamp: QR and the Digital Invoicing logo, side by side on
+      one line. The invoice number is NOT repeated here -- it is printed with
+      the other identifiers above, which is where a reader looks for it, and
+      the QR already carries it for scanning.
+
+      Renders only once the invoice has actually been submitted and has a
+      number; before that it says so plainly rather than printing a QR that
+      resolves to nothing. -#}
+  <table class="fbr">
+    <tr>
+      {% if data.fbrInvoiceNumber and qr_base64 %}
+        <td class="qr">
+          <img src="data:image/png;base64,{{ qr_base64 }}" alt="FBR QR code">
+        </td>
+        {% if fbr_logo_url %}
+          <td class="di">
+            <img src="{{ fbr_logo_url }}" alt="FBR Digital Invoicing System">
+          </td>
+        {% endif %}
+      {% else %}
+        <td>
+          <div class="pending">Not yet submitted to FBR &mdash; no invoice number or QR code yet.</div>
+        </td>
+      {% endif %}
+    </tr>
+  </table>
+
+</body>
+
+</html>

@@ -423,10 +423,10 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
             f"""
             WITH product_items AS (
                 SELECT 
-                    COALESCE(i.productDescription, i.description, i.productName, i.name) as productDescription,
+                    COALESCE(i."productDescription", i.description, i."productName", i.name) as productDescription,
                     i.quantity::numeric,
-                    i.totalValues::numeric,
-                    i.salesTaxApplicable::numeric
+                    i."totalValues"::numeric AS totalValues,
+                    i."salesTaxApplicable"::numeric AS salesTaxApplicable
                 FROM invoices, 
                 jsonb_to_recordset(
                     CASE 
@@ -436,12 +436,12 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
                         THEN invoice_data::jsonb->'items'
                         ELSE '[]'::jsonb
                     END
-                ) AS i(productDescription text, description text, productName text, name text, quantity text, totalValues text, salesTaxApplicable text)
+                ) AS i("productDescription" text, description text, "productName" text, name text, quantity text, "totalValues" text, "salesTaxApplicable" text)
                 WHERE client_id = %s 
                 AND env = %s 
                 AND status = 'Success'
                 {date_condition}
-                AND COALESCE(i.productDescription, i.description, i.productName, i.name) IS NOT NULL
+                AND COALESCE(i."productDescription", i.description, i."productName", i.name) IS NOT NULL
             )
             SELECT 
                 productDescription,
@@ -1723,8 +1723,8 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
                     f"""
                     WITH buyer_products AS (
                         SELECT 
-                            COALESCE(i.productDescription, i.description, i.productName, i.name) as productDescription,
-                            SUM(i.totalValues::numeric) as total_sales,
+                            COALESCE(i."productDescription", i.description, i."productName", i.name) as productDescription,
+                            SUM(i."totalValues"::numeric) as total_sales,
                             SUM(i.quantity::numeric) as total_quantity
                         FROM invoices inv, 
                         jsonb_to_recordset(
@@ -1735,12 +1735,12 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
                                 THEN invoice_data::jsonb->'items'
                                 ELSE '[]'::jsonb
                             END
-                        ) AS i(productDescription text, description text, productName text, name text, totalValues text, quantity text)
+                        ) AS i("productDescription" text, description text, "productName" text, name text, "totalValues" text, quantity text)
                         WHERE client_id = %s 
                         AND env = %s 
                         AND status = 'Success'
                         {" AND DATE(created_at) BETWEEN %s AND %s" if start_date and end_date else ""}
-                        AND COALESCE(i.productDescription, i.description, i.productName, i.name) IS NOT NULL
+                        AND COALESCE(i."productDescription", i.description, i."productName", i.name) IS NOT NULL
                         AND (
                             (jsonb_typeof(invoice_data::jsonb) = 'object' AND
                              invoice_data::jsonb ? 'buyerBusinessName' AND
@@ -1752,7 +1752,7 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
                              invoice_data::jsonb->'buyerData' ? 'buyerBusinessName' AND
                              invoice_data::jsonb->'buyerData'->>'buyerBusinessName' = %s)
                         )
-                        GROUP BY COALESCE(i.productDescription, i.description, i.productName, i.name)
+                        GROUP BY COALESCE(i."productDescription", i.description, i."productName", i.name)
                         ORDER BY total_sales DESC
                         LIMIT 10
                     )

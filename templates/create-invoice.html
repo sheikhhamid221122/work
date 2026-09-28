@@ -317,6 +317,7 @@
         }
     </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/taxlink-theme.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/create-invoice.css') }}">
   <script>
     // Applied before first paint so a dark-mode user never sees a light flash.
     // No stored value falls through to prefers-color-scheme in taxlink-theme.css.
@@ -338,23 +339,14 @@
 
         <!-- Main content -->
         <div class="flex flex-col flex-1 overflow-hidden">
+            {% include 'partials/topbar.html' %}
             <!-- Main content area -->
             <main class="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 bg-gray-50">
                 <div id="create-invoice-content">
-                    <!-- Header -->
-                    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-                        <h1 class="text-2xl font-bold text-gray-800">
-                            Create New Invoice
-                        </h1>
-                        <a href="/dashboard"
-                            class="mt-3 md:mt-0 text-primary-600 hover:text-primary-700 font-medium flex items-center">
-                            <i class="fas fa-arrow-left mr-2"></i> Back to Dashboard
-                        </a>
-                    </div>
-
+                    <div class="ci-layout">
+                    <div class="ci-main">
                     <!-- Progress Steps -->
-                    <!-- Progress Steps -->
-                    <div class="mb-8">
+                    <div class="mb-8 ci-stepper">
                         <div class="flex items-center">
                             <!-- Step 1 -->
                             <div class="flex flex-col items-center">
@@ -418,9 +410,13 @@
                     <!-- Step 1: Seller Information -->
                     <div id="step-1" class="bg-white p-6 rounded-lg shadow">
                         <h2 class="text-lg font-semibold mb-4">Seller Information</h2>
+                        <p class="ci-step-desc">Choose the registered profile issuing this invoice.</p>
+
+                        <!-- Profile cards: a visual front for #business-profile-select (filled by create-invoice-ux.js) -->
+                        <div class="ci-profile-cards" id="ci-profile-cards" hidden></div>
 
                         <!-- Select Existing Business Profile or Create New -->
-                        <div class="mb-6">
+                        <div class="mb-6" id="ci-profile-select-row">
                             <label class="block text-gray-700 font-medium mb-2">Select Business Profile</label>
                             <div class="flex items-center">
                                 <select id="business-profile-select"
@@ -485,11 +481,11 @@
                             </button>
                         </div>
                     </div>
-                </div>
 
                 <!-- Step 2: Invoice Details (Initially Hidden) -->
                 <div id="step-2" class="bg-white p-6 rounded-lg shadow hidden">
                     <h2 class="text-lg font-semibold mb-4">Invoice Details</h2>
+                    <p class="ci-step-desc">Reference numbers, date, and FBR scenario context.</p>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
@@ -527,9 +523,16 @@
                         </div>
 
                         <!-- Sandbox Scenario ID (only shown in sandbox) -->
-                        <div id="scenario-id-container" class="hidden">
-                            <label for="scenario-id" class="block text-gray-700 font-medium mb-2">Scenario ID
-                                (Sandbox)*</label>
+                        <div id="scenario-id-container" class="hidden" data-client="{{ session.get('client_id', '') }}">
+                            <div class="ci-label-row">
+                                <label for="scenario-id" class="block text-gray-700 font-medium mb-2">Scenario ID
+                                    (Sandbox)*</label>
+                                <!-- Remembered per account in this browser; pre-fills new invoices (create-invoice-ux.js) -->
+                                <label class="ci-default-toggle" for="scenario-default-toggle">
+                                    <input type="checkbox" id="scenario-default-toggle">
+                                    <span id="scenario-default-text">Set as my default</span>
+                                </label>
+                            </div>
                             <select id="scenario-id"
                                 class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500" required>
                                 <option value="">-- Select Scenario ID --</option>
@@ -603,20 +606,29 @@
                 <!-- Step 3: Buyer Information (Initially Hidden) -->
                 <div id="step-3" class="bg-white p-6 rounded-lg shadow hidden">
                     <h2 class="text-lg font-semibold mb-4">Buyer Information</h2>
+                    <p class="ci-step-desc">Search your saved buyers, or type a new buyer's details below — you'll be asked whether to save a new one.</p>
 
                     <!-- Select Existing Buyer or Create New -->
                     <div class="mb-6">
-                        <label class="block text-gray-700 font-medium mb-2">Select Buyer</label>
+                        <label class="block text-gray-700 font-medium mb-2" for="buyer-combo-input">Select Buyer</label>
                         <div class="flex items-center">
-                            <select id="buyer-select"
-                                class="form-input w-full px-4 py-2 border border-gray-300 rounded-md mr-2 focus:outline-none focus:border-primary-500">
+                            <!-- Searchable front for #buyer-select, which stays the source of truth -->
+                            <div class="ci-combo" id="buyer-combo">
+                                <i class="fas fa-magnifying-glass ci-combo-icon" aria-hidden="true"></i>
+                                <input type="text" id="buyer-combo-input" class="ci-combo-input" autocomplete="off" spellcheck="false"
+                                       placeholder="Search saved buyers by name, code or NTN/CNIC…" role="combobox"
+                                       aria-expanded="false" aria-controls="buyer-combo-list" aria-autocomplete="list">
+                                <button type="button" class="ci-combo-clear" id="buyer-combo-clear" aria-label="Clear buyer" hidden><i class="fas fa-xmark"></i></button>
+                                <div class="ci-combo-list" id="buyer-combo-list" role="listbox" hidden></div>
+                            </div>
+                            <select id="buyer-select" class="ci-native-select" tabindex="-1" aria-hidden="true">
                                 <option value="">-- Select Buyer --</option>
                             </select>
-                            <button id="add-buyer-btn"
-                                class="bg-secondary-600 hover:bg-secondary-700 text-white px-4 py-2 rounded-md">
-                                <i class="fas fa-plus"></i>
+                            <button id="add-buyer-btn" type="button" class="ci-icon-btn" title="Manage saved buyers" aria-label="Manage saved buyers">
+                                <i class="fas fa-users-gear"></i>
                             </button>
                         </div>
+                        <p class="ci-pref" id="ci-buyer-pref" hidden></p>
                     </div>
 
                     <!-- Buyer Form Fields -->
@@ -691,6 +703,7 @@
                 <!-- Step 4: Products (Initially Hidden) -->
                 <div id="step-4" class="bg-white p-6 rounded-lg shadow hidden">
                     <h2 class="text-lg font-semibold mb-4">Product Items</h2>
+                    <p class="ci-step-desc">Search a saved product or type a new one. Value and tax are calculated as you type.</p>
 
                     <!-- Product Item Form -->
                     <div class="bg-gray-50 p-4 rounded-md mb-6">
@@ -698,10 +711,20 @@
 
                         <!-- Product Dropdown Section (will be shown conditionally) -->
                         <div id="product-dropdown-container" class="mb-4">
-                            <label class="block text-gray-700 text-sm mb-1 font-medium">Select Product*</label>
+                            <label class="block text-gray-700 text-sm mb-1 font-medium" for="product-combo-input">Select Product*</label>
                             <div class="flex">
-                                <!-- Selector (flex-1 so it fills remaining width) -->
-                                <div id="product-selector" class="relative flex-1">
+                                <!-- Type-to-search product picker (create-invoice-ux.js). Picking a
+                                     saved product fills the fields exactly as the old menu did. -->
+                                <div class="ci-combo" id="product-combo">
+                                    <i class="fas fa-magnifying-glass ci-combo-icon" aria-hidden="true"></i>
+                                    <input type="text" id="product-combo-input" class="ci-combo-input" autocomplete="off" spellcheck="false"
+                                           placeholder="Type to search products by name, code or HS code…" role="combobox"
+                                           aria-expanded="false" aria-controls="product-combo-list" aria-autocomplete="list">
+                                    <button type="button" class="ci-combo-clear" id="product-combo-clear" aria-label="Clear product" hidden><i class="fas fa-xmark"></i></button>
+                                    <div class="ci-combo-list" id="product-combo-list" role="listbox" hidden></div>
+                                </div>
+                                <!-- Previous click-to-open menu, kept for the code that still drives it -->
+                                <div id="product-selector" class="relative flex-1 hidden">
                                     <button type="button" id="product-select-btn"
                                         class="w-full flex justify-between items-center px-3 py-2 border border-gray-300 rounded-md bg-white text-left text-sm hover:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500">
                                         <span id="product-selected-label" class="truncate text-gray-700">-- Select
@@ -726,11 +749,10 @@
                                     </div>
                                 </div>
 
-                                <!-- Plus button (mirrors buyer add button style) -->
-                                <button id="reset-product-btn"
-                                    class="ml-2 bg-secondary-600 hover:bg-secondary-700 text-white px-4 py-2 rounded-md"
-                                    title="Clear selection & reset product fields">
-                                    <i class="fas fa-plus"></i>
+                                <!-- Opens the saved-products manager -->
+                                <button id="reset-product-btn" type="button" class="ci-icon-btn"
+                                    title="Manage saved products" aria-label="Manage saved products">
+                                    <i class="fas fa-boxes-stacked"></i>
                                 </button>
                             </div>
 
@@ -807,7 +829,16 @@
                             </div>
                         </div>
 
-                        <!-- Add the additional FBR fields -->
+                        <!-- Advanced tax fields: folded away unless in use (create-invoice-ux.js
+                             opens them when any holds a value, or the sale type needs SRO details). -->
+                        <details class="ci-advanced" id="ci-advanced">
+                            <summary>
+                                <i class="fas fa-chevron-right ci-advanced-caret" aria-hidden="true"></i>
+                                Advanced tax fields
+                                <span class="ci-advanced-sub">SRO, further tax, extra tax, withholding, FED, discount, fixed value</span>
+                                <span class="ci-advanced-badge" id="ci-advanced-badge" hidden></span>
+                            </summary>
+                            <div class="ci-advanced-body">
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
                             <div>
                                 <label for="product-sro-schedule-no" class="block text-gray-700 text-sm mb-1">SRO
@@ -875,15 +906,13 @@
                             </div>
                         </div>
 
-                        <div class="mt-4">
-                            <label class="inline-flex items-center">
-                                <input type="checkbox" id="save-products-for-future"
-                                    class="form-checkbox h-5 w-5 text-primary-600">
-                                <span class="ml-2 text-gray-700 text-sm">
-                                    Save new product for future use
-                                </span>
-                            </label>
-                        </div>
+                            </div>
+                        </details>
+
+                        <!-- Replaced by the "save new products?" prompt at Next; kept (hidden) so
+                             existing references to it still resolve. -->
+                        <input type="checkbox" id="save-products-for-future" class="hidden" tabindex="-1" aria-hidden="true">
+                        <p class="ci-pref" id="ci-product-pref" hidden></p>
 
                         <div class="flex justify-end mt-4">
                             <button id="add-product-item-btn"
@@ -997,6 +1026,7 @@
                 <!-- Step 5: Review (Initially Hidden) -->
                 <div id="step-5" class="bg-white p-6 rounded-lg shadow hidden">
                     <h2 class="text-lg font-semibold mb-4">Review Invoice</h2>
+                    <p class="ci-step-desc">Confirm everything looks right before submitting to FBR.</p>
 
                     <!-- Review Summary -->
                     <div class="mb-6">
@@ -1197,6 +1227,12 @@
                         </div>
                     </div>
 
+                    {% if session.get('env') == 'production' %}
+                    <div class="ci-warning" role="note">
+                        <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+                        <div>You are about to submit a live FBR invoice. Submission is final and cannot be undone.</div>
+                    </div>
+                    {% endif %}
                     <!-- Navigation Buttons -->
                     <!-- Navigation Buttons for Step 5 -->
                     <!-- Navigation Buttons for Step 5 -->
@@ -1225,8 +1261,30 @@
                         </div>
                     </div>
                 </div>
-        </div>
-    </div>
+                </div><!-- /.ci-main -->
+
+                <!-- Live invoice summary (reads the form; see static/js/create-invoice-ux.js) -->
+                <aside class="ci-summary" aria-label="Invoice summary">
+                    <div class="ci-summary-head">
+                        <div class="ci-summary-top"><span>Invoice summary</span><i class="fas fa-wand-magic-sparkles"></i></div>
+                        <div class="ci-summary-total" id="ci-sum-total">PKR 0.00</div>
+                        <div class="ci-summary-sub"><span id="ci-sum-items">0 items</span> · {{ 'Production' if session.get('env') == 'production' else 'Sandbox' }}</div>
+                    </div>
+                    <div class="ci-summary-body">
+                        <div class="ci-summary-row"><span>Seller</span><span id="ci-sum-seller">–</span></div>
+                        <div class="ci-summary-row"><span>Buyer</span><span id="ci-sum-buyer">–</span></div>
+                        <div class="ci-summary-row"><span>Invoice ref</span><span id="ci-sum-ref">–</span></div>
+                        <div class="ci-summary-row"><span>Date</span><span id="ci-sum-date">–</span></div>
+                        <div class="ci-summary-sep"></div>
+                        <div class="ci-summary-row"><span>Subtotal</span><span id="ci-sum-subtotal" class="mono">PKR 0.00</span></div>
+                        <div class="ci-summary-row"><span>Sales tax</span><span id="ci-sum-tax" class="mono">PKR 0.00</span></div>
+                        <div class="ci-summary-sep"></div>
+                        <div class="ci-summary-grand"><span>Total</span><span id="ci-sum-grand">PKR 0.00</span></div>
+                    </div>
+                    <div class="ci-summary-steps" id="ci-sum-steps"></div>
+                </aside>
+                </div><!-- /.ci-layout -->
+                </div>
     </main>
     </div>
     </div>
@@ -2401,6 +2459,29 @@
                         populateBuyerForm(buyer);
                     }
                 });
+
+                // "Use in new invoice" on the Buyers page links here with
+                // ?buyer_id=<id>. Applied once, on the first load only.
+                const linkedBuyerId = new URLSearchParams(window.location.search).get("buyer_id");
+                if (linkedBuyerId && !window.__linkedBuyerApplied) {
+                    window.__linkedBuyerApplied = true;
+                    const linked = buyers.find((b) => String(b.id) === linkedBuyerId);
+                    if (linked) {
+                        select.value = linked.id;
+                        populateBuyerForm(linked);
+                        // Provinces load in parallel; re-apply once they arrive.
+                        const provinceEl = document.getElementById("buyer-province");
+                        let tries = 0;
+                        const applyProvince = () => {
+                            if (provinceEl.options.length > 1) {
+                                setSelectValueCaseInsensitive(provinceEl, linked.province || "");
+                            } else if (tries++ < 50) {
+                                setTimeout(applyProvince, 200);
+                            }
+                        };
+                        applyProvince();
+                    }
+                }
             } catch (error) {
                 console.error("Error fetching buyers:", error);
                 showNotification("error", "Error", "Failed to load buyers");
@@ -2666,9 +2747,17 @@
 
             console.log("Adding product:", description);
 
-            // Get scenario-based sale type
+            // Sale type: in sandbox the scenario drives it (and keeps the
+            // dropdown in sync), so the scenario mapping wins. Production has
+            // no scenario field at all, so the Sale Type dropdown the user
+            // actually picked is the only source of truth -- without this
+            // fallback every production line item was silently submitted as
+            // the hardcoded literal below, ignoring the user's selection.
             const scenarioId = document.getElementById("scenario-id")?.value;
-            const saleType = scenarioToSaleType[scenarioId] || 'Goods at standard rate';
+            const selectedSaleType = (document.getElementById("product-sale-type")?.value || "").trim();
+            const saleType = scenarioToSaleType[scenarioId]
+                || selectedSaleType
+                || 'Goods at standard rate';
 
             // Set SRO values based on username
             let sroScheduleNo = '';
@@ -3006,7 +3095,204 @@
             if (step === 5) {
                 updateReviewSection();
             }
+
+            // Completed steps double as navigation: click the circle to go back
+            // and correct something without walking back one Back click at a time.
+            for (let i = 1; i <= 5; i++) {
+                const indicator = document.getElementById(`step-${i}-indicator`);
+                if (!indicator) continue;
+                const canReturn = i < step;
+                indicator.style.cursor = canReturn ? "pointer" : "";
+                indicator.title = canReturn ? `Back to ${STEP_TITLES[i]}` : "";
+            }
+
+            wizardSyncUrl(step);
+            wizardPersist();
         }
+
+        const STEP_TITLES = {
+            1: "Seller Info",
+            2: "Invoice Details",
+            3: "Buyer Info",
+            4: "Products",
+            5: "Review",
+        };
+
+        function initStepIndicatorNav() {
+            for (let i = 1; i <= 5; i++) {
+                const indicator = document.getElementById(`step-${i}-indicator`);
+                if (!indicator) continue;
+                indicator.addEventListener("click", function () {
+                    // Backwards only: jumping forward would skip the validation
+                    // each Next button performs.
+                    if (i < state.currentStep) {
+                        goToStep(i);
+                    }
+                });
+            }
+        }
+
+        // ---------- Step URLs + reload persistence ----------
+        // Each step gets its own URL (?step=buyer) and the in-progress invoice
+        // is mirrored into sessionStorage, so a reload, a bookmark or the
+        // browser's back/forward buttons land the user where they were instead
+        // of dumping them back on step 1.
+        const STEP_SLUGS = { 1: "seller", 2: "details", 3: "buyer", 4: "products", 5: "review" };
+        const SLUG_STEPS = { seller: 1, details: 2, buyer: 3, products: 4, review: 5 };
+        const WIZARD_STORAGE_KEY = "taxlinkpro:create-invoice";
+        // The account the saved invoice belongs to. Several accounts can be
+        // used in one tab (log out, log in as another), and one must never
+        // resume another's invoice.
+        const WIZARD_CLIENT = {{ session.get('client_id', '') | tojson }};
+        // Suppresses URL pushes / writes while we are the ones driving goToStep.
+        let wizardRestoring = false;
+
+        // The step the page was served at, e.g. /create-invoice/buyer. Empty
+        // when the user opened /create-invoice, which always starts fresh.
+        const SERVED_STEP = "{{ current_step or '' }}";
+
+        function wizardStepFromUrl() {
+            const slug = (window.location.pathname.split("/").filter(Boolean).pop() || "").toLowerCase();
+            return SLUG_STEPS[slug] || null;
+        }
+
+        function wizardSyncUrl(step) {
+            try {
+                const url = new URL(window.location.href);
+                url.pathname = `/create-invoice/${STEP_SLUGS[step] || "seller"}`;
+                // A restore/back-nav must not stack another history entry.
+                history[wizardRestoring ? "replaceState" : "pushState"](
+                    { wizardStep: step },
+                    "",
+                    url.toString()
+                );
+            } catch (e) {
+                console.warn("Could not sync step to URL:", e);
+            }
+        }
+
+        function wizardCollectFieldValues() {
+            const values = {};
+            for (let i = 1; i <= 5; i++) {
+                const container = document.getElementById(`step-${i}`);
+                if (!container) continue;
+                container.querySelectorAll("input[id], select[id], textarea[id]").forEach((el) => {
+                    if (["file", "button", "submit", "password"].includes(el.type)) return;
+                    values[el.id] = el.type === "checkbox" || el.type === "radio" ? el.checked : el.value;
+                });
+            }
+            return values;
+        }
+
+        function wizardApplyFieldValues(values) {
+            if (!values) return;
+            Object.keys(values).forEach((id) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                if (el.type === "checkbox" || el.type === "radio") {
+                    el.checked = !!values[id];
+                } else {
+                    el.value = values[id];
+                }
+            });
+        }
+
+        function wizardPersist() {
+            if (wizardRestoring) return;
+            try {
+                sessionStorage.setItem(
+                    WIZARD_STORAGE_KEY,
+                    JSON.stringify({
+                        client: WIZARD_CLIENT,
+                        env: ENV,
+                        currentStep: state.currentStep,
+                        sellerData: state.sellerData,
+                        buyerData: state.buyerData,
+                        invoiceData: state.invoiceData,
+                        productItems: state.productItems,
+                        draft_id: state.draft_id,
+                        fields: wizardCollectFieldValues(),
+                    })
+                );
+            } catch (e) {
+                // Private browsing or quota: progress just won't survive a reload.
+            }
+        }
+
+        function wizardClear() {
+            try {
+                sessionStorage.removeItem(WIZARD_STORAGE_KEY);
+            } catch (e) { /* nothing to clean up */ }
+        }
+
+        function wizardRestore() {
+            // Opening /create-invoice (e.g. the sidebar link) means "start a new
+            // invoice" -- only a step URL such as /create-invoice/buyer, which is
+            // what a reload of an in-progress step produces, resumes anything.
+            if (!SERVED_STEP) {
+                wizardClear();
+                wizardRestoring = true;   // replace, don't stack a history entry
+                try {
+                    wizardSyncUrl(1);
+                } finally {
+                    wizardRestoring = false;
+                }
+                return;
+            }
+
+            let saved = null;
+            try {
+                const raw = sessionStorage.getItem(WIZARD_STORAGE_KEY);
+                saved = raw ? JSON.parse(raw) : null;
+            } catch (e) {
+                saved = null;
+            }
+
+            // Never carry a sandbox invoice into production (or vice versa), and
+            // never resume an invoice that another account started.
+            if (saved && (saved.env !== ENV || saved.client !== WIZARD_CLIENT)) {
+                wizardClear();
+                saved = null;
+            }
+
+            const urlStep = wizardStepFromUrl();
+            if (!saved && !urlStep) return;
+
+            wizardRestoring = true;
+            try {
+                if (saved) {
+                    state.sellerData = saved.sellerData || {};
+                    state.buyerData = saved.buyerData || {};
+                    state.invoiceData = saved.invoiceData || {};
+                    state.productItems = Array.isArray(saved.productItems) ? saved.productItems : [];
+                    state.draft_id = saved.draft_id || null;
+                    wizardApplyFieldValues(saved.fields);
+                    renderCustomFields();
+                    if (state.productItems.length) {
+                        renderProductItems();
+                    }
+                }
+                // A step URL with nothing saved (new browser session, a shared
+                // link) has no invoice to resume, so start at the beginning
+                // rather than dropping the user on an empty Review page.
+                const target = saved ? (urlStep || saved.currentStep || 1) : 1;
+                goToStep(Math.min(Math.max(target, 1), 5));
+            } finally {
+                wizardRestoring = false;
+            }
+        }
+
+        window.addEventListener("popstate", function (event) {
+            const step = (event.state && event.state.wizardStep) || wizardStepFromUrl() || 1;
+            if (step === state.currentStep) return;
+            wizardRestoring = true;
+            try {
+                goToStep(step);
+            } finally {
+                wizardRestoring = false;
+            }
+            wizardPersist();
+        });
 
         // Update review section
         function updateReviewSection() {
@@ -3815,6 +4101,29 @@
                             showNotification("error", "Loading Error", error.message || "Failed to load draft invoice");
                         });
                 }, 1000); // Increased timeout to ensure all initializations complete
+            } else {
+                // No draft in the URL: restore whatever the user had in progress
+                // before a reload. Deferred so dropdown options (which are
+                // fetched) exist before we write saved values back into them.
+                setTimeout(wizardRestore, 1200);
+            }
+
+            initStepIndicatorNav();
+
+            // Keep the saved snapshot current as the user types, so a reload
+            // mid-step doesn't lose anything they hadn't clicked Next on yet.
+            let wizardPersistTimer = null;
+            for (let i = 1; i <= 5; i++) {
+                const container = document.getElementById(`step-${i}`);
+                if (!container) continue;
+                container.addEventListener("input", function () {
+                    clearTimeout(wizardPersistTimer);
+                    wizardPersistTimer = setTimeout(wizardPersist, 400);
+                });
+                container.addEventListener("change", function () {
+                    clearTimeout(wizardPersistTimer);
+                    wizardPersistTimer = setTimeout(wizardPersist, 400);
+                });
             }
 
             // Mobile menu toggle
@@ -3963,8 +4272,13 @@
 
             document
                 .getElementById("step3-next")
-                .addEventListener("click", function () {
+                .addEventListener("click", async function () {
                     if (validateStep(3)) {
+                        // A buyer typed in by hand (not picked from the saved
+                        // list) is offered for saving first.
+                        if (window.TLPInvoiceUX) {
+                            await window.TLPInvoiceUX.offerSaveBuyer();
+                        }
                         goToStep(4);
                     }
                 });
@@ -4076,6 +4390,10 @@
                             // Enable the Generate Invoice button after successful submission
                             document.getElementById("generate-invoice-btn").disabled = false;
                             document.getElementById("generate-invoice-btn").classList.remove("opacity-50", "cursor-not-allowed");
+
+                            // Filed successfully: drop the in-progress snapshot so a
+                            // later visit starts clean instead of re-opening this invoice.
+                            wizardClear();
                         } else {
                             document.getElementById("submission-error").classList.remove("hidden");
                             document.getElementById("error-response-data").textContent = JSON.stringify(result, null, 2);
@@ -4396,10 +4714,11 @@
             });
         }
 
+        // Called when leaving the Products step. New products (by name) are
+        // offered for saving in a prompt -- Save / Not now, with "don't ask
+        // again" remembered per browser (create-invoice-ux.js). This replaced
+        // the "Save new product for future use" checkbox.
         async function saveProductsIfChecked() {
-            const chk = document.getElementById("save-products-for-future");
-            if (!chk || !chk.checked) return;
-
             if (!productList) productList = [];
             // Build a quick lookup of existing descriptions (case-insensitive trimmed)
             const existing = new Set(productList.map(p => p.description.trim().toLowerCase()));
@@ -4416,10 +4735,15 @@
 
             if (toSave.length === 0) return;
 
+            const chosen = window.TLPInvoiceUX
+                ? await window.TLPInvoiceUX.confirmSaveProducts(toSave)
+                : [];
+            if (!chosen.length) return;
+
             try {
                 // POST each product (serial or parallel). Parallel:
                 await Promise.all(
-                    toSave.map(item => {
+                    chosen.map(item => {
                         const rawRate = (item.taxRate || "").toString();           // e.g. "18%", "18.00%", "0", ""
                         const rateNum = parseFloat(rawRate.replace("%", ""));       // NaN if empty
                         const cleanRate = isNaN(rateNum) ? 0 : rateNum;             // fallback to 0
@@ -4431,6 +4755,9 @@
                                 description: item.productDescription,
                                 hs_code: item.hsCode || "",
                                 uom: item.uoM || "",
+                                // Unit price as a default for next time; sending it
+                                // also applies the name + rate duplicate rule.
+                                rate: item.rate || 0,
                                 default_tax_rate: cleanRate,            // numeric
                                 sale_type: item.saleType || "",
                                 sro_schedule_no: item.sroScheduleNo || "",
@@ -4442,7 +4769,7 @@
 
                 // Refresh catalog so they appear next time user opens dropdown
                 await fetchProducts();
-                showNotification("success", "Products Saved", "New products added to catalog");
+                showNotification("success", "Products Saved", chosen.length === 1 ? "New product added to your catalogue" : `${chosen.length} new products added to your catalogue`);
             } catch (e) {
                 console.error("Error saving products:", e);
                 showNotification("error", "Save Failed", "Could not save some products");
@@ -5565,8 +5892,11 @@
             initHsCodeAutocomplete();
             // Preload UOMs in background
             setTimeout(preloadAllUoms, 2000);
-            // Initialize buyer NTN auto-detection
-            initBuyerRegistrationAutoDetect();
+            // Buyer NTN auto-detection (5.12 Get_Reg_Type) disabled: FBR's
+            // answer proved unreliable for this client's token in both
+            // sandbox and production, so buyers select Registered/Unregistered
+            // manually again. initBuyerRegistrationAutoDetect() and its
+            // backend endpoint are left in place in case this is revisited.
         });
         
         // ================== End FBR Reference Data ==================
@@ -5682,6 +6012,8 @@
         
         // ================== End Buyer Registration Auto-Detection ==================
     </script>
+    <!-- Layout helpers: summary rail, profile cards, searchable pickers, save prompts -->
+    <script src="{{ url_for('static', filename='js/create-invoice-ux.js') }}"></script>
 </body>
 
 </html>

@@ -1,0 +1,29 @@
+{% extends "invoices/_base.html" %}
+{% block sheet %}
+
+  {# A metadata column beside the items, spec-sheet style. The FBR block lives
+     at the foot of that column. #}
+  <div class="row-btw row-base rule-acc" style="border-top:0; border-bottom:2px solid {{ T.accent }}; padding-bottom:2mm">
+    <div class="t-heading t-strong">SALES TAX INVOICE</div>
+    {{ P.logo(d, T, client_logo_url) }}
+  </div>
+
+  <div class="sec row" style="gap:{{ T.gap_mm * 1.5 }}mm">
+    <div class="col" style="width:29%; flex:0 0 29%; border-right:1px solid {{ T.line }}; padding-right:{{ T.gap_mm }}mm">
+      {{ P.party(d, T, 'seller', 'From') }}
+      <div style="margin-top:{{ T.section_mm }}mm">{{ P.party(d, T, 'buyer', 'Bill To') }}</div>
+      <div style="margin-top:{{ T.section_mm }}mm">{{ P.meta(d, T, 'left') }}</div>
+      <div style="margin-top:{{ T.section_mm }}mm">
+        {{ P.fbr_block(d, T, qr_base64, fbr_logo_url, 'col') }}
+      </div>
+    </div>
+
+    <div class="grow col">
+      {{ P.items(d, T, 'rule', settings) }}
+      <div class="sec row" style="justify-content:flex-end">
+        <div style="width:62%">{{ P.totals(d, T) }}</div>
+      </div>
+      <div class="sec row" style="justify-content:flex-end">{{ P.signature(d, T) }}</div>
+    </div>
+  </div>
+{% endblock %}

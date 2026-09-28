@@ -7,7 +7,8 @@ from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
 from psycopg2.extras import Json
 
-from fbr_reference_routes import canonical_province, fetch_provinces
+from fbr_reference_routes import canonical_province, fetch_provinces, fetch_transaction_types
+import master_data
 
 SPECIAL_USERNAMES = {"H075895", "F667833", "infinityeng"}
 INVOICE_CUSTOM_FIELDS_MAX = 2
@@ -378,36 +379,60 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
 
         conn = get_db_connection()
         cur = conn.cursor()
-        if data.get("is_default", False):
+        try:
+            # Same buyer twice (same NTN/CNIC, or same name) is refused, and a
+            # code is assigned when none was typed -- see master_data.py.
+            existing = master_data.load_buyer_keys(cur, client_id)
+            clash = master_data.find_duplicate_buyer(existing, data["business_name"], data["ntn_cnic"])
+            if clash:
+                return jsonify({
+                    "error": master_data.buyer_duplicate_message(clash),
+                    "duplicate": {"field": clash[0], "id": clash[1][0]},
+                }), 409
+
+            buyer_code = str(data.get("buyer_code") or "").strip()
+            if buyer_code:
+                owner = master_data.find_buyer_code_owner(existing, buyer_code)
+                if owner:
+                    return jsonify({"error": f"Buyer code {buyer_code} is already used by {owner[1]}."}), 409
+            else:
+                buyer_code = master_data.reserve_codes(
+                    cur, "buyers", "buyer_code", master_data.BUYER_CODE_PREFIX, client_id)[0]
+
+            if data.get("is_default", False):
+                cur.execute(
+                    "UPDATE buyers SET is_default = FALSE WHERE client_id = %s",
+                    (client_id,),
+                )
             cur.execute(
-                "UPDATE buyers SET is_default = FALSE WHERE client_id = %s",
-                (client_id,),
+                """
+                INSERT INTO buyers
+                  (client_id, business_name, address, province, ntn_cnic, strn,
+                   registration_type, buyer_code, is_default)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                RETURNING id
+                """,
+                (
+                    client_id,
+                    data["business_name"],
+                    data["address"],
+                    data["province"],
+                    data["ntn_cnic"],
+                    data.get("strn", ""),
+                    data.get("registration_type", "Unregistered"),
+                    buyer_code,
+                    data.get("is_default", False),
+                ),
             )
-        cur.execute(
-            """
-            INSERT INTO buyers
-              (client_id, business_name, address, province, ntn_cnic, strn,
-               registration_type, buyer_code, is_default)
-            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
-            RETURNING id
-            """,
-            (
-                client_id,
-                data["business_name"],
-                data["address"],
-                data["province"],
-                data["ntn_cnic"],
-                data.get("strn", ""),
-                data.get("registration_type", "Unregistered"),
-                data.get("buyer_code", ""),
-                data.get("is_default", False),
-            ),
-        )
-        new_id = cur.fetchone()[0]
-        conn.commit()
-        cur.close()
-        conn.close()
-        return jsonify({"id": new_id, "message": "Buyer created successfully"})
+            new_id = cur.fetchone()[0]
+            conn.commit()
+            return jsonify({"id": new_id, "buyer_code": buyer_code, "message": "Buyer created successfully"})
+        except Exception as e:
+            conn.rollback()
+            return jsonify({"error": f"Failed to create buyer: {str(e)}"}), 500
+        finally:
+            cur.close()
+            conn.close()
 
     # UPDATE: Edit buyer
     @app.route("/api/buyers/<int:buyer_id>", methods=["PUT"])
@@ -435,6 +460,35 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             )
             if not cur.fetchone():
                 return jsonify({"error": "Buyer not found"}), 404
+
+            # An edit must not turn this buyer into a copy of another one.
+            existing = master_data.load_buyer_keys(cur, client_id)
+            current = next(r for r in existing if r[0] == buyer_id)
+            clash = master_data.find_duplicate_buyer(
+                existing,
+                data.get("business_name", current[1]),
+                data.get("ntn_cnic", current[2]),
+                exclude_id=buyer_id,
+            )
+            if clash:
+                return jsonify({
+                    "error": master_data.buyer_duplicate_message(clash),
+                    "duplicate": {"field": clash[0], "id": clash[1][0]},
+                }), 409
+
+            # Every buyer keeps a code: a blank one in the payload (the invoice
+            # form sends whatever its code box holds) keeps the current code,
+            # or assigns one if the buyer never had any.
+            if "buyer_code" in data:
+                new_code = str(data.get("buyer_code") or "").strip()
+                if not new_code:
+                    new_code = str(current[3] or "").strip() or master_data.reserve_codes(
+                        cur, "buyers", "buyer_code", master_data.BUYER_CODE_PREFIX, client_id)[0]
+                else:
+                    owner = master_data.find_buyer_code_owner(existing, new_code, exclude_id=buyer_id)
+                    if owner:
+                        return jsonify({"error": f"Buyer code {new_code} is already used by {owner[1]}."}), 409
+                data["buyer_code"] = new_code
 
             # Handle is_default flag - if setting this buyer as default, unset others
             if data.get("is_default", False):
@@ -552,7 +606,11 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             has_product_code = "product_code" in available_columns
             has_sro_item_serial_no = "sro_item_serial_no" in available_columns
 
-            should_include_product_code = has_product_code and is_special_user
+            # Codes are returned for everyone so the invoice form's product
+            # picker can show and search them. Only the special-username
+            # clients' form puts a code on the invoice line; that gate lives in
+            # the page (isH075895User), not here.
+            should_include_product_code = has_product_code
 
             select_exprs = [
                 "id",
@@ -638,15 +696,34 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             has_product_code = "product_code" in available_columns
             has_sro_item_serial_no = "sro_item_serial_no" in available_columns
 
-            # Case-insensitive match to prevent duplicates
-            cur.execute(
-                """
-                SELECT id, is_active FROM products
-                WHERE client_id = %s AND LOWER(description) = LOWER(%s)
-                """,
-                (client_id, description),
-            )
-            existing = cur.fetchone()
+            # Duplicates. A caller that sends a rate (the product forms) gets the
+            # name + rate rule from master_data: a clash is refused, and a
+            # soft-deleted match is restored instead of copied. Callers that
+            # send no rate (the invoice form saving line items, "add custom
+            # product") keep the original behaviour: any product with that
+            # name is reused, so they never create a copy either.
+            strict = "rate" in data
+            if strict:
+                product_rows = master_data.load_product_keys(cur, client_id)
+                clash = master_data.find_duplicate_product(product_rows, description, data.get("rate"))
+                if clash:
+                    return jsonify({
+                        "error": master_data.product_duplicate_message(clash),
+                        "duplicate": {"id": clash[0]},
+                    }), 409
+                deleted = master_data.find_duplicate_product(
+                    product_rows, description, data.get("rate"), active=False)
+                existing = (deleted[0], False) if deleted else None
+            else:
+                # Case-insensitive match to prevent duplicates
+                cur.execute(
+                    """
+                    SELECT id, is_active FROM products
+                    WHERE client_id = %s AND LOWER(description) = LOWER(%s)
+                    """,
+                    (client_id, description),
+                )
+                existing = cur.fetchone()
             if existing:
                 if existing[1] is False:
                     cur.execute(
@@ -654,6 +731,12 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                         (existing[0],),
                     )
                     conn.commit()
+                    if strict:
+                        return jsonify({
+                            "id": existing[0],
+                            "restored": True,
+                            "message": "This product had been deleted; it has been restored.",
+                        }), 200
                 return jsonify({"id": existing[0], "message": "Product already exists"}), 200
 
             # Determine username for user-specific behavior
@@ -711,9 +794,17 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                 payload_sale_type,
             ]
 
-            if has_product_code and is_special_user:
+            # Special-username clients type their own product codes (they print
+            # on their invoices); everyone else gets the next P-#### code.
+            product_code = ""
+            if has_product_code:
+                if is_special_user:
+                    product_code = (data.get("product_code") or "").strip()
+                else:
+                    product_code = master_data.reserve_codes(
+                        cur, "products", "product_code", master_data.PRODUCT_CODE_PREFIX, client_id)[0]
                 columns.insert(3, "product_code")
-                values.insert(3, (data.get("product_code") or "").strip())
+                values.insert(3, product_code)
 
             if has_sro_item_serial_no:
                 columns.append("sro_item_serial_no")
@@ -730,7 +821,7 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             )
             new_id = cur.fetchone()[0]
             conn.commit()
-            return jsonify({"id": new_id, "message": "Product created successfully"})
+            return jsonify({"id": new_id, "product_code": product_code, "message": "Product created successfully"})
         except Exception as e:
             conn.rollback()
             return jsonify({"error": f"Failed to create product: {str(e)}"}), 500
@@ -826,8 +917,27 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                 add_update("sro_item_serial_no", payload_sro_item)
 
             if has_product_code:
-                product_code_value = (data.get("product_code") or "").strip()
-                add_update("product_code", product_code_value if is_special_user else product_code_value)
+                if is_special_user:
+                    add_update("product_code", (data.get("product_code") or "").strip())
+                else:
+                    # Assigned codes are not edited; the invoice form's hidden
+                    # code box sends "" and must not wipe them. A product that
+                    # predates codes gets one on its first save.
+                    cur.execute("SELECT product_code FROM products WHERE id = %s", (product_id,))
+                    current_code = ((cur.fetchone() or [""])[0] or "").strip()
+                    if not current_code:
+                        add_update("product_code", master_data.reserve_codes(
+                            cur, "products", "product_code", master_data.PRODUCT_CODE_PREFIX, client_id)[0])
+
+            # An edit must not turn this product into a copy of another one.
+            clash = master_data.find_duplicate_product(
+                master_data.load_product_keys(cur, client_id), description, rate_value,
+                exclude_id=product_id)
+            if clash:
+                return jsonify({
+                    "error": master_data.product_duplicate_message(clash),
+                    "duplicate": {"id": clash[0]},
+                }), 409
 
             if not updates:
                 return jsonify({"error": "No fields to update"}), 400
@@ -1002,35 +1112,21 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         ]
 
 
-        # Sale types per FBR Documentation Section 9 - Scenarios for Sandbox Testing
-        # These are the official sale type values that map to each scenario
+        # Sale types come from FBR DI Reference API 5.5 (/pdi/v1/transtypecode),
+        # cached for 24h, with the old Section-9 static list as fallback only if
+        # FBR is unreachable. "code" carries transactioN_TYPE_ID so the tax-rate
+        # dropdown (5.8 SaleTypeToRate) can look up rates for the chosen sale
+        # type without a second round-trip to resolve the ID.
+        fbr_sale_types, sale_types_source = fetch_transaction_types(get_db_connection, get_env)
         sale_types_data = [
-            {"value": "Goods at Standard Rate (default)", "label": "Goods at Standard Rate (default)"},
-            {"value": "Steel melting and re-rolling", "label": "Steel melting and re-rolling"},
-            {"value": "Ship breaking", "label": "Ship breaking"},
-            {"value": "Goods at Reduced Rate", "label": "Goods at Reduced Rate"},
-            {"value": "Exempt Goods", "label": "Exempt Goods"},
-            {"value": "Goods at zero-rate", "label": "Goods at zero-rate"},
-            {"value": "3rd Schedule Goods", "label": "3rd Schedule Goods"},
-            {"value": "Cotton Ginners", "label": "Cotton Ginners"},
-            {"value": "Telecommunication services", "label": "Telecommunication services"},
-            {"value": "Toll Manufacturing", "label": "Toll Manufacturing"},
-            {"value": "Petroleum Products", "label": "Petroleum Products"},
-            {"value": "Electricity Supply to Retailers", "label": "Electricity Supply to Retailers"},
-            {"value": "Gas to CNG stations", "label": "Gas to CNG stations"},
-            {"value": "Mobile Phones", "label": "Mobile Phones"},
-            {"value": "Processing/ Conversion of Goods", "label": "Processing/ Conversion of Goods"},
-            {"value": "Goods (FED in ST Mode)", "label": "Goods (FED in ST Mode)"},
-            {"value": "Services (FED in ST Mode)", "label": "Services (FED in ST Mode)"},
-            {"value": "Services", "label": "Services"},
-            {"value": "Electric Vehicle", "label": "Electric Vehicle"},
-            {"value": "Cement /Concrete Block", "label": "Cement /Concrete Block"},
-            {"value": "Potassium Chlorate", "label": "Potassium Chlorate"},
-            {"value": "CNG Sales", "label": "CNG Sales"},
-            {"value": "Goods as per SRO.297(|)/2023", "label": "Goods as per SRO.297(|)/2023"},
-            {"value": "Non-Adjustable Supplies", "label": "Non-Adjustable Supplies"},
+            {
+                "value": t["transactioN_DESC"],
+                "label": t["transactioN_DESC"],
+                "code": t.get("transactioN_TYPE_ID"),
+            }
+            for t in fbr_sale_types
         ]
-        
+
         return jsonify(
             {
                 "invoiceTypes": [
@@ -1046,6 +1142,7 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                     {"value": "Unregistered", "label": "Unregistered"},
                 ],
                 "saleTypes": sale_types_data,
+                "saleTypesSource": sale_types_source,
                 # Extended UOM list - fallback values if FBR API unavailable
                 # Dynamic UOMs are fetched via /api/reference/uoms and /api/reference/hs-uom
                 "uoms": [
@@ -1174,6 +1271,9 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             return jsonify({"error": "No products provided for import"}), 400
 
         results = {"imported": 0, "skipped": 0}
+        # Same code rule as create_product: special-username clients keep
+        # typing their own codes.
+        assign_codes = master_data.product_code_column_exists(cur) and not _is_special_username(username)
         sro_schedule_no = "EIGHTH SCHEDULE Table 1" if username == "3075270" else ""
         sro_item_serial_no = "81" if username == "3075270" else ""
 
@@ -1204,6 +1304,7 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                   (client_id, description, hs_code, uom, default_tax_rate,
                    sale_type, sro_schedule_no, sro_item_serial_no, is_active)
                 VALUES (%s,%s,%s,%s,%s,%s,%s,%s, TRUE)
+                RETURNING id
                 """,
                 (
                     client_id,
@@ -1216,6 +1317,14 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                     sro_item_serial_no,
                 ),
             )
+            new_product_id = cur.fetchone()[0]
+            if assign_codes:
+                cur.execute(
+                    "UPDATE products SET product_code = %s WHERE id = %s",
+                    (master_data.reserve_codes(cur, "products", "product_code",
+                                               master_data.PRODUCT_CODE_PREFIX, client_id)[0],
+                     new_product_id),
+                )
             results["imported"] += 1
 
         conn.commit()
