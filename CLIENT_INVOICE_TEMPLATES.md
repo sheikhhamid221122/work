@@ -237,8 +237,49 @@ column set. When their sheet puts the HS code inside the description or in a
 different order, as Hannan Traders' did, use the standard columns anyway. That
 was the client's own request.
 
+The five paper clients carry an eighth, **No. of Reams**, between Quantity and
+Price. See "A column that is printed and nothing else" below before adding one
+of these to anybody.
+
 Live text laid over a letterhead bar must **never** use `overflow: hidden`. A
 longer address would silently cut off the NTN and Reg # printed after it.
+
+### A column that is printed and nothing else
+
+Clients ask for figures that belong on the page and nowhere else. Reams is the
+worked example: five paper merchants wanted the count beside the quantity, and
+nothing on the invoice is derived from it.
+
+Such a field has to be added in five places, and the fifth is the one that is
+easy to miss:
+
+1. **`templates/create-invoice.html`** — the input on the Products step, inside
+   `#product-reams-wrapper`, shown by `applyReamsUI()` for the usernames in
+   `REAMS_CLIENTS`; a column in the Products and Review tables, guarded by the
+   same check; read in `addProductItem()`; carried through
+   `normalizeDraftItem()` so a reloaded draft keeps it; and deleted in
+   `submitInvoice()` for everyone else, the way `product_code` already is.
+2. **`static/css/create-invoice.css`** — the item form's first row is a
+   four-column grid that collapses to three when neither Product Code nor
+   Reams is showing. Both `:has()` rules must name the new field, or it drops
+   onto a line of its own. The extra table column also needs the tighter cell
+   padding, or "Actions" clips against the table's right edge at 1518px.
+3. **`invoice_form_routes.py`** — `items_list` is a whitelist. A key that is
+   not copied into `item` there never reaches the template, however faithfully
+   the browser sent it. `REAMS_USERNAMES` gates it so no other client's payload
+   grows a field.
+4. **the client's template** — the column, *and* the filler rows and the
+   in-table totals row, which are written cell by cell. Scale the other widths
+   so they still sum to 100.
+5. **`app.py`** — add the key to `PDF_ONLY_ITEM_FIELDS`. `submit_fbr()` sends
+   the stored payload straight to FBR, whose item schema has no room for it.
+   The strip is a copy, not a `pop`: `json_data` is also what the PDF is
+   rendered from and what is written to the `invoices` row.
+
+`tests/test_client_templates.py` guards the result two ways —
+`ItemsTableAlignment` fails if any row of an items table is not as wide as its
+header, and `ReamsColumn` fails if the column disappears, appears on a client
+who did not ask for it, or changes any other figure on the sheet.
 
 ---
 
@@ -331,6 +372,10 @@ Things that cost time on the first template:
 ---
 
 ## Worked example
+
+All five of the clients below also print a **No. of Reams** column between
+Quantity and Price, at their request; see "A column that is printed and nothing
+else" above for what that involves.
 
 `templates/invoice_apple_international.html` — Apple International, username
 `3520224169621`. Replica of their Excel sheet: centred masthead, Reg #/NTN

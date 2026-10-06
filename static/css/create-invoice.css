@@ -612,10 +612,22 @@ main input.ci-combo-input {
   color: var(--tlp-purple) !important;
 }
 
-/* The product-code column only exists for a few clients; without it the
-   first row of the item form would leave an empty fourth column. */
-#step-4 .grid.md\:grid-cols-4:has(> #product-code-wrapper.hidden) {
+/* Product Code and Number of Reams each exist for a few clients only, and no
+   client has both. Collapse the item form's first row to three columns when
+   neither is showing, so it does not leave an empty fourth; with either one
+   showing, the four columns are all filled. */
+#step-4 .grid.md\:grid-cols-4:has(> #product-code-wrapper.hidden):has(> #product-reams-wrapper.hidden) {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+/* With the reams column the Products-step table has ten columns, and at the
+   1518px target viewport that is just enough to clip the "Actions" heading
+   against the table's right edge. The cells give up a little side padding
+   while the column is showing; every other client's table is untouched. */
+#step-4 table:has(#product-reams-header:not(.hidden)) th,
+#step-4 table:has(#product-reams-header:not(.hidden)) td {
+  padding-left: 8px;
+  padding-right: 8px;
 }
 
 /* Profile cards carry their own "Add or manage" card. */
