@@ -739,6 +739,17 @@ def comma_format(value):
         return value
 
 
+@app.template_global("generated_time")
+def generated_time():
+    """Clock time this invoice is being printed, as "3:40PM".
+
+    Fixed +05:00 rather than the server's clock: the invoice is a Pakistani
+    document and the host may well not be in Pakistan. Pakistan has no DST.
+    """
+    pkt = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=5)))
+    return pkt.strftime("%I:%M%p").lstrip("0")
+
+
 def get_client_config(client_id, env):
     try:
         conn = get_db_connection()
@@ -1247,6 +1258,11 @@ except ModuleNotFoundError as exc:
 # Store last uploaded file and last JSON per environment
 last_uploaded_file = {}
 last_json_data = {}
+
+# Line-item keys that exist for the printed invoice only. FBR's item schema has
+# no room for them, so submit_fbr() leaves them out of the payload while the
+# stored invoice and the PDF keep them.
+PDF_ONLY_ITEM_FIELDS = frozenset({"numberOfReams"})
 
 
 # ---------------------------------------------------------------------------
@@ -1807,8 +1823,20 @@ def submit_fbr():
         # Log request data (excluding sensitive info)
         print(f"Submitting data to FBR, env: {env}")
 
+        # "No. of Reams" is a figure the paper clients want printed beside the
+        # quantity; FBR's item schema has no such field, so it travels with the
+        # invoice and is dropped on the way out. The copy is shallow on purpose
+        # everywhere except the items: json_data is what the PDF below is
+        # rendered from, and what is stored, so it must keep the reams.
+        fbr_json_data = dict(json_data)
+        if "items" in fbr_json_data:
+            fbr_json_data["items"] = [
+                {k: v for k, v in item.items() if k not in PDF_ONLY_ITEM_FIELDS}
+                for item in json_data["items"]
+            ]
+
         # Send request to FBR with timeout to prevent worker hanging
-        response = requests.post(api_url, headers=headers, json=json_data, timeout=180)
+        response = requests.post(api_url, headers=headers, json=fbr_json_data, timeout=180)
         print(f"FBR API Response status: {response.status_code}")
 
         # Parse response

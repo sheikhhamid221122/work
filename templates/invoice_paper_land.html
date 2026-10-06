@@ -12,8 +12,8 @@
   lime bar across the page, the "Paper Land" wordmark and "Paper & Paper
   Products" -- the NTN # / Reg # pair under the bar at the right, the heavy
   italic title, the ORIGINAL / DUPLICATE mark, the serif label-and-value buyer
-  block, the seven-column items table with its blank filler depth and in-table
-  totals row, the two-row summary box, and "Signature & Stamp".
+  block, the items table with its blank filler depth and in-table totals row,
+  the two-row summary box, and "Signature & Stamp".
 
   Their letterhead baked the seller's address and cell number into the lime
   bar as pixels. The address is an FBR field, so it was masked out of the
@@ -44,6 +44,12 @@
     printers load. The width is identical, so only the empty foot is shorter.
   * The cell number in the lime bar is not in the invoice payload, so it is
     fixed text below. Change it here if theirs changes.
+  * AT THE CLIENT'S REQUEST, a "No. of Reams" column sits between Quantity
+    and Price. It is printed only: nothing on the invoice is calculated from
+    it, and app.py leaves it out of the FBR payload, whose item schema has no
+    such field. The cell is blank when a line has no figure. The other column
+    widths were scaled by 0.90 to make room, so the table keeps its
+    proportions.
 
   Contract: rendered by app.py with data, qr_base64, client_logo_url,
   fbr_logo_url, username, settings, theme. See invoice_template3.html for the
@@ -300,13 +306,14 @@
   <table class="items">
     <thead>
       <tr>
-        <th style="width:21%">Description</th>
-        <th style="width:13%">HSH<br>Code</th>
-        <th style="width:12%">Quantity{% if one_unit %}<br>{{ one_unit }}{% endif %}</th>
-        <th style="width:10%">Price</th>
-        <th style="width:16%">Value Ex.<br>Sales tax</th>
-        <th style="width:13%">Sales<br>Tax</th>
-        <th style="width:15%">V.Incl<br>Sales Tax</th>
+        <th style="width:18.9%">Description</th>
+        <th style="width:11.7%">HSH<br>Code</th>
+        <th style="width:10.8%">Quantity{% if one_unit %}<br>{{ one_unit }}{% endif %}</th>
+        <th style="width:10%">No. of<br>Reams</th>
+        <th style="width:9%">Price</th>
+        <th style="width:14.4%">Value Ex.<br>Sales tax</th>
+        <th style="width:11.7%">Sales<br>Tax</th>
+        <th style="width:13.5%">V.Incl<br>Sales Tax</th>
       </tr>
     </thead>
     <tbody>
@@ -315,6 +322,7 @@
           <td class="desc">{{ item.productDescription }}</td>
           <td class="num">{{ item.hs_code or item.hsCode or "" }}</td>
           <td class="num">{{ item.quantity }}</td>
+          <td class="num">{{ item.numberOfReams or "" }}</td>
           <td class="num">{{ item.unitrate | comma_format }}</td>
           <td class="num">{{ item.valueSalesExcludingST | comma_format }}</td>
           <td class="num">{{ item.salesTaxApplicable | comma_format }}</td>
@@ -330,13 +338,12 @@
       {% for _ in range(rows, 6) %}
         <tr>
           <td class="filler">&nbsp;</td>
-          <td class="filler"></td><td class="filler"></td><td class="filler"></td>
-          <td class="filler"></td><td class="filler"></td><td class="filler"></td>
+          {% for _ in range(7) %}<td class="filler"></td>{% endfor %}
         </tr>
       {% endfor %}
 
       <tr class="totals">
-        <td></td><td></td><td></td><td></td>
+        <td></td><td></td><td></td><td></td><td></td>
         <td>{{ data.totalExcl | comma_format }}</td>
         <td>{{ data.totalTax | comma_format }}</td>
         <td>{{ data.totalInclusive | comma_format }}</td>

@@ -23,6 +23,7 @@ import io
 import os
 import sys
 import unittest
+from html.parser import HTMLParser
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, ROOT)
@@ -38,7 +39,23 @@ CLIENT_TEMPLATES = {
     "invoice_paper_land.html": "4242880",
     "invoice_hannan_traders.html": "3520230962516",
     "invoice_paper_experts.html": "3520261094743",
+    "invoice_fk_printers.html": "3520235613477",
 }
+
+# The paper clients who asked for a "No. of Reams" column beside the quantity.
+# It is a figure they want printed and nothing more: no total is derived from
+# it, and app.py drops it before the payload reaches FBR, whose item schema has
+# no such field. Nobody else's replica carries the column.
+REAMS_TEMPLATES = {
+    "invoice_apple_international.html",
+    "invoice_ak_international.html",
+    "invoice_paper_land.html",
+    "invoice_hannan_traders.html",
+    "invoice_paper_experts.html",
+}
+
+# Distinctive enough that it cannot collide with a figure already in PAYLOAD.
+REAMS = "9876"
 
 FBR_NUMBER = "3520224169621DIVROFIR912774"
 FBR_LOGO = "/static/uploads/fbr-di-logo.png"
@@ -116,6 +133,97 @@ def render(template, data=None, qr=QR_B64, logo=FBR_LOGO, client_logo=None):
         )
 
 
+class _ItemsTable(HTMLParser):
+    """Cell count per row of the first <table class="items">, colspans summed.
+
+    Used to prove the replicas' items tables stay rectangular. A row one cell
+    short of its header does not fail to render -- it silently shifts every
+    figure after it into the wrong column, which is the one way a replica can
+    be wrong and still look like an invoice.
+    """
+
+    def __init__(self):
+        HTMLParser.__init__(self)
+        self.rows = []
+        self._depth = 0
+        self._cells = None
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if tag == "table":
+            if self._depth or "items" in (attrs.get("class") or "").split():
+                self._depth += 1
+        elif self._depth == 1:
+            if tag == "tr":
+                self._cells = 0
+            elif tag in ("td", "th") and self._cells is not None:
+                try:
+                    self._cells += int(attrs.get("colspan", 1))
+                except (TypeError, ValueError):
+                    self._cells += 1
+
+    def handle_endtag(self, tag):
+        if tag == "table" and self._depth:
+            self._depth -= 1
+        elif tag == "tr" and self._depth == 1 and self._cells is not None:
+            self.rows.append(self._cells)
+            self._cells = None
+
+
+def items_table_rows(markup):
+    parser = _ItemsTable()
+    parser.feed(markup)
+    return parser.rows
+
+
+def with_reams(count=REAMS):
+    payload = dict(PAYLOAD)
+    payload["items"] = [dict(PAYLOAD["items"][0], numberOfReams=count)]
+    return payload
+
+
+class ItemsTableAlignment(unittest.TestCase):
+    """Every row of an items table must be as wide as its header."""
+
+    def test_every_row_has_as_many_cells_as_the_header(self):
+        # Filler rows and the in-table totals row are written cell by cell, so
+        # adding a column means touching three places in the same template.
+        # Miss one and the totals print under the wrong heading.
+        for template in CLIENT_TEMPLATES:
+            for payload in (PAYLOAD, with_reams()):
+                rows = items_table_rows(render(template, payload))
+                self.assertTrue(rows, f"{template}: no items table found")
+                self.assertEqual(
+                    {rows[0]}, set(rows),
+                    f"{template}: rows are {rows}, header has {rows[0]} cells")
+
+
+class ReamsColumn(unittest.TestCase):
+    """The paper clients' printed-only reams count."""
+
+    def test_the_five_clients_print_the_column_and_the_figure(self):
+        for template in REAMS_TEMPLATES:
+            markup = render(template, with_reams())
+            self.assertIn("Reams", markup, template)
+            self.assertIn(f">{REAMS}<", markup, f"{template}: figure missing")
+
+    def test_no_other_replica_grows_the_column(self):
+        # A client who did not ask for it must not get it, whatever the payload
+        # happens to carry.
+        for template in set(CLIENT_TEMPLATES) - REAMS_TEMPLATES:
+            self.assertNotIn("Reams", render(template, with_reams()), template)
+
+    def test_nothing_on_the_invoice_is_calculated_from_it(self):
+        # The sheet with a reams figure and the sheet without must be the same
+        # document apart from that one cell -- which also shows the cell is
+        # left empty, not printed as 0, when the line has no figure.
+        for template in REAMS_TEMPLATES:
+            with_figure = render(template, with_reams())
+            without = render(template)
+            self.assertEqual(
+                without, with_figure.replace(f">{REAMS}<", "><"), template)
+
+
 class ComplianceMarks(unittest.TestCase):
     """The three things every FBR invoice must carry."""
 
@@ -158,11 +266,33 @@ class RequiredIdentifiers(unittest.TestCase):
         "value including tax": "150,779.00",
     }
 
+    # F.K. Printers asked for the HS code to be left off the printed sheet --
+    # as a column first, then from under the description. Their own invoice
+    # never carried one. It is still submitted to FBR on every line, so this
+    # waives how the document *looks*, not what is filed. Nothing else is
+    # waived for them, and no other client waives anything: a new entry here
+    # needs the client to have asked for it.
+    WAIVED = {
+        "invoice_fk_printers.html": {"HS code"},
+    }
+
     def test_every_template_prints_every_required_field(self):
         for template in CLIENT_TEMPLATES:
             markup = render(template)
+            waived = self.WAIVED.get(template, set())
             for label, value in self.CASES.items():
+                if label in waived:
+                    continue
                 self.assertIn(value, markup, f"{template}: {label} missing")
+
+    def test_nothing_is_waived_that_the_client_did_not_ask_to_waive(self):
+        # A waiver is a decision, not a way around a failing assertion. This
+        # fails if one is left behind for a template that no longer exists or
+        # names a field that is not checked.
+        for template, labels in self.WAIVED.items():
+            self.assertIn(template, CLIENT_TEMPLATES, template)
+            for label in labels:
+                self.assertIn(label, self.CASES, label)
 
     def test_buyer_and_seller_details_survive_a_missing_logo(self):
         # Most clients have no logo file; the masthead must still identify them.
@@ -188,6 +318,7 @@ class BrandArtwork(unittest.TestCase):
         "invoice_paper_land.html": "brand/4242880.html",
         "invoice_hannan_traders.html": "brand/3520230962516.html",
         "invoice_paper_experts.html": "brand/3520261094743.html",
+        "invoice_fk_printers.html": "brand/3520235613477.html",
     }
 
     def test_artwork_renders_with_no_logo_url_at_all(self):

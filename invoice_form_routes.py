@@ -13,9 +13,45 @@ import master_data
 SPECIAL_USERNAMES = {"H075895", "F667833", "infinityeng"}
 INVOICE_CUSTOM_FIELDS_MAX = 2
 
+# The paper clients whose invoice carries a "No. of Reams" column beside the
+# quantity, and whose Products step therefore offers the field. It is a figure
+# they want printed and nothing else: no total is derived from it, and app.py
+# keeps it out of the FBR payload, whose item schema has no such field.
+REAMS_USERNAMES = {
+    "3520230962516",  # M/S Hannan Traders
+    "3520212803454",  # AK International
+    "3520224169621",  # Apple International
+    "4242880",        # Paper Land
+    "3520261094743",  # Paper Experts
+}
+
 
 def _is_special_username(username):
     return (username or "").strip() in SPECIAL_USERNAMES
+
+
+def _wants_reams(username):
+    return (username or "").strip() in REAMS_USERNAMES
+
+
+def _normalize_reams(value):
+    """The reams count as it should print, or "" for a line that has none.
+
+    Carried as text rather than a number because the cell has to be *empty*
+    when the client leaves the field empty -- a 0 printed in their reams
+    column would read as a real count of none. Nothing is calculated from it,
+    so there is no reason to hold it as a float.
+    """
+    text = str(value if value is not None else "").strip().replace(",", "")
+    if not text:
+        return ""
+    try:
+        number = Decimal(text)
+    except (ArithmeticError, ValueError):
+        return ""
+    if number <= 0:
+        return ""
+    return format(number.normalize(), "f")
 
 
 def _normalize_tax_id(value):
@@ -1388,6 +1424,7 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         row = cur.fetchone()
         username = row[0] if row else None
         is_special_user = _is_special_username(username)
+        wants_reams = _wants_reams(username)
         cur.close()
         conn.close()
         
@@ -1568,6 +1605,11 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                 if is_special_user:
                     item["hs_code"] = item_data.get("hs_code") or item_data.get("hsCode") or ""
                     item["product_code"] = item_data.get("product_code") or item_data.get("productCode") or ""
+                # Printed beside the quantity on the paper clients' replicas.
+                # Only theirs carry the column, so only their payload carries
+                # the field; app.py strips it again before FBR sees it.
+                if wants_reams:
+                    item["numberOfReams"] = _normalize_reams(item_data.get("numberOfReams"))
                 items_list.append(item)
 
                 # Persist product if new (reactivate if soft deleted)

@@ -786,6 +786,18 @@
                                     class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm"
                                     placeholder="Quantity" min="0" step="1">
                             </div>
+                            <!-- The paper clients' reams count. Printed beside the quantity on
+                                 their invoice and used in no calculation at all. It takes the
+                                 fourth slot of this row, which stands empty for them because
+                                 Product Code is hidden -- so the row stays aligned either way
+                                 (the two client lists never overlap). -->
+                            <div id="product-reams-wrapper" class="hidden">
+                                <label for="product-reams" class="block text-gray-700 text-sm mb-1">Number of Reams</label>
+                                <input type="number" id="product-reams"
+                                    class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm"
+                                    placeholder="Number of reams" min="0" step="1"
+                                    title="Printed on the invoice beside the quantity. Nothing is calculated from it.">
+                            </div>
                         </div>
 
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
@@ -944,6 +956,10 @@
                                     <th scope="col"
                                         class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                                         Qty
+                                    </th>
+                                    <th scope="col" id="product-reams-header"
+                                        class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase hidden">
+                                        Reams
                                     </th>
                                     <th scope="col"
                                         class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -1187,6 +1203,10 @@
                                         <th scope="col"
                                             class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                                             Qty
+                                        </th>
+                                        <th scope="col" id="review-reams-header"
+                                            class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase hidden">
+                                            Reams
                                         </th>
                                         <th scope="col"
                                             class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -2040,8 +2060,40 @@
             setSRODefaults(currentUsername);
             syncFurtherTaxDefaults();
             applyH075895UI(currentUsername);
+            applyReamsUI(currentUsername);
             updateProductTable();
             updateReviewSection();
+        }
+
+        // The paper clients whose invoice prints a "No. of Reams" column beside
+        // the quantity (their templates/invoice_*.html replicas). The field is
+        // theirs alone and feeds nothing: no value, tax or total is derived from
+        // it, and invoice_form_routes.py keeps it out of what FBR is sent.
+        const REAMS_CLIENTS = new Set([
+            '3520230962516',  // M/S Hannan Traders
+            '3520212803454',  // AK International
+            '3520224169621',  // Apple International
+            '4242880',        // Paper Land
+            '3520261094743',  // Paper Experts
+        ]);
+
+        function isReamsClient(username = currentUsername) {
+            return REAMS_CLIENTS.has((username || '').toString().trim());
+        }
+
+        function applyReamsUI(username = currentUsername) {
+            const wrapper = document.getElementById('product-reams-wrapper');
+            if (!wrapper) {
+                return;
+            }
+            const enabled = isReamsClient(username);
+            wrapper.classList.toggle('hidden', !enabled);
+            if (!enabled) {
+                const input = document.getElementById('product-reams');
+                if (input) {
+                    input.value = '';
+                }
+            }
         }
 
         const FURTHER_TAX_CLIENTS = new Set(['0946915', '2853653']);
@@ -2337,6 +2389,10 @@
                     if (isH075895User()) {
                         normalizedItem.product_code = item.product_code || item.productCode || normalizedItem.product_code || '';
                         normalizedItem.hs_code = item.hs_code || normalizedItem.hsCode || '';
+                    }
+
+                    if (isReamsClient()) {
+                        normalizedItem.numberOfReams = (item.numberOfReams ?? '').toString().trim();
                     }
 
                     return normalizedItem;
@@ -2739,6 +2795,8 @@
             const productCodeInput = document.getElementById("product-code");
             const productCode = productCodeInput ? productCodeInput.value.trim() : "";
             const quantity = parseFloat(document.getElementById("product-quantity").value);
+            const reamsInput = document.getElementById("product-reams");
+            const reams = reamsInput ? reamsInput.value.trim() : "";
             const uom = document.getElementById("product-uom").value;
             const rate = parseFloat(document.getElementById("product-rate").value) || 0;
             const valueExcl = parseFloat(document.getElementById("product-value-excl").value);
@@ -2843,6 +2901,13 @@
                 item.hs_code = hsCode;
             }
 
+            // Printed beside the quantity on their invoice. Deliberately absent
+            // from every calculation above, and not required -- a line with no
+            // reams figure prints an empty cell.
+            if (isReamsClient()) {
+                item.numberOfReams = reams;
+            }
+
             console.log("Item created:", item);
 
             // Add item to state
@@ -2863,6 +2928,9 @@
             document.getElementById("product-tax-amount").value = "";
             if (productCodeInput) {
                 productCodeInput.value = "";
+            }
+            if (reamsInput) {
+                reamsInput.value = "";
             }
 
             // Reset SRO fields with proper defaults for the current user
@@ -2897,6 +2965,12 @@
                 productCodeHeader.classList.toggle("hidden", !showProductCode);
             }
 
+            const showReams = isReamsClient();
+            const reamsHeader = document.getElementById("product-reams-header");
+            if (reamsHeader) {
+                reamsHeader.classList.toggle("hidden", !showReams);
+            }
+
             // Ensure state.productItems exists
             if (!state.productItems) {
                 state.productItems = [];
@@ -2911,7 +2985,8 @@
             if (noProductsRow) {
                 const noProductsCell = document.getElementById("product-no-items-cell") || noProductsRow.querySelector("td");
                 if (noProductsCell) {
-                    const baseColumns = 9 + (showFT ? 1 : 0) + (showProductCode ? 1 : 0);
+                    const baseColumns = 9 + (showFT ? 1 : 0) + (showProductCode ? 1 : 0)
+                        + (showReams ? 1 : 0);
                     noProductsCell.setAttribute("colspan", String(baseColumns));
                 }
             }
@@ -2922,7 +2997,8 @@
             // drifts right and lands under "Actions".
             const totalsLabelCell = document.getElementById("totals-label-cell");
             if (totalsLabelCell) {
-                totalsLabelCell.setAttribute("colspan", String(5 + (showProductCode ? 1 : 0)));
+                totalsLabelCell.setAttribute(
+                    "colspan", String(5 + (showProductCode ? 1 : 0) + (showReams ? 1 : 0)));
             }
             const furtherTaxSpacer = document.getElementById("total-further-tax-spacer");
             if (furtherTaxSpacer) {
@@ -2952,6 +3028,7 @@
                     const productCode = item.product_code || item.productCode || '';
                     const hsCode = item.hsCode || '';
                     const quantity = parseFloat(item.quantity) || 0;
+                    const reams = (item.numberOfReams ?? '').toString().trim();
                     const uoM = item.uoM || '';
                     const rate = parseFloat(item.rate) || 0;
                     const valueExcl = parseFloat(item.valueSalesExcludingST) || 0;
@@ -2964,6 +3041,7 @@
                 ${showProductCode ? `<td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${productCode || '-'}</td>` : ''}
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${hsCode}</td>
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${quantity}</td>
+                ${showReams ? `<td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${reams || '-'}</td>` : ''}
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${uoM}</td>
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${rate.toFixed(2)}</td>
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${valueExcl.toFixed(2)}</td>
@@ -3454,10 +3532,17 @@
                 reviewProductCodeHeader.classList.toggle("hidden", !showProductCode);
             }
 
+            const showReams = isReamsClient();
+            const reviewReamsHeader = document.getElementById("review-reams-header");
+            if (reviewReamsHeader) {
+                reviewReamsHeader.classList.toggle("hidden", !showReams);
+            }
+
             if (noProductsRow) {
                 const reviewNoProductsCell = document.getElementById("review-no-products-cell") || noProductsRow.querySelector("td");
                 if (reviewNoProductsCell) {
-                    const baseColumns = 8 + (applyFurtherTax ? 1 : 0) + (showProductCode ? 1 : 0);
+                    const baseColumns = 8 + (applyFurtherTax ? 1 : 0) + (showProductCode ? 1 : 0)
+                        + (showReams ? 1 : 0);
                     reviewNoProductsCell.setAttribute("colspan", String(baseColumns));
                 }
             }
@@ -3486,6 +3571,7 @@
                     const productCode = item.product_code || item.productCode || '';
                     const hsCode = item.hsCode || '';
                     const quantity = parseFloat(item.quantity) || 0;
+                    const reams = (item.numberOfReams ?? '').toString().trim();
                     const uoM = item.uoM || '';
                     const rate = parseFloat(item.rate) || 0;
                     const valueExcl = parseFloat(item.valueSalesExcludingST) || 0;
@@ -3498,6 +3584,7 @@
                 ${showProductCode ? `<td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${productCode || '-'}</td>` : ''}
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${hsCode}</td>
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${quantity}</td>
+                ${showReams ? `<td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${reams || '-'}</td>` : ''}
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${uoM}</td>
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${rate.toFixed(2)}</td>
                 <td class="px-3 py-4 whitespace-nowrap text-sm text-gray-500">${valueExcl.toFixed(2)}</td>
@@ -3509,7 +3596,8 @@
                     tableBody.appendChild(row);
                 });
             } else {
-                const emptyColspan = 8 + (applyFurtherTax ? 1 : 0) + (showProductCode ? 1 : 0);
+                const emptyColspan = 8 + (applyFurtherTax ? 1 : 0) + (showProductCode ? 1 : 0)
+                    + (showReams ? 1 : 0);
                 tableBody.innerHTML = `
             <tr id="review-no-products-row">
                 <td id="review-no-products-cell" colspan="${emptyColspan}" class="px-6 py-4 text-center text-gray-500">
@@ -3691,6 +3779,9 @@
                     } else {
                         delete cloned.product_code;
                         delete cloned.hs_code;
+                    }
+                    if (!isReamsClient()) {
+                        delete cloned.numberOfReams;
                     }
                     return cloned;
                 });

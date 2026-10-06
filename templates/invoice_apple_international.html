@@ -9,8 +9,8 @@
   What is copied from their original
   ----------------------------------
   The centred masthead, the Reg #/NTN line, the underlined title, the
-  ORIGINAL / DUPLICATE mark, the label-and-value buyer block, the seven-column
-  items table with its blank filler rows and in-table totals row, the small
+  ORIGINAL / DUPLICATE mark, the label-and-value buyer block, the items table
+  with its blank filler rows and in-table totals row, the small
   two-row summary box at bottom left, "Signature & Stamp" at bottom right, and
   the vertical stationery strapline down the right edge.
 
@@ -34,6 +34,12 @@
     selected cell in Excel, not a design choice. The unit of measure is taken
     from the items themselves, so it follows the goods rather than being
     hard-coded to Kg.
+  * AT THE CLIENT'S REQUEST, a "No. of Reams" column sits between Quantity
+    and Price. It is printed only: nothing on the invoice is calculated from
+    it, and app.py leaves it out of the FBR payload, whose item schema has no
+    such field. The cell is blank when a line has no figure. The other column
+    widths were scaled by 0.90 to make room, so the table keeps its
+    proportions.
 
   Contract: rendered by app.py with data, qr_base64, client_logo_url,
   fbr_logo_url, username, settings, theme. See invoice_template3.html for the
@@ -266,13 +272,14 @@
   <table class="items">
     <thead>
       <tr>
-        <th style="width:26%">Description</th>
-        <th style="width:13%">HS<br>Code</th>
-        <th style="width:11%">Quantity{% if one_unit %}<br>{{ one_unit }}{% endif %}</th>
-        <th style="width:10%">Price</th>
-        <th style="width:14%">Value Ex.<br>Sales tax</th>
-        <th style="width:12%">Sales<br>Tax</th>
-        <th style="width:14%">V.Incl<br>Sales Tax</th>
+        <th style="width:23.4%">Description</th>
+        <th style="width:11.7%">HS<br>Code</th>
+        <th style="width:9.9%">Quantity{% if one_unit %}<br>{{ one_unit }}{% endif %}</th>
+        <th style="width:10%">No. of<br>Reams</th>
+        <th style="width:9%">Price</th>
+        <th style="width:12.6%">Value Ex.<br>Sales tax</th>
+        <th style="width:10.8%">Sales<br>Tax</th>
+        <th style="width:12.6%">V.Incl<br>Sales Tax</th>
       </tr>
     </thead>
     <tbody>
@@ -281,6 +288,7 @@
           <td class="desc">{{ item.productDescription }}</td>
           <td>{{ item.hs_code or item.hsCode or "" }}</td>
           <td>{{ item.quantity }}</td>
+          <td>{{ item.numberOfReams or "" }}</td>
           <td>{{ item.unitrate | comma_format }}</td>
           <td>{{ item.valueSalesExcludingST | comma_format }}</td>
           <td>{{ item.salesTaxApplicable | comma_format }}</td>
@@ -295,13 +303,12 @@
       {% for _ in range(rows, 6) %}
         <tr>
           <td class="filler">&nbsp;</td>
-          <td class="filler"></td><td class="filler"></td><td class="filler"></td>
-          <td class="filler"></td><td class="filler"></td><td class="filler"></td>
+          {% for _ in range(7) %}<td class="filler"></td>{% endfor %}
         </tr>
       {% endfor %}
 
       <tr class="totals">
-        <td></td><td></td><td></td><td></td>
+        <td></td><td></td><td></td><td></td><td></td>
         <td>{{ data.totalExcl | comma_format }}</td>
         <td>{{ data.totalTax | comma_format }}</td>
         <td>{{ data.totalInclusive | comma_format }}</td>
