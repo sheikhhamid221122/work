@@ -385,6 +385,47 @@ running on to the right; and a centred footer with the address, NTN and Reg
 live and the cell number fixed. A green-and-grey mark beside the footer is
 drawn as inline SVG. US Letter, scaled by 210/216.
 
+`templates/invoice_fk_printers.html` — F.K. Printers, username `3520235613477`.
+The only client so far who sent a **photograph** instead of a PDF, so step 1
+could not run: there is no page to lift objects out of. Recovering the masthead
+from the photo was tried first — background-normalise by dividing each channel
+by a smoothed local maximum, deskew 0.75°, denoise, upscale, re-steepen the
+edges — and it was still too soft to print, because 900 px across 169 mm of
+paper is about 135 DPI and no amount of sharpening invents detail. The client
+was asked for their logo file, sent one, and the masthead is simply cropped out
+of that: `templates/user-invoices/3520235613477-logo.png`, 2081 × 338 px across
+169 mm, about 313 DPI, octree at 32 colours. **Ask for the logo file before
+trying to rescue a photo** — it took one message and was better than any
+amount of processing. The photo is still kept as
+`templates/user-invoices/3520235613477.jpeg` because it is the only record of
+their layout.
+
+That file has their address, email and phone typed under the services bar.
+Those lines are cropped off, as the usual warning above requires: the address
+is an FBR field and prints live from the payload.
+
+Their sheet: full-width masthead, centred address / phone lines, underlined
+title over the seller's two tax numbers, a ruled buyer box on the left beside a
+right-hand column of bold labels with each value sitting on its own underline
+rule, an open items table between two heavy rules, right-hand totals, a boxed
+amount in words at the left, and "Prepared By :" / "Accounts Manager" rules.
+At the client's request the table drops their P.O.No. and P.O. Date columns and
+carries the per-line sales tax rate and value inclusive of tax instead. They
+also did not want the HS code on the sheet at all — not as a column and not
+under the description — so this is the one replica that does not print one. It
+is still submitted to FBR on every line, and `RequiredIdentifiers.WAIVED` in
+`tests/test_client_templates.py` records the exemption by name; a waiver goes
+there only when the client has actually asked for it. A "Time" row prints the
+clock time the PDF is produced, from the `generated_time()` Jinja global in
+app.py (fixed +05:00, because the host need not be in Pakistan). Custom fields
+print under the FBR invoice number, in entry order, each only when it has a
+value — this is the first replica to render them at all. Their
+one reference line is sometimes a delivery challan and sometimes a purchase
+order, so the template prints a "D. Challan No." row for `dnNumber` and a
+"P.O. No." row for `poNumber`, each only when that field is filled. The FBR
+stamp sits in the band their sheet left between the items table and the
+amount-in-words box.
+
 ---
 
 ## Quick reference

@@ -38,6 +38,7 @@ CLIENT_TEMPLATES = {
     "invoice_paper_land.html": "4242880",
     "invoice_hannan_traders.html": "3520230962516",
     "invoice_paper_experts.html": "3520261094743",
+    "invoice_fk_printers.html": "3520235613477",
 }
 
 FBR_NUMBER = "3520224169621DIVROFIR912774"
@@ -158,11 +159,33 @@ class RequiredIdentifiers(unittest.TestCase):
         "value including tax": "150,779.00",
     }
 
+    # F.K. Printers asked for the HS code to be left off the printed sheet --
+    # as a column first, then from under the description. Their own invoice
+    # never carried one. It is still submitted to FBR on every line, so this
+    # waives how the document *looks*, not what is filed. Nothing else is
+    # waived for them, and no other client waives anything: a new entry here
+    # needs the client to have asked for it.
+    WAIVED = {
+        "invoice_fk_printers.html": {"HS code"},
+    }
+
     def test_every_template_prints_every_required_field(self):
         for template in CLIENT_TEMPLATES:
             markup = render(template)
+            waived = self.WAIVED.get(template, set())
             for label, value in self.CASES.items():
+                if label in waived:
+                    continue
                 self.assertIn(value, markup, f"{template}: {label} missing")
+
+    def test_nothing_is_waived_that_the_client_did_not_ask_to_waive(self):
+        # A waiver is a decision, not a way around a failing assertion. This
+        # fails if one is left behind for a template that no longer exists or
+        # names a field that is not checked.
+        for template, labels in self.WAIVED.items():
+            self.assertIn(template, CLIENT_TEMPLATES, template)
+            for label in labels:
+                self.assertIn(label, self.CASES, label)
 
     def test_buyer_and_seller_details_survive_a_missing_logo(self):
         # Most clients have no logo file; the masthead must still identify them.
@@ -188,6 +211,7 @@ class BrandArtwork(unittest.TestCase):
         "invoice_paper_land.html": "brand/4242880.html",
         "invoice_hannan_traders.html": "brand/3520230962516.html",
         "invoice_paper_experts.html": "brand/3520261094743.html",
+        "invoice_fk_printers.html": "brand/3520235613477.html",
     }
 
     def test_artwork_renders_with_no_logo_url_at_all(self):

@@ -10,10 +10,9 @@
   ----------------------------------
   The centred "PAPER EXPERTS / The Paper You Need" masthead, the small brown
   SALES TAX INVOICE and ORIGINAL / DUPLICATE at the right, the label-and-value
-  buyer block, the items table, the two-row summary box with its rule running
-  on to the right, "Signature & Stamp" under a double rule, the highlighted
-  income-tax note, the centred address / NTN / Reg footer, and the green and
-  grey mark beside it.
+  buyer block, the items table, the two-row summary box, "Signature & Stamp"
+  under a double rule, the centred address / NTN / Reg footer, and the green
+  and grey mark beside it.
 
   Their masthead is typed text, not a picture. It is rendered to an image by
   scripts/extract_brand.py (--band) so it prints identically on any server,
@@ -43,9 +42,12 @@
   * Their sheet is US Letter (216 x 279 mm); this template uses A4 because
     that is what printers here load. Everything is scaled by 210/216 across;
     the footer keeps its distance from the foot of the page.
-  * The cell number in the footer and the income-tax note are not in the
-    invoice payload, so they are fixed text below. Change them here if
-    theirs change.
+  * The summary box is closed on all four sides. Their sheet left its
+    bottom rule running on to the right, which read as a broken table.
+  * Their income-tax note (U/s 148, "do not deduct Income Tax") is left off
+    at the client's request.
+  * The cell number in the footer is not in the invoice payload, so it is
+    fixed text below. Change it here if theirs changes.
 
   Contract: rendered by app.py with data, qr_base64, client_logo_url,
   fbr_logo_url, username, settings, theme. See invoice_template3.html for the
@@ -103,6 +105,9 @@
        the next column -- there is no cell border here to stop it. */
     .party td:nth-child(2) { padding-right: 5mm; }
     .party tr.gap td { padding-top: 3.5mm; }
+    /* 01-Sep-2026 must stay on one line. The column is sized to hold it at
+       full size, even in Arial where Calibri is missing on the server. */
+    .party td.date { white-space: nowrap; }
     .buyer-name {
       font-weight: bold;
       font-style: italic;
@@ -172,14 +177,9 @@
     /* ---- Summary + signature ----------------------------------------- */
     .foot { width: 100%; margin-top: 5mm; border-collapse: collapse; }
     .foot > tbody > tr > td { vertical-align: bottom; border: none; padding: 0; }
-    /* Their sheet runs the summary box's bottom rule on to the right, as far
-       as 134 mm. */
-    .foot td.left { border-bottom: 1px solid #000; }
-
     .summary {
       border-collapse: collapse;
       width: 77mm;
-      margin-left: -1.4mm;
       font-family: Calibri, Carlito, Arial, sans-serif;
     }
     .summary td {
@@ -188,7 +188,6 @@
       font-weight: bold;
       font-size: 14px;
     }
-    .summary tr:last-child td { border-bottom: none; }
     .summary td.lab { border-right: none; width: 69%; }
     .summary td.num { border-left: none; font-size: 15px; }
 
@@ -202,19 +201,6 @@
       font-weight: bold;
       font-size: 16px;
     }
-
-    /* Their note is highlighted line by line, the way an Excel cell fill on
-       wrapped text looks -- so the fill is on the inline text, not the box. */
-    .note {
-      width: 104.4mm;
-      margin-top: 3.6mm;
-      text-align: justify;
-      font-family: Calibri, Carlito, Arial, sans-serif;
-      font-weight: bold;
-      font-size: 13.3px;
-      line-height: 1.42;
-    }
-    .note span { background: #9cc2e5; }
 
     /* ---- Stationery footer --------------------------------------------
        Printed near the foot of their sheet; position: fixed repeats it on
@@ -280,15 +266,15 @@
   <table class="party">
     <tr>
       <td class="lab" style="width:19%">Buyer: M/s</td>
-      <td class="buyer-name" style="width:54%">{{ data.buyerBusinessName }}</td>
+      <td class="buyer-name" style="width:49%">{{ data.buyerBusinessName }}</td>
       <td class="lab sm" style="width:14%">Invoice No:</td>
-      <td class="cal" style="width:13%">{{ data.invoiceRefNo }}</td>
+      <td class="cal" style="width:18%">{{ data.invoiceRefNo }}</td>
     </tr>
     <tr class="gap">
       <td class="lab">Address:</td>
       <td>{{ data.buyerAddress }}</td>
       <td class="lab">Date:</td>
-      <td class="cal">
+      <td class="cal date">
         {#- Their sheet prints 01-Sep-2026. Anything not YYYY-MM-DD falls back
             to the shared filter rather than printing garbage. -#}
         {%- set d = (data.invoiceDate or '') | string -%}
@@ -402,7 +388,7 @@
     </tr>
   </table>
 
-  {# ------------------------------------------ summary, signature, note #}
+  {# ----------------------------------------------- summary, signature #}
   <table class="foot">
     <tr>
       <td class="left" style="width:68.5%">
@@ -422,12 +408,6 @@
       </td>
     </tr>
   </table>
-
-  <div class="note">
-    <span>Note:&nbsp; The Goods sold to your Company vide this Invoice are
-    directly imported by us and Income Tax U/x 148 already paid on these goods
-    hence do not deduct Income Tax from our invoice.</span>
-  </div>
 
 </body>
 

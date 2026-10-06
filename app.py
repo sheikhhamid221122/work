@@ -739,6 +739,17 @@ def comma_format(value):
         return value
 
 
+@app.template_global("generated_time")
+def generated_time():
+    """Clock time this invoice is being printed, as "3:40PM".
+
+    Fixed +05:00 rather than the server's clock: the invoice is a Pakistani
+    document and the host may well not be in Pakistan. Pakistan has no DST.
+    """
+    pkt = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=5)))
+    return pkt.strftime("%I:%M%p").lstrip("0")
+
+
 def get_client_config(client_id, env):
     try:
         conn = get_db_connection()
