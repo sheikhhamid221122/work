@@ -501,6 +501,41 @@ against 24 mm) so the 27-character FBR invoice number stays on one line.
 Time of Supply is theirs to state, so it reads a custom field of that name and
 falls back to the print clock only when they leave it empty. A4.
 
+`templates/invoice_power_vision.html` — Power Vision, username
+`3740545496385`, and `templates/invoice_bilal_traders.html` — Bilal Traders,
+username `3740549685449`. The first two clients who sent **a letterhead and
+nothing else**. There is no invoice of theirs to copy, so these are not
+replicas: the letterhead goes on top and the body below it is the shared
+arrangement the other templates use — label-and-value buyer block, the standard
+seven columns, filler rows, an in-table totals row, the two-row summary box and
+"Signature & Stamp". `scripts/extract_letterhead_brand.py` builds both partials.
+
+Both letterheads end in a **reversed black bar carrying the seller's address**,
+and under it the words "Sales Tax Invoice". Both are cropped off:
+
+* The address is an FBR field — the usual warning above. The bar is *redrawn*
+  in the template and the address printed into it live from `data`, so their
+  design survives and the sheet can never contradict what was filed. Power
+  Vision's mobile number sits in that bar too and is not in the payload, so it
+  is fixed text; Bilal Traders' Cell / Ph block is left inside the artwork,
+  because a phone number is not an FBR field and it is part of their design.
+* "Sales Tax Invoice" is the document's title, not stationery. It is set as
+  text in their letterhead's italic serif so a credit or debit note can say
+  what it actually is.
+
+Neither letterhead carries an NTN or Sales Tax registration number and a sales
+tax invoice must show both, so they print on their own line under the address
+bar, live from the payload.
+
+These files are flat black line art at about 262 DPI, which is what artwork
+should look like — compare the two clients above who sent photographs. One
+wrinkle: an 8-colour octree rounds paper that reads 252-255 to a near-white
+grey, which prints as a visible panel behind the masthead. The script snaps
+the levels (60/238) before quantizing, so the paper is exactly 255.
+
+Neither client is one of the five paper merchants, so neither carries the
+No. of Reams column. Both are A4.
+
 ---
 
 ## Quick reference
