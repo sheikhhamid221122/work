@@ -471,6 +471,71 @@ order, so the template prints a "D. Challan No." row for `dnNumber` and a
 stamp sits in the band their sheet left between the items table and the
 amount-in-words box.
 
+`templates/invoice_saad_enterprises.html` — SAAD Enterprises, username
+`3520287506167`. The second client to send a **photograph** instead of a PDF,
+and the one that shows what to do when there is no logo file either. Their
+letterhead is almost all flat colour — a black banner running off the left
+edge to a chevron point, an orange band off the top right, a grey shadow, a
+double-ruled services box, and three footer bars — so none of it was lifted.
+It is **drawn as inline SVG** from measurements off the photo, which prints
+sharp, at true flat colour, and carries none of the photograph's lighting or
+skew. Only the St monogram and the SAAD ENTERPRISES wordmark are artwork.
+
+Even those are not photographed pixels. Cropping and sharpening them gave a
+mottled, haloed mess — the same dead end F.K. Printers hit. What worked was
+separating the crop into *coverage* (how much ink is at this pixel) and *hue*
+(orange wordmark or white monogram stroke) and re-drawing the lettering from
+those two fields in the brand's own colours on the exact black the SVG paints.
+The shapes still come from a ~140 DPI photo and are soft, so this is a
+stand-in: **ask for the logo file and re-emit the partial**, and nothing else
+in the template has to change. The scratchpad script is in the commit.
+
+Their address, phone and e-mail sit on the footer bars as live text over the
+drawn shapes, never baked in — the address is an FBR field.
+
+Their items table carried only S.No., Description, Qty, Unit, Rate and Value.
+HS Code, S.Tax Rate, Sales Tax and Value Incl. Sales Tax are added, because
+those are required on the face and this client has not asked for any of them
+to come off. The identifier column's rules are longer than theirs (42 mm
+against 24 mm) so the 27-character FBR invoice number stays on one line.
+Time of Supply is theirs to state, so it reads a custom field of that name and
+falls back to the print clock only when they leave it empty. A4.
+
+`templates/invoice_power_vision.html` — Power Vision, username
+`3740545496385`, and `templates/invoice_bilal_traders.html` — Bilal Traders,
+username `3740549685449`. The first two clients who sent **a letterhead and
+nothing else**. There is no invoice of theirs to copy, so these are not
+replicas: the letterhead goes on top and the body below it is the shared
+arrangement the other templates use — label-and-value buyer block, the standard
+seven columns, filler rows, an in-table totals row, the two-row summary box and
+"Signature & Stamp". `scripts/extract_letterhead_brand.py` builds both partials.
+
+Both letterheads end in a **reversed black bar carrying the seller's address**,
+and under it the words "Sales Tax Invoice". Both are cropped off:
+
+* The address is an FBR field — the usual warning above. The bar is *redrawn*
+  in the template and the address printed into it live from `data`, so their
+  design survives and the sheet can never contradict what was filed. Power
+  Vision's mobile number sits in that bar too and is not in the payload, so it
+  is fixed text; Bilal Traders' Cell / Ph block is left inside the artwork,
+  because a phone number is not an FBR field and it is part of their design.
+* "Sales Tax Invoice" is the document's title, not stationery. It is set as
+  text in their letterhead's italic serif so a credit or debit note can say
+  what it actually is.
+
+Neither letterhead carries an NTN or Sales Tax registration number and a sales
+tax invoice must show both, so they print on their own line under the address
+bar, live from the payload.
+
+These files are flat black line art at about 262 DPI, which is what artwork
+should look like — compare the two clients above who sent photographs. One
+wrinkle: an 8-colour octree rounds paper that reads 252-255 to a near-white
+grey, which prints as a visible panel behind the masthead. The script snaps
+the levels (60/238) before quantizing, so the paper is exactly 255.
+
+Neither client is one of the five paper merchants, so neither carries the
+No. of Reams column. Both are A4.
+
 ---
 
 ## Quick reference

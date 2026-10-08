@@ -1,0 +1,634 @@
+{#
+  SAAD Enterprises (username 3520287506167) -- sales tax invoice.
+
+  A replica of the client's own pre-existing invoice, with the FBR compliance
+  marks added. Built by hand for this client rather than assembled from the
+  shared layouts, because what they asked for is *their* sheet.
+
+  What is copied from their original
+  ----------------------------------
+  The full-bleed letterhead -- the black banner carrying the St monogram and
+  the SAAD ENTERPRISES wordmark, the orange band across the top right, the
+  grey shadow off the banner's point, and the boxed services list -- the
+  underlined SALES TAX INVOICE with the seller's National Tax No. and Sales
+  Tax No. centred under it, the label-and-rule buyer block on the left beside
+  the Invoice No. / Date / Time of Supply column on the right, the boxed items
+  header over an open body closed by a single rule, the right-hand totals
+  block, the boxed amount in words at the left, the "Prepared By :" and
+  "Authorized Signature" rules, and the footer bars carrying their phone,
+  e-mail and office address.
+
+  How the letterhead is built, and why
+  ------------------------------------
+  They sent a PHOTOGRAPH of an invoice, not a PDF, so scripts/extract_brand.py
+  could not run: there is no page to lift objects out of. Everything on the
+  letterhead except the lettering is flat colour, so it is DRAWN here as inline
+  SVG from measurements off the photo -- it prints sharp, at true flat colour,
+  and carries none of the photograph's lighting or skew. Only the monogram and
+  the wordmark are artwork, and they come from templates/brand/3520287506167.html.
+
+  The photo is about 140 DPI across the sheet, so that lettering is soft and is
+  a STAND-IN. Ask the client for their logo file and re-emit the brand partial
+  from it; nothing else here has to change. That is what F.K. Printers needed,
+  and it took one message.
+
+  Their address, phone and e-mail are printed over the footer bars, not baked
+  into them. The address is an FBR field and comes live from `data`, so a
+  change of premises cannot leave the sheet contradicting what was submitted.
+
+  What is ADDED, and must never be removed
+  ----------------------------------------
+    1. the FBR invoice number   -- in the right-hand identifier column, with
+                                   Invoice No. and Date, where a reader looks
+                                   for it (once only: the QR carries it)
+    2. the FBR Digital Invoicing logo
+    3. the QR code
+  These are what make the document a valid digital invoice; the client's own
+  sheet had none of them. The logo and QR sit side by side in the band their
+  sheet already left empty between the amount-in-words box and the signature
+  rules, so nothing of theirs had to move.
+
+  Deliberate departures from the original
+  ---------------------------------------
+  * Their items table carries only S.No., Description, Qty, Unit, Rate and
+    Value. HS code, the sales tax on each line and the value including tax are
+    required on the face of a sales tax invoice, so four columns are added:
+    HS Code, S.Tax Rate, Sales Tax and Value Incl. Sales Tax. The client has
+    not asked for any of them to come off; the one waiver on record is
+    F.K. Printers' HS code, and only because they asked for it twice.
+  * The value rules in the identifier column are longer than theirs (about
+    42 mm against 24 mm). The FBR invoice number is 27 characters and has to
+    stay on one line, and rules of two different lengths in one column read as
+    a mistake.
+  * Figures are comma-grouped to two decimals everywhere, including the
+    quantity, which their sheet prints whole. Every other replica does the
+    same, and a quantity is not always a whole count of pieces.
+  * "Special Excise Duty" prints the federal excise actually payable on the
+    lines rather than a hard-coded nought, so a line that carries FED cannot
+    show zero. The sales tax rate beside "Sales Tax" is taken from the goods
+    and shown only when every line shares one rate; theirs was typed "(18%)".
+  * Time of Supply is theirs to state, so it prints a custom field of that
+    name when the client enters one. With no such field it falls back to the
+    clock time the PDF is produced (fixed +05:00) rather than leaving their
+    row blank -- that is the print time, not the time of supply, so tell them
+    to type the real one in when it matters.
+  * The buyer's telephone number is on their sheet but is not in the invoice
+    payload, so it is not printed. The seller's own phone and e-mail are not
+    in the payload either and are fixed text below -- change them here if
+    theirs change.
+  * Their sheet rules the buyer's address over two lines. Here it is one ruled
+    cell deep enough for two, so a longer address wraps instead of running off
+    the end of a fixed rule.
+
+  Contract: rendered by app.py with data, qr_base64, client_logo_url,
+  fbr_logo_url, username, settings, theme. See invoice_template3.html for the
+  same contract.
+#}
+{% import "brand/3520287506167.html" as brand %}
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>Sales Tax Invoice {{ data.invoiceRefNo or '' }}</title>
+  <style>
+    @page {
+      size: A4;
+      /* Top clears the drawn banner (30.7 mm); bottom clears the footer bars,
+         which start at 272.7 mm. Both are printed in the margins by the fixed
+         blocks below, as their stationery would be. */
+      margin: 34mm 10mm 26mm 10mm;
+    }
+
+    body {
+      font-family: "Times New Roman", Times, serif;
+      font-size: 13px;
+      color: #000;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* ---- Letterhead ----------------------------------------------------
+       position: fixed repeats these on every page, which is what pre-printed
+       stationery does. The negative offsets equal the page margins, so the
+       blocks reach the physical edges of the sheet; z-index keeps the artwork
+       behind anything that lands on top of it. */
+    .lh-top, .lh-foot {
+      position: fixed;
+      left: -10mm;
+      width: 210mm;
+      z-index: -1;
+    }
+    .lh-top { top: -34mm; height: 40mm; }
+    .lh-foot { bottom: -26mm; height: 26mm; }
+    .lh-art {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 210mm;
+      display: block;
+    }
+    .lh-top .lh-art { height: 40mm; }
+    .lh-foot .lh-art { height: 26mm; }
+
+    /* Both pieces sit on the drawn banner, and the black they were re-seated
+       on is the same #2d2c2a the SVG paints, so there is no join to see.
+       Width only: fixing both axes would stretch them. */
+    .brand-monogram {
+      position: absolute;
+      left: 40.1mm;
+      top: 2.9mm;
+      width: 23.1mm;
+      height: auto;
+    }
+    .brand-wordmark {
+      position: absolute;
+      left: 6.9mm;
+      top: 17.7mm;
+      width: 86.3mm;
+      height: auto;
+    }
+
+    /* Their services list: a double-ruled rounded box at the right of the
+       masthead. Live text, so it stays crisp at any size. */
+    .services {
+      position: absolute;
+      left: 164.5mm;
+      top: 15.9mm;
+      width: 35.9mm;
+      height: 22.9mm;
+      border: 0.7px solid #5a4036;
+      border-radius: 2mm;
+      box-sizing: border-box;
+    }
+    .services .inner {
+      position: absolute;
+      left: 0.9mm;
+      top: 0.9mm;
+      right: 0.9mm;
+      bottom: 0.9mm;
+      border: 0.7px solid #5a4036;
+      border-radius: 1.4mm;
+    }
+    .services ul {
+      margin: 0;
+      /* Four lines inside 21.1 mm of inner box: 11.5px at 1.5 is 18.3 mm,
+         which leaves room rather than clipping ADVERTISING on the border. */
+      padding: 1.2mm 0 0 7.5mm;
+      list-style: disc;
+      font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+      font-size: 11.5px;
+      font-weight: bold;
+      line-height: 1.5;
+      letter-spacing: .1px;
+    }
+
+    /* Footer lettering, laid over the drawn bars. */
+    .lh-foot .phone,
+    .lh-foot .email,
+    .lh-foot .addr {
+      position: absolute;
+      font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+      white-space: nowrap;
+    }
+    .lh-foot .phone { left: 52mm; top: 6.9mm; font-size: 12px; }
+    .lh-foot .email { left: 118mm; top: 5.6mm; font-size: 12px; color: #fff; }
+    /* Their address runs the width of the orange bar. It is NOT nowrap and
+       has no overflow: hidden -- a longer address must wrap, never be
+       silently clipped, because it is what was filed with FBR. */
+    .lh-foot .addr {
+      left: 28mm;
+      top: 12.1mm;
+      width: 176mm;
+      white-space: normal;
+      font-size: 13px;
+    }
+
+    /* ---- Title and seller identifiers ---------------------------------- */
+    .doc-title {
+      text-align: center;
+      font-weight: bold;
+      font-size: 26px;
+      margin-top: 12.6mm;
+      letter-spacing: .2px;
+    }
+    .doc-title span { border-bottom: 1.6px solid #000; padding-bottom: .5mm; }
+
+    .seller-ids {
+      text-align: center;
+      font-size: 17px;
+      line-height: 1.42;
+      margin-top: 1.8mm;
+    }
+
+    /* ---- Buyer block + identifier column -------------------------------- */
+    .party { width: 100%; margin-top: 2mm; border-collapse: collapse; }
+    .party > tbody > tr > td { vertical-align: top; border: none; padding: 0; }
+    /* Without this a long buyer value runs straight into the identifier
+       column -- there is no cell border here to stop it. */
+    .party > tbody > tr > td.buyer-cell { padding-right: 8mm; }
+
+    .buyer { width: 100%; border-collapse: collapse; }
+    /* baseline, not bottom: it keeps each label level with its own value, and
+       puts "Address:" on the FIRST line of an address that wraps rather than
+       centring it against the pair. */
+    .buyer td {
+      border: none;
+      font-size: 14px;
+      padding: 0 0 .5mm 0;
+      vertical-align: baseline;
+    }
+    .buyer tr + tr td { padding-top: 2.1mm; }
+    .buyer td.lab {
+      font-weight: bold;
+      white-space: nowrap;
+      padding-right: 2mm;
+      width: 1%;
+    }
+    .buyer td.val { border-bottom: 1px solid #000; }
+    /* Their sheet rules the address over two lines; this is one cell deep
+       enough for two, so a longer address wraps rather than running on. */
+    .buyer td.val.addr { min-height: 9mm; line-height: 1.5; }
+    .buyer .name { font-weight: bold; font-style: italic; }
+
+    .idents { width: 100%; border-collapse: collapse; }
+    .idents td { border: none; font-size: 14px; padding: 0 0 2.6mm 0; }
+    /* 42 mm of value column: the FBR invoice number is 27 characters and has
+       to stay on one line. */
+    .idents td.lab {
+      text-align: right;
+      font-weight: bold;
+      white-space: nowrap;
+      padding-right: 2.5mm;
+      width: 52%;
+    }
+    .idents td.val {
+      text-align: center;
+      border-bottom: 1px solid #000;
+      padding-bottom: .5mm;
+    }
+    /* The FBR invoice number is printed here and nowhere else, so it has to
+       hold its own: bold, or Courier prints lighter than the values beside
+       it. 10px fits 27 characters on one line in this column. */
+    .idents td.val.fbr-no {
+      font-family: "Courier New", monospace;
+      font-size: 10px;
+      font-weight: bold;
+      letter-spacing: -.3px;
+      white-space: nowrap;
+    }
+
+    /* ---- Items ---------------------------------------------------------
+       Their table is a boxed header row over an open body, closed by one rule
+       across the foot. No vertical rules below the header. */
+    .items {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 9mm;
+      font-size: 11.5px;
+    }
+    .items th, .items td { padding: 1.3mm 1.2mm; }
+    .items thead th {
+      font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+      font-weight: bold;
+      font-size: 10px;
+      text-align: center;
+      vertical-align: middle;
+      line-height: 1.15;
+      height: 8.7mm;
+      border: 1px solid #000;
+    }
+    .items tbody td { border: none; vertical-align: top; }
+    /* A line item must not split across a page break: its description would
+       land on one page and its figures on the other. */
+    .items tr { page-break-inside: avoid; }
+    .items tbody tr:first-child td { padding-top: 2.6mm; }
+    /* Each heading sits over its own figures: right above the right-aligned
+       numbers, centred above the short codes, left above the descriptions. */
+    .items td.num { text-align: right; }
+    .items td.mid { text-align: center; }
+    .items td.sn { text-align: center; }
+    .items td.desc { text-align: left; }
+    /* Matched to a one-line item row, so the box rules out evenly. */
+    .items td.filler { height: 5.6mm; padding: 0; }
+    /* The single rule their sheet draws under the whole items box. */
+    .items tfoot td { border: none; border-top: 1.1px solid #000; padding: 0; height: 0; }
+
+    /* ---- Totals, amount in words, FBR stamp ----------------------------- */
+    .foot { width: 100%; margin-top: 3.5mm; border-collapse: collapse; }
+    .foot > tbody > tr > td { vertical-align: top; border: none; padding: 0; }
+    .foot > tbody > tr > td.right { padding-left: 6mm; }
+
+    .totals {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+      font-size: 13px;
+      font-weight: bold;
+    }
+    .totals td { border: none; padding: 1.1mm 0; }
+    .totals td.lab { text-align: right; white-space: nowrap; padding-right: 4mm; }
+    .totals td.num { text-align: right; width: 44%; }
+    .totals tr.ruled td.num { border-bottom: 1px solid #000; }
+    .totals tr.grand td { padding-top: 2.4mm; font-size: 15px; }
+    .totals tr.grand td.num { border-bottom: 1px solid #000; }
+
+    .words {
+      border: 1px solid #000;
+      padding: 2.2mm 2.5mm;
+      min-height: 13mm;
+      font-size: 15px;
+      font-weight: bold;
+      line-height: 1.4;
+      /* Their box is typed in title case; the payload spells it in lower. */
+      text-transform: capitalize;
+    }
+
+    /* The marks the client's own sheet could not have had, kept together so
+       they read as one stamp. */
+    .fbr { border-collapse: collapse; margin-top: 5mm; }
+    .fbr td { border: none; vertical-align: middle; padding: 0 5mm 0 0; }
+    .fbr .qr img { width: 24mm; height: 24mm; display: block; }
+    /* Sized to sit level with the QR, so the two read as one stamp. */
+    .fbr .di img { width: 24mm; height: auto; display: block; }
+    .fbr .pending { font-size: 9px; color: #b00; font-weight: bold; }
+
+    /* ---- Signature rules ------------------------------------------------ */
+    .sign { width: 100%; margin-top: 10mm; border-collapse: collapse; }
+    .sign td { border: none; padding: 0; vertical-align: top; }
+    .sign .prepared,
+    .sign .authorised {
+      border-top: 1px solid #000;
+      padding-top: 1.2mm;
+      font-weight: bold;
+      font-style: italic;
+      font-size: 14px;
+    }
+    .sign .prepared { width: 44mm; margin-left: 12mm; }
+    .sign .authorised { width: 44mm; margin: 0 14mm 0 auto; text-align: center; }
+  </style>
+</head>
+
+<body>
+
+  {# ------------------------------------------------- letterhead: masthead #}
+  {#- Drawn, not photographed. The polygons are measured off their invoice and
+      scaled to the 210 mm sheet; preserveAspectRatio="none" lets the viewBox
+      be read straight in millimetres. -#}
+  <div class="lh-top">
+    <svg class="lh-art" viewBox="0 0 210 40" preserveAspectRatio="none">
+      <!-- the orange band across the top right, full bleed -->
+      <polygon points="84.9,0 210,0 210,10.5 90.3,10.5" fill="#b46e54"/>
+      <!-- the grey shadow thrown off the banner's point -->
+      <polygon points="117.0,12.6 121.0,12.6 103.7,30.7 99.7,30.7" fill="#a9a8a7"/>
+      <!-- the black banner, full bleed left and top -->
+      <polygon points="0,0 84.9,0 90.3,10.5 117.0,12.6 99.7,30.7 0,30.7" fill="#2d2c2a"/>
+    </svg>
+    {{ brand.monogram("SAAD Enterprises") }}
+    {{ brand.wordmark(data.sellerBusinessName or "SAAD ENTERPRISES") }}
+    <div class="services">
+      <div class="inner">
+        <ul>
+          <li>DESIGNING</li>
+          <li>PRINTING</li>
+          <li>PACKAGING</li>
+          <li>ADVERTISING</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  {# --------------------------------------------------- letterhead: footer #}
+  {#- The bars are drawn; the lettering sits on top of them. Their address is
+      live from the payload -- it is an FBR field, and a letterhead that bakes
+      it in can print one address while another was filed. -#}
+  <div class="lh-foot">
+    <svg class="lh-art" viewBox="0 0 210 26" preserveAspectRatio="none">
+      <rect x="0" y="7.6" width="210" height="2.9" fill="#c9c4c1"/>
+      <rect x="0" y="10.5" width="210" height="8.1" fill="#d6a081"/>
+      <!-- the dark wedge carrying the e-mail, its left edge raked back -->
+      <polygon points="115.3,1.7 210,1.7 210,10.5 108.8,10.5" fill="#8f857f"/>
+    </svg>
+    <div class="phone">{{ "ⓘ" }} 0304-4718887</div>
+    <div class="email">E-mail: tosaadenterprises@gmail.com</div>
+    <div class="addr">{{ data.sellerAddress }}</div>
+  </div>
+
+  {# ------------------------------------------------------------- heading #}
+  <div class="doc-title"><span>SALES TAX INVOICE</span></div>
+
+  <div class="seller-ids">
+    <div>National&nbsp; Tax No. {{ data.sellerNTNCNIC }}</div>
+    <div>Sales Tax No. {{ data.sellerSTRN }}</div>
+  </div>
+
+  {# ------------------------------------------ buyer block + identifiers #}
+  {#- Their sheet prints 30/09/2026. Anything not YYYY-MM-DD falls back to the
+      shared filter rather than printing garbage. -#}
+  {%- set d = (data.invoiceDate or '') | string -%}
+  {%- if d | length == 10 and d[4] == '-' and d[7] == '-' -%}
+    {%- set invoice_date = d[8:10] ~ '/' ~ d[5:7] ~ '/' ~ d[0:4] -%}
+  {%- else -%}
+    {%- set invoice_date = d | datetimeformat -%}
+  {%- endif -%}
+
+  {#- Time of supply is the client's to state, so a custom field of that name
+      wins. Failing that the row shows the clock time the PDF is produced,
+      which is not the same thing -- see the header comment. -#}
+  {% set tos = namespace(value='') %}
+  {% for field in data.customFields or [] %}
+    {% if field.name and field.value and (field.name | lower | trim) == 'time of supply' %}
+      {% set tos.value = field.value %}
+    {% endif %}
+  {% endfor %}
+  {% if not tos.value and generated_time is defined %}
+    {% set tos.value = generated_time() %}
+  {% endif %}
+
+  <table class="party">
+    <tr>
+      <td class="buyer-cell" style="width:52%">
+        <table class="buyer">
+          <tr>
+            <td class="lab">Buyer's Name:</td>
+            <td class="val"><span class="name">{{ data.buyerBusinessName }}</span></td>
+          </tr>
+          <tr>
+            <td class="lab">Address:</td>
+            <td class="val addr">{{ data.buyerAddress }}</td>
+          </tr>
+          <tr>
+            <td class="lab">National Tax No.:</td>
+            <td class="val">{{ data.buyerNTNCNIC }}</td>
+          </tr>
+          <tr>
+            <td class="lab">Sales Tax No. :</td>
+            <td class="val">{{ data.buyerSTRN }}</td>
+          </tr>
+        </table>
+      </td>
+      <td style="width:48%">
+        <table class="idents">
+          <tr>
+            <td class="lab">Invoice No. :</td>
+            <td class="val">{{ data.invoiceRefNo }}</td>
+          </tr>
+          <tr>
+            <td class="lab">Date :</td>
+            <td class="val">{{ invoice_date }}</td>
+          </tr>
+          {% if tos.value %}
+            <tr>
+              <td class="lab">Time of Supply :</td>
+              <td class="val">{{ tos.value }}</td>
+            </tr>
+          {% endif %}
+          <tr>
+            {#- The FBR invoice number belongs with the other identifiers: it
+                is what a buyer quotes back. -#}
+            <td class="lab">FBR Invoice No. :</td>
+            <td class="val fbr-no">{{ data.fbrInvoiceNumber or "&mdash;" | safe }}</td>
+          </tr>
+          {#- Whatever the client typed into the remaining custom fields, in
+              the order they entered them. A pair with no value is a field
+              they left alone, so it does not appear at all. -#}
+          {% for field in data.customFields or [] %}
+            {% if field.name and field.value and (field.name | lower | trim) != 'time of supply' %}
+              <tr>
+                <td class="lab">{{ field.name }} :</td>
+                <td class="val">{{ field.value }}</td>
+              </tr>
+            {% endif %}
+          {% endfor %}
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  {# ------------------------------------------------------------- items #}
+  {% set rows = data['items'] | length %}
+  {% set rates = data['items'] | map(attribute='rate', default='') | select | list | unique | list %}
+  {% set one_rate = rates[0] if rates | length == 1 else '' %}
+
+  <table class="items">
+    <thead>
+      <tr>
+        <th style="width:5%">S.No.</th>
+        <th style="width:25%">Description</th>
+        <th style="width:9.5%">HS Code</th>
+        <th style="width:9.5%">Qty</th>
+        <th style="width:6%">Unit</th>
+        <th style="width:7.5%">Rate</th>
+        <th style="width:12%">Value Excl.<br>Sales Tax</th>
+        <th style="width:6%">S.Tax<br>Rate</th>
+        <th style="width:10%">Sales Tax</th>
+        <th style="width:9.5%">Value Incl.<br>Sales Tax</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in data['items'] %}
+        <tr>
+          <td class="sn">{{ loop.index }}.</td>
+          <td class="desc">{{ item.productDescription }}</td>
+          <td class="mid">{{ item.hs_code or item.hsCode or "" }}</td>
+          <td class="num">{{ item.quantity | comma_format }}</td>
+          <td class="mid">{{ item.uoM }}</td>
+          <td class="num">{{ item.unitrate | comma_format }}</td>
+          <td class="num">{{ item.valueSalesExcludingST | comma_format }}</td>
+          <td class="mid">{{ item.rate }}</td>
+          <td class="num">{{ item.salesTaxApplicable | comma_format }}</td>
+          <td class="num">
+            {{- (item.totalValues if item.totalValues is not none
+                 else (item.valueSalesExcludingST + item.salesTaxApplicable)) | comma_format -}}
+          </td>
+        </tr>
+      {% endfor %}
+
+      {#- Blank rows to the depth of their printed box, so a one-line invoice
+          does not leave the totals floating up the page. -#}
+      {% for _ in range(rows, 12) %}
+        <tr>
+          <td class="filler">&nbsp;</td>
+          {% for _ in range(9) %}<td class="filler"></td>{% endfor %}
+        </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot>
+      <tr><td colspan="10"></td></tr>
+    </tfoot>
+  </table>
+
+  {# ----------------------------------- amount in words, totals, FBR stamp #}
+  <table class="foot">
+    <tr>
+      <td style="width:54%">
+        <div class="words">{{ data.amountInWords }}</div>
+
+        {#- The compliance stamp: QR and the Digital Invoicing logo side by
+            side. The invoice number is NOT repeated here -- it is printed with
+            the other identifiers above, and the QR already carries it.
+
+            Renders only once the invoice has actually been submitted and has a
+            number; before that it says so plainly rather than printing a QR
+            that resolves to nothing. -#}
+        <table class="fbr">
+          <tr>
+            {% if data.fbrInvoiceNumber and qr_base64 %}
+              <td class="qr">
+                <img src="data:image/png;base64,{{ qr_base64 }}" alt="FBR QR code">
+              </td>
+              {% if fbr_logo_url %}
+                <td class="di">
+                  <img src="{{ fbr_logo_url }}" alt="FBR Digital Invoicing System">
+                </td>
+              {% endif %}
+            {% else %}
+              <td>
+                <div class="pending">Not yet submitted to FBR &mdash; no invoice number or QR code yet.</div>
+              </td>
+            {% endif %}
+          </tr>
+        </table>
+      </td>
+
+      <td class="right" style="width:46%">
+        {#- Federal excise actually payable on the lines. Older drafts and the
+            spreadsheet importer can leave fedPayable blank, which must not
+            take the whole print down. -#}
+        {% set duty = namespace(total=0) %}
+        {% for item in data['items'] %}
+          {% if item.fedPayable is number %}{% set duty.total = duty.total + item.fedPayable %}{% endif %}
+        {% endfor %}
+        <table class="totals">
+          <tr>
+            <td class="lab">Total Value (Exclusive Sales Tax) :</td>
+            <td class="num">{{ data.totalExcl | comma_format }}</td>
+          </tr>
+          <tr>
+            <td class="lab">Sales Tax{% if one_rate %} ({{ one_rate }}){% endif %} :</td>
+            <td class="num">{{ data.totalTax | comma_format }}</td>
+          </tr>
+          <tr class="ruled">
+            <td class="lab">Special Excise Duty :</td>
+            <td class="num">{{ duty.total | comma_format }}</td>
+          </tr>
+          <tr class="grand">
+            <td class="lab"></td>
+            <td class="num">{{ data.totalInclusive | comma_format }}</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  {# --------------------------------------------------------- signature #}
+  <table class="sign">
+    <tr>
+      <td style="width:50%"><div class="prepared">Prepared By :</div></td>
+      <td style="width:50%"><div class="authorised">Authorized Signature</div></td>
+    </tr>
+  </table>
+
+</body>
+
+</html>

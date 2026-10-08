@@ -64,6 +64,9 @@ LEGACY_TEMPLATES = {
     "invoice_hannan_traders.html",
     "invoice_paper_experts.html",
     "invoice_fk_printers.html",
+    "invoice_saad_enterprises.html",
+    "invoice_power_vision.html",
+    "invoice_bilal_traders.html",
 }
 
 
