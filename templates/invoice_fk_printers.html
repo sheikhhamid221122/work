@@ -247,7 +247,7 @@
     .totals tr.rule td.num { border-top: 1px solid #000; }
 
     /* ---- Signature rules --------------------------------------------- */
-    .sign { width: 100%; margin-top: 16mm; border-collapse: collapse; }
+    .sign { width: 100%; margin-top: 9mm; border-collapse: collapse; }
     .sign td { border: none; padding: 0; vertical-align: top; font-size: 13.5px; }
     .sign .prepared {
       width: 46mm;
@@ -406,8 +406,18 @@
       {% endfor %}
 
       {#- Blank rows to the depth of their printed box, so a one-line invoice
-          does not leave the footer floating up the page. -#}
-      {% for _ in range(rows, 12) %}
+          does not leave the footer floating up the page.
+
+          Budgeted, not a flat target. A flat 12 rows ran this sheet onto a
+          second page from three lines up: it padded with NINE fillers on top
+          of item rows that are themselves two or three lines deep, because
+          the unit column wraps. The box is given 10 filler-units of depth and
+          a real line is charged 2 of them, so the box lands in roughly the
+          same place whether the invoice has one line or four, and from five
+          lines up it carries no filler at all and simply grows. Six lines
+          still fits on one page; past that it is meant to run on. -#}
+      {% set filler_rows = [0, 10 - rows * 2] | max %}
+      {% for _ in range(filler_rows) %}
         <tr>
           <td class="filler">&nbsp;</td>
           <td class="filler"></td><td class="filler"></td><td class="filler"></td>
