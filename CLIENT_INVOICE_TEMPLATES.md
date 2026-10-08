@@ -471,6 +471,36 @@ order, so the template prints a "D. Challan No." row for `dnNumber` and a
 stamp sits in the band their sheet left between the items table and the
 amount-in-words box.
 
+`templates/invoice_saad_enterprises.html` — SAAD Enterprises, username
+`3520287506167`. The second client to send a **photograph** instead of a PDF,
+and the one that shows what to do when there is no logo file either. Their
+letterhead is almost all flat colour — a black banner running off the left
+edge to a chevron point, an orange band off the top right, a grey shadow, a
+double-ruled services box, and three footer bars — so none of it was lifted.
+It is **drawn as inline SVG** from measurements off the photo, which prints
+sharp, at true flat colour, and carries none of the photograph's lighting or
+skew. Only the St monogram and the SAAD ENTERPRISES wordmark are artwork.
+
+Even those are not photographed pixels. Cropping and sharpening them gave a
+mottled, haloed mess — the same dead end F.K. Printers hit. What worked was
+separating the crop into *coverage* (how much ink is at this pixel) and *hue*
+(orange wordmark or white monogram stroke) and re-drawing the lettering from
+those two fields in the brand's own colours on the exact black the SVG paints.
+The shapes still come from a ~140 DPI photo and are soft, so this is a
+stand-in: **ask for the logo file and re-emit the partial**, and nothing else
+in the template has to change. The scratchpad script is in the commit.
+
+Their address, phone and e-mail sit on the footer bars as live text over the
+drawn shapes, never baked in — the address is an FBR field.
+
+Their items table carried only S.No., Description, Qty, Unit, Rate and Value.
+HS Code, S.Tax Rate, Sales Tax and Value Incl. Sales Tax are added, because
+those are required on the face and this client has not asked for any of them
+to come off. The identifier column's rules are longer than theirs (42 mm
+against 24 mm) so the 27-character FBR invoice number stays on one line.
+Time of Supply is theirs to state, so it reads a custom field of that name and
+falls back to the print clock only when they leave it empty. A4.
+
 ---
 
 ## Quick reference
