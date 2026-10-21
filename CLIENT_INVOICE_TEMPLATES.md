@@ -536,6 +536,56 @@ the levels (60/238) before quantizing, so the paper is exactly 255.
 Neither client is one of the five paper merchants, so neither carries the
 No. of Reams column. Both are A4.
 
+`templates/invoice_salon_marketings.html` — Salon Marketings, username
+`3520223163127`. A cosmetics distributor, and the first replica of a sheet
+that **was not a tax invoice at all**: their old software printed a plain
+sale bill with no HS code, no sales tax, no NTN and no registration number.
+The layout is copied closely — ruled frame round the whole page, SM mark top
+left with the company name and contact block beside it, boxed "INVOICE NO:"
+top right, grey-headed items table, the amount in words centred under it, and
+the Prepared by / Verified by / Remarks rules at the foot.
+
+Dropped from their sheet at the client's request: "by Saleem Cosmetics" under
+the company name, and the "Customer Openning Balance" line — this application
+files invoices and keeps no customer ledger, so that figure could only ever
+have been wrong here.
+
+Dropped as a matter of house rule: their Bonus, Disc(%) and Disc Value
+columns, and the serial-number column. Every replica prints the same seven
+columns; the client's styling is copied, their column set is not. Nothing in
+the create-invoice form feeds a bonus or a line discount, so those columns
+could only have printed zeros. Their Code 128 barcode of the invoice number is
+not drawn either: nothing in this repo draws one, and the FBR QR below carries
+the same identity and more.
+
+Added, because the document has to be a sales tax invoice: the HS Code and
+Sales Tax columns, seller and buyer NTN / Reg #, and the three FBR marks.
+Their phone number and email are fixed text in the template — neither is in
+the payload. Their address is **not**: it is an FBR field and prints live.
+
+This is the only client with a **Sale Person** line and a buyer **Phone** row.
+Both are printed-only, like the paper clients' reams count: they are gated on
+`SALES_PERSON_USERNAMES` in `invoice_form_routes.py` (mirrored by
+`SALES_PERSON_CLIENTS` in `create-invoice.html`), stored with the invoice, and
+stripped from the FBR payload by `PDF_ONLY_INVOICE_FIELDS` in `app.py`. Sale
+person names are remembered per client in `clients.sales_persons` — a name is
+added the first time an invoice is created with it. The buyer's number lives
+in `buyers.phone`. Both columns come from
+`migrations/2026-10-20_add_sales_persons_and_buyer_phone.sql`; every read of
+them is guarded, so an app ahead of its migration just does not offer the
+fields. Unlike the paper clients' sheets their items box has **no filler
+rows** — their own ends at the last line with the Total straight under it. A4.
+
+They also file **everything under SRO 297(I)/2023**, so every line of every
+invoice of theirs carries `sroScheduleNo = 297(I)/2023-Table-I`,
+`sroItemSerialNo = 12` and `saleType = Goods as per SRO.297(|)/2023` (the pipe
+is FBR's spelling in the transaction-types list, not a typo), and the sandbox
+scenario starts on SN024. The form fills and locks the three fields;
+`SRO_297_USERNAMES` in `invoice_form_routes.py` writes them again onto every
+item, so a stale tab, a restored draft or a direct API call cannot file a line
+with a blank or wrong SRO. Same shape as the older `3075270` and
+`3520299316743` SRO special cases, which are untouched.
+
 ---
 
 ## Quick reference

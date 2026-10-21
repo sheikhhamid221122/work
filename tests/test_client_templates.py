@@ -43,6 +43,7 @@ CLIENT_TEMPLATES = {
     "invoice_saad_enterprises.html": "3520287506167",
     "invoice_power_vision.html": "3740545496385",
     "invoice_bilal_traders.html": "3740549685449",
+    "invoice_salon_marketings.html": "3520223163127",
 }
 
 # The paper clients who asked for a "No. of Reams" column beside the quantity.
@@ -325,6 +326,7 @@ class BrandArtwork(unittest.TestCase):
         "invoice_saad_enterprises.html": "brand/3520287506167.html",
         "invoice_power_vision.html": "brand/3740545496385.html",
         "invoice_bilal_traders.html": "brand/3740549685449.html",
+        "invoice_salon_marketings.html": "brand/3520223163127.html",
     }
 
     def test_artwork_renders_with_no_logo_url_at_all(self):

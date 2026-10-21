@@ -152,6 +152,13 @@
                     <label for="b-strn">STRN</label>
                     <input class="md-input" id="b-strn" maxlength="50" placeholder="32-77-…">
                 </div>
+                <!-- Phone. Hidden unless this client's invoice prints a Phone row
+                     (phone_enabled from /api/buyers/overview). It is printed on
+                     the invoice and never sent to FBR. -->
+                <div class="md-field" id="b-phone-field" hidden>
+                    <label for="b-phone">Phone</label>
+                    <input class="md-input" id="b-phone" maxlength="40" placeholder="0300-1234567">
+                </div>
                 <div class="md-field">
                     <label for="b-province">Province <span class="req">*</span></label>
                     <select class="md-select" id="b-province" required><option value="">Select province</option></select>
@@ -239,6 +246,9 @@
                 }
                 state.buyers = res.data.buyers || [];
                 state.nextCode = res.data.next_code || '';
+                // Server decides: only the clients whose invoice prints a Phone
+                // row see the field at all.
+                $('b-phone-field').hidden = !res.data.phone_enabled;
                 var s = res.data.summary || {};
                 $('m-total').textContent = MD.num(s.total);
                 $('m-registered').textContent = MD.num(s.registered);
@@ -385,6 +395,7 @@
             $('b-reg').value = buyer ? (buyer.registration_type || '') : '';
             $('b-ntn').value = buyer ? buyer.ntn_cnic : '';
             $('b-strn').value = buyer ? buyer.strn : '';
+            $('b-phone').value = buyer ? (buyer.phone || '') : '';
             $('b-address').value = buyer ? buyer.address : '';
             $('b-default').checked = !!(buyer && buyer.is_default);
             $('b-code').value = buyer ? (buyer.buyer_code || '') : (state.nextCode || '');
@@ -466,6 +477,9 @@
                 address: $('b-address').value.trim(),
                 is_default: $('b-default').checked
             };
+            if (!$('b-phone-field').hidden) {
+                payload.phone = $('b-phone').value.trim();
+            }
             var missing = [];
             [['b-name', payload.business_name], ['b-reg', payload.registration_type], ['b-ntn', payload.ntn_cnic],
              ['b-province', payload.province], ['b-address', payload.address]].forEach(function (f) {
