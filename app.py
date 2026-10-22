@@ -1264,6 +1264,11 @@ last_json_data = {}
 # stored invoice and the PDF keep them.
 PDF_ONLY_ITEM_FIELDS = frozenset({"numberOfReams"})
 
+# The same idea one level up: top-level keys a client's replica prints and
+# FBR's invoice schema has no place for. They stay on the stored invoice --
+# the PDF is re-rendered from that row -- and are dropped on the way out.
+PDF_ONLY_INVOICE_FIELDS = ("signatureArea", "salesPerson", "buyerPhone")
+
 
 # ---------------------------------------------------------------------------
 # Per-account billing hold
@@ -1764,8 +1769,14 @@ def submit_fbr():
 
     # Use a separate variable and clear global variable to save memory
     json_data = last_json_data[env].copy()
-    # PDF-only meta — FBR schema must not receive unknown keys
-    _signature_area_pdf_only = json_data.pop("signatureArea", None)
+    # PDF-only meta — FBR schema must not receive unknown keys. Held aside
+    # rather than dropped: they go back on before the invoice is stored, so
+    # re-rendering its PDF later produces the same sheet.
+    _pdf_only_fields = {
+        key: json_data.pop(key)
+        for key in PDF_ONLY_INVOICE_FIELDS
+        if key in json_data
+    }
 
     # Helper to sanitize any string value - removes control characters that break JSON
     import re
@@ -1850,8 +1861,7 @@ def submit_fbr():
 
         invoice_no = res_json.get("invoiceNumber", "N/A")
         json_data["fbrInvoiceNumber"] = invoice_no
-        if _signature_area_pdf_only is not None:
-            json_data["signatureArea"] = _signature_area_pdf_only
+        json_data.update(_pdf_only_fields)
         last_json_data[env]["fbrInvoiceNumber"] = invoice_no
         is_success = bool(invoice_no and invoice_no != "N/A")
 

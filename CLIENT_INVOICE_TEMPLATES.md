@@ -536,6 +536,164 @@ the levels (60/238) before quantizing, so the paper is exactly 255.
 Neither client is one of the five paper merchants, so neither carries the
 No. of Reams column. Both are A4.
 
+`templates/invoice_bilal_brothers.html` — Bilal Brothers, username
+`3740582041351`. A letterhead and nothing else again, so the body is the same
+shared arrangement as the two above. What is different is the *source*: they
+sent a **photograph** of a blank sheet, about 870 px across 210 mm — a little
+over 100 DPI, below even the F.K. Printers photo that could not be rescued.
+
+So almost nothing is lifted from it. Everything on their letterhead except
+the crest is type — the "BILAL BROTHERS" wordmark, the "Govt Contractor &
+General Order Suppliers" strapline, the two double rules, the four-line
+"Deals in : …" paragraph and the footer rule and address line — and all of it
+is **set as text**, in the same faces and at the proportions measured off the
+sheet (the wordmark is 110 mm across on their original). Set as text it
+prints sharp at any size and carries none of the photo's lighting, skew or
+JPEG noise. This is the SAAD Enterprises move generalised: **draw what is
+flat, lift only what is genuinely artwork.** When a photographed letterhead is
+mostly type, that is nearly all of it, and the result is better than any
+rescue of the pixels.
+
+`scripts/extract_bilal_brothers_brand.py` lifts the one piece that is artwork,
+their crest: deskew 1.23°, divide out the lighting so the paper is flat white
+across the frame, upscale, then smoothstep the levels so the ink is solid and
+the paper is solid with the edges left soft. Pitching the low level at 120
+keeps the shield's outline the thin double rule it is on their sheet; higher
+and it fattens to one heavy stroke. The script inside the shield does not
+survive — at 134 px across it never would — but it reads as texture, which is
+roughly how it reads on their own sheet, and the same four words are set in
+type beside it. At about 160 DPI the crest is a **stand-in: ask for their logo
+file and re-run the script**; nothing in the template has to change.
+
+The near-white panel wrinkle from Power Vision reappears here for a different
+reason: the smoothstep takes clean paper to 255, but the anti-aliased pixels
+just under it share an octree node with it and pull the node's average to 254.
+The script snaps everything at or above 240 to pure white before quantizing.
+
+The "Deals in" paragraph's four line breaks are written out rather than left
+to wrap, so their centred taper is reproduced on any machine and does not
+shift with whatever font the server has. Their address prints live in a fixed
+footer that repeats on every page; the mobile number beside it is not in the
+payload and is fixed text. The blue rubber stamp in the corner of the
+photographed sheet is ink they applied by hand, not stationery, and is not
+reproduced. Their "Our Ref. No." / "Your's Ref. No." / "Date" rules are the
+blank sheet's correspondence fields; on an invoice their place is taken by the
+buyer block and the identifiers, which land at the same depth on the page.
+Like the two above, their letterhead carries no NTN or Reg #, so both print on
+their own line under the masthead. A4, no reams column.
+
+`templates/invoice_aero_alliance.html` — Aero Alliance, username
+`3740564149343`, and `templates/invoice_beacon_alliance.html` — Beacon
+Alliance, username `3740545582835`. Two more photographed letterheads, 840
+and 891 px across 210 mm (about 102 and 108 DPI), so the Bilal Brothers rule
+applies again: **draw what is type, lift only what is genuinely artwork.** On
+both sheets the whole masthead — wordmark, strapline, "Deals in" lines,
+address, phone and e-mail — is type and is set as text at the proportions
+measured off the sheet. `scripts/extract_alliance_brands.py` does both.
+
+What is new here is that the artwork is **colour**, which the black-line-art
+pipeline cannot handle:
+
+* The lighting is divided out **per channel** rather than on luminance. That
+  flattens the lamp's falloff and white-balances the paper in one step, so
+  the blue does not come out muddy where the sheet was in shadow.
+* JPEG stores chroma at half resolution, so small coloured detail arrives
+  washed out. Saturation is restored in HSV, but only on pixels that already
+  have colour and are not near-white, so the paper cannot pick up a tint.
+* The quantizer gets **64 colours**, not 8: a globe with continents and a
+  two-tone swoosh have real tonal range.
+
+Getting the paper white took three passes and all three are needed. The
+page-wide division leaves each crop with a little of the lamp's warmth, so
+each crop **sets its own white point** from the 88th percentile of its own
+pixels — it is more than half paper, so that lands on paper and clips the
+rest of the paper to 255. Then a **shoulder** ramps a pixel's *weakest*
+channel to white between 214 and 240, which removes a grey cast but spares
+coloured ink, because coloured ink always has one weak channel. Without the
+shoulder the artwork prints on a cream panel; with it applied to luminance
+instead, Beacon's pale continents and the FLUKE yellow would have gone too.
+
+Aero Alliance's logo is one piece — eagle head, logotype and the blue wing —
+lifted whole. Their address is a line of *type* in the masthead, not part of
+the logo, and prints live. Their Ref. No. / Date rules are the blank sheet's
+correspondence fields and are replaced by the buyer block and identifiers,
+which land at the same depth. Their letterhead carries no NTN or Reg #, so
+both print on their own line. No footer: their sheet has none.
+
+Beacon Alliance has three things the others did not:
+
+* a **watermark** across the middle of the sheet, which is the *same artwork*
+  as the logo, scaled up and faded. The template re-uses the `masthead`
+  macro at 118 mm and 15% opacity rather than lifting the washed-out pixels,
+  which prints far better. `position: fixed` with `z-index: -1`, so it
+  repeats and sits behind the text. Everything passes over it as it would on
+  their pre-printed sheet — except the FBR stamp, which keeps a white ground
+  because a QR code wants clean ground to scan from.
+* a **distributor band** at the foot (Pro'sKit / DORMER, elme / eurosaft,
+  PPG, TOKU / FLUKE, TOPTUL / Snap-on), emitted as a second macro,
+  `partners`, and fixed in the bottom page margin. Their rubber stamp had
+  been pressed over its right-hand end, so that rectangle is **masked with
+  paper white** before the band is emitted — hand-applied ink must never end
+  up looking like printed stationery. Check for this on any photographed
+  sheet: the stamp is the one thing on it that is not theirs by design.
+* a **two-colour wordmark**, BEACON navy and ALLIANCE maroon, set as two
+  spans. Their NTN and STRN are typed on the sheet and all the same still
+  print live — they are FBR fields.
+
+Both clients' logos, and that partner band especially, are about 105 DPI and
+are **stand-ins: ask for the letterhead file and re-run the script.** Nothing
+in either template has to change. Both A4, no reams column.
+
+`templates/invoice_salon_marketings.html` — Salon Marketings, username
+`3520223163127`. A cosmetics distributor, and the first replica of a sheet
+that **was not a tax invoice at all**: their old software printed a plain
+sale bill with no HS code, no sales tax, no NTN and no registration number.
+The layout is copied closely — ruled frame round the whole page, SM mark top
+left with the company name and contact block beside it, boxed "INVOICE NO:"
+top right, grey-headed items table, the amount in words centred under it, and
+the Prepared by / Verified by / Remarks rules at the foot.
+
+Dropped from their sheet at the client's request: "by Saleem Cosmetics" under
+the company name, and the "Customer Openning Balance" line — this application
+files invoices and keeps no customer ledger, so that figure could only ever
+have been wrong here.
+
+Dropped as a matter of house rule: their Bonus, Disc(%) and Disc Value
+columns, and the serial-number column. Every replica prints the same seven
+columns; the client's styling is copied, their column set is not. Nothing in
+the create-invoice form feeds a bonus or a line discount, so those columns
+could only have printed zeros. Their Code 128 barcode of the invoice number is
+not drawn either: nothing in this repo draws one, and the FBR QR below carries
+the same identity and more.
+
+Added, because the document has to be a sales tax invoice: the HS Code and
+Sales Tax columns, seller and buyer NTN / Reg #, and the three FBR marks.
+Their phone number and email are fixed text in the template — neither is in
+the payload. Their address is **not**: it is an FBR field and prints live.
+
+This is the only client with a **Sale Person** line and a buyer **Phone** row.
+Both are printed-only, like the paper clients' reams count: they are gated on
+`SALES_PERSON_USERNAMES` in `invoice_form_routes.py` (mirrored by
+`SALES_PERSON_CLIENTS` in `create-invoice.html`), stored with the invoice, and
+stripped from the FBR payload by `PDF_ONLY_INVOICE_FIELDS` in `app.py`. Sale
+person names are remembered per client in `clients.sales_persons` — a name is
+added the first time an invoice is created with it. The buyer's number lives
+in `buyers.phone`. Both columns come from
+`migrations/2026-10-20_add_sales_persons_and_buyer_phone.sql`; every read of
+them is guarded, so an app ahead of its migration just does not offer the
+fields. Unlike the paper clients' sheets their items box has **no filler
+rows** — their own ends at the last line with the Total straight under it. A4.
+
+They also file **everything under SRO 297(I)/2023**, so every line of every
+invoice of theirs carries `sroScheduleNo = 297(I)/2023-Table-I`,
+`sroItemSerialNo = 12` and `saleType = Goods as per SRO.297(|)/2023` (the pipe
+is FBR's spelling in the transaction-types list, not a typo), and the sandbox
+scenario starts on SN024. The form fills and locks the three fields;
+`SRO_297_USERNAMES` in `invoice_form_routes.py` writes them again onto every
+item, so a stale tab, a restored draft or a direct API call cannot file a line
+with a blank or wrong SRO. Same shape as the older `3075270` and
+`3520299316743` SRO special cases, which are untouched.
+
 ---
 
 ## Quick reference

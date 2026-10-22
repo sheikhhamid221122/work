@@ -208,6 +208,12 @@
             address: ($('buyer-address').value || '').trim(),
             buyer_code: ($('buyer-code').value || '').trim()
         };
+        // Phone is offered only to the clients whose invoice prints it, so the
+        // field is absent (and hidden) for everyone else and nothing is sent.
+        var phoneWrap = $('buyer-phone-wrapper');
+        if (phoneWrap && !phoneWrap.classList.contains('hidden')) {
+            buyer.phone = ($('buyer-phone').value || '').trim();
+        }
         if (!buyer.business_name || !buyer.ntn_cnic) return Promise.resolve();
         var known = savedBuyers().some(function (b) {
             return taxId(b.ntn_cnic) === taxId(buyer.ntn_cnic) || nameKey(b.business_name) === nameKey(buyer.business_name);

@@ -67,6 +67,10 @@ LEGACY_TEMPLATES = {
     "invoice_saad_enterprises.html",
     "invoice_power_vision.html",
     "invoice_bilal_traders.html",
+    "invoice_bilal_brothers.html",
+    "invoice_aero_alliance.html",
+    "invoice_beacon_alliance.html",
+    "invoice_salon_marketings.html",
 }
 
 

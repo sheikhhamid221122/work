@@ -1,0 +1,502 @@
+{#
+  Beacon Alliance (username 3740545582835) -- sales tax invoice.
+
+  Built on the client's own letterhead, in the house layout the other
+  per-client replicas use. Like Power Vision, Bilal Traders, Bilal Brothers
+  and Aero Alliance there is no invoice of theirs to copy -- they sent a
+  letterhead and nothing else -- so the body below the masthead is the shared
+  arrangement: label-and-value buyer block, the standard seven-column items
+  table with filler rows and an in-table totals row, a two-row summary box,
+  "Signature & Stamp", and the FBR stamp.
+
+  Their letterhead, and what is a picture and what is type
+  --------------------------------------------------------
+  They sent a PHONE PHOTOGRAPH of a blank sheet, 891 px across 210 mm -- about
+  108 DPI. So only what is genuinely artwork is lifted, by
+  scripts/extract_alliance_brands.py into templates/brand/3740545582835.html:
+
+    * `masthead`  the globe, the red-and-yellow swoosh, the aeroplane and the
+                  "Beacon Alliance / Our passion is in precision and accuracy"
+                  logotype.
+    * `partners`  the row of distributor marks across the foot of their sheet.
+
+  Everything else is *type* and is set as text here, in the same faces and at
+  the proportions measured off the sheet:
+
+    * "BEACON ALLIANCE"   serif, BEACON navy and ALLIANCE maroon, 87 mm wide
+    * "Importers / Exporters / Distributors"           humanist sans, navy
+    * "Government Contractor & General Order Suppliers" humanist sans, maroon
+    * the two "Deals in:" lines                        serif
+    * the Address, NTN and STRN lines, and Phone / Email
+
+  Set as text it prints sharp at any size and carries none of the photo's
+  lighting, skew or JPEG noise: draw what is type, lift only what is artwork.
+
+  The watermark
+  -------------
+  Their sheet carries a big pale globe-and-wordmark across the middle. That
+  watermark is the SAME artwork as the logo, so the template scales the
+  `masthead` piece up and fades it rather than lifting the washed-out pixels,
+  which prints far better. It is position: fixed with a negative z-index, so
+  it repeats on every page and sits behind the text rather than over it.
+
+  The partner band
+  ----------------
+  Printed at the foot of their stationery, so it is position: fixed in the
+  bottom page margin and repeats on every page. Their rubber stamp had been
+  pressed over its right-hand end and is masked out in the extraction -- hand
+  ink is not stationery.
+
+  This band is the weakest piece in either Alliance template: other companies'
+  marks at about 108 DPI. It and both logos are STAND-INS: ask the client for
+  their letterhead file and re-run the script. Nothing in this file has to
+  change.
+
+  What is NOT taken from the sheet
+  --------------------------------
+    * Their ADDRESS, NTN and STRN. All three are typed on their letterhead,
+      and all three are FBR fields, so all three print live from `data` --
+      never frozen into artwork, where they could contradict the payload.
+    * The blue rubber stamp. Ink they applied by hand, not stationery.
+
+  Their phone number and e-mail are fixed text: neither is an FBR field and
+  neither is in the invoice payload.
+
+  What is ADDED, and must never be removed
+  ----------------------------------------
+    1. the FBR invoice number   -- with the other identifiers, under the Date
+                                   (once only: the QR already carries it)
+    2. the FBR Digital Invoicing logo
+    3. the QR code
+  These are what make the document a valid digital invoice. The logo and QR
+  sit side by side between the items table and the summary box.
+
+  Contract: rendered by app.py with data, qr_base64, client_logo_url,
+  fbr_logo_url, username, settings, theme. See invoice_template3.html for the
+  same contract.
+#}
+{% import "brand/3740545582835.html" as brand %}
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>Sales Tax Invoice {{ data.invoiceRefNo or '' }}</title>
+  <style>
+    @page {
+      size: A4;
+      /* Deep bottom margin: their distributor band lives in it. */
+      margin: 9mm 12mm 28mm 12mm;
+    }
+
+    body {
+      font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+      font-size: 11px;
+      color: #000;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Their two inks, sampled off the photographed masthead and corrected for
+       the lamp: hue 236 and hue 352. */
+    .navy { color: #2a3372; }
+    .maroon { color: #8a3a42; }
+
+    /* The humanist sans their strapline and contact lines are set in. Candara
+       and Gill Sans are the close matches; the rest of the stack is what a
+       server without them will have. */
+    .humanist {
+      font-family: Candara, "Gill Sans MT", "Gill Sans", "Trebuchet MS",
+                   Arial, sans-serif;
+    }
+
+    /* ---- Watermark ---------------------------------------------------
+       The pale globe across the middle of their sheet. It is the logo
+       artwork again, scaled up and faded -- not a second extraction.
+       position: fixed repeats it on every page; the negative z-index keeps
+       it behind the text, because the artwork is opaque white wherever it
+       has no ink and would otherwise paint over the table. */
+    .watermark {
+      position: fixed;
+      /* Measured off their sheet: 118 mm across, its top 113 mm down the
+         page. `top` is from the page's content area, which starts at the
+         9 mm margin, so 104 mm. */
+      top: 104mm;
+      left: 50%;
+      margin-left: -59mm;
+      width: 118mm;
+      opacity: .15;
+      z-index: -1;
+    }
+    .watermark img { width: 118mm; height: auto; display: block; }
+
+    /* ---- Masthead ----------------------------------------------------
+       Their sheet carries the logo on the left and centres the wordmark and
+       the lines under it in the space beside it. The logo is 41 mm across on
+       their sheet; the text block is centred at about 128 mm. */
+    .masthead { width: 100%; border-collapse: collapse; }
+    .masthead > tbody > tr > td { border: none; padding: 0; vertical-align: top; }
+    .masthead td.logo { width: 46mm; }
+    /* Sized by width only: fixing both axes would stretch the artwork. */
+    .brand-masthead { width: 41mm; height: auto; display: block; }
+
+    .wordmark {
+      text-align: center;
+      font-family: "Times New Roman", Times, serif;
+      font-weight: bold;
+      font-size: 34px;
+      letter-spacing: .5px;
+      line-height: 1.08;
+      white-space: nowrap;
+    }
+    .trades {
+      text-align: center;
+      font-size: 15px;
+      line-height: 1.25;
+      margin-top: .4mm;
+    }
+    .govt {
+      text-align: center;
+      font-weight: bold;
+      font-size: 16px;
+      line-height: 1.25;
+      margin-top: .6mm;
+    }
+    /* Their standing description of the business -- stationery text, not a
+       payload field, so it is fixed here. Their sheet breaks it over two
+       centred lines; the break is written out rather than left to wrap, so
+       the shape is theirs on any machine. */
+    .deals {
+      text-align: center;
+      font-family: "Times New Roman", Times, serif;
+      font-size: 14px;
+      line-height: 1.3;
+      margin-top: 1.4mm;
+    }
+    /* Live from the payload. NEVER overflow: hidden here -- a longer address
+       must wrap rather than be cut off, because it is what was filed. */
+    .addr {
+      text-align: center;
+      font-size: 12.5px;
+      line-height: 1.35;
+      margin-top: 1.6mm;
+    }
+
+    /* Their sheet puts the two tax numbers under the logo on the left and the
+       contact block on the right, on the same two lines. */
+    .ids-row { width: 100%; border-collapse: collapse; margin-top: 2mm; }
+    .ids-row td { border: none; padding: 0; vertical-align: top; font-size: 12.5px; }
+    .ids-row td.r { text-align: right; }
+    .ids-row .taxno {
+      font-family: "Times New Roman", Times, serif;
+      line-height: 1.5;
+    }
+    .ids-row .contact { line-height: 1.5; }
+
+    .doc-title {
+      text-align: center;
+      font-family: "Times New Roman", Times, serif;
+      font-weight: bold;
+      font-size: 20px;
+      letter-spacing: .5px;
+      text-decoration: underline;
+      margin-top: 3mm;
+    }
+    .copy-mark {
+      text-align: right;
+      font-weight: bold;
+      text-decoration: underline;
+      font-size: 11px;
+      margin-top: 1.5mm;
+    }
+
+    /* ---- Buyer / invoice identifiers --------------------------------- */
+    .party { width: 100%; margin-top: 3.5mm; border-collapse: collapse; }
+    .party td { vertical-align: top; padding: 1.3mm 0; font-size: 12px; border: none; }
+    .party td.lab { font-weight: bold; white-space: nowrap; padding-right: 2mm; }
+    /* A long buyer address otherwise runs straight into the label in the next
+       column -- table cells have no gutter of their own. */
+    .party td.v { padding-right: 6mm; }
+    .buyer-name { font-weight: bold; text-decoration: underline; }
+    /* The FBR invoice number is printed here and nowhere else, so it has to
+       hold its own: bold, or Courier prints lighter than the values beside
+       it. 10px fits all 27 characters on one line. */
+    .fbr-no {
+      font-family: "Courier New", monospace;
+      font-size: 10px;
+      font-weight: bold;
+      letter-spacing: -.3px;
+      white-space: nowrap;
+    }
+
+    /* ---- Items ------------------------------------------------------- */
+    .items {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 5mm;
+      font-size: 11px;
+    }
+    .items th, .items td {
+      border: 1px solid #000;
+      padding: 1.5mm 1.2mm;
+      text-align: center;
+    }
+    /* Their navy, used where their own stationery uses it. */
+    .items thead th {
+      font-weight: bold;
+      background: #dfe2ef;
+      color: #2a3372;
+    }
+    /* A line item must not split across a page break: its description would
+       land on one page and its figures on the other. */
+    .items tr { page-break-inside: avoid; }
+    .items td.desc { text-align: left; }
+    /* Filler rows keep the box the depth a printed sheet has, so a one-line
+       invoice does not leave the totals row floating up the page. */
+    .items td.filler { height: 6.5mm; }
+    .items tr.totals td { font-weight: bold; background: #f1f2f8; }
+
+    /* ---- Summary + signature ----------------------------------------- */
+    .foot { width: 100%; margin-top: 7mm; border-collapse: collapse; }
+    .foot > tbody > tr > td { vertical-align: top; border: none; }
+
+    .summary { border-collapse: collapse; width: 74mm; }
+    .summary td {
+      border: 1px solid #000;
+      padding: 1.6mm 2.5mm;
+      font-weight: bold;
+      font-size: 12px;
+    }
+    .summary td.num { text-align: right; }
+
+    .sign {
+      margin-top: 16mm;
+      text-align: center;
+      font-weight: bold;
+      font-size: 12px;
+    }
+
+    /* The marks the client's own stationery could not have had, kept together
+       so they read as one stamp. */
+    /* White behind the stamp on purpose: the watermark passes under
+       everything else, as it would on their pre-printed sheet, but a QR code
+       wants clean ground to scan from. */
+    .fbr { border-collapse: collapse; margin-top: 6mm; background: #fff; }
+    .fbr td { border: none; vertical-align: middle; padding: 0 5mm 0 0; }
+    .fbr .qr img { width: 26mm; height: 26mm; display: block; }
+    /* Sized to sit level with the QR, so the two read as one stamp. */
+    .fbr .di img { width: 26mm; height: auto; display: block; }
+    .fbr .pending { font-size: 9px; color: #b00; font-weight: bold; }
+
+    /* ---- Distributor band ---------------------------------------------
+       Printed at the foot of their stationery, so it repeats on every page
+       and sits in the bottom page margin, clear of the content. */
+    .partners {
+      position: fixed;
+      bottom: -21mm;
+      left: 0;
+      right: 0;
+      text-align: center;
+    }
+    .brand-partners { width: 182mm; height: auto; display: inline-block; }
+  </style>
+</head>
+
+<body>
+
+  {# -------------------------------------------------------- watermark #}
+  {#- Their pale globe. The same artwork as the logo, scaled and faded. -#}
+  <div class="watermark">{{ brand.masthead("") }}</div>
+
+  {# ---------------------------------------------------------- masthead #}
+  {#- Their logo, inlined by the brand partial -- never client_logo_url,
+      which does not resolve on every PDF route. Everything beside it is
+      their letterhead's own type, set as text. -#}
+  <table class="masthead">
+    <tr>
+      <td class="logo">{{ brand.masthead(data.sellerBusinessName or "Beacon Alliance") }}</td>
+      <td>
+        <div class="wordmark"><span class="navy">BEACON</span> <span class="maroon">ALLIANCE</span></div>
+        <div class="trades humanist navy">Importers / Exporters / Distributors</div>
+        <div class="govt humanist maroon">Government Contractor &amp; General Order Suppliers</div>
+        <div class="deals">
+          <b>Deals in:</b>&nbsp; All types of Aircraft Components &amp; Tools, Ground Equipment,<br>
+          Radar Parts, Computer Equipments &amp; Hardware
+        </div>
+        {#- The address is an FBR field: live from the payload, never baked
+            into the artwork. -#}
+        <div class="addr humanist">Address: {{ data.sellerAddress }}</div>
+      </td>
+    </tr>
+  </table>
+
+  {#- Their sheet carries NTN and STRN under the logo and the contact block
+      opposite. Both numbers are FBR fields and print live; the phone and
+      e-mail are not in the payload and are fixed text. -#}
+  <table class="ids-row">
+    <tr>
+      <td style="width:50%">
+        <div class="taxno">
+          {% if data.sellerNTNCNIC %}NTN: {{ data.sellerNTNCNIC }}<br>{% endif %}
+          {% if data.sellerSTRN %}STRN: {{ data.sellerSTRN }}{% endif %}
+        </div>
+      </td>
+      <td class="r" style="width:50%">
+        <div class="contact humanist">
+          Phone No. +92- 341 8706046<br>
+          Email: bilal.11arid720@gmail.com
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  {#- Their stationery is blank, so the document has to say what it is. Set
+      as text in their letterhead's serif, so a credit or debit note can say
+      what it actually is. -#}
+  <div class="doc-title navy">SALES TAX INVOICE</div>
+  <div class="copy-mark">ORIGINAL / DUPLICATE</div>
+
+  {# ------------------------------------------------- buyer + identifiers #}
+  {%- set d = (data.invoiceDate or '') | string -%}
+  {%- if d | length == 10 and d[4] == '-' and d[7] == '-' and d[5:7] | int in range(1, 13) -%}
+    {%- set invoice_date = d[8:10] ~ '-' ~ ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d[5:7] | int - 1] ~ '-' ~ d[0:4] -%}
+  {%- else -%}
+    {%- set invoice_date = d | datetimeformat -%}
+  {%- endif -%}
+
+  <table class="party">
+    <tr>
+      <td class="lab" style="width:16%">Buyer: M/s</td>
+      <td class="v buyer-name" style="width:46%">{{ data.buyerBusinessName }}</td>
+      <td class="lab" style="width:16%">Invoice No:</td>
+      <td style="width:22%">{{ data.invoiceRefNo }}</td>
+    </tr>
+    <tr>
+      <td class="lab">Address:</td>
+      <td class="v">{{ data.buyerAddress }}</td>
+      <td class="lab">Date:</td>
+      <td>{{ invoice_date }}</td>
+    </tr>
+    <tr>
+      <td class="lab">Registration #:</td>
+      <td class="v">{{ data.buyerSTRN }}</td>
+      {#- The FBR invoice number belongs with the other identifiers: it is
+          what a buyer quotes back. -#}
+      <td class="lab">FBR Invoice No:</td>
+      <td class="fbr-no">{{ data.fbrInvoiceNumber or "&mdash;" | safe }}</td>
+    </tr>
+    <tr>
+      <td class="lab">NTN:</td>
+      <td class="v">{{ data.buyerNTNCNIC }}</td>
+      <td class="lab">Status:</td>
+      <td>{{ data.buyerRegistrationType }}</td>
+    </tr>
+  </table>
+
+  {# ------------------------------------------------------------- items #}
+  {#- The unit goes under "Quantity", taken from the goods rather than
+      hard-coded, and only when every line shares one unit -- otherwise the
+      header would claim something untrue of some rows. -#}
+  {% set units = data['items'] | map(attribute='uoM', default='') | select | list | unique | list %}
+  {% set one_unit = units[0] if units | length == 1 else '' %}
+  {% set rows = data['items'] | length %}
+
+  <table class="items">
+    <thead>
+      <tr>
+        <th style="width:24%">Description</th>
+        <th style="width:13%">HS<br>Code</th>
+        <th style="width:12%">Quantity{% if one_unit %}<br>{{ one_unit }}{% endif %}</th>
+        <th style="width:10%">Price</th>
+        <th style="width:16%">Value Ex.<br>Sales tax</th>
+        <th style="width:11%">Sales<br>Tax</th>
+        <th style="width:14%">V.Incl<br>Sales Tax</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in data['items'] %}
+        <tr>
+          <td class="desc">{{ item.productDescription }}</td>
+          <td>{{ item.hs_code or item.hsCode or "" }}</td>
+          <td>{{ item.quantity }}</td>
+          <td>{{ item.unitrate | comma_format }}</td>
+          <td>{{ item.valueSalesExcludingST | comma_format }}</td>
+          <td>{{ item.salesTaxApplicable | comma_format }}</td>
+          <td>
+            {{- (item.totalValues if item.totalValues is not none
+                 else (item.valueSalesExcludingST + item.salesTaxApplicable)) | comma_format -}}
+          </td>
+        </tr>
+      {% endfor %}
+
+      {#- Blank rows to the depth of a printed box. -#}
+      {% for _ in range(rows, 8) %}
+        <tr>
+          <td class="filler">&nbsp;</td>
+          {% for _ in range(6) %}<td class="filler"></td>{% endfor %}
+        </tr>
+      {% endfor %}
+
+      <tr class="totals">
+        <td></td><td></td><td></td><td></td>
+        <td>{{ data.totalExcl | comma_format }}</td>
+        <td>{{ data.totalTax | comma_format }}</td>
+        <td>{{ data.totalInclusive | comma_format }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  {# ------------------------------------------- FBR stamp, summary, sign #}
+  {#- The compliance stamp: QR and the Digital Invoicing logo, side by side on
+      one line. The invoice number is NOT repeated here -- it is printed with
+      the other identifiers above, which is where a reader looks for it, and
+      the QR already carries it for scanning.
+
+      Renders only once the invoice has actually been submitted and has a
+      number; before that it says so plainly rather than printing a QR that
+      resolves to nothing. -#}
+  <table class="fbr">
+    <tr>
+      {% if data.fbrInvoiceNumber and qr_base64 %}
+        <td class="qr">
+          <img src="data:image/png;base64,{{ qr_base64 }}" alt="FBR QR code">
+        </td>
+        {% if fbr_logo_url %}
+          <td class="di">
+            <img src="{{ fbr_logo_url }}" alt="FBR Digital Invoicing System">
+          </td>
+        {% endif %}
+      {% else %}
+        <td>
+          <div class="pending">Not yet submitted to FBR &mdash; no invoice number or QR code yet.</div>
+        </td>
+      {% endif %}
+    </tr>
+  </table>
+
+  <table class="foot">
+    <tr>
+      <td style="width:58%">
+        <table class="summary">
+          <tr>
+            <td>Sales Tax</td>
+            <td class="num">{{ data.totalTax | comma_format }}</td>
+          </tr>
+          <tr>
+            <td>Value Incl. S.Tax</td>
+            <td class="num">{{ data.totalInclusive | comma_format }}</td>
+          </tr>
+        </table>
+      </td>
+      <td style="width:42%">
+        <div class="sign">Signature &amp; Stamp</div>
+      </td>
+    </tr>
+  </table>
+
+  {#- Their distributor band, printed at the foot of their stationery. -#}
+  <div class="partners">{{ brand.partners("Authorised distributor brands") }}</div>
+
+</body>
+
+</html>

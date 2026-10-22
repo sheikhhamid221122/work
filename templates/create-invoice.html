@@ -468,6 +468,23 @@
                                         class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
                                         placeholder="Enter business address"></textarea>
                                 </div>
+                                <!-- Sale Person. Shown only for the clients whose invoice
+                                     prints the line (SALES_PERSON_CLIENTS in the script
+                                     below); hidden, empty and never submitted for everyone
+                                     else. Names typed here are remembered per client and
+                                     come back in the list on the next invoice. -->
+                                <div id="sales-person-wrapper" class="hidden">
+                                    <label for="sales-person"
+                                        class="block text-gray-700 font-medium mb-2">Sale Person</label>
+                                    <input type="text" id="sales-person" list="sales-person-options"
+                                        autocomplete="off" maxlength="60"
+                                        class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
+                                        placeholder="Type a name, or pick a saved one" />
+                                    <datalist id="sales-person-options"></datalist>
+                                    <p class="ci-pref" id="sales-person-hint">
+                                        Saved automatically &mdash; next time it is in the list.
+                                    </p>
+                                </div>
                             </div>
 
                             <!-- Removed legacy seller save/default checkboxes -->
@@ -675,6 +692,16 @@
                                 <input type="text" id="buyer-code"
                                     class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
                                     placeholder="Enter buyer code (if any)" />
+                            </div>
+                            <!-- Phone. Shown only for the clients whose invoice prints a
+                                 Phone row (BUYER_PHONE_CLIENTS in the script below). It is
+                                 saved on the buyer, printed on the sheet, and never sent to
+                                 FBR, whose invoice schema has no such field. -->
+                            <div id="buyer-phone-wrapper" class="hidden">
+                                <label for="buyer-phone" class="block text-gray-700 font-medium mb-2">Phone</label>
+                                <input type="text" id="buyer-phone" maxlength="40" autocomplete="off"
+                                    class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
+                                    placeholder="e.g. 0300-1234567" />
                             </div>
                             <div class="md:col-span-2">
                                 <label for="buyer-address" class="block text-gray-700 font-medium mb-2">Address*</label>
@@ -2061,6 +2088,8 @@
             syncFurtherTaxDefaults();
             applyH075895UI(currentUsername);
             applyReamsUI(currentUsername);
+            applySalesPersonUI(currentUsername);
+            applySro297Defaults(currentUsername);
             updateProductTable();
             updateReviewSection();
         }
@@ -2094,6 +2123,146 @@
                     input.value = '';
                 }
             }
+        }
+
+        // The clients whose invoice prints a "Sale Person" line and a buyer
+        // "Phone" row (their templates/invoice_*.html replicas). Both fields
+        // are theirs alone and feed nothing: no value, tax or total is derived
+        // from either, and app.py keeps both out of what FBR is sent. Mirrors
+        // SALES_PERSON_USERNAMES in invoice_form_routes.py.
+        const SALES_PERSON_CLIENTS = new Set([
+            '3520223163127',  // Salon Marketings
+        ]);
+        const BUYER_PHONE_CLIENTS = SALES_PERSON_CLIENTS;
+
+        function isSalesPersonClient(username = currentUsername) {
+            return SALES_PERSON_CLIENTS.has((username || '').toString().trim());
+        }
+
+        function isBuyerPhoneClient(username = currentUsername) {
+            return BUYER_PHONE_CLIENTS.has((username || '').toString().trim());
+        }
+
+        // The names this client has used before. Filled from /api/sales-persons
+        // and added to as soon as a new one is submitted, so the list is right
+        // without a page reload.
+        let salesPersonOptions = [];
+
+        function renderSalesPersonOptions() {
+            const list = document.getElementById('sales-person-options');
+            if (!list) return;
+            list.innerHTML = '';
+            salesPersonOptions.forEach((name) => {
+                const option = document.createElement('option');
+                option.value = name;
+                list.appendChild(option);
+            });
+            const hint = document.getElementById('sales-person-hint');
+            if (hint) {
+                hint.textContent = salesPersonOptions.length
+                    ? 'Saved automatically — pick a name or type a new one.'
+                    : 'Saved automatically — next time it is in the list.';
+            }
+        }
+
+        function rememberSalesPersonLocally(name) {
+            const clean = (name || '').toString().trim();
+            if (!clean) return;
+            if (salesPersonOptions.some((n) => n.toLowerCase() === clean.toLowerCase())) return;
+            salesPersonOptions.push(clean);
+            renderSalesPersonOptions();
+        }
+
+        function loadSalesPersons() {
+            if (!isSalesPersonClient()) return;
+            fetch(apiUrl('/api/sales-persons'))
+                .then((r) => (r.ok ? r.json() : null))
+                .then((payload) => {
+                    if (!payload || !payload.enabled) return;
+                    salesPersonOptions = Array.isArray(payload.salesPersons) ? payload.salesPersons : [];
+                    renderSalesPersonOptions();
+                })
+                // A missing list is a missing convenience, not a broken form:
+                // the field still accepts a typed name.
+                .catch((err) => console.warn('Could not load sales persons:', err));
+        }
+
+        function applySalesPersonUI(username = currentUsername) {
+            const wrapper = document.getElementById('sales-person-wrapper');
+            const enabled = isSalesPersonClient(username);
+            if (wrapper) {
+                wrapper.classList.toggle('hidden', !enabled);
+                if (!enabled) {
+                    const input = document.getElementById('sales-person');
+                    if (input) input.value = '';
+                }
+            }
+            const phoneWrapper = document.getElementById('buyer-phone-wrapper');
+            if (phoneWrapper) {
+                const phoneEnabled = isBuyerPhoneClient(username);
+                phoneWrapper.classList.toggle('hidden', !phoneEnabled);
+                if (!phoneEnabled) {
+                    const phone = document.getElementById('buyer-phone');
+                    if (phone) phone.value = '';
+                }
+            }
+            if (enabled) loadSalesPersons();
+        }
+
+        // Salon Marketings file everything under SRO 297(I)/2023, so every
+        // line of every invoice of theirs carries the same schedule and serial
+        // and starts on scenario SN024. Same shape as the 3075270 and
+        // 3520299316743 SRO special cases that already exist below: the figures
+        // are fixed here, the inputs are locked, and invoice_form_routes.py
+        // writes them again on the server so a hidden field is not the only
+        // thing holding the rule up.
+        const SRO_297_CLIENTS = new Set([
+            '3520223163127',  // Salon Marketings
+        ]);
+        const SRO_297_SCHEDULE = '297(I)/2023-Table-I';
+        const SRO_297_ITEM_SERIAL = '12';
+        const SRO_297_SCENARIO = 'SN024';
+        // Exactly as FBR spells it in the transaction-types list -- note the
+        // pipe, which is theirs, not a typo. scenarioToSaleType['SN024'] above
+        // must stay identical or the dropdown will not match.
+        const SRO_297_SALE_TYPE = 'Goods as per SRO.297(|)/2023';
+
+        function isSro297Client(username = currentUsername) {
+            return SRO_297_CLIENTS.has((username || '').toString().trim());
+        }
+
+        // Put the scenario on SN024 and the sale type on its SRO 297 value.
+        // Safe to call more than once and in either order with the form
+        // options arriving: whichever of the two lands last does the work.
+        function applySro297Defaults(username = currentUsername) {
+            if (!isSro297Client(username)) return;
+
+            const scenarioSelect = document.getElementById('scenario-id');
+            // Only in sandbox -- production has no scenario field at all.
+            if (scenarioSelect && scenarioSelect.options.length > 1 && !scenarioSelect.value) {
+                for (let i = 0; i < scenarioSelect.options.length; i++) {
+                    if (scenarioSelect.options[i].value === SRO_297_SCENARIO) {
+                        scenarioSelect.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            // The sale type is set directly rather than left to
+            // syncSaleTypeWithScenario, because in production there is no
+            // scenario to sync from and the answer is the same either way.
+            ['product-sale-type', 'pm-sale-type'].forEach((id) => {
+                const select = document.getElementById(id);
+                if (!select || !select.options.length) return;
+                for (let i = 0; i < select.options.length; i++) {
+                    if (select.options[i].value === SRO_297_SALE_TYPE) {
+                        select.selectedIndex = i;
+                        break;
+                    }
+                }
+            });
+
+            setSRODefaults(username);
         }
 
         const FURTHER_TAX_CLIENTS = new Set(['0946915', '2853653']);
@@ -2261,6 +2430,7 @@
                         Array.isArray(invoiceData.customFields) ? invoiceData.customFields : []
                     ),
                     signatureArea: normalizeSignatureArea(invoiceData.signatureArea),
+                    salesPerson: invoiceData.salesPerson || '',
                 };
 
                 // Populate seller data
@@ -2308,7 +2478,12 @@
                     document.getElementById('buyer-address').value = invoiceData.buyerData.buyerAddress || '';
                     document.getElementById('buyer-registration-type').value = invoiceData.buyerData.buyerRegistrationType || '';
                     document.getElementById('buyer-code').value = invoiceData.buyerData.buyerCode || '';
+                    const draftPhoneEl = document.getElementById('buyer-phone');
+                    if (draftPhoneEl) draftPhoneEl.value = invoiceData.buyerData.buyerPhone || '';
                 }
+
+                const draftSalesPersonEl = document.getElementById('sales-person');
+                if (draftSalesPersonEl) draftSalesPersonEl.value = state.invoiceData.salesPerson;
 
                 // Populate product items with correct field mapping
                 state.productItems = []; // Clear existing items
@@ -2580,6 +2755,10 @@
             const taxRate = document.getElementById("product-tax-rate");
             populateSelect(taxRate, state.formOptions.taxRates);
 
+            // The scenario and sale-type lists have just been (re)built, which
+            // drops any selection made before they arrived.
+            applySro297Defaults();
+
             // Populate sale type from FBR API
             const productSaleType = document.getElementById("product-sale-type");
             if (productSaleType && state.formOptions.saleTypes) {
@@ -2766,6 +2945,8 @@
                 buyer.registration_type || "";
             document.getElementById("buyer-code").value = buyer.buyer_code || "";
             document.getElementById("buyer-address").value = buyer.address || "";
+            const buyerPhoneField = document.getElementById("buyer-phone");
+            if (buyerPhoneField) buyerPhoneField.value = buyer.phone || "";
 
             // Update state
             state.buyerData = {
@@ -2777,6 +2958,7 @@
                 buyerAddress: buyer.address,
                 buyerRegistrationType: buyer.registration_type,
                 buyerCode: buyer.buyer_code,
+                buyerPhone: buyer.phone || "",
             };
 
             syncFurtherTaxDefaults();
@@ -2813,7 +2995,8 @@
             // the hardcoded literal below, ignoring the user's selection.
             const scenarioId = document.getElementById("scenario-id")?.value;
             const selectedSaleType = (document.getElementById("product-sale-type")?.value || "").trim();
-            const saleType = scenarioToSaleType[scenarioId]
+            const saleType = (isSro297Client() ? SRO_297_SALE_TYPE : '')
+                || scenarioToSaleType[scenarioId]
                 || selectedSaleType
                 || 'Goods at standard rate';
 
@@ -2821,7 +3004,10 @@
             let sroScheduleNo = '';
             let sroItemSerialNo = '';
 
-            if (currentUsername === '3075270') {
+            if (isSro297Client()) {
+                sroScheduleNo = SRO_297_SCHEDULE;
+                sroItemSerialNo = SRO_297_ITEM_SERIAL;
+            } else if (currentUsername === '3075270') {
                 sroScheduleNo = 'EIGHTH SCHEDULE Table 1';
                 sroItemSerialNo = '81';
             } else if (currentUsername === '3520299316743' && scenarioId === 'SN006') {
@@ -3636,6 +3822,14 @@
                         sellerAddress: sellerAddress,
                     };
 
+                    // Kept on invoiceData rather than sellerData: it belongs to
+                    // this invoice, not to the saved business profile.
+                    if (isSalesPersonClient()) {
+                        const salesPersonEl = document.getElementById("sales-person");
+                        state.invoiceData = state.invoiceData || {};
+                        state.invoiceData.salesPerson = salesPersonEl ? salesPersonEl.value.trim() : "";
+                    }
+
                     return true;
 
 
@@ -3676,12 +3870,17 @@
                     }
 
                     // Update state - use hidden field value for invoice type
+                    // Step 1 put the sale person here, and this assignment
+                    // replaces the whole object -- read it back first or going
+                    // Back and Next again would silently drop the name.
+                    const carriedSalesPerson = (state.invoiceData || {}).salesPerson || "";
                     state.invoiceData = {
                         invoiceType: document.getElementById("invoice-type-hidden").value, // "Sale Invoice"
                         invoiceDate: invoiceDate,
                         invoiceRefNo: document.getElementById("invoice-ref-no").value,
                         customFields: getCustomFieldsFromDOM(),
                         signatureArea: readSignatureAreaFromDOM(),
+                        salesPerson: carriedSalesPerson,
                     };
 
                     // Add delivery challan for specific user
@@ -3732,6 +3931,7 @@
                     }
 
                     // Update state
+                    const buyerPhoneEl = document.getElementById("buyer-phone");
                     state.buyerData = {
                         buyerBusinessName: buyerName,
                         buyerNTNCNIC: buyerNtn,
@@ -3740,6 +3940,7 @@
                         buyerAddress: buyerAddress,
                         buyerRegistrationType: buyerRegType,
                         buyerCode: document.getElementById("buyer-code").value,
+                        buyerPhone: isBuyerPhoneClient() && buyerPhoneEl ? buyerPhoneEl.value.trim() : "",
                     };
 
                     syncFurtherTaxDefaults();
@@ -3806,6 +4007,11 @@
                     invoiceData.dnNumber = state.invoiceData.dnNumber || "";
                 }
 
+                // Only the clients whose sheet prints it send it at all.
+                if (isSalesPersonClient()) {
+                    invoiceData.salesPerson = (state.invoiceData.salesPerson || "").trim();
+                }
+
                 if (saveDraft) {
                     if (extraOptions.title) {
                         invoiceData.title = extraOptions.title;
@@ -3832,6 +4038,12 @@
                 });
 
                 const result = await response.json();
+
+                if (response.ok && isSalesPersonClient()) {
+                    // The server has just stored it; mirroring it here keeps
+                    // the datalist right without re-fetching.
+                    rememberSalesPersonLocally(state.invoiceData.salesPerson);
+                }
 
                 if (!response.ok) {
                     throw new Error(result.error || "Failed to submit invoice");
@@ -4655,6 +4867,22 @@
                 // Hard-coded defaults per original logic
                 schedEl.value = 'EIGHTH SCHEDULE Table 1';
                 itemEl.value = '81';
+            } else if (isSro297Client(username)) {
+                // Fixed for this client on every line of every invoice, so the
+                // boxes are filled and locked rather than left to be retyped.
+                // Readonly, not disabled: a disabled input reads back as "" and
+                // these are the figures that get filed.
+                schedEl.value = SRO_297_SCHEDULE;
+                itemEl.value = SRO_297_ITEM_SERIAL;
+                [schedEl, itemEl].forEach((el) => {
+                    el.readOnly = true;
+                    el.classList.add('bg-gray-100', 'text-gray-700', 'cursor-not-allowed');
+                });
+                const saleTypeEl = document.getElementById('product-sale-type');
+                if (saleTypeEl) {
+                    saleTypeEl.disabled = true;
+                    saleTypeEl.classList.add('bg-gray-100', 'text-gray-700', 'cursor-not-allowed');
+                }
             }
         }
 

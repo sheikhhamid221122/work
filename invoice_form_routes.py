@@ -26,8 +26,127 @@ REAMS_USERNAMES = {
 }
 
 
+# The clients whose invoice carries a "Sale Person" line, and whose Seller
+# step therefore offers the field. Like the reams count it is a figure they
+# want printed and nothing else -- no total is derived from it, and app.py
+# keeps it out of the FBR payload, whose schema has no such field. The names
+# typed here are remembered per client in clients.sales_persons so the same
+# handful can be picked again instead of retyped.
+SALES_PERSON_USERNAMES = {
+    "3520223163127",  # Salon Marketings
+}
+
+# How many remembered names a client keeps. A shop has a few sales staff, not
+# hundreds; a cap stops a typo-ridden list growing without bound.
+SALES_PERSONS_MAX = 50
+SALES_PERSON_MAX_LEN = 60
+
+
+# Clients who file everything under SRO 297(I)/2023. Every line of every
+# invoice of theirs carries the same schedule and serial and the same sale
+# type, so the form fills and locks the fields and this module writes them
+# again here. The form is a convenience; this is the rule. Without it a stale
+# tab, a restored draft or anything that posts straight to the API could file
+# a line with a blank or wrong SRO.
+SRO_297_USERNAMES = {
+    "3520223163127",  # Salon Marketings
+}
+SRO_297_SCHEDULE = "297(I)/2023-Table-I"
+SRO_297_ITEM_SERIAL = "12"
+# Exactly as FBR spells it in the transaction types list (DI API 5.5). The pipe
+# is theirs, not a typo -- it must match scenarioToSaleType['SN024'] in
+# create-invoice.html, or the dropdown and the payload disagree.
+SRO_297_SALE_TYPE = "Goods as per SRO.297(|)/2023"
+
+
 def _is_special_username(username):
     return (username or "").strip() in SPECIAL_USERNAMES
+
+
+def _wants_sro_297(username):
+    return (username or "").strip() in SRO_297_USERNAMES
+
+
+def _wants_sales_person(username):
+    return (username or "").strip() in SALES_PERSON_USERNAMES
+
+
+def _normalize_sales_person(value):
+    """One sales person's name as it should print, or "" for none."""
+    return " ".join(str(value if value is not None else "").split())[:SALES_PERSON_MAX_LEN]
+
+
+def _normalize_sales_persons(values):
+    """The remembered list: trimmed, de-duplicated case-insensitively, capped.
+
+    Order is preserved so the list reads in the order the client built it
+    rather than being re-sorted under them between invoices.
+    """
+    if not isinstance(values, (list, tuple)):
+        return []
+    seen = set()
+    names = []
+    for value in values:
+        name = _normalize_sales_person(value)
+        if not name or name.lower() in seen:
+            continue
+        seen.add(name.lower())
+        names.append(name)
+        if len(names) >= SALES_PERSONS_MAX:
+            break
+    return names
+
+
+def _column_exists(cur, table, column):
+    """Whether a column is actually present.
+
+    The migration that adds it is applied by hand on the live database, so a
+    deploy can run ahead of it. Every read of these columns is guarded, which
+    turns "the schema is behind" into the feature being quietly unavailable
+    instead of a 500 on a page everyone uses.
+    """
+    cur.execute(
+        """
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = %s AND column_name = %s
+        """,
+        (table, column),
+    )
+    return cur.fetchone() is not None
+
+
+def _buyer_phone_supported(cur):
+    return _column_exists(cur, "buyers", "phone")
+
+
+# Public, because the Buyers page in master_data_routes.py asks the same two
+# questions and the answer must not be allowed to drift between the two pages.
+buyer_phone_column_exists = _buyer_phone_supported
+
+
+def buyer_phone_enabled(cur, client_id):
+    """Whether this client's Buyers page should offer the Phone field."""
+    cur.execute(
+        """
+        SELECT u.username
+        FROM users u
+        JOIN clients c ON u.id = c.user_id
+        WHERE c.id = %s
+        """,
+        (client_id,),
+    )
+    row = cur.fetchone()
+    # Same clients, same reason: their replica is the only one that prints it.
+    return _wants_sales_person(row[0] if row else None) and _buyer_phone_supported(cur)
+
+
+def _normalize_phone(value):
+    """A buyer's phone as typed, collapsed and capped. Never validated.
+
+    Pakistani numbers are written half a dozen ways and this one is printed,
+    never dialled or filed, so rejecting a shape would only get in the way.
+    """
+    return " ".join(str(value if value is not None else "").split())[:40]
 
 
 def _wants_reams(username):
@@ -370,9 +489,13 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             return jsonify({"error": "No client ID in session"}), 401
         conn = get_db_connection()
         cur = conn.cursor()
+        # phone is selected only when the column exists, so a deploy that runs
+        # ahead of its migration still lists buyers instead of 500ing.
+        has_phone = _buyer_phone_supported(cur)
         cur.execute(
-            """
-            SELECT id, business_name, address, province, ntn_cnic, strn, registration_type, buyer_code, is_default 
+            f"""
+            SELECT id, business_name, address, province, ntn_cnic, strn, registration_type, buyer_code, is_default,
+                   {'phone' if has_phone else "''"}
             FROM buyers 
             WHERE client_id = %s 
             ORDER BY is_default DESC, business_name
@@ -390,6 +513,7 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                 "registration_type": r[6],
                 "buyer_code": r[7],
                 "is_default": r[8],
+                "phone": r[9] or "",
             }
             for r in cur.fetchall()
         ]
@@ -440,12 +564,13 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                     "UPDATE buyers SET is_default = FALSE WHERE client_id = %s",
                     (client_id,),
                 )
+            has_phone = _buyer_phone_supported(cur)
             cur.execute(
-                """
+                f"""
                 INSERT INTO buyers
                   (client_id, business_name, address, province, ntn_cnic, strn,
-                   registration_type, buyer_code, is_default)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                   registration_type, buyer_code, is_default{', phone' if has_phone else ''})
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s{',%s' if has_phone else ''})
                 RETURNING id
                 """,
                 (
@@ -458,7 +583,7 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                     data.get("registration_type", "Unregistered"),
                     buyer_code,
                     data.get("is_default", False),
-                ),
+                ) + ((_normalize_phone(data.get("phone")),) if has_phone else ()),
             )
             new_id = cur.fetchone()[0]
             conn.commit()
@@ -544,12 +669,15 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                 "buyer_code",
                 "is_default",
             ]
+            if _buyer_phone_supported(cur):
+                fields.append("phone")
             updates = []
             values = []
             for field in fields:
                 if field in data:
                     updates.append(f"{field} = %s")
-                    values.append(data[field] if data[field] is not None else "")
+                    value = data[field] if data[field] is not None else ""
+                    values.append(_normalize_phone(value) if field == "phone" else value)
             
             if not updates:
                 return jsonify({"error": "No fields to update"}), 400
@@ -1063,6 +1191,102 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         # Enabled for all users
         return jsonify({"useProductDropdown": True, "username": username})
 
+    # ---------------- Sales persons ----------------
+    # Only the clients in SALES_PERSON_USERNAMES print a "Sale Person" line,
+    # so only they are offered the field. For everyone else these endpoints
+    # answer "disabled, empty list" and nothing in their form changes.
+
+    def _sales_persons_state(cur, client_id):
+        """(enabled, names) for this client, tolerant of a missing column."""
+        cur.execute(
+            """
+            SELECT u.username
+            FROM users u
+            JOIN clients c ON u.id = c.user_id
+            WHERE c.id = %s
+            """,
+            (client_id,),
+        )
+        row = cur.fetchone()
+        enabled = _wants_sales_person(row[0] if row else None)
+        if not enabled or not _column_exists(cur, "clients", "sales_persons"):
+            return enabled, []
+        cur.execute("SELECT sales_persons FROM clients WHERE id = %s", (client_id,))
+        row = cur.fetchone()
+        return enabled, _normalize_sales_persons(row[0] if row else [])
+
+    def _remember_sales_person(cur, client_id, name):
+        """Add a newly typed name to this client's remembered list.
+
+        Called from the invoice create path, which is the whole point of the
+        feature: the client types a name once and picks it from then on. A
+        name already on the list is left exactly where it is -- reordering it
+        would move the entries around under someone mid-invoice.
+        """
+        if not name or not _column_exists(cur, "clients", "sales_persons"):
+            return
+        cur.execute("SELECT sales_persons FROM clients WHERE id = %s", (client_id,))
+        row = cur.fetchone()
+        names = _normalize_sales_persons(row[0] if row else [])
+        if any(existing.lower() == name.lower() for existing in names):
+            return
+        cur.execute(
+            "UPDATE clients SET sales_persons = %s WHERE id = %s",
+            (Json(_normalize_sales_persons(names + [name])), client_id),
+        )
+
+    @app.route("/api/sales-persons", methods=["GET"])
+    def get_sales_persons():
+        client_id = session.get("client_id")
+        if not client_id:
+            return jsonify({"error": "No client ID in session"}), 401
+        conn = get_db_connection()
+        cur = conn.cursor()
+        try:
+            enabled, names = _sales_persons_state(cur, client_id)
+            return jsonify({"enabled": enabled, "salesPersons": names})
+        finally:
+            cur.close()
+            conn.close()
+
+    @app.route("/api/sales-persons", methods=["PUT"])
+    def update_sales_persons():
+        """Replace the remembered list -- used to correct or remove a name.
+
+        Adding one is not done here: a name is remembered automatically when
+        an invoice is created with it.
+        """
+        client_id = session.get("client_id")
+        if not client_id:
+            return jsonify({"error": "No client ID in session"}), 401
+        data = request.get_json() or {}
+        names = _normalize_sales_persons(data.get("salesPersons") or [])
+
+        conn = get_db_connection()
+        cur = conn.cursor()
+        try:
+            enabled, _ = _sales_persons_state(cur, client_id)
+            if not enabled:
+                return jsonify({"error": "Sales persons are not enabled for this account"}), 403
+            if not _column_exists(cur, "clients", "sales_persons"):
+                return jsonify({"error": "Database is missing clients.sales_persons -- "
+                                         "run scripts/migrate.py"}), 503
+            cur.execute(
+                "UPDATE clients SET sales_persons = %s WHERE id = %s RETURNING id",
+                (Json(names), client_id),
+            )
+            if not cur.fetchone():
+                conn.rollback()
+                return jsonify({"error": "Client not found"}), 404
+            conn.commit()
+            return jsonify({"success": True, "salesPersons": names})
+        except Exception as exc:
+            conn.rollback()
+            return jsonify({"error": f"Failed to save sales persons: {exc}"}), 500
+        finally:
+            cur.close()
+            conn.close()
+
     # ---------------- Invoice Custom Field Defaults ----------------
     @app.route("/api/invoice-custom-field-defaults", methods=["GET"])
     def get_invoice_custom_field_defaults():
@@ -1425,6 +1649,29 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         username = row[0] if row else None
         is_special_user = _is_special_username(username)
         wants_reams = _wants_reams(username)
+        # Printed on the clients whose replica has a "Sale Person" line, and
+        # remembered for them so the name can be picked next time. Nobody
+        # else's invoice carries it, so nobody else's payload does either.
+        # Both of this client's printed-only fields are gated on the server as
+        # well as in the form. The form hides them for everyone else, but a
+        # hidden field is a UI decision and this is the rule: a client whose
+        # replica does not print them never has them on their invoice.
+        prints_extra_fields = _wants_sales_person(username)
+        fixed_sro_297 = _wants_sro_297(username)
+        sales_person = (
+            _normalize_sales_person(data.get("salesPerson"))
+            if prints_extra_fields
+            else ""
+        )
+        if sales_person:
+            try:
+                _remember_sales_person(cur, client_id, sales_person)
+                conn.commit()
+            except Exception as exc:
+                # Remembering the name is a convenience. Failing to remember it
+                # must never stop the invoice being filed.
+                conn.rollback()
+                print(f"[Invoice] Could not remember sales person {sales_person!r}: {exc}")
         cur.close()
         conn.close()
         
@@ -1505,6 +1752,15 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             "customFields": custom_fields,
             "signatureArea": signature_area,
         }
+
+        # PDF-only, both of them: FBR's invoice schema has neither field, and
+        # app.py strips them again on the way out. They are here so they are
+        # stored with the invoice and the PDF can be re-rendered from the row.
+        if sales_person:
+            invoice_json["salesPerson"] = sales_person
+        buyer_phone = _normalize_phone(buyer.get("buyerPhone")) if prints_extra_fields else ""
+        if buyer_phone:
+            invoice_json["buyerPhone"] = buyer_phone
 
         if username == "8974121" and data.get("CNIC"):
             invoice_json["CNIC"] = data["CNIC"]
@@ -1602,6 +1858,14 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                     else:
                         item[f] = default
 
+                # Fixed for this client, on every line, whatever the form
+                # sent. Applied after the defaults loop above, which is what
+                # would otherwise copy sroScheduleNo straight from the payload.
+                if fixed_sro_297:
+                    item["sroScheduleNo"] = SRO_297_SCHEDULE
+                    item["sroItemSerialNo"] = SRO_297_ITEM_SERIAL
+                    item["saleType"] = SRO_297_SALE_TYPE
+
                 if is_special_user:
                     item["hs_code"] = item_data.get("hs_code") or item_data.get("hsCode") or ""
                     item["product_code"] = item_data.get("product_code") or item_data.get("productCode") or ""
@@ -1687,6 +1951,7 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                 "items": data["items"],
                 "customFields": custom_fields,
                 "signatureArea": signature_area,
+                "salesPerson": sales_person,
                 "client_id": client_id,
                 "created_env": env,
                 "totalAmount": sum(i["totalValues"] for i in items_list),

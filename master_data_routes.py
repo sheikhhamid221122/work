@@ -30,6 +30,7 @@ from decimal import Decimal
 
 from flask import jsonify, render_template, request, send_file, session, current_app
 
+import invoice_form_routes as ifr
 import master_data as md
 from fbr_reference_routes import canonical_province, fetch_provinces
 
@@ -294,10 +295,17 @@ def add_master_data_routes(app, get_db_connection, get_env):
         conn = get_db_connection()
         cur = conn.cursor()
         try:
+            # Only the clients whose invoice replica prints a Phone row are
+            # offered the field; for everyone else the page is unchanged. The
+            # column is read only when it exists, so a deploy ahead of its
+            # migration degrades to "no phones" instead of 500ing the page.
+            phone_enabled = ifr.buyer_phone_enabled(cur, client_id)
+            has_phone = ifr.buyer_phone_column_exists(cur)
             cur.execute(
-                """
+                f"""
                 SELECT id, business_name, address, province, ntn_cnic, strn,
-                       registration_type, buyer_code, is_default
+                       registration_type, buyer_code, is_default,
+                       {'phone' if has_phone else "''"}
                 FROM buyers WHERE client_id = %s
                 ORDER BY business_name
                 """,
@@ -306,7 +314,7 @@ def add_master_data_routes(app, get_db_connection, get_env):
             buyers = [
                 {"id": r[0], "business_name": r[1] or "", "address": r[2] or "", "province": r[3] or "",
                  "ntn_cnic": r[4] or "", "strn": r[5] or "", "registration_type": r[6] or "",
-                 "buyer_code": r[7] or "", "is_default": bool(r[8]),
+                 "buyer_code": r[7] or "", "is_default": bool(r[8]), "phone": r[9] or "",
                  "invoices": 0, "revenue": Decimal("0"), "last_invoice": None}
                 for r in cur.fetchall()
             ]
@@ -336,6 +344,7 @@ def add_master_data_routes(app, get_db_connection, get_env):
 
             return jsonify({
                 "buyers": buyers,
+                "phone_enabled": phone_enabled,
                 "next_code": md.peek_next_code(cur, "buyers", "buyer_code", md.BUYER_CODE_PREFIX, client_id),
                 "summary": {
                     "total": len(buyers),
