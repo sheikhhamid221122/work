@@ -21,6 +21,7 @@ import base64
 import datetime
 import io
 import os
+import re
 import sys
 import unittest
 from html.parser import HTMLParser
@@ -30,6 +31,7 @@ sys.path.insert(0, ROOT)
 
 from flask import Flask, render_template  # noqa: E402
 
+import advance_tax  # noqa: E402
 import invoice_templates  # noqa: E402
 
 # template file -> the client it was built for. Add a row when you build one.
@@ -229,6 +231,104 @@ class ReamsColumn(unittest.TestCase):
             without = render(template)
             self.assertEqual(
                 without, with_figure.replace(f">{REAMS}<", "><"), template)
+
+
+class AdvanceTax(unittest.TestCase):
+    """Salon Marketings' printed-only Advance Tax u/s 236(h).
+
+    It is income tax the seller collects from a registered buyer, shown on
+    the buyer's copy of the invoice and never filed -- so the test that
+    matters most here is the one proving the FILED figures are untouched.
+    """
+
+    TEMPLATE = "invoice_salon_marketings.html"
+
+    def payload(self, **overrides):
+        data = dict(PAYLOAD)
+        data.update(overrides)
+        return advance_tax.apply(data, CLIENT_TEMPLATES[self.TEMPLATE])
+
+    def test_the_default_rate_is_half_a_percent_of_the_value_including_tax(self):
+        data = self.payload()
+        # 150,779.00 * 0.5% = 753.895 -> 753.90, half-up.
+        self.assertEqual(753.90, data["advanceTaxAmount"])
+        self.assertEqual(151532.90, data["totalWithAdvanceTax"])
+
+    def test_the_rate_is_the_users_to_set(self):
+        data = self.payload(advanceTaxPercent="1.5")
+        self.assertEqual(2261.69, data["advanceTaxAmount"])
+        self.assertIn("1.5%", render(self.TEMPLATE, data))
+
+    def test_a_zero_rate_leaves_the_line_off(self):
+        data = self.payload(advanceTaxPercent=0)
+        self.assertNotIn("showAdvanceTax", data)
+        self.assertNotIn(advance_tax.LABEL, render(self.TEMPLATE, data))
+
+    def test_an_unregistered_buyer_gets_no_advance_tax(self):
+        data = self.payload(buyerRegistrationType="Unregistered")
+        self.assertNotIn("showAdvanceTax", data)
+        self.assertNotIn(advance_tax.LABEL, render(self.TEMPLATE, data))
+
+    def test_nothing_that_is_filed_changes(self):
+        # The whole point: FBR holds a sales tax invoice that ends at the
+        # Total row. If any of these moved, the printed sheet and the filed
+        # record would disagree.
+        data = self.payload()
+        for key in ("totalExcl", "totalTax", "totalInclusive"):
+            self.assertEqual(PAYLOAD[key], data[key], key)
+        self.assertEqual(PAYLOAD["items"], data["items"])
+
+    def test_the_amount_in_words_is_the_figure_the_buyer_pays(self):
+        data = self.payload()
+        self.assertIn("one hundred and fifty-one thousand", data["amountInWords"])
+        self.assertIn("Fifty-One Thousand", render(self.TEMPLATE, data))
+
+    def test_the_line_and_the_new_total_both_print(self):
+        markup = render(self.TEMPLATE, self.payload())
+        self.assertIn(advance_tax.LABEL, markup)
+        self.assertIn("753.90", markup)
+        self.assertIn("Total Value Including Taxes", markup)
+        self.assertIn("151,532.90", markup)
+
+    def test_no_other_replica_grows_the_line(self):
+        # A client who did not ask for it must not get it, whatever the
+        # payload happens to carry.
+        data = dict(PAYLOAD, showAdvanceTax=True, advanceTaxLabel=advance_tax.LABEL,
+                    advanceTaxRateLabel="0.5%", advanceTaxAmount=753.90,
+                    totalWithAdvanceTax=151532.90)
+        for template in set(CLIENT_TEMPLATES) - {self.TEMPLATE}:
+            self.assertNotIn(advance_tax.LABEL, render(template, data), template)
+
+    def test_only_the_listed_clients_have_the_line_applied_at_all(self):
+        for template, username in CLIENT_TEMPLATES.items():
+            data = advance_tax.apply(dict(PAYLOAD), username)
+            self.assertEqual(
+                template == self.TEMPLATE,
+                bool(data.get("showAdvanceTax")),
+                template)
+
+    def test_the_derived_figures_never_reach_the_stored_payload(self):
+        # Only the rate is stored; everything else is recomputed at render
+        # time, so re-printing an old invoice reproduces the same sheet.
+        data = self.payload()
+        advance_tax.strip_derived(data)
+        for key in advance_tax.DERIVED_KEYS:
+            self.assertNotIn(key, data, key)
+        self.assertIn("advanceTaxPercent", data)
+
+    def test_the_rate_the_form_offers_is_the_rate_the_server_uses(self):
+        # The one copy of the client list that cannot import advance_tax.py
+        # is the set in the create-invoice form. It drifting is how the form
+        # ends up offering a field the sheet does not print.
+        form = io.open(os.path.join(ROOT, "templates", "create-invoice.html"),
+                       encoding="utf-8").read()
+        block = form.split("const ADVANCE_TAX_CLIENTS = new Set([")[1].split("]);")[0]
+        self.assertEqual(
+            advance_tax.ADVANCE_TAX_USERNAMES,
+            set(re.findall(r"'([^']+)'", block)))
+        self.assertIn(
+            "const ADVANCE_TAX_DEFAULT_PERCENT = %s;" % advance_tax.DEFAULT_PERCENT,
+            form)
 
 
 class ComplianceMarks(unittest.TestCase):

@@ -32,6 +32,16 @@
   Their old sheet carried none of these; it was not a sales tax invoice.
   tests/test_client_templates.py fails if any of them is dropped.
 
+  Advance Tax u/s 236(h)
+  ----------------------
+  Income tax the client collects from a REGISTERED buyer -- 0.5% of the value
+  including sales tax by default, at a rate they set per invoice. It is shown
+  on the buyer's copy and is NOT filed: the sales tax invoice FBR holds ends
+  at the Total row, and the 236(h) line is printed below it, adding to it
+  without changing it. The amount in words is the figure after it, because
+  that is what the buyer pays. See advance_tax.py, which decides whether the
+  line appears and computes it; this sheet only draws it.
+
   Their phone number and email address are fixed text: neither is in the
   invoice payload, so neither can be printed live. Change them here if the
   client's change. Their ADDRESS is not fixed text -- it is an FBR field and
@@ -156,6 +166,12 @@
        two-line invoice does not leave the totals row floating up the page. */
     .items td.filler { height: 5.2mm; }
     .items tr.totals td { font-weight: bold; background: #f2f2f2; }
+    /* The 236(h) line is a collection, not part of the invoice total above
+       it, so it reads as an addition rather than another column figure: the
+       label sits right, against its amount. The grand total is ruled off
+       the way their old sheet boxed it. */
+    .items tr.advance td.desc, .items tr.grand td.desc { text-align: right; }
+    .items tr.grand td { border-top: 1.2px solid #000; }
 
     /* ---- Amount in words --------------------------------------------- */
     .words {
@@ -310,13 +326,36 @@
           <td>{{ data.totalTax | comma_format }}</td>
           <td>{{ data.totalInclusive | comma_format }}</td>
         </tr>
+
+        {#- Advance Tax u/s 236(h). Income tax the client collects from a
+            REGISTERED buyer at a rate they set (0.5% by default), shown on
+            the buyer's copy only -- it is not part of the sales tax invoice
+            that was filed, so it sits BELOW the Total row and adds nothing
+            to the figures above it. advance_tax.py decides whether it
+            appears; this template only draws it. The two rows span six
+            columns and one, so the box stays seven cells wide. -#}
+        {% if data.showAdvanceTax %}
+          <tr class="totals advance">
+            <td class="desc" colspan="6">
+              {{ data.advanceTaxLabel }} @ {{ data.advanceTaxRateLabel }}
+            </td>
+            <td>{{ data.advanceTaxAmount | comma_format }}</td>
+          </tr>
+          <tr class="totals grand">
+            <td class="desc" colspan="6">Total Value Including Taxes</td>
+            <td>{{ data.totalWithAdvanceTax | comma_format }}</td>
+          </tr>
+        {% endif %}
       </tbody>
     </table>
 
     {# ------------------------------------------------- amount in words #}
     <div class="words">
       {#- app.py already ends the phrase with "only"; title-casing is all this
-          line adds, because their sheet prints it that way. -#}
+          line adds, because their sheet prints it that way. When the 236(h)
+          line applies, advance_tax.py has already re-spelled this from the
+          total AFTER it -- the figure the buyer actually pays, which is what
+          the client asked to see written out. -#}
       Pak Rupees: {{ (data.amountInWords or '') | title }}
     </div>
 

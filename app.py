@@ -7,6 +7,7 @@ from shell_routes import add_shell_routes
 from master_data_routes import add_master_data_routes
 from reports_overview_routes import add_reports_overview_routes
 import invoice_templates
+import advance_tax
 from compliance import (
     apply_compliance,
     get_profile,
@@ -612,6 +613,11 @@ def generate_form_invoice():
         amount_in_words += " only"
         data["amountInWords"] = amount_in_words
 
+        # Advance Tax u/s 236(h): printed for one client, on registered
+        # buyers, at a rate they set. It adds a line below the totals and
+        # re-spells the amount in words; the filed figures are untouched.
+        advance_tax.apply(data, username)
+
         # Generate QR Code as base64
         qr_base64 = ""
         fbr_invoice = data.get("fbrInvoiceNumber", "")
@@ -656,6 +662,7 @@ def generate_form_invoice():
             item.pop("furtherTaxPercent", None)
         clean_payload.pop("totalFurtherTax", None)
         clean_payload.pop("showFurtherTax", None)
+        advance_tax.strip_derived(clean_payload)
         last_json_data[env] = clean_payload
 
         print(
@@ -1155,6 +1162,11 @@ def generate_invoice_pdf_for_client(invoice_data_raw, client_id):
         )
         data["amountInWords"] = amount_in_words
 
+        # See the same call in generate_form_invoice: the 236(h) line is
+        # derived here rather than stored, so re-printing an old invoice from
+        # its row reproduces the sheet it was printed as.
+        advance_tax.apply(data, username)
+
         # Ensure PO/DN fields exist
         if "PO" not in data:
             data["PO"] = data.get("poNumber", "")
@@ -1267,7 +1279,9 @@ PDF_ONLY_ITEM_FIELDS = frozenset({"numberOfReams"})
 # The same idea one level up: top-level keys a client's replica prints and
 # FBR's invoice schema has no place for. They stay on the stored invoice --
 # the PDF is re-rendered from that row -- and are dropped on the way out.
-PDF_ONLY_INVOICE_FIELDS = ("signatureArea", "salesPerson", "buyerPhone")
+PDF_ONLY_INVOICE_FIELDS = (
+    "signatureArea", "salesPerson", "buyerPhone", "advanceTaxPercent",
+)
 
 
 # ---------------------------------------------------------------------------
@@ -2127,6 +2141,11 @@ def generate_invoice_excel():
                 cur.close()
             if conn:
                 conn.close()
+
+        # Advance Tax u/s 236(h). Later here than on the other two routes
+        # only because this one does not know the username until the queries
+        # above have run; it still lands before the template is rendered.
+        advance_tax.apply(data, username)
 
         # Legacy per-username mapping. This is now only the FALLBACK for a
         # client who has not chosen a template of their own -- their row has
