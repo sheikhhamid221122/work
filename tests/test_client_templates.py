@@ -43,6 +43,9 @@ CLIENT_TEMPLATES = {
     "invoice_saad_enterprises.html": "3520287506167",
     "invoice_power_vision.html": "3740545496385",
     "invoice_bilal_traders.html": "3740549685449",
+    "invoice_bilal_brothers.html": "3740582041351",
+    "invoice_aero_alliance.html": "3740564149343",
+    "invoice_beacon_alliance.html": "3740545582835",
     "invoice_salon_marketings.html": "3520223163127",
 }
 
@@ -326,6 +329,9 @@ class BrandArtwork(unittest.TestCase):
         "invoice_saad_enterprises.html": "brand/3520287506167.html",
         "invoice_power_vision.html": "brand/3740545496385.html",
         "invoice_bilal_traders.html": "brand/3740549685449.html",
+        "invoice_bilal_brothers.html": "brand/3740582041351.html",
+        "invoice_aero_alliance.html": "brand/3740564149343.html",
+        "invoice_beacon_alliance.html": "brand/3740545582835.html",
         "invoice_salon_marketings.html": "brand/3520223163127.html",
     }
 
