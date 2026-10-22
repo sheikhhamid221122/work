@@ -8,6 +8,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from psycopg2.extras import Json
 
 from fbr_reference_routes import canonical_province, fetch_provinces, fetch_transaction_types
+import advance_tax
 import master_data
 
 SPECIAL_USERNAMES = {"H075895", "F667833", "infinityeng"}
@@ -1658,6 +1659,19 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         # replica does not print them never has them on their invoice.
         prints_extra_fields = _wants_sales_person(username)
         fixed_sro_297 = _wants_sro_297(username)
+        # Advance Tax u/s 236(h). The rate is the only part of the line that
+        # is stored -- the amount is derived when the PDF is rendered. Gated
+        # on the server for the same reason the two fields above are: the
+        # form hides the input for everyone else, but a hidden input is a UI
+        # decision, and a client whose sheet does not print the line must not
+        # end up with a rate on their invoice. See advance_tax.py.
+        advance_tax_percent = (
+            advance_tax.normalize_percent(
+                data.get("advanceTaxPercent"), advance_tax.DEFAULT_PERCENT
+            )
+            if advance_tax.prints_advance_tax(username)
+            else None
+        )
         sales_person = (
             _normalize_sales_person(data.get("salesPerson"))
             if prints_extra_fields
@@ -1761,6 +1775,11 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         buyer_phone = _normalize_phone(buyer.get("buyerPhone")) if prints_extra_fields else ""
         if buyer_phone:
             invoice_json["buyerPhone"] = buyer_phone
+        # Stored whatever the buyer's registration type is: whether the line
+        # actually prints is decided at render time, so changing a buyer from
+        # unregistered to registered later still prints the rate they chose.
+        if advance_tax_percent is not None:
+            invoice_json["advanceTaxPercent"] = float(advance_tax_percent)
 
         if username == "8974121" and data.get("CNIC"):
             invoice_json["CNIC"] = data["CNIC"]
@@ -1952,6 +1971,9 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                 "customFields": custom_fields,
                 "signatureArea": signature_area,
                 "salesPerson": sales_person,
+                "advanceTaxPercent": (
+                    float(advance_tax_percent) if advance_tax_percent is not None else None
+                ),
                 "client_id": client_id,
                 "created_env": env,
                 "totalAmount": sum(i["totalValues"] for i in items_list),

@@ -1203,6 +1203,38 @@
                                         <span>Total Amount:</span> PKR
                                         <span id="review-grand-total">0.00</span>
                                     </p>
+                                    <!-- Advance Tax u/s 236(h). Shown only for the
+                                         clients whose invoice prints the line
+                                         (ADVANCE_TAX_CLIENTS in the script below) and
+                                         only for a registered buyer. It is income tax
+                                         the seller collects, printed on the buyer's
+                                         copy; FBR is sent the Total Amount above it,
+                                         unchanged. Set the rate to 0 to leave the line
+                                         off this invoice. -->
+                                    <div id="advance-tax-wrapper"
+                                        class="hidden mt-3 pt-3 border-t border-gray-200">
+                                        <label for="advance-tax-percent"
+                                            class="block font-semibold text-gray-700 mb-1">
+                                            Advance Tax u/s 236(h)
+                                        </label>
+                                        <div class="flex items-center space-x-2">
+                                            <input type="number" id="advance-tax-percent"
+                                                min="0" max="100" step="0.01" value="0.5"
+                                                class="form-input w-24 px-2 py-1 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500" />
+                                            <span class="text-gray-600">% of value including sales tax</span>
+                                        </div>
+                                        <p class="mt-2">
+                                            <span class="font-semibold">Advance Tax:</span> PKR
+                                            <span id="review-advance-tax">0.00</span>
+                                        </p>
+                                        <p class="text-base font-bold mt-1 text-primary-700">
+                                            <span>Total Value Including Taxes:</span> PKR
+                                            <span id="review-total-with-advance-tax">0.00</span>
+                                        </p>
+                                        <p class="ci-pref mt-1" id="advance-tax-hint">
+                                            Printed on the invoice only &mdash; not sent to FBR.
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -2209,6 +2241,75 @@
             if (enabled) loadSalesPersons();
         }
 
+        // Advance Tax u/s 236(h): income tax the seller collects from a
+        // REGISTERED buyer, shown on the buyer's copy of the invoice and
+        // nowhere else. FBR's Digital Invoicing schema is a sales tax
+        // document and has no element for it, so app.py strips the rate from
+        // the payload (PDF_ONLY_INVOICE_FIELDS) and nothing here touches an
+        // item, a tax figure or the Total Amount that is filed.
+        //
+        // Mirrors ADVANCE_TAX_USERNAMES in advance_tax.py, which is what
+        // invoice_form_routes.py and the three PDF routes read. This set is
+        // the one copy that cannot import it.
+        const ADVANCE_TAX_CLIENTS = new Set([
+            '3520223163127',  // Salon Marketings
+        ]);
+        // Section 236(h) is 0.5% for a buyer on the Active Taxpayers List.
+        // It is what the field is pre-filled with, not a fixed rate -- the
+        // same default lives in advance_tax.DEFAULT_PERCENT.
+        const ADVANCE_TAX_DEFAULT_PERCENT = 0.5;
+
+        function isAdvanceTaxClient(username = currentUsername) {
+            return ADVANCE_TAX_CLIENTS.has((username || '').toString().trim());
+        }
+
+        function buyerIsRegistered() {
+            const regType = ((state && state.buyerData && state.buyerData.buyerRegistrationType) || '')
+                .toString().trim().toLowerCase();
+            return regType === 'registered';
+        }
+
+        // The rate as typed, or the default for a blank or unusable entry.
+        // Mirrors advance_tax.normalize_percent(), which is what actually
+        // decides the printed figure.
+        function advanceTaxPercent() {
+            const input = document.getElementById('advance-tax-percent');
+            if (!input) return ADVANCE_TAX_DEFAULT_PERCENT;
+            const raw = (input.value || '').toString().trim();
+            if (raw === '') return ADVANCE_TAX_DEFAULT_PERCENT;
+            const value = Number(raw);
+            if (!isFinite(value) || value < 0 || value > 100) return ADVANCE_TAX_DEFAULT_PERCENT;
+            return roundHalfUp(value, 2);
+        }
+
+        // Fills the review block and returns nothing: the figures here are a
+        // preview of what advance_tax.py will compute, using the same
+        // half-up rounding so the two cannot disagree.
+        function updateAdvanceTaxReview(totalInclusive) {
+            const wrapper = document.getElementById('advance-tax-wrapper');
+            if (!wrapper) return;
+            const shown = isAdvanceTaxClient() && buyerIsRegistered();
+            wrapper.classList.toggle('hidden', !shown);
+            if (!shown) return;
+
+            const percent = advanceTaxPercent();
+            const advance = percentOf(totalInclusive, percent);
+            const advanceEl = document.getElementById('review-advance-tax');
+            const totalEl = document.getElementById('review-total-with-advance-tax');
+            if (advanceEl) advanceEl.textContent = advance.toFixed(2);
+            if (totalEl) totalEl.textContent = (totalInclusive + advance).toFixed(2);
+
+            // A rate of 0 leaves the line off the sheet altogether rather
+            // than printing a zero, so say so instead of showing 0.00 with
+            // no explanation.
+            const hint = document.getElementById('advance-tax-hint');
+            if (hint) {
+                hint.textContent = percent > 0
+                    ? 'Printed on the invoice only — not sent to FBR.'
+                    : 'Rate is 0 — the line will not be printed on the invoice.';
+            }
+        }
+
         // Salon Marketings file everything under SRO 297(I)/2023, so every
         // line of every invoice of theirs carries the same schedule and serial
         // and starts on scenario SN024. Same shape as the 3075270 and
@@ -2484,6 +2585,17 @@
 
                 const draftSalesPersonEl = document.getElementById('sales-person');
                 if (draftSalesPersonEl) draftSalesPersonEl.value = state.invoiceData.salesPerson;
+
+                // The 236(h) rate the draft was saved with. A draft from
+                // before this field existed has none, so the input keeps its
+                // 0.5% default rather than being blanked.
+                const draftAdvanceTaxEl = document.getElementById('advance-tax-percent');
+                if (draftAdvanceTaxEl
+                    && invoiceData.advanceTaxPercent !== undefined
+                    && invoiceData.advanceTaxPercent !== null
+                    && invoiceData.advanceTaxPercent !== '') {
+                    draftAdvanceTaxEl.value = invoiceData.advanceTaxPercent;
+                }
 
                 // Populate product items with correct field mapping
                 state.productItems = []; // Clear existing items
@@ -3692,6 +3804,11 @@
             document.getElementById("review-grand-total").textContent =
                 grandTotal.toFixed(2);
 
+            // The 236(h) line sits under this total and adds to it; it does
+            // not change it. Hidden for everyone but the clients whose sheet
+            // prints it, and for an unregistered buyer.
+            updateAdvanceTaxReview(grandTotal);
+
             // Toggle and set Further Tax in review totals
             const ftRow = document.getElementById("review-further-tax-row");
             const ftVal = document.getElementById("review-further-tax");
@@ -4010,6 +4127,14 @@
                 // Only the clients whose sheet prints it send it at all.
                 if (isSalesPersonClient()) {
                     invoiceData.salesPerson = (state.invoiceData.salesPerson || "").trim();
+                }
+
+                // The rate only. The amount and the new total are derived
+                // again when the PDF is rendered, so an invoice re-printed
+                // later is the same sheet. invoice_form_routes.py ignores
+                // this for any client not in ADVANCE_TAX_CLIENTS.
+                if (isAdvanceTaxClient()) {
+                    invoiceData.advanceTaxPercent = advanceTaxPercent();
                 }
 
                 if (saveDraft) {
@@ -4499,6 +4624,13 @@
             document
                 .getElementById("add-product-item-btn")
                 .addEventListener("click", addProductItem);
+
+            // Advance Tax u/s 236(h): retotal as the rate is typed, so the
+            // figure on screen is the one that will print.
+            const advanceTaxInput = document.getElementById("advance-tax-percent");
+            if (advanceTaxInput) {
+                advanceTaxInput.addEventListener("input", updateReviewSection);
+            }
 
             // Tax calculation helpers
             document
