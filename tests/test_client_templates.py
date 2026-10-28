@@ -34,6 +34,17 @@ from flask import Flask, render_template  # noqa: E402
 import advance_tax  # noqa: E402
 import invoice_templates  # noqa: E402
 
+# Only ZahidSteelPagination needs these: it is the one test here that has to
+# look at real pages rather than at markup. app.py depends on WeasyPrint, so
+# in practice they are always present; the guard just keeps the rest of this
+# module runnable if the PDF stack is ever stripped out of a CI image.
+try:
+    import pypdfium2
+    from PIL import Image
+    from weasyprint import HTML as WeasyHTML
+except Exception:  # pragma: no cover
+    pypdfium2 = Image = WeasyHTML = None
+
 # template file -> the client it was built for. Add a row when you build one.
 CLIENT_TEMPLATES = {
     "invoice_apple_international.html": "3520224169621",
@@ -49,6 +60,7 @@ CLIENT_TEMPLATES = {
     "invoice_aero_alliance.html": "3740564149343",
     "invoice_beacon_alliance.html": "3740545582835",
     "invoice_salon_marketings.html": "3520223163127",
+    "invoice_zahid_steel.html": "J527785",
 }
 
 # The paper clients who asked for a "No. of Reams" column beside the quantity.
@@ -331,6 +343,154 @@ class AdvanceTax(unittest.TestCase):
             form)
 
 
+class ZahidSteelCheckDigit(unittest.TestCase):
+    """Zahid Steel's NTN always prints with its check digit.
+
+    Their seller profile may still hold the bare seven characters, and the
+    client asked for J527785-7 on the face of every sheet. The check digit is
+    derived from those seven, so the printed sheet and the filed record do not
+    actually disagree -- but a template that rewrites an identifier has to be
+    held to a narrow scope, which is what the third test is for.
+    """
+
+    TEMPLATE = "invoice_zahid_steel.html"
+    CANONICAL = "J527785-7"
+
+    def test_the_bare_ntn_prints_with_its_check_digit(self):
+        markup = render(self.TEMPLATE, dict(PAYLOAD, sellerNTNCNIC="J527785"))
+        self.assertIn(self.CANONICAL, markup)
+
+    def test_an_ntn_that_already_carries_it_is_left_alone(self):
+        markup = render(self.TEMPLATE, dict(PAYLOAD, sellerNTNCNIC=self.CANONICAL))
+        self.assertIn(self.CANONICAL, markup)
+        self.assertNotIn("J527785-7-7", markup)
+
+    def test_no_other_sellers_ntn_is_ever_rewritten(self):
+        # The whole risk of the substitution: it must key on this one
+        # company's number and silently pass everything else through.
+        markup = render(self.TEMPLATE, dict(PAYLOAD, sellerNTNCNIC="1203281-6"))
+        self.assertIn("1203281-6", markup)
+        self.assertNotIn(self.CANONICAL, markup)
+
+
+@unittest.skipIf(WeasyHTML is None, "WeasyPrint/pypdfium2 not installed")
+class ZahidSteelPagination(unittest.TestCase):
+    """Five line items must fit one page, and a sixth must not break the sheet.
+
+    Zahid Steel's items box is five filler rows deep, so five is the sheet's
+    designed capacity. Pagination here is fragile in one specific way: the
+    letterhead header, the body type scale and the closing block all compete
+    for the same vertical space, so enlarging the logo or the text silently
+    costs a row. That happened twice while this template was being built --
+    once leaving the closing block alone on a page of its own with half of
+    page 1 blank -- which is why it is pinned here rather than eyeballed.
+
+    This is the only test in this module that renders real pages. Markup
+    cannot answer "does it fit".
+    """
+
+    TEMPLATE = "invoice_zahid_steel.html"
+    CAPACITY = 5
+
+    # Long enough to wrap in the description column. A one-word description
+    # fits far more rows per page and would make this test pass while the
+    # real thing overflowed, which is exactly the hole a sample invoice left.
+    DESCRIPTION = "DEFORMED STEEL BARS GRADE 60 (16 mm) CONSIGNMENT LINE %d"
+
+    NOTE = "This is an FBR-generated copy"
+    TOTAL = "Value Inclusive of Sales Tax"
+    STATIONERY = "zahidsteel.com"
+    ITEMS_HEADING = "Product Detail"
+
+    @classmethod
+    def setUpClass(cls):
+        # The real mark, downscaled: the template sizes it `width: 24mm;
+        # height: auto`, so only its aspect ratio affects the layout, and a
+        # broken image would collapse the row and silently change the fit.
+        logo = Image.open(os.path.join(ROOT, "static", "uploads", "FBR LOGO.png"))
+        logo.thumbnail((240, 240))
+        buffer = io.BytesIO()
+        logo.save(buffer, format="PNG")
+        cls.fbr_logo = ("data:image/png;base64,"
+                        + base64.b64encode(buffer.getvalue()).decode())
+
+    @staticmethod
+    def flat(text):
+        """Text with every space and line break removed.
+
+        A table cell that wraps comes back from the PDF as several lines, so
+        a wrapped description never matches the string that produced it.
+        Comparing without whitespace is what stops these assertions passing
+        vacuously -- which one of them did before this was added.
+        """
+        return re.sub(r"\s+", "", text)
+
+    def pages(self, count):
+        """Text of each page of a `count`-line invoice, as rendered."""
+        data = dict(PAYLOAD, items=[
+            dict(PAYLOAD["items"][0], productDescription=self.DESCRIPTION % (i + 1))
+            for i in range(count)
+        ])
+        markup = render(self.TEMPLATE, data, logo=self.fbr_logo)
+        pdf = WeasyHTML(string=markup, base_url=ROOT).write_pdf()
+        document = pypdfium2.PdfDocument(io.BytesIO(pdf))
+        return [document[i].get_textpage().get_text_bounded()
+                for i in range(len(document))]
+
+    def test_up_to_five_items_fit_a_single_page(self):
+        for count in range(1, self.CAPACITY + 1):
+            pages = self.pages(count)
+            self.assertEqual(
+                1, len(pages),
+                "%d line(s) spilled onto %d pages -- the header or the type "
+                "scale has grown and eaten a row" % (count, len(pages)))
+
+    def test_a_sixth_line_spills_rather_than_being_dropped(self):
+        pages = self.pages(self.CAPACITY + 1)
+        self.assertGreater(len(pages), 1)
+        self.assertIn(self.flat(self.DESCRIPTION % (self.CAPACITY + 1)),
+                      self.flat("".join(pages)),
+                      "the overflowing line vanished instead of spilling")
+
+    def test_an_overflowing_invoice_keeps_its_closing_block_together(self):
+        # The failure this guards: the totals, the FBR stamp and the closing
+        # note split across a page boundary, or the note lands alone on a
+        # page, which reads as a second, empty document.
+        for count in (self.CAPACITY + 1, self.CAPACITY + 3, self.CAPACITY + 10):
+            pages = self.pages(count)
+            carrying = [i for i, text in enumerate(pages)
+                        if self.flat(self.NOTE) in self.flat(text)]
+            self.assertEqual([len(pages) - 1], carrying,
+                             "%d lines: the closing note is on pages %s"
+                             % (count, carrying))
+            self.assertIn(self.flat(self.TOTAL), self.flat(pages[-1]),
+                          "%d lines: the totals parted company with the note"
+                          % count)
+
+    def test_the_stationery_prints_on_every_page(self):
+        # The footer is pre-printed paper: a second page without it is a
+        # sheet that does not match the first.
+        for count in (1, self.CAPACITY + 1, self.CAPACITY + 10):
+            for index, text in enumerate(self.pages(count)):
+                self.assertIn(self.flat(self.STATIONERY), self.flat(text),
+                              "%d lines: page %d has no footer"
+                              % (count, index + 1))
+
+    def test_a_continued_items_table_repeats_its_headings(self):
+        # Figures under no headings are unreadable, and worse, look like they
+        # belong to whatever column the eye lands on.
+        pages = self.pages(self.CAPACITY + 10)
+        stem = self.flat(self.DESCRIPTION.split(" LINE")[0])
+        carrying = [i for i, text in enumerate(pages) if stem in self.flat(text)]
+        self.assertGreater(len(carrying), 1,
+                           "expected item rows on more than one page; this "
+                           "test is vacuous otherwise")
+        for index in carrying:
+            self.assertIn(self.flat(self.ITEMS_HEADING), self.flat(pages[index]),
+                          "page %d carries item rows with no headings"
+                          % (index + 1))
+
+
 class ComplianceMarks(unittest.TestCase):
     """The three things every FBR invoice must carry."""
 
@@ -433,6 +593,7 @@ class BrandArtwork(unittest.TestCase):
         "invoice_aero_alliance.html": "brand/3740564149343.html",
         "invoice_beacon_alliance.html": "brand/3740545582835.html",
         "invoice_salon_marketings.html": "brand/3520223163127.html",
+        "invoice_zahid_steel.html": "brand/J527785.html",
     }
 
     def test_artwork_renders_with_no_logo_url_at_all(self):

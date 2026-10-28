@@ -694,6 +694,137 @@ item, so a stale tab, a restored draft or a direct API call cannot file a line
 with a blank or wrong SRO. Same shape as the older `3075270` and
 `3520299316743` SRO special cases, which are untouched.
 
+`templates/invoice_zahid_steel.html` — Zahid Steel Industries (Pvt) Ltd,
+username `J527785`, users.id `804a5a5a-9409-4883-abee-69881b9a0155`. A steel
+mill, and the first client whose letterhead PDF had **no embedded images and
+no text objects at all**: the whole sheet is vector outlines, so
+`scripts/extract_brand.py --images` finds nothing to lift.
+`scripts/extract_zahid_steel_brand.py` renders the page at 600 DPI instead and
+crops the two pieces that are genuinely artwork — the `masthead` (ZSI gear
+monogram, wordmark and the red ISO 9001 : 2015 line) and the `ornament` (the
+half-gear in the bottom right corner). The ornament's right and bottom edges
+are the sheet's own edges and are **not trimmed**: the template bleeds it back
+off the page with `right: -9mm; bottom: -40mm`, so the designer's crop
+survives. The ornament and the footer line are `position: fixed` and repeat on
+every page, as pre-printed paper does, which is why `@page` reserves a 40 mm
+bottom margin instead of the reference sheet's 10 mm.
+
+**The format is a deliberate copy of the 192-1 sheet**, which belongs to
+**Zahid Enterprises Steel Re-Rolling Mills — a separate business**. Only the
+format is taken; none of that business's data appears here. That sheet is
+rendered by `invoice_template_universal.html`, so this replica simply adopts
+its house style rather than inventing one:
+
+* **Arial 13px**, `th, td { border: 1px solid #333; padding: 6px;
+  text-align: center }`.
+* **`#a7c7e7` section bands with black text, 8px padding — the only fill on
+  the sheet.** Every other cell is white; labels are bold black on white.
+* **Logo at 50 mm, left; seller block right, on a 50/50 split.** The company name is
+  **15px**, not the 13px body size — on 192-1 it is visibly larger than the
+  lines under it, and that contrast is most of what the top of the sheet
+  reads as. Then address plain, and `NTN:` / `STRN:` / `FBR INVOICE #:` with
+  bold labels and plain values. Narrowing the left cell to fit the logo
+  pulls the seller block inward and immediately stops the two sheets looking
+  alike; the client spotted it at 42/58.
+* **Seven-column items table with filler rows to five.** The product
+  description reads left; Sr. No. and all five figures centre.
+* **AMOUNT IN WORDS left, three-row summary box right.**
+* The one departure, asked for by the client: it closes on **"This is an
+  FBR-generated copy; no signature required."** and there is **no AUTHORISED
+  SIGNATORY** rule or caption. The letterhead footer is also added, which
+  192-1 does not have.
+
+Column widths and the summary geometry were **measured off the 192-1 page**,
+not guessed. The summary box is then snapped to the items table's own column
+rules — it starts at 55% where "Value Excl. ST" starts and its inner rule sits
+at the 85% line before "Value Incl. ST" — which lands within a percent of
+where 192-1 puts them while making the rules line up exactly. Change an items
+column width and both numbers have to follow.
+
+**Getting here took four review rounds, and the lesson is worth more than the
+result.** Rounds two and three were spent undoing "improvements" nobody asked
+for: a round that centred every cell, a round that removed the filler rows,
+retuned colours, a different typeface. Each was a defensible reading of a
+terse complaint and each was wrong. What finally settled it was the client
+sending the reference PDF back with "he wants exactly this format". **When a
+client complains about the look of a replica, ask for a marked-up image or the
+exact sheet they want before changing anything** — and read every vague
+complaint as narrowly as it can be read.
+
+Two traps this file hit, both worth checking in any replica:
+
+* `.no-border td { border: none }` also strips the borders off a table
+  *nested* inside that one — here, the summary box inside the totals row. Use
+  `.no-border > tbody > tr > td`.
+* The closing block (totals + FBR stamp + note) is one
+  `page-break-inside: avoid` unit. Grow the type and it can stop fitting under
+  the item rows, jump to the next page and leave half a page blank.
+  Five is the most that fits one page (the designed depth of the filler
+  box) and six must spill with the block intact. Enlarging the logo from
+  42 mm to 50 mm cost exactly one row — header height comes straight out of
+  the item box. **This is now pinned by `ZahidSteelPagination` in
+  `tests/test_client_templates.py`**, the only test in that module that
+  renders real pages, because markup cannot answer "does it fit". It checks
+  that 1–5 lines stay on one page, that a sixth spills rather than
+  vanishing, that the closing block never splits and the note is never
+  orphaned, that the stationery footer reaches every page, and that a
+  continued items table repeats its headings. Both halves are
+  mutation-checked: growing the logo to 62 mm and removing
+  `page-break-inside: avoid` each fail it.
+
+  Two things that test had to get right, worth copying into any other
+  pagination test: a wrapped table cell comes back from the PDF as several
+  lines, so compare with whitespace stripped or the assertion passes
+  vacuously (one of them did); and pass a **real** image for the FBR mark,
+  since the template sizes it `height: auto` and a broken image collapses
+  the row and changes the fit.
+
+This replica does **not** use the house seven-column items table. The client
+asked for the column set from the reference sheet, which puts the HS code in
+the buyer grid rather than in a column and carries a Sr. No. The tax rate is
+in the "Sales Tax" heading when every line shares one, and on each line when
+they do not — that branch is the one to look at if a mixed-rate invoice ever
+prints oddly.
+
+**The letterhead's tax numbers are the wrong company's.** It carries NTN
+8255820-3 / STRN 32-7787-6203-99-6 — those are **Zahid Enterprises Steel
+Re-Rolling Mills'** numbers. Zahid Steel Industries (Pvt) Ltd is NTN
+`J527785-7` / STRN `3277876392575`. That is exactly why those two lines are
+cropped out of the artwork and printed live from `data` instead; the seller
+name and the address are live for the same reason.
+
+One narrow exception, which the client asked for: the **NTN always prints
+with its check digit** (`J527785-7`) even when the payload carries the bare
+`J527785`, because their seller profile may still hold the short form. The
+substitution is keyed on this one company's number, so no other seller's NTN
+can be rewritten, and the check digit is derived from the seven characters,
+so the sheet and the filing do not disagree. `ZahidSteelCheckDigit` in
+`tests/test_client_templates.py` pins all three of those properties. It is a
+display fallback, not the fix — run the SQL and it never fires.
+**The stationery footer is fixed text, verbatim from the letterhead** —
+wording, capitalisation and punctuation. It must NOT interpolate
+`data.sellerAddress`: the filed address is longer than the line the
+letterhead sets, so it overran toward the gear, and it made a fixed piece of
+stationery change shape with the payload. The address is an FBR field and
+still prints live, in the seller block at the top where 192-1 carries it.
+
+Its geometry is measured off the letterhead at 600 DPI, not chosen — left
+12.7 mm from the paper edge, line 1 **100.1 mm wide**, 4.74 mm baseline to
+baseline, last descender 11.6 mm above the paper edge. The size is set from
+the line's **width**, not its height: their footer uses a narrower grotesque
+than Arial (about 30.3 units of width per unit of cap height, against Arial's
+36.9, and the narrowest face installed here is 32.4), so the two cannot both
+be matched. Width wins — it is what puts the line in the same place on the
+paper. A measuring script that crops to a fixed fraction of the page will
+silently clip these lines and report nonsense; measure across the full width
+and stop short of the gear.
+
+`zahid_steel_setup.sql` assigns the template *and* corrects `clients.strn` and
+the default `business_profiles` row, because a correct template in front of a
+stale profile still prints the stale numbers. That script was run twice
+against a throwaway Postgres in both the "profile already exists" and "brand
+new client" cases. A4.
+
 ---
 
 ## Quick reference
