@@ -71,6 +71,7 @@ LEGACY_TEMPLATES = {
     "invoice_aero_alliance.html",
     "invoice_beacon_alliance.html",
     "invoice_salon_marketings.html",
+    "invoice_zahid_steel.html",
 }
 
 
