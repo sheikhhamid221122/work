@@ -9,10 +9,14 @@ from psycopg2.extras import Json
 
 from fbr_reference_routes import canonical_province, fetch_provinces, fetch_transaction_types
 import advance_tax
+import client_features
 import master_data
 
 SPECIAL_USERNAMES = {"H075895", "F667833", "infinityeng"}
-INVOICE_CUSTOM_FIELDS_MAX = 2
+# The default cap. A client whose sheet carries more is listed in
+# client_features.py, so read it through `client_features.custom_fields_max`
+# wherever a client is in hand rather than using this directly.
+INVOICE_CUSTOM_FIELDS_MAX = client_features.DEFAULT_CUSTOM_FIELDS_MAX
 
 # The paper clients whose invoice carries a "No. of Reams" column beside the
 # quantity, and whose Products step therefore offers the field. It is a figure
@@ -125,11 +129,18 @@ def _buyer_phone_supported(cur):
 buyer_phone_column_exists = _buyer_phone_supported
 
 
-def buyer_phone_enabled(cur, client_id):
-    """Whether this client's Buyers page should offer the Phone field."""
+def _wants_buyer_phone(cur, client_id):
+    """Whether this client's invoice has a row for the buyer's phone number.
+
+    Two sets answer this, for historical reasons worth keeping straight. The
+    Salon Marketings build introduced the phone beside their Sale Person line
+    and gated both on the one username set; Global Surface want the phone and
+    have no Sale Person line, so the second set is keyed on the client id in
+    client_features.py. Either is enough.
+    """
     cur.execute(
         """
-        SELECT u.username
+        SELECT u.username, u.id
         FROM users u
         JOIN clients c ON u.id = c.user_id
         WHERE c.id = %s
@@ -137,8 +148,15 @@ def buyer_phone_enabled(cur, client_id):
         (client_id,),
     )
     row = cur.fetchone()
-    # Same clients, same reason: their replica is the only one that prints it.
-    return _wants_sales_person(row[0] if row else None) and _buyer_phone_supported(cur)
+    username = row[0] if row else None
+    user_id = row[1] if row else None
+    return (_wants_sales_person(username)
+            or client_features.prints_buyer_phone(username, user_id, client_id))
+
+
+def buyer_phone_enabled(cur, client_id):
+    """Whether this client's Buyers page should offer the Phone field."""
+    return _wants_buyer_phone(cur, client_id) and _buyer_phone_supported(cur)
 
 
 def _normalize_phone(value):
@@ -242,7 +260,7 @@ def expected_sales_tax(value_excl, rate):
 SALES_TAX_SNAP_TOLERANCE = Decimal("0.05")
 
 
-def _normalize_custom_field_names(fields):
+def _normalize_custom_field_names(fields, limit=None):
     names = []
     seen = set()
     if isinstance(fields, str):
@@ -251,7 +269,7 @@ def _normalize_custom_field_names(fields):
         except Exception:
             fields = []
     source = fields if isinstance(fields, list) else []
-    for field in source[:INVOICE_CUSTOM_FIELDS_MAX]:
+    for field in source[:limit or INVOICE_CUSTOM_FIELDS_MAX]:
         if isinstance(field, dict):
             name = field.get("name", "")
         else:
@@ -1289,6 +1307,27 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             conn.close()
 
     # ---------------- Invoice Custom Field Defaults ----------------
+    def _custom_fields_max(cur, client_id):
+        """How many custom field pairs this client's invoice has room for.
+
+        Four for the clients in client_features.FOUR_CUSTOM_FIELDS, two for
+        everyone else. The lookup is here rather than in the caller so the
+        GET and the PUT below cannot disagree about the cap and leave a
+        client's saved defaults silently truncated on the next read.
+        """
+        cur.execute(
+            """
+            SELECT u.username, u.id
+            FROM users u
+            JOIN clients c ON u.id = c.user_id
+            WHERE c.id = %s
+            """,
+            (client_id,),
+        )
+        row = cur.fetchone()
+        return client_features.custom_fields_max(
+            row[0] if row else None, row[1] if row else None, client_id)
+
     @app.route("/api/invoice-custom-field-defaults", methods=["GET"])
     def get_invoice_custom_field_defaults():
         client_id = session.get("client_id")
@@ -1307,7 +1346,8 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                 (client_id,),
             )
             row = cur.fetchone()
-            names = _normalize_custom_field_names(row[0] if row else [])
+            names = _normalize_custom_field_names(
+                row[0] if row else [], _custom_fields_max(cur, client_id))
             return jsonify({
                 "customFieldNames": names,
                 "customFields": [{"name": name, "value": ""} for name in names],
@@ -1323,13 +1363,14 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             return jsonify({"error": "No client ID in session"}), 401
 
         data = request.get_json() or {}
-        names = _normalize_custom_field_names(
-            data.get("customFieldNames") or data.get("customFields") or []
-        )
 
         conn = get_db_connection()
         cur = conn.cursor()
         try:
+            names = _normalize_custom_field_names(
+                data.get("customFieldNames") or data.get("customFields") or [],
+                _custom_fields_max(cur, client_id),
+            )
             cur.execute(
                 """
                 UPDATE clients
@@ -1639,7 +1680,7 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         cur = conn.cursor()
         cur.execute(
             """
-            SELECT u.username 
+            SELECT u.username, u.id
             FROM users u
             JOIN clients c ON u.id = c.user_id
             WHERE c.id = %s
@@ -1648,6 +1689,7 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         )
         row = cur.fetchone()
         username = row[0] if row else None
+        user_id = row[1] if row else None
         is_special_user = _is_special_username(username)
         wants_reams = _wants_reams(username)
         # Printed on the clients whose replica has a "Sale Person" line, and
@@ -1657,7 +1699,15 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         # well as in the form. The form hides them for everyone else, but a
         # hidden field is a UI decision and this is the rule: a client whose
         # replica does not print them never has them on their invoice.
-        prints_extra_fields = _wants_sales_person(username)
+        prints_sales_person = _wants_sales_person(username)
+        # The phone is a separate question from the Sale Person line: Global
+        # Surface print one and not the other. Same rule either way -- the
+        # form hides the input for everyone else, but a hidden input is a UI
+        # decision, and a client whose replica does not print the number must
+        # not end up with one on their invoice.
+        prints_buyer_phone = (prints_sales_person
+                              or client_features.prints_buyer_phone(
+                                  username, user_id, client_id))
         fixed_sro_297 = _wants_sro_297(username)
         # Advance Tax u/s 236(h). The rate is the only part of the line that
         # is stored -- the amount is derived when the PDF is rendered. Gated
@@ -1674,7 +1724,7 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         )
         sales_person = (
             _normalize_sales_person(data.get("salesPerson"))
-            if prints_extra_fields
+            if prints_sales_person
             else ""
         )
         if sales_person:
@@ -1713,10 +1763,15 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         seller["sellerAddress"] = seller_address
         buyer["buyerAddress"] = buyer_address
 
-        # Custom fields: keep only valid non-empty name/value pairs.
-        # Limit is aligned with app.py INVOICE_CUSTOM_FIELDS_MAX.
+        # Custom fields: keep only valid non-empty name/value pairs, capped
+        # at what this client's sheet has room for -- four for the clients in
+        # client_features.FOUR_CUSTOM_FIELDS, two for everyone else. Gated
+        # here and not only in the form, for the same reason as the two
+        # printed-only fields above.
         custom_fields = []
-        for field in (data.get("customFields") or [])[:INVOICE_CUSTOM_FIELDS_MAX]:
+        custom_fields_max = client_features.custom_fields_max(
+            username, user_id, client_id)
+        for field in (data.get("customFields") or [])[:custom_fields_max]:
             if not isinstance(field, dict):
                 continue
             name = sanitize_string(field.get("name", ""))
@@ -1772,7 +1827,7 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         # stored with the invoice and the PDF can be re-rendered from the row.
         if sales_person:
             invoice_json["salesPerson"] = sales_person
-        buyer_phone = _normalize_phone(buyer.get("buyerPhone")) if prints_extra_fields else ""
+        buyer_phone = _normalize_phone(buyer.get("buyerPhone")) if prints_buyer_phone else ""
         if buyer_phone:
             invoice_json["buyerPhone"] = buyer_phone
         # Stored whatever the buyer's registration type is: whether the line

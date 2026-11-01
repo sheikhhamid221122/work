@@ -2167,12 +2167,21 @@
         ]);
         const BUYER_PHONE_CLIENTS = SALES_PERSON_CLIENTS;
 
+        // Clients who print a buyer Phone row but no Sale Person line. They
+        // are keyed on the client's id rather than the username, so the
+        // server answers for them: app.py resolves client_features.py
+        // against the session and renders the answer here. That also means
+        // the field appears on first paint instead of waiting for the
+        // username round trip the set above depends on.
+        const BUYER_PHONE_FOR_THIS_CLIENT = {{ 'true' if buyer_phone_for_client else 'false' }};
+
         function isSalesPersonClient(username = currentUsername) {
             return SALES_PERSON_CLIENTS.has((username || '').toString().trim());
         }
 
         function isBuyerPhoneClient(username = currentUsername) {
-            return BUYER_PHONE_CLIENTS.has((username || '').toString().trim());
+            return BUYER_PHONE_FOR_THIS_CLIENT
+                || BUYER_PHONE_CLIENTS.has((username || '').toString().trim());
         }
 
         // The names this client has used before. Filled from /api/sales-persons
@@ -2219,6 +2228,20 @@
                 .catch((err) => console.warn('Could not load sales persons:', err));
         }
 
+        // Split out of applySalesPersonUI because the two questions came
+        // apart: this one is answered by the server before the page is sent,
+        // so it must not wait on the username fetch that drives the rest.
+        function applyBuyerPhoneUI(username = currentUsername) {
+            const phoneWrapper = document.getElementById('buyer-phone-wrapper');
+            if (!phoneWrapper) return;
+            const phoneEnabled = isBuyerPhoneClient(username);
+            phoneWrapper.classList.toggle('hidden', !phoneEnabled);
+            if (!phoneEnabled) {
+                const phone = document.getElementById('buyer-phone');
+                if (phone) phone.value = '';
+            }
+        }
+
         function applySalesPersonUI(username = currentUsername) {
             const wrapper = document.getElementById('sales-person-wrapper');
             const enabled = isSalesPersonClient(username);
@@ -2229,15 +2252,7 @@
                     if (input) input.value = '';
                 }
             }
-            const phoneWrapper = document.getElementById('buyer-phone-wrapper');
-            if (phoneWrapper) {
-                const phoneEnabled = isBuyerPhoneClient(username);
-                phoneWrapper.classList.toggle('hidden', !phoneEnabled);
-                if (!phoneEnabled) {
-                    const phone = document.getElementById('buyer-phone');
-                    if (phone) phone.value = '';
-                }
-            }
+            applyBuyerPhoneUI(username);
             if (enabled) loadSalesPersons();
         }
 
@@ -4485,11 +4500,16 @@
                 theme: "airbnb"
             });
 
-            // Custom fields UI (max from app INVOICE_CUSTOM_FIELDS_MAX)
+            // Custom fields UI (cap from client_features.custom_fields_max)
             initCustomFieldsUI();
             initSignatureAreaUI();
             renderCustomFields();
             loadCustomFieldDefaults();
+
+            // The server already decided this one, so show the field now
+            // rather than when the username arrives. The username-keyed
+            // clients are picked up again by applySalesPersonUI later.
+            applyBuyerPhoneUI();
 
             // Debug logging for URL parameters and environment
             console.log('URL parameters:', window.location.search);

@@ -1,0 +1,610 @@
+{#
+  Global Surface Technologies -- sales tax invoice.
+
+  What this is a copy of
+  ----------------------
+  Their own sheet, '0124 Invoice for 01 new four-way valve body 15-07-26.pdf'.
+  Every measurement below was read off that file rather than eyeballed: the
+  page is 612x792pt, the content runs x 21.2 -> 584.0pt (562.8pt wide), and
+  the percentages here are that width divided up by the rules their table
+  actually draws. Points, not pixels, because the source is set in points.
+
+  Their typography, which is unusual and is the whole look of the sheet:
+    * Arial Black 10.1pt  the buyer box, the identifier block and the items
+                          table headings -- labels AND values
+    * Arial Black 13.9pt  "Invoice #" and its value, the one thing on the
+                          sheet set larger than everything around it
+    * Times New Roman     everything else: the red title at 13.9pt bold, the
+                          figures in the table at 10.1-10.6pt bold, "Total
+                          Payable" at 13.9pt plain, the amount in words at
+                          10.1pt, the Regards block at 11pt bold
+    * Verdana Bold 9.1pt  the footer, in #000080
+
+  What the client asked to change from that sheet
+  -----------------------------------------------
+    1. Their items table stays, and the small Value Excl. / Sales Tax /
+       Value Incl. box from the default template is added under it.
+    2. Four custom fields (PO Number, PO Date, DC Number, DC Date) instead
+       of the usual two -- see client_features.py, which raises the cap for
+       this client alone.
+    3. Those fields print in the band just above the Total Payable row.
+    4. The three FBR marks -- invoice number, Digital Invoicing logo, QR --
+       go bottom left above their footer, the number to the LEFT of the
+       logo, and the logo and QR the same size (1in, as the default template
+       sets them).
+    5. The "W.A# ... Dated: ..." line is dropped. The custom fields take the
+       place on the sheet it used to hold.
+    6. The buyer box grows a Phone row, printed only when there is a number.
+
+  One addition of ours: an HS Code column. Their sheet has none, and a sales
+  tax invoice has to carry it -- `RequiredIdentifiers` in
+  tests/test_client_templates.py is what holds that. It is the only column
+  added; the other eight are theirs, in their order.
+
+  What is live and what is stationery
+  -----------------------------------
+    * `brand.masthead`  the two workshop photographs and the WordArt
+                        wordmark, lifted from their sheet by
+                        scripts/extract_global_surface_brand.py and inlined
+                        as data URIs -- never `client_logo_url`, which does
+                        not resolve on every PDF route.
+    * `brand.strip`     the ten product thumbnails across the foot.
+    * The "Specialized:" lines, the address, the telephone numbers and the
+      e-mails are their pre-printed stationery, set as text, verbatim, and
+      they read the same on every sheet. They are NOT interpolated from
+      `data`: a letterhead that changes shape with the payload is not a
+      letterhead. (The seller's address is an FBR field and it is this
+      address; their profile and their paper agree.)
+    * The seller's NTN and STRN print live from `data`, as they must. The
+      client's own numbers are the fallback for a payload that is missing
+      one, so the sheet is never blank where a tax number belongs. PNTN is
+      not an FBR field and is not in the payload at all: theirs is their NTN
+      with a P in front, so that is how it is derived.
+
+  Contract: rendered by app.py with data, qr_base64, client_logo_url,
+  fbr_logo_url, username, settings, theme, and the `datetimeformat` and
+  `comma_format` filters. See invoice_template3.html for the same contract.
+#}
+{% import "brand/global_surface.html" as brand %}
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>Sales Tax Invoice {{ data.invoiceRefNo or '' }}</title>
+  <style>
+    @page {
+      size: A4;
+      /* The bottom margin is their stationery's. The three footer lines and
+         the thumbnail strip are position: fixed down there, so they repeat
+         on every page as pre-printed paper would, and content never reaches
+         them. 9mm left and right is the 21.2pt their sheet uses, rounded to
+         a margin A4 can carry.
+
+         33mm is the footer's own measured height -- 13mm of text, 15.9mm of
+         thumbnails and the 4.3mm their sheet leaves below them -- and not a
+         millimetre more. The client asked for five line items on one page
+         and every millimetre down here is one the items box does not get.
+         Shrink the footer type or the strip before taking more. */
+      margin: 7mm 9mm 33mm 9mm;
+    }
+
+    body {
+      font-family: "Times New Roman", Times, serif;
+      font-size: 10.1pt;
+      color: #000;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Arial Black is the face their sheet is set in and it ships with
+       Windows; the fallbacks are the heaviest grotesques likely to be on a
+       Linux print stack, with weight 900 so a stack that resolves to plain
+       Arial still comes out bold rather than silently light. */
+    .black {
+      font-family: "Arial Black", "Archivo Black", "Helvetica Neue", Arial, sans-serif;
+      font-weight: 900;
+      font-size: 10.1pt;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+    .no-border { border: none; }
+    /* Direct children only. A plain `.no-border td` also matches the cells
+       of any table nested inside a row and strips its rules -- which is
+       exactly what the summary box and the custom-field grid are. */
+    .no-border > tbody > tr > td { border: none; padding: 0; }
+
+    .left { text-align: left; }
+    .right { text-align: right; }
+    .center { text-align: center; }
+
+    /* ---- Masthead -----------------------------------------------------
+       Photograph, wordmark, photograph. The photograph widths are theirs:
+       64.8pt and 57.7pt on the sheet, 22.9mm and 20.4mm. The wordmark fills
+       what is left and is centred in it, as on their paper. */
+    .brand-masthead { width: 100%; border: none; margin: 0; }
+    .brand-masthead td { border: none; padding: 0; vertical-align: middle; }
+    .brand-masthead .brand-photo-left { width: 22.9mm; text-align: left; }
+    .brand-masthead .brand-photo-right { width: 20.4mm; text-align: right; }
+    .brand-masthead .brand-wordmark { text-align: center; }
+    .brand-masthead .brand-photo-left img { width: 22.9mm; height: auto; display: block; }
+    .brand-masthead .brand-photo-right img { width: 20.4mm; height: auto; display: block; }
+    /* 131.3mm is the wordmark's own width on their sheet. Sized by width
+       only -- fixing both axes would stretch it. */
+    .brand-masthead .brand-wordmark img { width: 131.3mm; height: auto; }
+
+    /* ---- "Specialized:" strapline -------------------------------------
+       Two centred lines under the masthead, underlined, in their two blues:
+       #3366FF for the label and #000080 for the services. */
+    .strapline {
+      text-align: center;
+      line-height: 1.32;
+      margin-top: 1mm;
+    }
+    .strapline span { text-decoration: underline; }
+    .strapline .lab { color: #3366FF; font-weight: bold; }
+    .strapline .svc { color: #000080; font-size: 9.1pt; }
+
+    /* ---- Title row -----------------------------------------------------
+       "Sales Tax Invoice" is centred on the page; "Original" sits out to the
+       right of it, not at the right margin. On their sheet its right edge is
+       102pt in from the edge of the content, which is the 36mm below. */
+    .title-row { position: relative; text-align: center; margin: 2.2mm 0 1.6mm; }
+    .title {
+      font-size: 13.9pt;
+      font-weight: bold;
+      color: #FF0000;
+      text-decoration: underline;
+    }
+    .copy-mark {
+      position: absolute;
+      right: 36mm;
+      top: 0;
+      font-size: 12pt;
+      color: #FF0000;
+    }
+
+    /* ---- Buyer box + identifier block ----------------------------------
+       Their rules put the buyer box at x 21.2 -> 363.6 of the 21.2 -> 584
+       content, so it takes 60.9% and the identifier block beside it 39.1%.
+       Inside the box the label column is 93.3pt of 342.5 = 27.2%. */
+    .party { margin-top: 0; }
+    .party > tbody > tr > td { border: none; padding: 0; vertical-align: top; }
+    .party td.buyer-cell { width: 60.9%; }
+    .party td.ident-cell { width: 39.1%; padding-left: 14pt; }
+
+    .buyer-box td { border: 1px solid #000; padding: 3pt 4pt; }
+    .buyer-box td.lab { width: 27.2%; text-align: left; }
+    /* The name and address read left; the three numbers under them are
+       centred in their column, which is how their sheet sets them. */
+    .buyer-box td.val { text-align: center; }
+    .buyer-box td.val-left { text-align: left; }
+
+    .ident > tbody > tr > td { border: none; padding: 1.6pt 0; vertical-align: baseline; }
+    .ident td.lab { width: 45%; text-align: left; }
+    .ident td.val { width: 55%; text-align: left; }
+    /* The one thing on the sheet set larger than its neighbours. */
+    .ident tr.big td { font-size: 13.9pt; padding-bottom: 3pt; }
+
+    /* ---- Items ---------------------------------------------------------
+       Nine columns: their eight, plus HS Code. Widths started as their
+       rules re-apportioned, then each was set to what it actually needs:
+       the widest word of its heading in Arial Black 10.1pt, or its widest
+       plausible figure in Times Bold 10.6pt, plus the 6pt of padding --
+       whichever is larger. Measured by rendering each string on an
+       oversized page, not estimated. The numbers, as a percentage of the
+       192mm content width:
+
+         Sr.        'Tax'          4.8   value '01'            3.1
+         HS Code    'Code'         6.1   value '8481.8090'     9.2
+         Qty        'Qty'          4.5   value '191.00'        6.3
+         Rate       'Rate'         5.6   value '1,163,000.00' 11.1
+         Value Ex.  'Value'        6.7   value '1,163,000.00' 11.1
+         Tax Rate   'Sales'        6.5   value '18%'           4.7
+         Total Tax  'Payable'      8.9   value '129,340.00'    9.7
+         Value In.  'Value'        6.7   value '1,192,340.00' 11.1
+
+       HS Code was 8.5% and its own values did not fit -- that is what this
+       re-balance fixed. Everything spare went to Description, because a
+       narrow description column is what wraps a line to four rows and
+       costs the sheet an item. Do not shrink a column below the figures
+       above without re-measuring.
+
+       The headings are a solid black band with white Arial Black on it --
+       their sheet's one fill, and the reason the rest of it reads as white
+       paper. */
+    .items { margin-top: 2mm; }
+    /* 2.5pt and not their 3pt of vertical padding: 0.5pt a side over a
+       header and five rows is 2mm of items box, and nothing on the sheet
+       looks different for it. */
+    .items th, .items td { border: 1px solid #000; padding: 2.5pt 3pt; text-align: center; }
+    .items thead th {
+      background-color: #000;
+      color: #fff;
+      font-family: "Arial Black", "Archivo Black", "Helvetica Neue", Arial, sans-serif;
+      font-weight: 900;
+      font-size: 10.1pt;
+      vertical-align: middle;
+    }
+    /* A line item must not split across a page break: its description would
+       land on one page and its figures on the other. */
+    .items tbody tr { page-break-inside: avoid; }
+    /* The description is the only cell on the sheet that reads left, and the
+       only body cell in Arial Black. */
+    .items td.desc {
+      text-align: left;
+      font-family: "Arial Black", "Archivo Black", "Helvetica Neue", Arial, sans-serif;
+      font-weight: 900;
+      font-size: 10.1pt;
+      line-height: 1.3;
+    }
+    .items td.sr { font-weight: bold; font-size: 12pt; }
+    .items td.fig { font-weight: bold; font-size: 10.6pt; }
+    /* Only shown when the lines do NOT share one rate, in which case the
+       heading cannot state it for all of them. */
+    .items .rate-tag { font-size: 9pt; }
+    /* Blank rows to five. The client asked for a five-row box whatever the
+       invoice holds, so a one-line sheet rules in four empty rows and a
+       six-line one rules in none. They are left genuinely empty -- no serial
+       number -- which is how the client asked for them. */
+    .items td.filler { height: 16pt; }
+
+    /* ---- PO / DC box ----------------------------------------------------
+       The four custom fields in a small ruled box of their own, directly
+       under the items table. They began as a full-width band inside the
+       table, which the client found far too heavy for four short values.
+       55% wide so it reads as a box and not another row. */
+    .po-box { width: 55%; margin-top: 2mm; }
+    .po-box td { border: 1px solid #000; padding: 3pt 5pt; text-align: left; font-size: 10.1pt; }
+    .po-box td.lab { font-weight: bold; white-space: nowrap; width: 18%; }
+    .po-box td.val { width: 32%; }
+
+    /* ---- Amount in words + summary box ----------------------------------
+       The amount in words reads in front of the summary box. That is the
+       arrangement invoice_template_universal.html uses, and the one the
+       client asked for in place of their sheet's own Total Payable row --
+       the box's Value Inclusive of Sales Tax is the figure that row carried.
+
+       Side by side and not stacked for a measurable reason: the height of
+       this block is what decides how many lines fit a page. See `.closing`. */
+    .closing-row { margin-top: 2.5mm; }
+    .closing-row > tbody > tr > td { border: none; padding: 0; vertical-align: top; }
+    .closing-row td.words-cell { width: 52%; padding-right: 8mm; }
+    .closing-row td.summary-cell { width: 48%; }
+    .words { line-height: 1.4; font-size: 10.1pt; }
+    .words .lab { font-weight: bold; font-size: 9.1pt; }
+    .summary { width: 100%; }
+    .summary td { border: 1px solid #000; padding: 3pt 5pt; font-weight: bold; }
+    .summary td.lab { text-align: left; width: 70.8%; }
+    .summary td.num { text-align: right; width: 29.2%; }
+
+    /* ---- FBR compliance marks -------------------------------------------
+       Against the RIGHT margin above their footer, as asked: the Digital
+       Invoicing logo and the QR side by side with the invoice number
+       underneath them. Both marks are 1in, the size the default template
+       gives them. White ground on purpose -- a QR code wants clean paper to
+       scan from. */
+    .fbr { margin: 5mm 0 0 auto; width: auto; background: #fff; }
+    /* `> tbody > tr >` and not a plain `.fbr td`: the table also carries
+       `no-border`, whose own child rule is more specific and would zero
+       these -- which it silently did once, and the logo and the QR ended up
+       touching. Classes and not `:nth-child`, for the same reason: a
+       pseudo-class would out-specify the per-cell rules below it. */
+    .fbr > tbody > tr > td { border: none; vertical-align: middle; padding: 0; }
+    .fbr > tbody > tr > td.di { padding-right: 16pt; }
+    /* Centred under the pair of marks and kept to their width. Monospace, so
+       a digit of the number can be read off it one at a time. */
+    .fbr > tbody > tr > td.num {
+      font-size: 10.1pt;
+      line-height: 1.3;
+      text-align: center;
+      padding-top: 3pt;
+    }
+    .fbr .num .lab { font-weight: bold; }
+    .fbr .num .val { font-family: "Courier New", monospace; font-size: 9.5pt; }
+    /* Both 1in tall, which is the size the default template gives them and
+       the "same size" the client asked for. The logo is sized by HEIGHT and
+       the QR by both, because the logo is 1.08:1 and fixing its width
+       instead would leave it visibly shorter than the square beside it. */
+    .fbr .di img { height: 1in; width: auto; display: block; }
+    .fbr .qr img { width: 1in; height: 1in; display: block; }
+    .fbr .pending { font-size: 10pt; color: #b00; font-weight: bold; }
+
+    /* The PO/DC box, the amount in words, the summary box and the FBR marks
+       are one block and break as one. Left to themselves on a long invoice
+       they split and the marks land alone on a page of their own, which
+       reads as a second, empty document rather than the foot of this one.
+
+       That makes the block's height a hard constraint: about 65mm, and
+       anything above it on the page has to leave that much. Grow any of the
+       gaps in here and re-render invoices of one to ten lines -- if the
+       block no longer fits under the five-row items table it jumps whole to
+       page two and leaves half of page one blank. `GlobalSurfacePagination`
+       in tests/test_client_templates.py pins this; a single-case preview
+       hides it completely. */
+    .closing { page-break-inside: avoid; }
+
+    /* ---- Stationery footer ----------------------------------------------
+       Pre-printed: three lines of Verdana Bold 9.1pt in #000080 and the
+       thumbnail strip, both position: fixed so they sit in the bottom margin
+       of every page, clear of the content. The strip is 483.4pt wide on
+       their sheet = 170.6mm. */
+    .sheet-foot {
+      position: fixed;
+      left: 0;
+      right: 0;
+      /* Its bottom edge 2mm above the paper's, which is where their sheet
+         sets the strip. Paired with the 33mm page margin above: change one
+         and the footer either collides with the content or drifts off the
+         page. */
+      bottom: -31mm;
+      text-align: center;
+    }
+    .sheet-foot .lines {
+      font-family: Verdana, Geneva, "DejaVu Sans", sans-serif;
+      font-weight: bold;
+      font-size: 9.1pt;
+      color: #000080;
+      line-height: 1.35;
+    }
+    .sheet-foot .lines sup { font-size: 6pt; vertical-align: super; }
+    .brand-strip { width: 170.6mm; height: auto; margin-top: 1.2mm; }
+  </style>
+</head>
+
+<body>
+
+  {#- Their numbers, used only where the payload has none. The seller's tax
+      numbers must print, and a blank line where one belongs is worse than a
+      constant that their profile should be setting anyway. Fix the profile
+      and neither of these ever fires. -#}
+  {%- set NTN = (data.sellerNTNCNIC or '') | string | trim or "2229304-3" -%}
+  {%- set STRN = (data.sellerSTRN or '') | string | trim or "3277876189796" -%}
+  {#- Not an FBR field and not in the payload: theirs is the NTN with a P in
+      front, so it is derived rather than stored or typed. -#}
+  {%- set PNTN = "P" ~ NTN -%}
+
+  {#- dd/mm/yyyy, the way their sheet writes a date. `datetimeformat` spells
+      the month out, which is not this sheet. -#}
+  {%- set date_raw = (data.invoiceDate or '') | string | trim -%}
+  {%- set date_parts = date_raw.split('-') -%}
+  {%- if date_parts | length == 3 and date_parts[0] | length == 4 -%}
+    {%- set invoice_date = date_parts[2][:2] ~ "/" ~ date_parts[1] ~ "/" ~ date_parts[0] -%}
+  {%- else -%}
+    {%- set invoice_date = date_raw -%}
+  {%- endif -%}
+
+  {# ------------------------------------------------------------ masthead #}
+  {{ brand.masthead(data.sellerBusinessName or "Global Surface Technologies") }}
+
+  {# --------------------------------------------------------- strapline #}
+  <div class="strapline">
+    <span class="lab">Specialized:</span>
+    <span class="svc">Spray Metallising, Teflon &amp; Polymeric coatings, Selective plating, Hard Chromium &amp; Anodizing</span><br>
+    <span class="svc">Repair of Screw (Oil Free and Oil Injected), Centrifugal, Scroll, Van and Reciprocating compressor</span>
+  </div>
+
+  {# ------------------------------------------------------------- title #}
+  {#- Set as text, not lifted, so a credit or debit note can say what it
+      actually is. -#}
+  {%- set kind = (data.invoiceType or '') | lower -%}
+  <div class="title-row">
+    <span class="title">
+      {{- "Debit Note" if "debit" in kind else ("Credit Note" if "credit" in kind else "Sales Tax Invoice") -}}
+    </span>
+    <span class="copy-mark">Original</span>
+  </div>
+
+  {# ------------------------------------------- buyer box + identifiers #}
+  <table class="no-border party">
+    <tr>
+      <td class="buyer-cell">
+        <table class="buyer-box">
+          <tr>
+            <td class="lab black">Buyer Name &amp; Address</td>
+            <td class="val-left black">
+              {{ data.buyerBusinessName }}{% if data.buyerAddress %}<br>{{ data.buyerAddress }}{% endif %}
+            </td>
+          </tr>
+          {#- Printed only when there is a number. Nothing derives from it and
+              app.py keeps it out of the FBR payload; see
+              PDF_ONLY_INVOICE_FIELDS. -#}
+          {% if data.buyerPhone %}
+            <tr>
+              <td class="lab black">Phone#</td>
+              <td class="val black">{{ data.buyerPhone }}</td>
+            </tr>
+          {% endif %}
+          <tr>
+            <td class="lab black">STRN #</td>
+            <td class="val black">{{ data.buyerSTRN }}</td>
+          </tr>
+          <tr>
+            <td class="lab black">NTN #</td>
+            <td class="val black">{{ data.buyerNTNCNIC }}</td>
+          </tr>
+        </table>
+      </td>
+      <td class="ident-cell">
+        <table class="no-border ident">
+          <tr class="big">
+            <td class="lab black">Invoice #</td>
+            <td class="val black">{{ data.invoiceRefNo }}</td>
+          </tr>
+          <tr>
+            <td class="lab black">Invoice Date</td>
+            <td class="val black">{{ invoice_date }}</td>
+          </tr>
+          <tr>
+            <td class="lab black">NTN #</td>
+            <td class="val black">{{ NTN }}</td>
+          </tr>
+          <tr>
+            <td class="lab black">PNTN #</td>
+            <td class="val black">{{ PNTN }}</td>
+          </tr>
+          <tr>
+            <td class="lab black">STRN #</td>
+            <td class="val black">{{ STRN }}</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  {# --------------------------------------------------------------- items #}
+  {#- The tax rate goes in the heading, taken from the goods rather than
+      hard-coded, and only when every line shares one -- otherwise the
+      heading would claim something untrue of some rows, and each line
+      carries its own above the figure instead. -#}
+  {% set rates = data['items'] | map(attribute='rate', default='') | select | list | unique | list %}
+  {% set one_rate = rates[0] if rates | length == 1 else '' %}
+  {% set item_count = data['items'] | length %}
+  {#- Capped here as well as in app.py. Four is this client's number; the
+      default covers a render that was not given the context variable. -#}
+  {%- set custom_fields = ((data.customFields or []) | selectattr('value') | list)[:invoice_custom_fields_max | default(4)] -%}
+  {#- The box is five rows deep whatever the invoice holds, which is what the
+      client asked for and roughly the depth their printed sheet has. -#}
+  {% set ROWS = 5 %}
+
+  <table class="items">
+    <thead>
+      <tr>
+        <th style="width: 4.9%;">Sr.</th>
+        <th style="width: 33.2%;">Description of Goods</th>
+        <th style="width: 9.3%;">HS<br>Code</th>
+        <th style="width: 6.5%;">Qty</th>
+        <th style="width: 9.9%;">Rate</th>
+        <th style="width: 9.9%;">Value<br>Excl.<br>Sales<br>Tax</th>
+        <th style="width: 6.6%;">Sales<br>Tax<br>Rate</th>
+        <th style="width: 9.2%;">Total<br>Sales<br>Tax<br>Payable</th>
+        <th style="width: 10.5%;">Value<br>Incl.<br>Sales<br>Tax</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in data['items'] %}
+        <tr>
+          <td class="sr">{{ "%02d" | format(loop.index) }}</td>
+          <td class="desc">{{ item.productDescription }}</td>
+          <td class="fig">{{ item.hs_code or item.hsCode or item.hsCodeNo or "" }}</td>
+          <td class="fig">{{ item.quantity }}</td>
+          <td class="fig">{{ item.unitrate | comma_format }}</td>
+          <td class="fig">{{ item.valueSalesExcludingST | comma_format }}</td>
+          <td class="fig">{{ item.rate }}</td>
+          <td class="fig">{{ item.salesTaxApplicable | comma_format }}</td>
+          <td class="fig">
+            {{- (item.totalValues if item.totalValues is not none
+                 else (item.valueSalesExcludingST + item.salesTaxApplicable)) | comma_format -}}
+          </td>
+        </tr>
+      {% endfor %}
+
+      {#- Blank rows to five. Genuinely blank, serial number included: the
+          client asked for the remaining rows to be empty. -#}
+      {% for _ in range(item_count + 1, ROWS + 1) %}
+        <tr>
+          {% for _ in range(9) %}<td class="filler"></td>{% endfor %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="closing">
+
+    {# ------------------------------------------------------- PO / DC box #}
+    {#- Directly under the items table, in a box of its own. Only fields
+        that were filled in are printed, so a sheet with two of them does
+        not carry two empty labels. -#}
+    {% if custom_fields %}
+      <table class="po-box">
+        {% for row in custom_fields | batch(2) %}
+          <tr>
+            {% for field in row %}
+              <td class="lab">{{ field.name }}</td>
+              <td class="val">{{ field.value }}</td>
+            {% endfor %}
+            {% if row | length == 1 %}<td class="lab"></td><td class="val"></td>{% endif %}
+          </tr>
+        {% endfor %}
+      </table>
+    {% endif %}
+
+    {# --------------------------------------- amount in words + summary #}
+    <table class="no-border closing-row">
+      <tr>
+        <td class="words-cell">
+          <div class="words">
+            <span class="lab">Amount in words:</span> {{ data.amountInWords }}
+          </div>
+        </td>
+        <td class="summary-cell">
+          <table class="summary">
+            <tr>
+              <td class="lab">Value Exclusive of Sales Tax</td>
+              <td class="num">{{ data.totalExcl | comma_format }}</td>
+            </tr>
+            <tr>
+              <td class="lab">Value of Sales Tax</td>
+              <td class="num">{{ data.totalTax | comma_format }}</td>
+            </tr>
+            <tr>
+              <td class="lab">Value Inclusive of Sales Tax</td>
+              <td class="num">{{ data.totalInclusive | comma_format }}</td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    {# ------------------------------------------------------- FBR marks #}
+    {#- Renders only once the invoice has actually been submitted and has a
+        number; before that it says so plainly rather than printing a QR that
+        resolves to nothing. -#}
+    {#- The pending notice reads left; only the marks themselves are set
+        against the right margin. -#}
+    <table class="no-border fbr"{% if not (data.fbrInvoiceNumber and qr_base64) %} style="margin-left: 0;"{% endif %}>
+      {% if data.fbrInvoiceNumber and qr_base64 %}
+        <tr>
+          {% if fbr_logo_url %}
+            <td class="di">
+              <img src="{{ fbr_logo_url }}" alt="FBR Digital Invoicing System">
+            </td>
+          {% endif %}
+          <td class="qr">
+            <img src="data:image/png;base64,{{ qr_base64 }}" alt="FBR QR code">
+          </td>
+        </tr>
+        <tr>
+          <td class="num" colspan="{{ 2 if fbr_logo_url else 1 }}">
+            <span class="lab">FBR Invoice #</span><br>
+            <span class="val">{{ data.fbrInvoiceNumber }}</span>
+          </td>
+        </tr>
+      {% else %}
+        <tr>
+          <td>
+            <div class="pending">Not yet submitted to FBR &mdash; no invoice number or QR code yet.</div>
+          </td>
+        </tr>
+      {% endif %}
+    </table>
+
+  </div>
+
+  {# ------------------------------------------------- stationery footer #}
+  {#- Reproduced VERBATIM from their sheet -- wording, punctuation and the
+      superscript "th" included. It is stationery, not data: it must read the
+      same on every sheet they print, exactly as it would on pre-printed
+      paper, so it deliberately does NOT interpolate data.sellerAddress. -#}
+  <div class="sheet-foot">
+    <div class="lines">
+      Address: 9<sup>th</sup> Kilometer Sheikhupura Road Dosaco Chowk Sagian bypass Shahdara, Lahore.<br>
+      Office Tel # 0300-4168909, 0333-4140830, Mobile # 0315-4140830 whatsapp#0310-4199538<br>
+      E-Mail: imran-elahi@hotmail.com, imranelahi68@yahoo.com, imranelahi68@gmail.com
+    </div>
+    {{ brand.strip("") }}
+  </div>
+
+</body>
+
+</html>
