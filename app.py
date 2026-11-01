@@ -8,6 +8,7 @@ from master_data_routes import add_master_data_routes
 from reports_overview_routes import add_reports_overview_routes
 import invoice_templates
 import advance_tax
+import client_features
 from compliance import (
     apply_compliance,
     get_profile,
@@ -59,8 +60,11 @@ def print(*args, **kwargs):
 
 app = Flask(__name__)
 
-# Max custom (label/value) pairs per invoice — used by create-invoice UI and PDF layout.
-INVOICE_CUSTOM_FIELDS_MAX = 2
+# Max custom (label/value) pairs per invoice — used by create-invoice UI and PDF
+# layout. This is the default; a client whose sheet needs more is listed in
+# client_features.py, and every place below asks that module rather than
+# reading this constant directly.
+INVOICE_CUSTOM_FIELDS_MAX = client_features.DEFAULT_CUSTOM_FIELDS_MAX
 
 
 def resolve_signature_note_above_authorised(data):
@@ -155,9 +159,14 @@ def create_invoice_html(step=None):
         return redirect(url_for("create_invoice_html"))
 
     print("Access granted to create invoice page")
+    # Both ids are already in the session, so how many custom fields this
+    # client gets and whether their buyer box has a phone row are answered
+    # here without asking the database anything.
+    client_ids = (session.get("user_id"), session.get("client_id"))
     return render_template(
         "create-invoice.html",
-        invoice_custom_fields_max=INVOICE_CUSTOM_FIELDS_MAX,
+        invoice_custom_fields_max=client_features.custom_fields_max(*client_ids),
+        buyer_phone_for_client=client_features.prints_buyer_phone(*client_ids),
         current_step=step,
     )
 
@@ -432,9 +441,15 @@ def generate_form_invoice():
             if isinstance(complete_invoice_data_cf, dict):
                 raw_custom_fields = complete_invoice_data_cf.get("customFields")
 
+        # This client's cap, not the global default: Global Surface print
+        # four PO/DC fields and the other clients two. `username` and
+        # `client_id` are both already resolved above.
+        custom_fields_max = client_features.custom_fields_max(
+            username, client_id, user_id)
+
         if isinstance(raw_custom_fields, list):
             normalized_custom_fields = []
-            for field in raw_custom_fields[:INVOICE_CUSTOM_FIELDS_MAX]:
+            for field in raw_custom_fields[:custom_fields_max]:
                 if not isinstance(field, dict):
                     continue
                 name = str(field.get("name", "")).strip()
@@ -643,7 +658,7 @@ def generate_form_invoice():
             )
             data = apply_compliance(
                 data, client_template_settings, compliance_profile,
-                custom_fields_max=INVOICE_CUSTOM_FIELDS_MAX,
+                custom_fields_max=custom_fields_max,
             )
             run_validation(data, compliance_profile)
 
@@ -679,7 +694,7 @@ def generate_form_invoice():
             username=username,
             settings=client_template_settings,  # Pass template settings to universal template
             theme=invoice_templates.resolve_theme(client_template_settings),
-            invoice_custom_fields_max=INVOICE_CUSTOM_FIELDS_MAX,
+            invoice_custom_fields_max=custom_fields_max,
             signature_note_above_authorised=resolve_signature_note_above_authorised(data),
         )
 
@@ -1193,6 +1208,9 @@ def generate_invoice_pdf_for_client(invoice_data_raw, client_id):
         # Clients without a profile: get_profile() -> None -> no-op, so their
         # invoices render exactly as before. Applies to sandbox + production.
         # ---------------------------------------------------------------
+        # This client's cap, not the global default -- see client_features.py.
+        custom_fields_max = client_features.custom_fields_max(username, client_id)
+
         compliance_profile = get_profile(username)
         if compliance_profile:
             client_template_settings = merge_template_settings(
@@ -1200,7 +1218,7 @@ def generate_invoice_pdf_for_client(invoice_data_raw, client_id):
             )
             data = apply_compliance(
                 data, client_template_settings, compliance_profile,
-                custom_fields_max=INVOICE_CUSTOM_FIELDS_MAX,
+                custom_fields_max=custom_fields_max,
             )
             run_validation(data, compliance_profile)
 
@@ -1221,7 +1239,7 @@ def generate_invoice_pdf_for_client(invoice_data_raw, client_id):
             username=username,
             settings=client_template_settings,
             theme=invoice_templates.resolve_theme(client_template_settings),
-            invoice_custom_fields_max=INVOICE_CUSTOM_FIELDS_MAX,
+            invoice_custom_fields_max=custom_fields_max,
             signature_note_above_authorised=resolve_signature_note_above_authorised(data),
         )
 
@@ -2192,6 +2210,8 @@ def generate_invoice_excel():
             username=username,
             settings=(excel_template_settings if compliance_profile else tpl_settings),
             theme=invoice_templates.resolve_theme(tpl_settings),
+            invoice_custom_fields_max=client_features.custom_fields_max(
+                username, client_id, user_id),
         )
 
         # --- Generate PDF directly to a stream ---

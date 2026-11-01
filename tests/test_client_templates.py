@@ -32,6 +32,7 @@ sys.path.insert(0, ROOT)
 from flask import Flask, render_template  # noqa: E402
 
 import advance_tax  # noqa: E402
+import client_features  # noqa: E402
 import invoice_templates  # noqa: E402
 
 # Only ZahidSteelPagination needs these: it is the one test here that has to
@@ -46,6 +47,10 @@ except Exception:  # pragma: no cover
     pypdfium2 = Image = WeasyHTML = None
 
 # template file -> the client it was built for. Add a row when you build one.
+# The value is what `username` is rendered with, so it is the client's
+# username -- except for Global Surface, who are keyed on their users.id
+# everywhere (see client_features.py) and whose template does not read the
+# username at all.
 CLIENT_TEMPLATES = {
     "invoice_apple_international.html": "3520224169621",
     "invoice_ak_international.html": "3520212803454",
@@ -61,6 +66,7 @@ CLIENT_TEMPLATES = {
     "invoice_beacon_alliance.html": "3740545582835",
     "invoice_salon_marketings.html": "3520223163127",
     "invoice_zahid_steel.html": "J527785",
+    "invoice_global_surface.html": "ed156fdd-086e-480c-be18-a2c85d9e31b1",
 }
 
 # The paper clients who asked for a "No. of Reams" column beside the quantity.
@@ -491,6 +497,262 @@ class ZahidSteelPagination(unittest.TestCase):
                           % (index + 1))
 
 
+class GlobalSurfaceFields(unittest.TestCase):
+    """Global Surface's two additions: four custom fields and a buyer phone.
+
+    Both are printed-only. Neither is derived from, and neither feeds, a
+    figure on the sheet -- app.py strips the phone from the FBR payload
+    (`PDF_ONLY_INVOICE_FIELDS`) and the custom fields were never in it.
+    """
+
+    TEMPLATE = "invoice_global_surface.html"
+    CLIENT = CLIENT_TEMPLATES["invoice_global_surface.html"]
+
+    FIELDS = [
+        {"name": "PO Number", "value": "4500123456"},
+        {"name": "PO Date", "value": "10/03/2026"},
+        {"name": "DC Number", "value": "N-453/25-26"},
+        {"name": "DC Date", "value": "12/07/2026"},
+    ]
+    PHONE = "051-5487589-97"
+
+    def test_all_four_custom_fields_print(self):
+        # Two is what every other client gets; this sheet carries four, and
+        # the third and fourth are the ones a shared cap would have dropped.
+        markup = render(self.TEMPLATE, dict(PAYLOAD, customFields=self.FIELDS))
+        for field in self.FIELDS:
+            self.assertIn(field["name"], markup)
+            self.assertIn(field["value"], markup)
+
+    def test_a_fifth_field_is_not_printed(self):
+        # Defence in depth. app.py caps the list before it gets here, but a
+        # payload stored before the cap existed must not widen the sheet.
+        extra = self.FIELDS + [{"name": "Extra Field", "value": "SHOULD-NOT-PRINT"}]
+        markup = render(self.TEMPLATE, dict(PAYLOAD, customFields=extra))
+        self.assertNotIn("SHOULD-NOT-PRINT", markup)
+
+    def test_an_empty_field_leaves_no_empty_label(self):
+        # The name here is deliberately one that appears nowhere else in the
+        # template. "PO Date" would pass vacuously: the stylesheet names the
+        # four fields in a comment, and a CSS comment IS in the rendered
+        # markup.
+        fields = [self.FIELDS[0], {"name": "Gate Pass No", "value": ""}]
+        markup = render(self.TEMPLATE, dict(PAYLOAD, customFields=fields))
+        self.assertIn("PO Number", markup)
+        self.assertNotIn("Gate Pass No", markup)
+
+    def test_the_items_box_is_always_five_rows(self):
+        # The client asked for a five-row box whatever the invoice holds:
+        # one line item and four empty rows, not one row and white space.
+        # `items_table_rows` counts the header too.
+        for count in (1, 2, 5):
+            data = dict(PAYLOAD, items=[PAYLOAD["items"][0]] * count)
+            self.assertEqual(6, len(items_table_rows(render(self.TEMPLATE, data))),
+                             "%d item(s): the box is not five rows" % count)
+        # Past five there is nothing to pad, and no row is dropped either.
+        data = dict(PAYLOAD, items=[PAYLOAD["items"][0]] * 7)
+        self.assertEqual(8, len(items_table_rows(render(self.TEMPLATE, data))))
+
+    def test_the_hs_code_is_set_like_the_other_figures(self):
+        # It was the one value in the row that printed light. `fig` is the
+        # class that makes a cell bold Times 10.6pt, like every figure.
+        markup = render(self.TEMPLATE, PAYLOAD)
+        self.assertIn('<td class="fig">4811.5910</td>', markup)
+
+    def test_the_sheet_carries_no_signature_block(self):
+        # The client asked for the Regards / For <company> / signatory block
+        # to come off. Their wordmark carries the company name instead.
+        markup = render(self.TEMPLATE, PAYLOAD)
+        self.assertNotIn("Regards", markup)
+        self.assertNotIn("Imran Elahi", markup)
+
+    def test_the_total_payable_row_is_gone_and_the_words_lead_the_summary(self):
+        # Their own sheet's Total Payable row was replaced by the summary
+        # box, with the amount in words in front of it.
+        markup = render(self.TEMPLATE, PAYLOAD)
+        self.assertNotIn("Total<br>Payable", markup)
+        self.assertIn("Amount in words:", markup)
+        self.assertIn("Value Inclusive of Sales Tax", markup)
+
+    def test_the_phone_row_appears_only_when_there_is_a_number(self):
+        with_phone = render(self.TEMPLATE, dict(PAYLOAD, buyerPhone=self.PHONE))
+        self.assertIn(self.PHONE, with_phone)
+        self.assertIn("Phone#", with_phone)
+        self.assertNotIn("Phone#", render(self.TEMPLATE, PAYLOAD))
+
+    def test_no_other_replica_grows_a_phone_row(self):
+        # A client who did not ask for it must not get it, whatever the
+        # payload happens to carry. Salon Marketings asked for the same row
+        # and are excluded for that reason, not because they slipped through.
+        data = dict(PAYLOAD, buyerPhone=self.PHONE)
+        for template in set(CLIENT_TEMPLATES) - {self.TEMPLATE,
+                                                 "invoice_salon_marketings.html"}:
+            self.assertNotIn(self.PHONE, render(template, data), template)
+
+    def test_the_cap_is_four_for_this_client_and_two_for_everyone_else(self):
+        self.assertEqual(4, client_features.custom_fields_max(self.CLIENT))
+        self.assertEqual(4, client_features.custom_fields_max(None, self.CLIENT))
+        for other in (None, "", "J527785", "3520223163127",
+                      "00000000-0000-0000-0000-000000000000"):
+            self.assertEqual(2, client_features.custom_fields_max(other), other)
+
+    def test_only_this_client_is_offered_the_phone_field(self):
+        self.assertTrue(client_features.prints_buyer_phone(self.CLIENT))
+        for other in (None, "", "J527785",
+                      "00000000-0000-0000-0000-000000000000"):
+            self.assertFalse(client_features.prints_buyer_phone(other), other)
+
+    def test_the_form_is_told_which_clients_get_the_phone_field(self):
+        # The form cannot import client_features, so app.py renders the
+        # answer into the page. If that context variable is dropped, Jinja
+        # quietly evaluates it as false and the field never appears -- which
+        # looks exactly like the client not having asked for it.
+        source = io.open(os.path.join(ROOT, "app.py"), encoding="utf-8").read()
+        self.assertIn("buyer_phone_for_client=client_features.prints_buyer_phone",
+                      source)
+        form = io.open(os.path.join(ROOT, "templates", "create-invoice.html"),
+                       encoding="utf-8").read()
+        self.assertIn("{{ 'true' if buyer_phone_for_client else 'false' }}", form)
+
+
+@unittest.skipIf(WeasyHTML is None, "WeasyPrint/pypdfium2 not installed")
+class GlobalSurfacePagination(unittest.TestCase):
+    """The five-row box the client asked for must fit one page.
+
+    This template's closing block -- the PO/DC box, the amount in words,
+    the summary box and the FBR marks -- breaks as one unit, so its height
+    is what decides how many lines fit. Stacked rather than laid out side
+    by side it came to about 92mm and exactly ONE four-line item fitted a
+    page: the block jumped whole to page two and left half of page one
+    blank. Nothing in the markup says so, which is why this renders real
+    pages.
+    """
+
+    TEMPLATE = "invoice_global_surface.html"
+    # What the client asked for: five line items on one sheet.
+    REQUIRED = 5
+    # What it actually takes, measured. The gap between the two is the
+    # headroom, and losing it is the warning bell that the next change
+    # breaks the requirement above.
+    CAPACITY = 6
+
+    # Long enough to wrap in the description column. A short description
+    # fits far more rows per page and would make this pass while a real
+    # invoice overflowed -- this template takes nine one-line items, six of
+    # these two-line ones, and three of the four-line monsters their own
+    # reference invoice carries.
+    DESCRIPTION = "Hard Chromium Plating of Rotor Shaft and Sleeve No. %d"
+    # The closing block's first and last pieces: if these two are not on the
+    # same page, it split.
+    PO_VALUE = "4500123456"
+    TOTAL = "Value Inclusive of Sales Tax"
+    STATIONERY = "imranelahi68@gmail.com"
+    ITEMS_HEADING = "Description of Goods"
+
+    @classmethod
+    def setUpClass(cls):
+        # The real mark, downscaled: the template sizes it `height: 1in;
+        # width: auto`, so a broken image would collapse the row and
+        # silently change the very fit being measured.
+        logo = Image.open(os.path.join(ROOT, "static", "uploads", "FBR LOGO.png"))
+        logo.thumbnail((240, 240))
+        buffer = io.BytesIO()
+        logo.save(buffer, format="PNG")
+        cls.fbr_logo = ("data:image/png;base64,"
+                        + base64.b64encode(buffer.getvalue()).decode())
+
+    @staticmethod
+    def flat(text):
+        """Text with every space and line break removed.
+
+        A table cell that wraps comes back from the PDF as several lines, so
+        comparing without whitespace is what stops these passing vacuously.
+        """
+        return re.sub(r"\s+", "", text)
+
+    def pages(self, count):
+        """Text of each page of a `count`-line invoice, as rendered."""
+        data = dict(
+            PAYLOAD,
+            items=[dict(PAYLOAD["items"][0],
+                        productDescription=self.DESCRIPTION % (i + 1))
+                   for i in range(count)],
+            customFields=GlobalSurfaceFields.FIELDS,
+        )
+        markup = render(self.TEMPLATE, data, logo=self.fbr_logo)
+        pdf = WeasyHTML(string=markup, base_url=ROOT).write_pdf()
+        document = pypdfium2.PdfDocument(io.BytesIO(pdf))
+        return [document[i].get_textpage().get_text_bounded()
+                for i in range(len(document))]
+
+    def test_the_five_items_the_client_asked_for_fit_a_single_page(self):
+        # The requirement, stated on its own so a failure reads as what it
+        # is rather than as a lost millimetre of headroom.
+        for count in range(1, self.REQUIRED + 1):
+            pages = self.pages(count)
+            self.assertEqual(
+                1, len(pages),
+                "%d line(s) spilled onto %d pages -- the client asked for "
+                "five on one sheet" % (count, len(pages)))
+
+    def test_there_is_a_row_of_headroom_beyond_the_five(self):
+        # Not a requirement, a tripwire: when this starts failing the sheet
+        # is one change away from breaking the test above.
+        pages = self.pages(self.CAPACITY)
+        self.assertEqual(
+            1, len(pages),
+            "the headroom beyond the five required rows is gone -- the "
+            "header, the type scale or the closing block has grown")
+
+    def test_a_seventh_line_spills_rather_than_being_dropped(self):
+        pages = self.pages(self.CAPACITY + 1)
+        self.assertGreater(len(pages), 1)
+        self.assertIn(self.flat(self.DESCRIPTION % (self.CAPACITY + 1)),
+                      self.flat("".join(pages)),
+                      "the overflowing line vanished instead of spilling")
+
+    def test_an_overflowing_invoice_keeps_its_closing_block_together(self):
+        # The failure this guards: the summary box, the Regards block and
+        # the FBR marks split across a page boundary, or land alone on a
+        # page, which reads as a second, empty document.
+        for count in (self.CAPACITY + 1, self.CAPACITY + 4, self.CAPACITY + 12):
+            pages = self.pages(count)
+            carrying = [i for i, text in enumerate(pages)
+                        if self.flat(self.PO_VALUE) in self.flat(text)]
+            self.assertEqual([len(pages) - 1], carrying,
+                             "%d lines: the PO/DC box is on pages %s"
+                             % (count, carrying))
+            self.assertIn(self.flat(self.TOTAL), self.flat(pages[-1]),
+                          "%d lines: the summary box parted company with it"
+                          % count)
+            self.assertIn(self.flat(FBR_NUMBER), self.flat(pages[-1]),
+                          "%d lines: the FBR marks parted company with it"
+                          % count)
+
+    def test_the_stationery_prints_on_every_page(self):
+        # The footer is pre-printed paper: a second page without it is a
+        # sheet that does not match the first.
+        for count in (1, self.CAPACITY + 1, self.CAPACITY + 12):
+            for index, text in enumerate(self.pages(count)):
+                self.assertIn(self.flat(self.STATIONERY), self.flat(text),
+                              "%d lines: page %d has no footer"
+                              % (count, index + 1))
+
+    def test_a_continued_items_table_repeats_its_headings(self):
+        # Figures under no headings are unreadable, and worse, look like they
+        # belong to whatever column the eye lands on.
+        pages = self.pages(self.CAPACITY + 12)
+        stem = self.flat(self.DESCRIPTION.split(" %d")[0])
+        carrying = [i for i, text in enumerate(pages) if stem in self.flat(text)]
+        self.assertGreater(len(carrying), 1,
+                           "expected item rows on more than one page; this "
+                           "test is vacuous otherwise")
+        for index in carrying:
+            self.assertIn(self.flat(self.ITEMS_HEADING), self.flat(pages[index]),
+                          "page %d carries item rows with no headings"
+                          % (index + 1))
+
+
 class ComplianceMarks(unittest.TestCase):
     """The three things every FBR invoice must carry."""
 
@@ -594,6 +856,7 @@ class BrandArtwork(unittest.TestCase):
         "invoice_beacon_alliance.html": "brand/3740545582835.html",
         "invoice_salon_marketings.html": "brand/3520223163127.html",
         "invoice_zahid_steel.html": "brand/J527785.html",
+        "invoice_global_surface.html": "brand/global_surface.html",
     }
 
     def test_artwork_renders_with_no_logo_url_at_all(self):

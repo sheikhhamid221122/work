@@ -825,6 +825,69 @@ stale profile still prints the stale numbers. That script was run twice
 against a throwaway Postgres in both the "profile already exists" and "brand
 new client" cases. A4.
 
+`templates/invoice_global_surface.html` — Global Surface Technologies,
+`users.id ed156fdd-086e-480c-be18-a2c85d9e31b1`. Built from their own
+Word-made sheet rather than a letterhead file, so the stationery is the top
+and bottom of that page. Arial Black 10.1 pt for the buyer box, the
+identifier block and the items headings; Times for everything else; a solid
+black heading band, which is the sheet's only fill. Nine columns: their
+eight plus HS Code. A4 (their sheet is US Letter).
+
+Three things this build did differently, all reusable:
+
+**Per-client features keyed on the client *id*.** `client_features.py` is the
+id-keyed sibling of `advance_tax.py`. The older switches — `REAMS_USERNAMES`,
+`SALES_PERSON_USERNAMES`, `ADVANCE_TAX_USERNAMES` — all need a
+`users.username`, which costs a query wherever one is not already in hand.
+`client_features` takes **any** of `users.id`, `clients.id` or the username
+and matches on whichever it was given, so the create-invoice page answers
+from `session` alone. Prefer this shape for the next per-client switch.
+
+It currently raises the custom-field cap to four (PO Number, PO Date, DC
+Number, DC Date) and turns on the buyer Phone row. Note that
+`INVOICE_CUSTOM_FIELDS_MAX = 2` lived in **four** places — `app.py`,
+`invoice_form_routes.py` twice (the stored payload and the saved default
+names) and the JS in `create-invoice.html`. Raising it means all four, and
+the defaults endpoint is the one that bites: its GET and PUT must use the
+same cap or a client's saved four names come back truncated to two.
+
+The form cannot import `client_features`, so `app.py` renders
+`buyer_phone_for_client` into `create-invoice.html` and `isBuyerPhoneClient()`
+ORs it in. A server-rendered flag beats a second copy of a client list, and
+the field is then right on first paint instead of after the username fetch.
+
+**Artwork that is photographs needs splitting.** One PNG of their whole
+header band was 200 KiB inlined into every invoice. Split into two JPEG
+photographs plus the WordArt lettering as a 64-colour PNG it is 130 KiB with
+the lettering sharper, laid back out by a three-cell table at the widths
+measured off their sheet. Trim **only** the lettering to ink — ink-trimming a
+photograph crops whatever is pale at its border and the pieces stop lining
+up. See `scripts/extract_global_surface_brand.py`.
+
+**Size a column from measured widths, not by eye.** Each column is the wider
+of its widest heading *word* in Arial Black 10.1 pt and its widest plausible
+figure in Times Bold 10.6 pt, plus the 6 pt of padding. Probe each string by
+rendering it alone on an oversized `@page` — an A4 probe clips it — and read
+the text rect back. Done properly this caught HS Code sitting at 8.5 % when
+its own values need 9.2 %: it had been overflowing silently since the first
+cut. The table of figures is in the template's own comment.
+
+**On "make it fit one page".** The closing block — PO/DC box, amount in
+words, summary box, FBR marks — breaks as one unit, so its height decides the
+capacity. Stacked instead of laid out side by side it came to ~92 mm and
+exactly ONE four-line item fitted a page: the block jumped whole to page two
+and left half of page one blank. Side by side it is ~65 mm. Trimming the page
+bottom margin to the footer's own measured height, 0.5 pt a side off the cell
+padding and 3 mm off the FBR gap bought another ~12 mm, which is one row.
+
+Capacity is nine one-line descriptions, six two-line, three four-line — and
+five of the four-line descriptions their reference sheet carries will **not**
+fit A4 under their letterhead. Quote the measured number rather than quietly
+shrinking a client's type. `GlobalSurfacePagination` pins both ends:
+`REQUIRED = 5`, what the client asked for, so a failure reads as the broken
+promise; and `CAPACITY = 6`, the measured headroom, a tripwire that fails one
+change before the promise does.
+
 ---
 
 ## Quick reference
