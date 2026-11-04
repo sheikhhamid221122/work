@@ -1595,7 +1595,9 @@
         // Get environment from session variable, if available, otherwise default to URL param or 'production'
         const ENV = "{{ session.get('env', '') }}" || new URLSearchParams(window.location.search).get('env') || 'production';
         console.log('Current environment:', ENV);
-        /** Mirrors app.py INVOICE_CUSTOM_FIELDS_MAX (single source: app.py). */
+        /** This client's cap, rendered by app.py from
+         *  client_features.custom_fields_max -- two by default, more for
+         *  the clients whose own sheet has room for them. */
         const MAX_CUSTOM_FIELDS = Number("{{ invoice_custom_fields_max | default(2) }}") || 2;
 
         function apiUrl(endpoint) {

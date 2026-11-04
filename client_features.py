@@ -1,7 +1,7 @@
 """Per-client printing features that are decided by *which client* it is.
 
-A handful of clients' replicas print something nobody else's does -- an extra
-pair of custom fields, a buyer's phone number. The existing switches of that
+A handful of clients' replicas print something nobody else's does -- another
+pair or three of custom fields, a buyer's phone number. The switches of that
 kind (`REAMS_USERNAMES`, `SALES_PERSON_USERNAMES`, `advance_tax`) are keyed on
 `users.username`, which is fine where a username is already in hand but costs
 a round trip to the database everywhere else.
@@ -29,12 +29,22 @@ GLOBAL_SURFACE = (
     "ed156fdd-086e-480c-be18-a2c85d9e31b1",
 )
 
-# Two custom fields is the limit everywhere it is not raised here. Four is
-# what Global Surface's four PO/DC fields need; it is a per-client number and
-# not a new default, because the field pairs are laid out two to a line and a
-# client who does not use them should not see four empty rows offered.
+# Material Craft. Their sheet carries P.O #, P.O Date, D Challan # and DC
+# Date in the grid at the top right, and a Delivery Address row in the buyer
+# identifier box -- the plant the goods go to, which is not the buyer's
+# address and is not an FBR field. Five fields, not four.
+MATERIAL_CRAFT = (
+    "71a52649-1b77-4748-9a51-fd33ce621000",
+)
+
+# Two custom fields is the limit everywhere it is not raised here. A raised
+# cap is a per-client number and not a new default, because the field pairs
+# are laid out two to a line and a client who does not use them should not be
+# offered rows of empty ones.
 DEFAULT_CUSTOM_FIELDS_MAX = 2
-FOUR_CUSTOM_FIELDS = frozenset(GLOBAL_SURFACE)
+CUSTOM_FIELD_CAPS = {}
+CUSTOM_FIELD_CAPS.update({key: 4 for key in GLOBAL_SURFACE})
+CUSTOM_FIELD_CAPS.update({key: 5 for key in MATERIAL_CRAFT})
 
 # Clients whose replica prints the buyer's phone number. Separate from the
 # sales-person set in invoice_form_routes.py, which used to stand in for this
@@ -51,9 +61,12 @@ def custom_fields_max(*ids) -> int:
     """How many custom field pairs this client may put on an invoice.
 
     Pass any mix of users.id, clients.id and username; whichever the caller
-    happens to have is enough.
+    happens to have is enough. A caller holding two identifiers for the same
+    client gets the same answer from either, so the highest cap any of them
+    names is the one that applies.
     """
-    return 4 if _keys(*ids) & FOUR_CUSTOM_FIELDS else DEFAULT_CUSTOM_FIELDS_MAX
+    caps = [CUSTOM_FIELD_CAPS[key] for key in _keys(*ids) if key in CUSTOM_FIELD_CAPS]
+    return max(caps) if caps else DEFAULT_CUSTOM_FIELDS_MAX
 
 
 def prints_buyer_phone(*ids) -> bool:

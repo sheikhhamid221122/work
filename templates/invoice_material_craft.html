@@ -1,0 +1,552 @@
+{#
+  Material Craft -- sales tax invoice.
+
+  What this is a copy of
+  ----------------------
+  Their own sheet, photographed as `material_craft.jpeg`. The photo clips the
+  top edge of the paper and its bottom-right corner is folded, so the page
+  could not be found as a quadrilateral: it was rectified from its left,
+  right and bottom edges with the fourth reconstructed from the A4 ratio,
+  which put the missing strip at 1.3mm and confirmed the sheet is A4. Every
+  number below was then read off that rectified page in millimetres.
+
+  Their typography, measured by WIDTH and not by eye -- a rendered string
+  compared against the same string on their sheet, which is what puts a line
+  in the same place on the paper:
+    * Times New Roman 10pt   everything (seven strings came back within 2%
+                             of 10pt: the buyer block, the "Kindly arrange"
+                             line, the sign-off, the closing note)
+    * Times New Roman 12.5pt bold, underlined -- "SALES TAX INVOICE" only
+  A cap-height reading of the title said 15pt and was wrong by 20%: their
+  printed line is 44.5mm wide and 15pt renders it at 53.2mm.
+
+  THE POINT OF THIS TEMPLATE: it prints on their pre-printed letterpad
+  -------------------------------------------------------------------
+  Nothing is rendered in the masthead or the footer. The client feeds their
+  own stationery through the printer, so those two bands must be left empty
+  to exactly the depth their paper already occupies, or the invoice prints
+  over their own logo. Measured off their sheet:
+
+    * their masthead ink (the mark and MATERIAL CRAFT) runs 5.2 -> 16.2mm
+      from the top edge. The page's top margin is 19mm: their ink, plus the
+      2.8mm of air their own sheet leaves before the Date line.
+    * their footer ink (telephone, e-mail, address and the two rules) starts
+      at 276.3mm and runs to the foot of the paper -- 20.7mm. The page's
+      bottom margin is 23mm, that depth plus 2.3mm of clearance.
+
+  Change either margin and the invoice prints onto their letterhead. They
+  are pinned by `MaterialCraftLetterpad` in tests/test_client_templates.py.
+
+  Their page geometry, in millimetres from the left edge of the paper:
+    content           24.0 -> 192.0   (the ruled boxes and the items table)
+    buyer box         24.1 ->  87.2   invoice grid   135.5 -> 191.8
+    client id box     24.9 ->  87.7   seller id box  135.5 -> 192.1
+    items table rules  26.0 | 34.5 | 117.0 | 135.9 | 160.3 | 192.5
+
+  What the client asked to change from that sheet
+  -----------------------------------------------
+    1. The masthead and the footer are left as empty space, above.
+    2. Five custom fields instead of the usual two: P.O #, P.O Date,
+       D Challan # and DC Date in the grid at the top right, and Delivery
+       Address in the buyer identifier box. See client_features.py, which
+       raises the cap for this client alone.
+    3. The invoice date prints at the top right, as their sheet has it.
+    4. The seller identifier block -- N.T.N, GST, Supplier #, CNIC # --
+       reads exactly as written on their sheet.
+    5. The three FBR marks go below the items table against the RIGHT
+       margin: the Digital Invoicing logo and the QR side by side, with the
+       FBR invoice number centred underneath them.
+    6. The items table is their five columns and nothing else.
+
+  What is live and what is fixed
+  ------------------------------
+    * The seller's NTN and STRN print live from `data`, as they must --
+      their own numbers are the fallback for a payload carrying none, so
+      the sheet is never blank where a tax number belongs. The client asked
+      for the GST number in the 2-2-4-3-2 grouping their sheet uses, so a
+      payload holding exactly their thirteen digits is regrouped to match.
+      That is presentation: the digits printed and the digits filed are the
+      same, and no other seller's number is touched.
+    * Supplier # and CNIC # are NOT FBR fields -- there is no element for
+      either in the payload -- so they are their values, verbatim.
+    * "For Material Craft," is the seller's business name from `data`. It is
+      body text on their sheet, not part of the letterhead, and it is what
+      identifies the seller on a page whose masthead is blank until it meets
+      their paper.
+
+  Contract: rendered by app.py with data, qr_base64, client_logo_url,
+  fbr_logo_url, username, settings, theme, and the `datetimeformat` and
+  `comma_format` filters. See invoice_template3.html for the same contract.
+  There is deliberately no brand partial: there is no artwork to inline.
+#}
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>Sales Tax Invoice {{ data.invoiceRefNo or '' }}</title>
+  <style>
+    /* ---- The letterpad reserve ------------------------------------------
+       The two margins that matter. See the note at the top of this file:
+       19mm clears their masthead, 23mm clears their footer. Neither is a
+       round number chosen for looks -- both are their own ink, measured.
+       Left 24mm and right 18mm put the content between 24.0 and 192.0mm,
+       which is where their boxes and their table sit. */
+    @page {
+      size: A4;
+      margin: 19mm 18mm 23mm 24mm;
+    }
+
+    body {
+      font-family: "Times New Roman", Times, serif;
+      font-size: 10pt;
+      line-height: 1.4;
+      color: #000;
+      margin: 0;
+      padding: 0;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+    /* Direct children only. A plain `.no-border td` also matches the cells
+       of any table nested inside a row and strips its rules -- which is
+       exactly what every box on this sheet is. */
+    .no-border > tbody > tr > td { border: none; padding: 0; }
+
+    /* ---- Date ------------------------------------------------------------
+       Top right, the value underlined, as their sheet sets it. It is the
+       first thing on the page: their own Date line sits 2.8mm under their
+       masthead, which is the air the 19mm top margin leaves. */
+    .date-line { text-align: right; }
+    .date-line .val { text-decoration: underline; }
+
+    /* ---- Buyer block and the invoice grid -------------------------------
+       Their rules: the buyer box 24.1 -> 87.2mm and the grid 135.5 ->
+       191.8mm of a 168mm content width, so 37.6% and 33.5% with 28.9%
+       of air between them. */
+    .party { margin-top: 9mm; }
+    .party > tbody > tr > td { vertical-align: top; }
+    .party td.left-cell { width: 37.6%; }
+    .party td.gap-cell { width: 28.9%; }
+    .party td.right-cell { width: 33.5%; }
+
+    /* 1pt of vertical padding and not 2, and 1.3 of leading in the ruled
+       grids rather than the body's 1.4. Their grid rows measure 5.3-5.6mm
+       and that is what reproduces them: 10pt x 1.3 is 4.59mm of line plus
+       0.7mm of padding. At 2pt and 1.4 the same rows came out at 6.7mm,
+       which cost this sheet five line items before anything looked wrong.
+       The buyer block keeps the body's 1.4 -- its printed line pitch is
+       5.0mm, which is where that number came from. */
+    .box td { border: 1px solid #000; padding: 1pt 4pt; vertical-align: top; }
+    .grid td, .client-box td { line-height: 1.3; }
+
+    /* 32mm is the height of their buyer box, which is taller than the four
+       address lines it holds -- their sheet rules a fixed box and leaves
+       the slack below the address. Height and not min-height: a table cell
+       treats it as a minimum anyway, so a longer address still grows it. */
+    .messers td { height: 32mm; }
+
+    /* The grid's internal rule is at 160.1mm, which is 43.7% of its own
+       56.3mm width. */
+    .grid td.lab { width: 43.7%; }
+    .grid td.val { width: 56.3%; }
+
+    /* The client box's rule is at 54.8mm of its 24.9 -> 87.7mm, so 47.6%. */
+    .ids { margin-top: 2.5mm; }
+    .ids > tbody > tr > td { vertical-align: top; }
+    .client-box td.lab { width: 47.6%; }
+    .client-box td.val { width: 52.4%; }
+
+    /* ---- Title ----------------------------------------------------------- */
+    .title-row { text-align: center; margin: 5.9mm 0 0; }
+    .title { font-size: 12.5pt; font-weight: bold; text-decoration: underline; }
+
+    /* Their sheet indents this line 2.6mm from the content edge. */
+    .lead-in { margin: 6mm 0 3.8mm; padding-left: 2.6mm; }
+
+    /* ---- Items -----------------------------------------------------------
+       Their five columns and nothing else -- the client asked for the table
+       exactly as drawn. Widths are their own rules (26.0 | 34.5 | 117.0 |
+       135.9 | 160.3 | 192.5mm) with one correction: Unit Price was 14.7%
+       and its own plausible figures do not fit. Each column was then sized
+       against the wider of its heading and its widest plausible value,
+       rendered on an oversized page rather than estimated -- an A4 probe
+       clips a long string and reports a confidently wrong number. At 10pt
+       Times, as a percentage of the 168mm content width:
+
+         S.No         'S.No'           4.3   value '01'            1.5
+         Description  'Description'    9.2   wraps by design
+         Qty          'Qty'            3.4   value '191.00 Kg'     9.2
+         Unit Price   'Unit Price'     9.2   'Rs 1,192,340-00'    13.9
+         Amount       'Amount'         7.7   'Rs 12,345,678-00'   15.0
+
+       Add 1.2% for the cell padding. Unit Price went 14.7 -> 15.8% and
+       Description gave up the difference; do not shrink either again
+       without re-measuring. */
+    .items th, .items td {
+      border: 1px solid #000;
+      padding: 1pt 3pt;
+      line-height: 1.3;
+      text-align: left;
+      vertical-align: top;
+    }
+    .items th { font-weight: normal; }
+    /* A line item must not split across a page break: its description would
+       land on one page and its figures on the other. */
+    .items tbody tr { page-break-inside: avoid; }
+    .items td.fig { white-space: nowrap; }
+    /* The totals rows. Their labels sit in the Unit Price column and their
+       figures in the Amount column, with the three columns to the left
+       merged and empty -- which is why they carry a colspan: a row narrower
+       than its header shifts every figure into the wrong column, silently,
+       and `ItemsTableAlignment` is what catches it. */
+    .items td.tot-lab { font-weight: bold; }
+    .items td.tot-num { font-weight: bold; white-space: nowrap; }
+    /* The slack under the last line item is ONE open row, not a stack of
+       ruled blank ones: their sheet draws no horizontal rule between the
+       last item and the totals, just a tall empty cell in each column. Its
+       height is set inline, at 5.3mm -- their ruled row pitch -- for each
+       row short of seven, so the box has the depth their printed one has
+       and collapses to nothing once the invoice fills it. */
+    .items td.filler { padding: 0; }
+
+    /* ---- Amount in words -------------------------------------------------
+       A strip across the foot of the table. It is a table of its own and not
+       a last row, because its rule falls at 56.9mm -- between the S.No and
+       Description columns, not on a column boundary -- and a colspan cannot
+       put it there. -1px of margin collapses its top border onto the table's
+       bottom one so the two read as one ruled box. */
+    .words-strip { margin-top: -1px; }
+    .words-strip td { border: 1px solid #000; padding: 1pt 4pt; line-height: 1.3; }
+    .words-strip td.lab { width: 18.2%; }
+    .words-strip td.val { font-weight: bold; }
+
+    /* ---- Sign-off and the FBR marks -------------------------------------
+       Side by side: the sign-off where their sheet has it, the three FBR
+       marks against the right margin beside it. Beside and not stacked for
+       a measurable reason -- this block breaks as one unit, so its height
+       is what decides how many line items fit a page. */
+    .closing-row { margin-top: 10mm; }
+    .closing-row > tbody > tr > td { vertical-align: top; }
+    .closing-row td.sign-cell { width: 52%; }
+    .closing-row td.fbr-cell { width: 48%; }
+    /* The signature space their sheet leaves between the company line and
+       the signatory's name. */
+    .signatory { margin-top: 11mm; }
+
+    /* The marks sit against the right margin, the logo and the QR side by
+       side with the number centred underneath them. White ground on
+       purpose -- a QR code wants clean paper to scan from. */
+    .fbr { margin-left: auto; width: auto; background: #fff; }
+    /* `> tbody > tr >` and not a plain `.fbr td`: this table also carries
+       `no-border`, whose own child rule is more specific and would zero the
+       padding below, leaving the logo and the QR touching. */
+    .fbr > tbody > tr > td { border: none; vertical-align: middle; padding: 0; }
+    .fbr > tbody > tr > td.di { padding-right: 14pt; }
+    .fbr > tbody > tr > td.num {
+      text-align: center;
+      padding-top: 3pt;
+      line-height: 1.25;
+    }
+    .fbr .num .lab { font-weight: bold; }
+    /* Monospace, so a digit of the number can be read off it one at a time. */
+    .fbr .num .val { font-family: "Courier New", monospace; font-size: 9pt; }
+    /* Both 1in, the size the default template gives them. The logo is sized
+       by HEIGHT and the QR by both, because the logo is not square and
+       fixing its width instead would leave it shorter than the square
+       beside it. */
+    .fbr .di img { height: 1in; width: auto; display: block; }
+    .fbr .qr img { width: 1in; height: 1in; display: block; }
+    .fbr .pending { color: #b00; font-weight: bold; }
+
+    .note { margin-top: 11mm; padding-left: 2.6mm; }
+
+    /* The sign-off, the FBR marks and the closing note are one block and
+       break as one. Left to themselves on a long invoice they split and the
+       marks land alone on a page of their own, which reads as a second,
+       empty document rather than the foot of this one. Grow anything in
+       here and re-render invoices of one to fifteen lines --
+       `MaterialCraftPagination` pins it, and a single-case preview hides
+       the problem completely. */
+    .closing { page-break-inside: avoid; }
+  </style>
+</head>
+
+<body>
+
+  {#- Their numbers, used only where the payload has none. A blank line where
+      a seller's tax number belongs is worse than a constant their profile
+      should be setting anyway; fix the profile and neither of these fires. -#}
+  {%- set NTN = (data.sellerNTNCNIC or '') | string | trim or "1270230-7" -%}
+  {%- set STRN_raw = (data.sellerSTRN or '') | string | trim or "03-00-1270-230-12" -%}
+  {#- The client asked for their GST number in the grouping their sheet
+      prints. Keyed on their thirteen digits alone, so no other seller's
+      number can be regrouped, and purely presentational: these are the
+      same digits that were filed. -#}
+  {%- set STRN = "03-00-1270-230-12"
+        if STRN_raw | replace('-', '') | replace(' ', '') == "0300127023012"
+        else STRN_raw -%}
+
+  {#- dd-mm-yyyy, the way their sheet writes a date. `datetimeformat` spells
+      the month out, which is not this sheet. -#}
+  {%- set date_raw = (data.invoiceDate or '') | string | trim -%}
+  {%- set date_parts = date_raw.split('-') -%}
+  {%- if date_parts | length == 3 and date_parts[0] | length == 4 -%}
+    {%- set invoice_date = date_parts[2][:2] ~ "-" ~ date_parts[1] ~ "-" ~ date_parts[0] -%}
+  {%- else -%}
+    {%- set invoice_date = date_raw -%}
+  {%- endif -%}
+
+  {#- The five custom fields. Delivery Address is pulled out by name and
+      printed in the buyer identifier box; the other four fill the grid at
+      the top right, in the order the form sent them. Matching by name and
+      not by position means re-ordering the fields on the form cannot put
+      the delivery address in the P.O row. -#}
+  {%- set all_fields = ((data.customFields or []) | selectattr('value') | list)[:invoice_custom_fields_max | default(5)] -%}
+  {%- set ns = namespace(delivery='') -%}
+  {%- set grid_fields = [] -%}
+  {%- for field in all_fields -%}
+    {%- if (field.name or '') | string | lower | trim == 'delivery address' -%}
+      {%- set ns.delivery = field.value -%}
+    {%- else -%}
+      {%- set _ = grid_fields.append(field) -%}
+    {%- endif -%}
+  {%- endfor -%}
+
+  {# ------------------------------------------------------------ the date #}
+  {#- Everything above this line is their pre-printed letterpad. Nothing is
+      rendered into it; the page's 19mm top margin is the whole masthead. -#}
+  <div class="date-line">Date: <span class="val">{{ invoice_date }}</span></div>
+
+  {# ------------------------------------------ buyer block + invoice grid #}
+  <table class="no-border party">
+    <tr>
+      <td class="left-cell">
+        <table class="box messers">
+          <tr>
+            <td>
+              Messers:<br>
+              {{ data.buyerBusinessName }}
+              {#- Their sheet sets the address over its own lines. A stored
+                  address that carries line breaks keeps them; one that does
+                  not simply wraps, as any other would. Split and looped
+                  rather than `replace('\n', '<br>') | safe`, which would
+                  turn an address into markup. -#}
+              {%- for line in ((data.buyerAddress or '') | string | replace('\r', '') | trim).split('\n') -%}
+                {%- if line | trim %}<br>{{ line | trim }}{% endif -%}
+              {%- endfor %}
+            </td>
+          </tr>
+        </table>
+      </td>
+      <td class="gap-cell"></td>
+      <td class="right-cell">
+        <table class="box grid">
+          <tr>
+            <td class="lab">Invoice #</td>
+            <td class="val">{{ data.invoiceRefNo }}</td>
+          </tr>
+          {#- Only fields that were filled in are printed, so a sheet with two
+              of them does not carry two empty labels. -#}
+          {% for field in grid_fields %}
+            <tr>
+              <td class="lab">{{ field.name }}</td>
+              <td class="val">{{ field.value }}</td>
+            </tr>
+          {% endfor %}
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  {# -------------------------------------- client ids + seller identifiers #}
+  <table class="no-border ids">
+    <tr>
+      <td class="left-cell">
+        <table class="box client-box">
+          <tr>
+            <td class="lab">Client N.T.N</td>
+            <td class="val">{{ data.buyerNTNCNIC }}</td>
+          </tr>
+          <tr>
+            <td class="lab">Client GST</td>
+            <td class="val">{{ data.buyerSTRN }}</td>
+          </tr>
+          <tr>
+            <td class="lab">Delivery Address</td>
+            <td class="val">{{ ns.delivery }}</td>
+          </tr>
+        </table>
+      </td>
+      <td class="gap-cell"></td>
+      <td class="right-cell">
+        <table class="box grid">
+          <tr>
+            <td class="lab">N.T.N</td>
+            <td class="val">{{ NTN }}</td>
+          </tr>
+          <tr>
+            <td class="lab">GST</td>
+            <td class="val">{{ STRN }}</td>
+          </tr>
+          {#- Neither of these is an FBR field: the payload has no element
+              for either, so they are the client's own, verbatim. -#}
+          <tr>
+            <td class="lab">Supplier #</td>
+            <td class="val">0000332375</td>
+          </tr>
+          <tr>
+            <td class="lab">CNIC #</td>
+            <td class="val">35202-2915730-9</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  {# ------------------------------------------------------------- title #}
+  {#- Set as text, not lifted, so a credit or debit note can say what it
+      actually is. -#}
+  {%- set kind = (data.invoiceType or '') | lower -%}
+  <div class="title-row">
+    <span class="title">
+      {{- "DEBIT NOTE" if "debit" in kind else ("CREDIT NOTE" if "credit" in kind else "SALES TAX INVOICE") -}}
+    </span>
+  </div>
+
+  <div class="lead-in">Kindly arrange payment against the supply of following:</div>
+
+  {# --------------------------------------------------------------- items #}
+  {#- The GST row states the rate, taken from the goods rather than
+      hard-coded, and only when every line shares one -- otherwise the row
+      would claim something untrue of some of them. -#}
+  {% set rates = data['items'] | map(attribute='rate', default='') | select | list | unique | list %}
+  {% set one_rate = rates[0] if rates | length == 1 else '' %}
+  {% set item_count = data['items'] | length %}
+  {#- Seven rows deep whatever the invoice holds, which is roughly the depth
+      of the box on their printed sheet. -#}
+  {% set ROWS = 7 %}
+
+  <table class="items">
+    <thead>
+      <tr>
+        <th style="width: 5.5%;">S.No</th>
+        <th style="width: 47.2%;">Description</th>
+        <th style="width: 11.3%;">Qty</th>
+        <th style="width: 15.8%;">Unit Price</th>
+        <th style="width: 20.2%;">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in data['items'] %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>{{ item.productDescription }}</td>
+          <td>{{ item.quantity }}{% if item.uoM %} {{ item.uoM }}{% endif %}</td>
+          <td class="fig">Rs {{ (item.unitrate | comma_format) | string | replace('.', '-') }}</td>
+          <td class="fig">Rs {{ (item.valueSalesExcludingST | comma_format) | string | replace('.', '-') }}</td>
+        </tr>
+      {% endfor %}
+
+      {% set blank_rows = ROWS - item_count %}
+      {% if blank_rows > 0 %}
+        <tr>
+          {% for _ in range(5) %}<td class="filler" style="height: {{ (blank_rows * 5.3) | round(1) }}mm;"></td>{% endfor %}
+        </tr>
+      {% endif %}
+
+      <tr>
+        <td colspan="3"></td>
+        <td class="tot-lab">Total Amount</td>
+        <td class="tot-num">Rs {{ (data.totalExcl | comma_format) | string | replace('.', '-') }}</td>
+      </tr>
+      <tr>
+        <td colspan="3"></td>
+        <td class="tot-lab">GST{% if one_rate %} {{ one_rate }}{% endif %}</td>
+        <td class="tot-num">Rs {{ (data.totalTax | comma_format) | string | replace('.', '-') }}</td>
+      </tr>
+      <tr>
+        <td colspan="3"></td>
+        <td class="tot-lab">Gross Amount</td>
+        <td class="tot-num">Rs {{ (data.totalInclusive | comma_format) | string | replace('.', '-') }}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  {# ----------------------------------------------------- amount in words #}
+  {#- Their phrasing: 'Rupees: One hundred twenty thousand three hundred
+      sixty only.' `num2words` gives app.py '... rupees, zero paisa only'
+      with a comma grouping the thousands, so the currency tail comes off,
+      the grouping commas come out, and a non-zero paisa amount is joined
+      with 'and' rather than being left dangling. -#}
+  {%- set words = (data.amountInWords or '') | string | trim -%}
+  {%- set words = words | replace(' rupees, zero paisa', '') -%}
+  {%- set words = words | replace(' rupees,', ' and') -%}
+  {%- set words = words | replace(',', '') -%}
+  {%- set words = (words[:1] | upper) ~ words[1:] -%}
+  <table class="words-strip">
+    <tr>
+      <td class="lab">Amount in words</td>
+      <td class="val">Rupees: {{ words }}{% if words and not words.endswith('.') %}.{% endif %}</td>
+    </tr>
+  </table>
+
+  <div class="closing">
+
+    {# ------------------------------------------ sign-off and FBR marks #}
+    <table class="no-border closing-row">
+      <tr>
+        <td class="sign-cell">
+          <div>Truly Yours,</div>
+          {#- The seller's business name, live. It is body text on their
+              sheet rather than part of the letterhead, and on a page whose
+              masthead stays blank until it meets their paper it is what
+              names the seller. -#}
+          <div>For {{ data.sellerBusinessName or "Material Craft" }},</div>
+          <div class="signatory">S.D. Zafar</div>
+        </td>
+        <td class="fbr-cell">
+          {#- Renders only once the invoice has actually been submitted and
+              has a number; before that it says so plainly rather than
+              printing a QR that resolves to nothing. -#}
+          <table class="no-border fbr"{% if not (data.fbrInvoiceNumber and qr_base64) %} style="margin-left: 0;"{% endif %}>
+            {% if data.fbrInvoiceNumber and qr_base64 %}
+              <tr>
+                {% if fbr_logo_url %}
+                  <td class="di">
+                    <img src="{{ fbr_logo_url }}" alt="FBR Digital Invoicing System">
+                  </td>
+                {% endif %}
+                <td class="qr">
+                  <img src="data:image/png;base64,{{ qr_base64 }}" alt="FBR QR code">
+                </td>
+              </tr>
+              <tr>
+                <td class="num" colspan="{{ 2 if fbr_logo_url else 1 }}">
+                  <span class="lab">FBR Invoice #</span><br>
+                  <span class="val">{{ data.fbrInvoiceNumber }}</span>
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td>
+                  <div class="pending">Not yet submitted to FBR &mdash; no invoice number or QR code yet.</div>
+                </td>
+              </tr>
+            {% endif %}
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <div class="note">"This is a system generated invoice and does not require any stemp and signature"</div>
+
+  </div>
+
+  {#- Everything below this line is their pre-printed letterpad: the
+      telephone number, the e-mail address, the street address and the two
+      rules. Nothing is rendered into it; the page's 23mm bottom margin is
+      the whole footer. -#}
+
+</body>
+
+</html>
