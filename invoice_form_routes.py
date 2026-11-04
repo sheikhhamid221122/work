@@ -1310,7 +1310,7 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
     def _custom_fields_max(cur, client_id):
         """How many custom field pairs this client's invoice has room for.
 
-        Four for the clients in client_features.FOUR_CUSTOM_FIELDS, two for
+        Whatever client_features.CUSTOM_FIELD_CAPS allows them, two for
         everyone else. The lookup is here rather than in the caller so the
         GET and the PUT below cannot disagree about the cap and leave a
         client's saved defaults silently truncated on the next read.
@@ -1764,8 +1764,8 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         buyer["buyerAddress"] = buyer_address
 
         # Custom fields: keep only valid non-empty name/value pairs, capped
-        # at what this client's sheet has room for -- four for the clients in
-        # client_features.FOUR_CUSTOM_FIELDS, two for everyone else. Gated
+        # at what this client's sheet has room for -- see
+        # client_features.CUSTOM_FIELD_CAPS, two for everyone else. Gated
         # here and not only in the form, for the same reason as the two
         # printed-only fields above.
         custom_fields = []

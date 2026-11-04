@@ -888,6 +888,89 @@ shrinking a client's type. `GlobalSurfacePagination` pins both ends:
 promise; and `CAPACITY = 6`, the measured headroom, a tripwire that fails one
 change before the promise does.
 
+`templates/invoice_material_craft.html` — Material Craft, id given
+`71a52649-1b77-4748-9a51-fd33ce621000`. The first **letterpad-reserve**
+replica: the client feeds their own pre-printed stationery through the
+printer, so the template renders nothing at all in the masthead or the
+footer and reserves both as page margins. There is no brand partial and
+Step 1 does not apply — there is no artwork to extract. Times New Roman
+10 pt throughout, 12.5 pt bold for the title. A4.
+
+**Measure the reserve off their sheet; it is the whole template.** Their
+masthead ink runs 5.2 → 16.2 mm from the top edge and their footer ink
+starts at 276.3 mm, so the page is `margin: 19mm 18mm 23mm 24mm` — their
+ink plus the air their own sheet leaves. Get this wrong and the invoice
+prints over their logo.
+
+**Pin it on pixels, not on CSS.** `MaterialCraftLetterpad` renders real
+pages, rasterises each at 10 px/mm and asserts the first and last inked
+row on *every* page, continuation pages included. Asserting the stylesheet
+says `19mm` proves nothing about where ink lands. Mutation-check it both
+ways — shrinking either margin must fail it.
+
+**A photographed sheet is still measurable.** This one clipped the top edge
+of the paper and had a folded bottom-right corner, so the page could not be
+found as a quadrilateral. Fit lines to the left, right and bottom edges,
+intersect for the two bottom corners, and reconstruct the top from the A4
+ratio. The missing strip came out at 1.3 mm, which is itself the proof the
+sheet is A4: US Letter would have implied 20 mm of paper missing above a
+logo that is visibly at the frame edge.
+
+**Cap height lies about type size; width does not.** A cap-height reading
+made the title 15 pt. Rendered, 15 pt is 53.2 mm against their printed
+44.5 mm — it is 12.5 pt. Seven body strings then landed within 2 % of
+10 pt. Always compare a rendered string's width against the same string on
+their sheet; see "Size a column from measured widths" above.
+
+**Cell padding and leading are where a sheet quietly loses rows.** The first
+cut used 2 pt padding and 1.4 leading in the ruled grids. Their rows measure
+5.3–5.6 mm; that combination gives 6.7 mm. Nothing *looked* wrong and it
+cost five line items. 1 pt padding with 1.3 leading reproduces them. The
+buyer block keeps 1.4, because its printed line pitch is 5.0 mm.
+
+**Their empty items area is one open cell, not ruled filler rows.** Their
+sheet draws no rule between the last item and the totals. So instead of N
+filler rows, emit a **single** row whose height is set inline at
+`(ROWS - item_count) * 5.3mm`: same depth, their look, and still one
+rectangular row for `ItemsTableAlignment`. Check which of the two a client's
+sheet actually does before copying the Global Surface pattern.
+
+**`client_features.py` now holds a cap map, not a set.** `FOUR_CUSTOM_FIELDS`
+became `CUSTOM_FIELD_CAPS = {id: n}`, because this client needs five.
+`custom_fields_max` returns the highest cap any id it was given names. The
+create-invoice form needed no change — it reads the number the server
+renders, which is the payoff of that pattern.
+
+**A custom field can be routed somewhere other than the field grid.** Four
+of the five fill the grid at the top right; the fifth, Delivery Address, is
+the plant the goods go to and belongs in the buyer identifier box. The
+template picks it out **by name**, so re-ordering the fields on the form
+cannot put the plant in the P.O row. The setup SQL says the spelling
+matters.
+
+**A replica may write money in its own notation, and that is not a waiver.**
+They write `Rs 102,000-00`. Rather than exempt them from
+`RequiredIdentifiers`, the test grew `MONEY_NOTATION` — a per-template
+re-spelling applied only to the cases listed in `RequiredIdentifiers.MONEY`,
+with a test asserting the re-spelling leaves the digits identical. An
+identifier — NTN, STRN, HS code — is never re-spelled.
+
+**Look for a body-text home for the seller's name before reaching for a
+waiver.** A blank masthead would have failed
+`test_buyer_and_seller_details_survive_a_missing_logo`, except their sheet's
+sign-off reads "For &lt;company&gt;," in the body. Printing that live from
+`data.sellerBusinessName` satisfies the test honestly, and it is what names
+the seller on a PDF that is e-mailed rather than printed on their paper.
+
+HS Code is waived for them — the second waiver ever, after F.K. Printers.
+Their five-column table has nowhere to put one and the client asked for it
+exactly as drawn. Still submitted to FBR on every line.
+
+Capacity: **5 two-line items promised, 6 the measured ceiling, 11 one-line.**
+Between roughly 12 and 25 one-line items the table fills page 1 and the
+closing block lands alone on page 2 — inherent to keeping that block
+together, and preferable to splitting the QR from its number.
+
 ---
 
 ## Quick reference
