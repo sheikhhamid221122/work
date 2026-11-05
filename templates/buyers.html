@@ -159,6 +159,23 @@
                     <label for="b-phone">Phone</label>
                     <input class="md-input" id="b-phone" maxlength="40" placeholder="0300-1234567">
                 </div>
+                <!-- Supplier # and Delivery address. Hidden unless this client's
+                     invoice prints them (supplier_fields_enabled from
+                     /api/buyers/overview). Both belong to the buyer rather than
+                     to the sale: the supplier number is the vendor number this
+                     buyer files the seller under, and the delivery address is
+                     where the goods go when that is not the billing address.
+                     Printed on the invoice, never sent to FBR. -->
+                <div class="md-field" id="b-supplier-number-field" hidden>
+                    <label for="b-supplier-number">Supplier #</label>
+                    <input class="md-input" id="b-supplier-number" maxlength="40" placeholder="0000332375">
+                    <span class="md-hint">The vendor number this buyer files you under</span>
+                </div>
+                <div class="md-field" id="b-delivery-address-field" hidden>
+                    <label for="b-delivery-address">Delivery address</label>
+                    <input class="md-input" id="b-delivery-address" maxlength="200" placeholder="Sahiwal Factory">
+                    <span class="md-hint">Only if goods go somewhere other than the address below</span>
+                </div>
                 <div class="md-field">
                     <label for="b-province">Province <span class="req">*</span></label>
                     <select class="md-select" id="b-province" required><option value="">Select province</option></select>
@@ -249,6 +266,8 @@
                 // Server decides: only the clients whose invoice prints a Phone
                 // row see the field at all.
                 $('b-phone-field').hidden = !res.data.phone_enabled;
+                $('b-supplier-number-field').hidden = !res.data.supplier_fields_enabled;
+                $('b-delivery-address-field').hidden = !res.data.supplier_fields_enabled;
                 var s = res.data.summary || {};
                 $('m-total').textContent = MD.num(s.total);
                 $('m-registered').textContent = MD.num(s.registered);
@@ -396,6 +415,8 @@
             $('b-ntn').value = buyer ? buyer.ntn_cnic : '';
             $('b-strn').value = buyer ? buyer.strn : '';
             $('b-phone').value = buyer ? (buyer.phone || '') : '';
+            $('b-supplier-number').value = buyer ? (buyer.supplier_number || '') : '';
+            $('b-delivery-address').value = buyer ? (buyer.delivery_address || '') : '';
             $('b-address').value = buyer ? buyer.address : '';
             $('b-default').checked = !!(buyer && buyer.is_default);
             $('b-code').value = buyer ? (buyer.buyer_code || '') : (state.nextCode || '');
@@ -479,6 +500,10 @@
             };
             if (!$('b-phone-field').hidden) {
                 payload.phone = $('b-phone').value.trim();
+            }
+            if (!$('b-supplier-number-field').hidden) {
+                payload.supplier_number = $('b-supplier-number').value.trim();
+                payload.delivery_address = $('b-delivery-address').value.trim();
             }
             var missing = [];
             [['b-name', payload.business_name], ['b-reg', payload.registration_type], ['b-ntn', payload.ntn_cnic],

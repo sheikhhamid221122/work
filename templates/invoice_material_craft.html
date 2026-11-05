@@ -3,29 +3,39 @@
 
   What this is a copy of
   ----------------------
-  Their own sheet, photographed as `material_craft.jpeg`. The photo clips the
-  top edge of the paper and its bottom-right corner is folded, so the page
-  could not be found as a quadrilateral: it was rectified from its left,
-  right and bottom edges with the fourth reconstructed from the A4 ratio,
-  which put the missing strip at 1.3mm and confirmed the sheet is A4. Every
-  number below was then read off that rectified page in millimetres.
+  Two sheets of theirs: the Unilever one (`material_craft.jpeg`, the first
+  build) and the Friesland Campina one of 2026-11-03, which added an HS Code
+  column, dropped the CNIC row and changed the Supplier #. Both were
+  rectified and measured in millimetres rather than eyeballed. The second
+  confirmed the first's letterpad geometry exactly -- masthead ink to
+  16.2mm, footer ink from 276.3mm -- so the two margins below are measured
+  twice, from two different sheets.
 
   Their typography, measured by WIDTH and not by eye -- a rendered string
   compared against the same string on their sheet, which is what puts a line
   in the same place on the paper:
-    * Times New Roman 10pt   everything (seven strings came back within 2%
-                             of 10pt: the buyer block, the "Kindly arrange"
-                             line, the sign-off, the closing note)
+    * Times New Roman 10pt   the page (seven strings within 2% of 10pt)
     * Times New Roman 12.5pt bold, underlined -- "SALES TAX INVOICE" only
+    * Times New Roman 9pt    the items table and the amount-in-words strip
   A cap-height reading of the title said 15pt and was wrong by 20%: their
   printed line is 44.5mm wide and 15pt renders it at 53.2mm.
+
+  Why the items table is 9pt when the page is 10pt. Their SECOND sheet is
+  set at about 8.85pt throughout -- they shrank the whole page in Word to
+  get six line items onto it. Their first is 10pt. Rather than copy either,
+  the page keeps the 10pt of the sheet the client pointed at and only the
+  items table drops to 9pt, which is the size at which their own longest
+  description ("Supply of Flight through knife 5940383-2659 LD A.P.S",
+  70.8mm at 9pt in an 82.5mm column) fits on ONE line, as it does on their
+  paper. That is worth real page: at 10pt every one of their descriptions
+  wraps to two lines and six items only just fit.
 
   THE POINT OF THIS TEMPLATE: it prints on their pre-printed letterpad
   -------------------------------------------------------------------
   Nothing is rendered in the masthead or the footer. The client feeds their
   own stationery through the printer, so those two bands must be left empty
   to exactly the depth their paper already occupies, or the invoice prints
-  over their own logo. Measured off their sheet:
+  over their own logo. Measured off their sheets:
 
     * their masthead ink (the mark and MATERIAL CRAFT) runs 5.2 -> 16.2mm
       from the top edge. The page's top margin is 19mm: their ink, plus the
@@ -35,40 +45,47 @@
       bottom margin is 23mm, that depth plus 2.3mm of clearance.
 
   Change either margin and the invoice prints onto their letterhead. They
-  are pinned by `MaterialCraftLetterpad` in tests/test_client_templates.py.
+  are pinned by `MaterialCraftLetterpad` in tests/test_client_templates.py,
+  which rasterises real pages and reads the first and last inked row --
+  asserting on the CSS would prove nothing about where ink lands.
 
   Their page geometry, in millimetres from the left edge of the paper:
     content           24.0 -> 192.0   (the ruled boxes and the items table)
     buyer box         24.1 ->  87.2   invoice grid   135.5 -> 191.8
     client id box     24.9 ->  87.7   seller id box  135.5 -> 192.1
-    items table rules  26.0 | 34.5 | 117.0 | 135.9 | 160.3 | 192.5
+    items table       26.0 -> 192.5, rules at 33.1 | 107.4 | 124.8 | 145.1
+                      | 166.8  (the second sheet's six columns)
 
-  What the client asked to change from that sheet
-  -----------------------------------------------
+  What the client asked for, over two rounds
+  ------------------------------------------
     1. The masthead and the footer are left as empty space, above.
-    2. Five custom fields instead of the usual two: P.O #, P.O Date,
-       D Challan # and DC Date in the grid at the top right, and Delivery
-       Address in the buyer identifier box. See client_features.py, which
-       raises the cap for this client alone.
-    3. The invoice date prints at the top right, as their sheet has it.
-    4. The seller identifier block -- N.T.N, GST, Supplier #, CNIC # --
-       reads exactly as written on their sheet.
+    2. Four custom fields: P.O #, P.O Date, D Challan # and DC Date, in the
+       grid at the top right. See client_features.py.
+    3. The invoice date prints at the top right.
+    4. The seller identifier block -- N.T.N, GST, Supplier # -- as written
+       on their sheet. The CNIC row of the first sheet is gone.
     5. The three FBR marks go below the items table against the RIGHT
        margin: the Digital Invoicing logo and the QR side by side, with the
        FBR invoice number centred underneath them.
-    6. The items table is their five columns and nothing else.
+    6. The items table is their six columns and nothing else.
 
-  What is live and what is fixed
-  ------------------------------
-    * The seller's NTN and STRN print live from `data`, as they must --
-      their own numbers are the fallback for a payload carrying none, so
-      the sheet is never blank where a tax number belongs. The client asked
-      for the GST number in the 2-2-4-3-2 grouping their sheet uses, so a
-      payload holding exactly their thirteen digits is regrouped to match.
-      That is presentation: the digits printed and the digits filed are the
-      same, and no other seller's number is touched.
-    * Supplier # and CNIC # are NOT FBR fields -- there is no element for
-      either in the payload -- so they are their values, verbatim.
+  What is live, what is the buyer's and what is fixed
+  ---------------------------------------------------
+    * The seller's NTN and STRN print live from `data`. The client asked for
+      the NTN as 1270230-7 while their profile holds the bare 1270230; the
+      check digit is DERIVED from the seven characters, so the sheet and the
+      filing do not disagree, and the substitution is keyed on that one
+      number so no other seller's can be rewritten. Same for the GST number,
+      which they write in a 2-2-4-3-2 grouping: same thirteen digits, their
+      spacing. Both are presentation. The real fix is the profile row, and
+      once it is right neither guard ever fires.
+    * Supplier # and Delivery Address belong to the BUYER, not to the sale.
+      The supplier number is the vendor number that buyer files this client
+      under -- Unilever 0000332375, Friesland Campina 1006060 -- and the
+      delivery address is the plant the goods go to, which is not the
+      billing address. Both are stored on the buyer, copied onto the invoice
+      when it is created, and stripped from the FBR payload by
+      PDF_ONLY_INVOICE_FIELDS in app.py.
     * "For Material Craft," is the seller's business name from `data`. It is
       body text on their sheet, not part of the letterhead, and it is what
       identifies the seller on a page whose masthead is blank until it meets
@@ -89,9 +106,9 @@
     /* ---- The letterpad reserve ------------------------------------------
        The two margins that matter. See the note at the top of this file:
        19mm clears their masthead, 23mm clears their footer. Neither is a
-       round number chosen for looks -- both are their own ink, measured.
-       Left 24mm and right 18mm put the content between 24.0 and 192.0mm,
-       which is where their boxes and their table sit. */
+       round number chosen for looks -- both are their own ink, measured off
+       two separate sheets. Left 24mm and right 18mm put the content between
+       24.0 and 192.0mm, which is where their boxes and their table sit. */
     @page {
       size: A4;
       margin: 19mm 18mm 23mm 24mm;
@@ -164,24 +181,26 @@
     .lead-in { margin: 6mm 0 3.8mm; padding-left: 2.6mm; }
 
     /* ---- Items -----------------------------------------------------------
-       Their five columns and nothing else -- the client asked for the table
-       exactly as drawn. Widths are their own rules (26.0 | 34.5 | 117.0 |
-       135.9 | 160.3 | 192.5mm) with one correction: Unit Price was 14.7%
-       and its own plausible figures do not fit. Each column was then sized
-       against the wider of its heading and its widest plausible value,
-       rendered on an oversized page rather than estimated -- an A4 probe
-       clips a long string and reports a confidently wrong number. At 10pt
-       Times, as a percentage of the 168mm content width:
+       Their six columns and nothing else -- the client asked for the table
+       exactly as their second sheet draws it. Each column is sized against
+       the wider of its heading and its widest plausible value at 9pt,
+       rendered on an oversized page rather than estimated (an A4 probe
+       clips a long string and reports a confidently wrong number), plus
+       2mm for the padding. As a percentage of the 168mm content width:
 
-         S.No         'S.No'           4.3   value '01'            1.5
-         Description  'Description'    9.2   wraps by design
-         Qty          'Qty'            3.4   value '191.00 Kg'     9.2
-         Unit Price   'Unit Price'     9.2   'Rs 1,192,340-00'    13.9
-         Amount       'Amount'         7.7   'Rs 12,345,678-00'   15.0
+         S.No         'S.No'          8.5mm   5.1%
+         Description  their longest  72.8mm  49.1%   (82.5mm given)
+         HS Code      '8434.2000'    15.5mm   9.2%
+         Qty          '16 each'      11.8mm   8.0%   (13.5mm given)
+         Unit Price   'Rs 1,192,340-00'      23.1mm  13.8%
+         Amount       'Rs 12,345,678-00' bold 24.9mm 14.8%
 
-       Add 1.2% for the cell padding. Unit Price went 14.7 -> 15.8% and
-       Description gave up the difference; do not shrink either again
-       without re-measuring. */
+       Unit Price and Amount are deliberately WIDER than their own sheet
+       rules them (21.7 and 25.7mm): theirs fits the five-digit prices on
+       that invoice and overflows on a seven-digit one, which this client
+       does have. Do not shrink either below the figures above without
+       re-measuring. */
+    .items { font-size: 9pt; }
     .items th, .items td {
       border: 1px solid #000;
       padding: 1pt 3pt;
@@ -195,18 +214,18 @@
     .items tbody tr { page-break-inside: avoid; }
     .items td.fig { white-space: nowrap; }
     /* The totals rows. Their labels sit in the Unit Price column and their
-       figures in the Amount column, with the three columns to the left
+       figures in the Amount column, with the four columns to the left
        merged and empty -- which is why they carry a colspan: a row narrower
        than its header shifts every figure into the wrong column, silently,
        and `ItemsTableAlignment` is what catches it. */
-    .items td.tot-lab { font-weight: bold; }
+    .items td.tot-lab { font-weight: bold; white-space: nowrap; }
     .items td.tot-num { font-weight: bold; white-space: nowrap; }
     /* The slack under the last line item is ONE open row, not a stack of
        ruled blank ones: their sheet draws no horizontal rule between the
        last item and the totals, just a tall empty cell in each column. Its
-       height is set inline, at 5.3mm -- their ruled row pitch -- for each
-       row short of seven, so the box has the depth their printed one has
-       and collapses to nothing once the invoice fills it. */
+       height is set inline, at 4.8mm -- their ruled row pitch at this size
+       -- for each row short of seven, so the box has the depth their
+       printed one has and collapses to nothing once the invoice fills it. */
     .items td.filler { padding: 0; }
 
     /* ---- Amount in words -------------------------------------------------
@@ -215,7 +234,7 @@
        Description columns, not on a column boundary -- and a colspan cannot
        put it there. -1px of margin collapses its top border onto the table's
        bottom one so the two read as one ruled box. */
-    .words-strip { margin-top: -1px; }
+    .words-strip { margin-top: -1px; font-size: 9pt; }
     .words-strip td { border: 1px solid #000; padding: 1pt 4pt; line-height: 1.3; }
     .words-strip td.lab { width: 18.2%; }
     .words-strip td.val { font-weight: bold; }
@@ -276,12 +295,19 @@
   {#- Their numbers, used only where the payload has none. A blank line where
       a seller's tax number belongs is worse than a constant their profile
       should be setting anyway; fix the profile and neither of these fires. -#}
-  {%- set NTN = (data.sellerNTNCNIC or '') | string | trim or "1270230-7" -%}
+  {%- set NTN_raw = (data.sellerNTNCNIC or '') | string | trim or "1270230" -%}
+  {#- The client asked for their NTN to print with its check digit even when
+      the profile holds the bare seven characters. The digit is DERIVED from
+      those characters, so the sheet and the filing state the same number.
+      Keyed on their NTN alone, so no other seller's can be rewritten, and a
+      value that already carries the digit is passed straight through. -#}
+  {%- set NTN = NTN_raw ~ "-7"
+        if NTN_raw | replace('-', '') | replace(' ', '') == "1270230"
+        else NTN_raw -%}
   {%- set STRN_raw = (data.sellerSTRN or '') | string | trim or "03-00-1270-230-12" -%}
-  {#- The client asked for their GST number in the grouping their sheet
-      prints. Keyed on their thirteen digits alone, so no other seller's
-      number can be regrouped, and purely presentational: these are the
-      same digits that were filed. -#}
+  {#- Same idea for the GST number: their thirteen digits in the 2-2-4-3-2
+      grouping their sheet prints. Presentation only -- these are the same
+      digits that were filed. -#}
   {%- set STRN = "03-00-1270-230-12"
         if STRN_raw | replace('-', '') | replace(' ', '') == "0300127023012"
         else STRN_raw -%}
@@ -296,21 +322,10 @@
     {%- set invoice_date = date_raw -%}
   {%- endif -%}
 
-  {#- The five custom fields. Delivery Address is pulled out by name and
-      printed in the buyer identifier box; the other four fill the grid at
-      the top right, in the order the form sent them. Matching by name and
-      not by position means re-ordering the fields on the form cannot put
-      the delivery address in the P.O row. -#}
-  {%- set all_fields = ((data.customFields or []) | selectattr('value') | list)[:invoice_custom_fields_max | default(5)] -%}
-  {%- set ns = namespace(delivery='') -%}
-  {%- set grid_fields = [] -%}
-  {%- for field in all_fields -%}
-    {%- if (field.name or '') | string | lower | trim == 'delivery address' -%}
-      {%- set ns.delivery = field.value -%}
-    {%- else -%}
-      {%- set _ = grid_fields.append(field) -%}
-    {%- endif -%}
-  {%- endfor -%}
+  {#- The four custom fields, in the order the form sent them. Only fields
+      that were filled in are printed, so a sheet with two of them does not
+      carry two empty labels. -#}
+  {%- set grid_fields = ((data.customFields or []) | selectattr('value') | list)[:invoice_custom_fields_max | default(4)] -%}
 
   {# ------------------------------------------------------------ the date #}
   {#- Everything above this line is their pre-printed letterpad. Nothing is
@@ -345,8 +360,6 @@
             <td class="lab">Invoice #</td>
             <td class="val">{{ data.invoiceRefNo }}</td>
           </tr>
-          {#- Only fields that were filled in are printed, so a sheet with two
-              of them does not carry two empty labels. -#}
           {% for field in grid_fields %}
             <tr>
               <td class="lab">{{ field.name }}</td>
@@ -371,9 +384,13 @@
             <td class="lab">Client GST</td>
             <td class="val">{{ data.buyerSTRN }}</td>
           </tr>
+          {#- The plant the goods go to. Held on the buyer, not typed per
+              invoice, and copied onto the invoice when it is created. The
+              row is ruled whether or not there is one, as their sheet
+              rules it. -#}
           <tr>
             <td class="lab">Delivery Address</td>
-            <td class="val">{{ ns.delivery }}</td>
+            <td class="val">{{ data.buyerDeliveryAddress or '' }}</td>
           </tr>
         </table>
       </td>
@@ -388,15 +405,12 @@
             <td class="lab">GST</td>
             <td class="val">{{ STRN }}</td>
           </tr>
-          {#- Neither of these is an FBR field: the payload has no element
-              for either, so they are the client's own, verbatim. -#}
+          {#- The vendor number this buyer files them under. Theirs differs
+              per customer -- Unilever 0000332375, Friesland Campina 1006060
+              -- so it is held on the buyer. Not an FBR field. -#}
           <tr>
             <td class="lab">Supplier #</td>
-            <td class="val">0000332375</td>
-          </tr>
-          <tr>
-            <td class="lab">CNIC #</td>
-            <td class="val">35202-2915730-9</td>
+            <td class="val">{{ data.buyerSupplierNumber or '' }}</td>
           </tr>
         </table>
       </td>
@@ -429,19 +443,43 @@
   <table class="items">
     <thead>
       <tr>
-        <th style="width: 5.5%;">S.No</th>
-        <th style="width: 47.2%;">Description</th>
-        <th style="width: 11.3%;">Qty</th>
-        <th style="width: 15.8%;">Unit Price</th>
-        <th style="width: 20.2%;">Amount</th>
+        <th style="width: 5.1%;">S.No</th>
+        <th style="width: 49.1%;">Description</th>
+        <th style="width: 9.2%;">HS Code</th>
+        <th style="width: 8.0%;">Qty</th>
+        <th style="width: 13.8%;">Unit Price</th>
+        <th style="width: 14.8%;">Amount</th>
       </tr>
     </thead>
     <tbody>
       {% for item in data['items'] %}
+        {#- Their sheet writes a quantity as '04 each', not '4.0 Numbers,
+            pieces, units'. Two separate shortenings:
+
+            The count: a whole number prints as an integer, padded to two
+            digits the way they write it. Anything with a real fraction is
+            left exactly as it came, because rounding a quantity would
+            change what the sheet claims was supplied.
+
+            The unit: FBR's own name for a countable thing is the 24
+            characters "Numbers, pieces, units", which wraps to four lines
+            in this column and is what pushed a six-line invoice onto a
+            second page. Their sheet calls it "each". Only that one name is
+            shortened; every other unit prints as FBR spells it. -#}
+        {%- set quantity_raw = (item.quantity if item.quantity is not none else '') | string | trim -%}
+        {%- set quantity_number = quantity_raw | float(-1) -%}
+        {%- if quantity_number >= 0 and quantity_number == quantity_number | round(0) -%}
+          {%- set quantity = "%02d" | format(quantity_number | int) -%}
+        {%- else -%}
+          {%- set quantity = quantity_raw -%}
+        {%- endif -%}
+        {%- set unit = (item.uoM or '') | string | trim -%}
+        {%- set unit = "each" if unit | lower == "numbers, pieces, units" else unit -%}
         <tr>
           <td>{{ loop.index }}</td>
           <td>{{ item.productDescription }}</td>
-          <td>{{ item.quantity }}{% if item.uoM %} {{ item.uoM }}{% endif %}</td>
+          <td>{{ item.hsCode or item.hs_code or item.hsCodeNo or "" }}</td>
+          <td>{{ quantity }}{% if unit %} {{ unit }}{% endif %}</td>
           <td class="fig">Rs {{ (item.unitrate | comma_format) | string | replace('.', '-') }}</td>
           <td class="fig">Rs {{ (item.valueSalesExcludingST | comma_format) | string | replace('.', '-') }}</td>
         </tr>
@@ -450,22 +488,22 @@
       {% set blank_rows = ROWS - item_count %}
       {% if blank_rows > 0 %}
         <tr>
-          {% for _ in range(5) %}<td class="filler" style="height: {{ (blank_rows * 5.3) | round(1) }}mm;"></td>{% endfor %}
+          {% for _ in range(6) %}<td class="filler" style="height: {{ (blank_rows * 4.8) | round(1) }}mm;"></td>{% endfor %}
         </tr>
       {% endif %}
 
       <tr>
-        <td colspan="3"></td>
+        <td colspan="4"></td>
         <td class="tot-lab">Total Amount</td>
         <td class="tot-num">Rs {{ (data.totalExcl | comma_format) | string | replace('.', '-') }}</td>
       </tr>
       <tr>
-        <td colspan="3"></td>
+        <td colspan="4"></td>
         <td class="tot-lab">GST{% if one_rate %} {{ one_rate }}{% endif %}</td>
         <td class="tot-num">Rs {{ (data.totalTax | comma_format) | string | replace('.', '-') }}</td>
       </tr>
       <tr>
-        <td colspan="3"></td>
+        <td colspan="4"></td>
         <td class="tot-lab">Gross Amount</td>
         <td class="tot-num">Rs {{ (data.totalInclusive | comma_format) | string | replace('.', '-') }}</td>
       </tr>
@@ -473,14 +511,17 @@
   </table>
 
   {# ----------------------------------------------------- amount in words #}
-  {#- Their phrasing: 'Rupees: One hundred twenty thousand three hundred
-      sixty only.' `num2words` gives app.py '... rupees, zero paisa only'
-      with a comma grouping the thousands, so the currency tail comes off,
-      the grouping commas come out, and a non-zero paisa amount is joined
-      with 'and' rather than being left dangling. -#}
+  {#- Their phrasing: 'Rupees: One million one hundred sixty one thousand
+      one hundred twenty only.' `num2words` gives app.py 'one million, one
+      hundred and sixty-one thousand, one hundred and twenty rupees, zero
+      paisa only' -- so the joining "and"s and the hyphens come out, then
+      the currency tail, then the grouping commas. A non-zero paisa amount
+      keeps an "and" of its own rather than being left dangling. -#}
   {%- set words = (data.amountInWords or '') | string | trim -%}
+  {%- set words = words | replace(' and ', ' ') | replace('-', ' ') -%}
   {%- set words = words | replace(' rupees, zero paisa', '') -%}
   {%- set words = words | replace(' rupees,', ' and') -%}
+  {%- set words = words | replace(' rupees', '') -%}
   {%- set words = words | replace(',', '') -%}
   {%- set words = (words[:1] | upper) ~ words[1:] -%}
   <table class="words-strip">

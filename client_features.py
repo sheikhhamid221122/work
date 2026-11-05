@@ -30,9 +30,9 @@ GLOBAL_SURFACE = (
 )
 
 # Material Craft. Their sheet carries P.O #, P.O Date, D Challan # and DC
-# Date in the grid at the top right, and a Delivery Address row in the buyer
-# identifier box -- the plant the goods go to, which is not the buyer's
-# address and is not an FBR field. Five fields, not four.
+# Date in the grid at the top right -- four custom fields. Their Delivery
+# Address and Supplier # rows began here as a fifth field and were moved to
+# the buyer, which is what they are properties of; see BUYER_SUPPLIER_FIELDS.
 MATERIAL_CRAFT = (
     "71a52649-1b77-4748-9a51-fd33ce621000",
 )
@@ -44,7 +44,16 @@ MATERIAL_CRAFT = (
 DEFAULT_CUSTOM_FIELDS_MAX = 2
 CUSTOM_FIELD_CAPS = {}
 CUSTOM_FIELD_CAPS.update({key: 4 for key in GLOBAL_SURFACE})
-CUSTOM_FIELD_CAPS.update({key: 5 for key in MATERIAL_CRAFT})
+CUSTOM_FIELD_CAPS.update({key: 4 for key in MATERIAL_CRAFT})
+
+# Clients whose buyers carry a supplier number and a delivery address, and
+# whose replica prints them. Both are properties of the customer rather than
+# of the sale -- the vendor number that buyer files this client under, and
+# the plant the goods go to -- so they live on the buyer and fill themselves
+# in when one is picked. One set because this client asked for the pair
+# together; if another ever wants one and not the other, split it in two,
+# the way the phone was split out of the sales-person set.
+BUYER_SUPPLIER_FIELDS = frozenset(MATERIAL_CRAFT)
 
 # Clients whose replica prints the buyer's phone number. Separate from the
 # sales-person set in invoice_form_routes.py, which used to stand in for this
@@ -72,3 +81,13 @@ def custom_fields_max(*ids) -> int:
 def prints_buyer_phone(*ids) -> bool:
     """Whether this client's invoice has a row for the buyer's phone number."""
     return bool(_keys(*ids) & BUYER_PHONE)
+
+
+def prints_buyer_supplier_fields(*ids) -> bool:
+    """Whether this client's buyers carry a supplier number and delivery address.
+
+    Gates the two inputs on the Buyers page and the invoice form, and whether
+    either value is allowed onto the invoice at all. Both are printed-only:
+    `PDF_ONLY_INVOICE_FIELDS` in app.py keeps them out of the FBR call.
+    """
+    return bool(_keys(*ids) & BUYER_SUPPLIER_FIELDS)

@@ -300,22 +300,26 @@ def add_master_data_routes(app, get_db_connection, get_env):
             # column is read only when it exists, so a deploy ahead of its
             # migration degrades to "no phones" instead of 500ing the page.
             phone_enabled = ifr.buyer_phone_enabled(cur, client_id)
-            has_phone = ifr.buyer_phone_column_exists(cur)
+            supplier_fields_enabled = ifr.buyer_supplier_fields_enabled(cur, client_id)
+            present = ifr.buyer_optional_columns(cur)
             cur.execute(
                 f"""
                 SELECT id, business_name, address, province, ntn_cnic, strn,
                        registration_type, buyer_code, is_default,
-                       {'phone' if has_phone else "''"}
+                       {ifr.buyer_select_list(present)}
                 FROM buyers WHERE client_id = %s
                 ORDER BY business_name
                 """,
                 (client_id,),
             )
             buyers = [
-                {"id": r[0], "business_name": r[1] or "", "address": r[2] or "", "province": r[3] or "",
-                 "ntn_cnic": r[4] or "", "strn": r[5] or "", "registration_type": r[6] or "",
-                 "buyer_code": r[7] or "", "is_default": bool(r[8]), "phone": r[9] or "",
-                 "invoices": 0, "revenue": Decimal("0"), "last_invoice": None}
+                dict(
+                    {"id": r[0], "business_name": r[1] or "", "address": r[2] or "", "province": r[3] or "",
+                     "ntn_cnic": r[4] or "", "strn": r[5] or "", "registration_type": r[6] or "",
+                     "buyer_code": r[7] or "", "is_default": bool(r[8]),
+                     "invoices": 0, "revenue": Decimal("0"), "last_invoice": None},
+                    **ifr.buyer_optional_values(r, 9)
+                )
                 for r in cur.fetchall()
             ]
             by_ntn = {md.normalize_tax_id(b["ntn_cnic"]): b for b in buyers if b["ntn_cnic"]}
@@ -345,6 +349,7 @@ def add_master_data_routes(app, get_db_connection, get_env):
             return jsonify({
                 "buyers": buyers,
                 "phone_enabled": phone_enabled,
+                "supplier_fields_enabled": supplier_fields_enabled,
                 "next_code": md.peek_next_code(cur, "buyers", "buyer_code", md.BUYER_CODE_PREFIX, client_id),
                 "summary": {
                     "total": len(buyers),

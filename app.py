@@ -167,6 +167,7 @@ def create_invoice_html(step=None):
         "create-invoice.html",
         invoice_custom_fields_max=client_features.custom_fields_max(*client_ids),
         buyer_phone_for_client=client_features.prints_buyer_phone(*client_ids),
+        buyer_supplier_fields_for_client=client_features.prints_buyer_supplier_fields(*client_ids),
         current_step=step,
     )
 
@@ -1299,6 +1300,7 @@ PDF_ONLY_ITEM_FIELDS = frozenset({"numberOfReams"})
 # the PDF is re-rendered from that row -- and are dropped on the way out.
 PDF_ONLY_INVOICE_FIELDS = (
     "signatureArea", "salesPerson", "buyerPhone", "advanceTaxPercent",
+    "buyerSupplierNumber", "buyerDeliveryAddress",
 )
 
 
