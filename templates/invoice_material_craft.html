@@ -38,8 +38,12 @@
   over their own logo. Measured off their sheets:
 
     * their masthead ink (the mark and MATERIAL CRAFT) runs 5.2 -> 16.2mm
-      from the top edge. The page's top margin is 19mm: their ink, plus the
-      2.8mm of air their own sheet leaves before the Date line.
+      from the top edge. The page's top margin is 21mm. Their own sheet
+      starts the Date line at 19.3mm, 3.1mm under the mark; 21mm leaves
+      6.1mm of clear paper below it once the first line's half-leading is
+      counted, which is the client's own margin for how the sheet feeds
+      through their printer. Asked for after seeing it printed -- a sheet
+      that measures right can still sit a millimetre or two high.
     * their footer ink (telephone, e-mail, address and the two rules) starts
       at 276.3mm and runs to the foot of the paper -- 20.7mm. The page's
       bottom margin is 23mm, that depth plus 2.3mm of clearance.
@@ -105,13 +109,13 @@
   <style>
     /* ---- The letterpad reserve ------------------------------------------
        The two margins that matter. See the note at the top of this file:
-       19mm clears their masthead, 23mm clears their footer. Neither is a
+       21mm clears their masthead, 23mm clears their footer. Neither is a
        round number chosen for looks -- both are their own ink, measured off
        two separate sheets. Left 24mm and right 18mm put the content between
        24.0 and 192.0mm, which is where their boxes and their table sit. */
     @page {
       size: A4;
-      margin: 19mm 18mm 23mm 24mm;
+      margin: 21mm 18mm 23mm 24mm;
     }
 
     body {
@@ -149,7 +153,7 @@
     /* ---- Date ------------------------------------------------------------
        Top right, the value underlined, as their sheet sets it. It is the
        first thing on the page: their own Date line sits 2.8mm under their
-       masthead, which is the air the 19mm top margin leaves. */
+       masthead, which is the air the 21mm top margin leaves. */
     .date-line { text-align: right; }
     .date-line .val { text-decoration: underline; }
 
@@ -353,7 +357,7 @@
 
   {# ------------------------------------------------------------ the date #}
   {#- Everything above this line is their pre-printed letterpad. Nothing is
-      rendered into it; the page's 19mm top margin is the whole masthead. -#}
+      rendered into it; the page's 21mm top margin is the whole masthead. -#}
   <div class="date-line">Date: <span class="val">{{ invoice_date }}</span></div>
 
   {# ------------------------------------------ buyer block + invoice grid #}

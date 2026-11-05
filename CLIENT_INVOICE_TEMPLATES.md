@@ -898,14 +898,17 @@ Step 1 does not apply — there is no artwork to extract. Times New Roman
 
 **Measure the reserve off their sheet; it is the whole template.** Their
 masthead ink runs 5.2 → 16.2 mm from the top edge and their footer ink
-starts at 276.3 mm, so the page is `margin: 19mm 18mm 23mm 24mm` — their
-ink plus the air their own sheet leaves. Get this wrong and the invoice
+starts at 276.3 mm, so the page is `margin: 21mm 18mm 23mm 24mm` — their
+ink plus the air their own sheet leaves. The top began at 19 mm and the
+client asked for 2 mm more after seeing it printed: a sheet that measures
+right can still feed a millimetre or two high, and the margin is the only
+place that tolerance can live. Get this wrong and the invoice
 prints over their logo.
 
 **Pin it on pixels, not on CSS.** `MaterialCraftLetterpad` renders real
 pages, rasterises each at 10 px/mm and asserts the first and last inked
 row on *every* page, continuation pages included. Asserting the stylesheet
-says `19mm` proves nothing about where ink lands. Mutation-check it both
+says `21mm` proves nothing about where ink lands. Mutation-check it both
 ways — shrinking either margin must fail it.
 
 **A photographed sheet is still measurable.** This one clipped the top edge
@@ -987,8 +990,10 @@ they had scaled the whole page down in Word to get six items on it. Copying
 either number blindly is wrong. The page keeps the 10 pt of the sheet they
 pointed at, and only the items table drops to 9 pt, which is the size at
 which their own longest description fits one line as it does on their
-paper. Capacity went from 6 two-line items to **7 promised / 8 measured,
-and 12 of their own single-line descriptions**.
+paper. Capacity went from 6 two-line items to **6 promised / 7 measured,
+and 12 of their own single-line descriptions** — it was 7/8 until the top
+margin grew by 2 mm, which at 9 pt is most of a row and cost exactly one,
+and only of a description longer than any on either of their sheets.
 
 **A second sheet from the same client is a second measurement, not a
 contradiction.** This one confirmed the letterpad bands exactly — masthead

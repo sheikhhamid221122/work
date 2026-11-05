@@ -25,7 +25,7 @@
 -- whichever one you were given. Step 0 tells you which it turned out to be.
 --
 -- Their invoice prints on their own pre-printed letterpad: the template
--- leaves the top 19mm and the bottom 23mm of every page empty for it.
+-- leaves the top 21mm and the bottom 23mm of every page empty for it.
 -- That is in the template, not in any row here.
 -- ============================================================
 

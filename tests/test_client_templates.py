@@ -1035,7 +1035,7 @@ class MaterialCraftLetterpad(unittest.TestCase):
     THEIR_MASTHEAD_ENDS = 16.2
     THEIR_FOOTER_STARTS = 276.3
     # What the template actually reserves.
-    TOP_RESERVE = 19.0
+    TOP_RESERVE = 21.0
     BOTTOM_RESERVE = 23.0
     PX_PER_MM = 10
 
@@ -1235,14 +1235,20 @@ class MaterialCraftPagination(unittest.TestCase):
     # overflowed -- which is exactly what the first build did.
     WRAPPING = ("Supply of reconditioned Jaw bottom assembly 5940383-2664 LD "
                 "A.P.S MW1200 with hardened shank no. %d")
-    # What the client can count on: seven of those. Their own invoices run
-    # to six items, all of which fit on one line, so this is already past
-    # anything they have sent.
-    REQUIRED = 7
+    # What the client can count on: six of those. Their own invoices run to
+    # six items, all of which fit on one line and twelve of which fit a
+    # page, so this is already past anything they have sent.
+    REQUIRED = 6
     # What it actually takes, measured. The gap between the two numbers is
     # the headroom, and losing it is the warning bell that the next change
     # breaks the promise above rather than the promise breaking silently.
-    WRAPPING_CAPACITY = 8
+    #
+    # This was 7/8 until the top margin went from 19mm to 21mm, at the
+    # client's request, so their logo clears the content when the sheet
+    # feeds through their printer. 2mm is most of a row at 9pt and it cost
+    # exactly one -- but only of a description longer than any on either of
+    # their sheets. Their own still fit twelve to a page.
+    WRAPPING_CAPACITY = 7
     # One of their own descriptions, which fits a single line at 9pt.
     SHORT = "Supply of Flight through knife 5940383-2659 LD A.P.S no. %d"
     SHORT_CAPACITY = 12
