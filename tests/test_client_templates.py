@@ -1105,6 +1105,117 @@ class MaterialCraftLetterpad(unittest.TestCase):
 
 
 @unittest.skipIf(WeasyHTML is None, "WeasyPrint/pypdfium2 not installed")
+class MaterialCraftIdentifierBoxes(unittest.TestCase):
+    """The two ruled boxes in each banded row must stay two boxes.
+
+    Their sheet puts the buyer block at 24.1-87.2mm and the invoice grid
+    at 135.5-191.8mm, with ~48mm of paper between them, and does the same
+    again with the two identifier boxes underneath. Both rows are laid out
+    by a three-cell table whose middle cell is empty.
+
+    That empty cell is the whole risk. Under the browser's default auto
+    table layout a percentage width is a hint, every cell is given its
+    content's minimum first, and an empty cell's minimum is zero -- so
+    when the boxes hold something wide the gap is what gets squeezed, and
+    the two boxes print touching as one merged table. It shipped that way:
+    the width rules were scoped to the first row's class, the second row
+    had no declared widths at all, and short test values hid it until a
+    buyer with no delivery address and a 13-digit seller NTN came along.
+
+    Nothing about that is visible in the markup, which is why this
+    rasterises the page and looks at where the ink actually falls.
+    """
+
+    TEMPLATE = "invoice_material_craft.html"
+    PX_PER_MM = 10
+
+    # The content box: their boxes must start and end on these.
+    LEFT_EDGE = 24.0
+    RIGHT_EDGE = 192.0
+    # The two banded rows, as mm windows down the page.
+    BANDS = {"buyer block and invoice grid": (33.5, 66.0),
+             "client and seller identifiers": (68.5, 91.0)}
+
+    @classmethod
+    def setUpClass(cls):
+        cls.fbr_logo = real_fbr_logo()
+
+    def ink_columns(self, band, data):
+        """The runs of inked columns in a horizontal band, in mm."""
+        markup = render(self.TEMPLATE, data, logo=self.fbr_logo)
+        pdf = WeasyHTML(string=markup, base_url=ROOT).write_pdf()
+        document = pypdfium2.PdfDocument(io.BytesIO(pdf))
+        page = document[0].render(scale=self.PX_PER_MM * 25.4 / 72.0)
+        pixels = page.to_pil().convert("L")
+        top, bottom = (int(edge * self.PX_PER_MM) for edge in band)
+        strip = pixels.crop((0, top, pixels.width, bottom))
+        inked = [x for x in range(strip.width)
+                 if min(strip.crop((x, 0, x + 1, strip.height)).getdata()) < 200]
+        runs, start, previous = [], inked[0], inked[0]
+        for x in inked[1:]:
+            # 5mm of clear paper ends a run; a cell rule is 1px.
+            if x - previous > 5 * self.PX_PER_MM:
+                runs.append((start / self.PX_PER_MM, previous / self.PX_PER_MM))
+                start = x
+            previous = x
+        runs.append((start / self.PX_PER_MM, previous / self.PX_PER_MM))
+        return runs
+
+    def worst_case(self):
+        """The payload that broke it: both optional rows empty, long NTN.
+
+        An empty cell is what lets the gap collapse, and the 13-digit
+        seller NTN is what makes the boxes want the room.
+        """
+        return dict(PAYLOAD,
+                    customFields=MaterialCraftFields.FIELDS,
+                    sellerNTNCNIC="3520229157309",
+                    buyerSupplierNumber="",
+                    buyerDeliveryAddress="")
+
+    def test_each_banded_row_is_two_boxes_with_paper_between_them(self):
+        for label, band in self.BANDS.items():
+            runs = self.ink_columns(band, self.worst_case())
+            self.assertEqual(
+                2, len(runs),
+                "%s: expected two separate boxes, got %s -- the gap between "
+                "them has collapsed and they print as one table"
+                % (label, ["%.1f-%.1f" % r for r in runs]))
+            (left_start, left_end), (right_start, right_end) = runs
+            self.assertGreaterEqual(
+                right_start - left_end, 40.0,
+                "%s: only %.1fmm of paper between the boxes; their sheet "
+                "leaves about 48" % (label, right_start - left_end))
+
+    def test_neither_box_runs_past_the_margins(self):
+        # The other way this goes wrong: a layout fix that makes the table
+        # wider than its container pushes the right-hand box into the
+        # margin, which on this sheet is their pre-printed letterpad.
+        for label, band in self.BANDS.items():
+            runs = self.ink_columns(band, self.worst_case())
+            self.assertGreaterEqual(runs[0][0], self.LEFT_EDGE - 0.5,
+                                    "%s: ink left of the content box" % label)
+            self.assertLessEqual(
+                runs[-1][1], self.RIGHT_EDGE + 0.5,
+                "%s: ink at %.1fmm is past the %gmm right margin"
+                % (label, runs[-1][1], self.RIGHT_EDGE))
+
+    def test_the_two_rows_line_up_with_each_other(self):
+        # Their sheet rules both rows on the same two verticals. A row that
+        # sizes itself by content drifts out of line with the one above.
+        measured = [self.ink_columns(band, self.worst_case())
+                    for band in self.BANDS.values()]
+        for index, edge in enumerate(("left box start", "left box end",
+                                      "right box start", "right box end")):
+            values = [run[index % 2] for runs in measured
+                      for run in [runs[index // 2]]]
+            self.assertAlmostEqual(
+                values[0], values[1], delta=1.0,
+                msg="%s differs between the two rows: %.1f vs %.1f"
+                    % (edge, values[0], values[1]))
+
+
+@unittest.skipIf(WeasyHTML is None, "WeasyPrint/pypdfium2 not installed")
 class MaterialCraftPagination(unittest.TestCase):
     """How many line items reach the buyer on one sheet.
 

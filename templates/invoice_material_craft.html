@@ -124,6 +124,23 @@
     }
 
     table { width: 100%; border-collapse: collapse; }
+
+    /* The two banded rows are laid out fixed, so their three declared
+       widths are taken literally. Under the default auto layout a
+       percentage width is only a hint -- each cell gets its content's
+       minimum first and the remainder is shared out -- and the spacer
+       between the boxes is empty, so its minimum is zero and it is the
+       first thing squeezed. Fixed layout makes the gap always the gap;
+       anything too wide wraps inside its own cell instead of stealing
+       from a neighbour.
+
+       ONLY these two. WeasyPrint lays a fixed table out about 10% wider
+       than its container when the column percentages sum to 100 and the
+       borders are collapsed, which pushes the right-hand box 6mm past the
+       margin and into the letterpad. The ruled boxes, the items table and
+       the words strip all stay on auto, where their declared widths are
+       honoured because every column of them has content. */
+    .party, .ids { table-layout: fixed; }
     /* Direct children only. A plain `.no-border td` also matches the cells
        of any table nested inside a row and strips its rules -- which is
        exactly what every box on this sheet is. */
@@ -142,9 +159,16 @@
        of air between them. */
     .party { margin-top: 9mm; }
     .party > tbody > tr > td { vertical-align: top; }
-    .party td.left-cell { width: 37.6%; }
-    .party td.gap-cell { width: 28.9%; }
-    .party td.right-cell { width: 33.5%; }
+    /* Not `.party td.left-cell`. Both banded rows -- the buyer block over
+       the invoice grid, and the two identifier boxes under it -- use these
+       three cells, and scoping the widths to `.party` left the `.ids` row
+       with no declared widths at all. It shared them out by content
+       instead, which looked right until a buyer with an empty delivery
+       address and a 13-digit seller NTN came along: the empty spacer went
+       to nothing and the two boxes printed touching, as one merged table. */
+    td.left-cell { width: 37.6%; }
+    td.gap-cell { width: 28.9%; }
+    td.right-cell { width: 33.5%; }
 
     /* 1pt of vertical padding and not 2, and 1.3 of leading in the ruled
        grids rather than the body's 1.4. Their grid rows measure 5.3-5.6mm
