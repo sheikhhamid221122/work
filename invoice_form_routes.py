@@ -120,13 +120,52 @@ def _column_exists(cur, table, column):
     return cur.fetchone() is not None
 
 
+# The buyer columns that a hand-applied migration adds, in the order they are
+# selected. Each is printed on one or more clients' replicas, none is an FBR
+# field, and each is read only when it is actually there -- so an app deployed
+# ahead of its migration offers the field to nobody instead of 500ing the
+# Buyers page. Normalisers keep what is stored to the shape the sheet prints.
+OPTIONAL_BUYER_COLUMNS = ("phone", "supplier_number", "delivery_address")
+
+
+def _optional_buyer_columns(cur):
+    """Which of OPTIONAL_BUYER_COLUMNS this database actually has."""
+    return tuple(name for name in OPTIONAL_BUYER_COLUMNS
+                 if _column_exists(cur, "buyers", name))
+
+
+def _buyer_select_list(present):
+    """The SELECT fragment for the optional columns, absent ones as ''.
+
+    Always the same arity, in the same order, so a caller can unpack the row
+    positionally whatever the schema happens to hold.
+    """
+    return ", ".join(name if name in present else "''"
+                     for name in OPTIONAL_BUYER_COLUMNS)
+
+
+def _buyer_optional_values(row, offset):
+    """The optional columns of a buyer row, as a dict keyed by column name."""
+    return {name: (row[offset + index] or "")
+            for index, name in enumerate(OPTIONAL_BUYER_COLUMNS)}
+
+
 def _buyer_phone_supported(cur):
     return _column_exists(cur, "buyers", "phone")
 
 
-# Public, because the Buyers page in master_data_routes.py asks the same two
-# questions and the answer must not be allowed to drift between the two pages.
+def _buyer_supplier_fields_supported(cur):
+    return (_column_exists(cur, "buyers", "supplier_number")
+            and _column_exists(cur, "buyers", "delivery_address"))
+
+
+# Public, because the Buyers page in master_data_routes.py asks the same
+# questions and the answers must not be allowed to drift between the two
+# pages.
 buyer_phone_column_exists = _buyer_phone_supported
+buyer_optional_columns = _optional_buyer_columns
+buyer_select_list = _buyer_select_list
+buyer_optional_values = _buyer_optional_values
 
 
 def _wants_buyer_phone(cur, client_id):
@@ -157,6 +196,53 @@ def _wants_buyer_phone(cur, client_id):
 def buyer_phone_enabled(cur, client_id):
     """Whether this client's Buyers page should offer the Phone field."""
     return _wants_buyer_phone(cur, client_id) and _buyer_phone_supported(cur)
+
+
+def _wants_buyer_supplier_fields(cur, client_id):
+    """Whether this client's replica prints a supplier number and delivery address."""
+    cur.execute(
+        """
+        SELECT u.username, u.id
+        FROM users u
+        JOIN clients c ON u.id = c.user_id
+        WHERE c.id = %s
+        """,
+        (client_id,),
+    )
+    row = cur.fetchone()
+    return client_features.prints_buyer_supplier_fields(
+        row[0] if row else None, row[1] if row else None, client_id)
+
+
+def buyer_supplier_fields_enabled(cur, client_id):
+    """Whether this client's Buyers page should offer the two vendor fields."""
+    return (_wants_buyer_supplier_fields(cur, client_id)
+            and _buyer_supplier_fields_supported(cur))
+
+
+def _normalize_supplier_number(value):
+    """A buyer's vendor number for this seller, as it should print.
+
+    Free text, collapsed and capped. Buyers write them every which way --
+    0000332375, 1006060 -- and this one is printed and matched by eye, never
+    parsed, so rejecting a shape would only get in the way.
+    """
+    return " ".join(str(value if value is not None else "").split())[:40]
+
+
+def _normalize_delivery_address(value):
+    """Where the goods go, when that is not the buyer's billing address."""
+    return " ".join(str(value if value is not None else "").split())[:200]
+
+
+# Column -> how its value is cleaned before it is stored. Every optional
+# buyer column must appear here, so a new one cannot be added without
+# deciding what shape it is kept in.
+_BUYER_COLUMN_NORMALIZERS = {
+    "phone": lambda value: _normalize_phone(value),
+    "supplier_number": _normalize_supplier_number,
+    "delivery_address": _normalize_delivery_address,
+}
 
 
 def _normalize_phone(value):
@@ -508,32 +594,35 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             return jsonify({"error": "No client ID in session"}), 401
         conn = get_db_connection()
         cur = conn.cursor()
-        # phone is selected only when the column exists, so a deploy that runs
-        # ahead of its migration still lists buyers instead of 500ing.
-        has_phone = _buyer_phone_supported(cur)
+        # The optional columns are selected only where they exist, so a deploy
+        # that runs ahead of their migration still lists buyers instead of
+        # 500ing. Absent ones come back as '' and the arity never changes.
+        present = _optional_buyer_columns(cur)
         cur.execute(
             f"""
             SELECT id, business_name, address, province, ntn_cnic, strn, registration_type, buyer_code, is_default,
-                   {'phone' if has_phone else "''"}
-            FROM buyers 
-            WHERE client_id = %s 
+                   {_buyer_select_list(present)}
+            FROM buyers
+            WHERE client_id = %s
             ORDER BY is_default DESC, business_name
             """,
             (client_id,),
         )
         buyers = [
-            {
-                "id": r[0],
-                "business_name": r[1],
-                "address": r[2],
-                "province": r[3],
-                "ntn_cnic": r[4],
-                "strn": r[5],
-                "registration_type": r[6],
-                "buyer_code": r[7],
-                "is_default": r[8],
-                "phone": r[9] or "",
-            }
+            dict(
+                {
+                    "id": r[0],
+                    "business_name": r[1],
+                    "address": r[2],
+                    "province": r[3],
+                    "ntn_cnic": r[4],
+                    "strn": r[5],
+                    "registration_type": r[6],
+                    "buyer_code": r[7],
+                    "is_default": r[8],
+                },
+                **_buyer_optional_values(r, 9)
+            )
             for r in cur.fetchall()
         ]
         cur.close()
@@ -583,13 +672,20 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                     "UPDATE buyers SET is_default = FALSE WHERE client_id = %s",
                     (client_id,),
                 )
-            has_phone = _buyer_phone_supported(cur)
+            # Only the optional columns this database has, each cleaned by its
+            # own normaliser. A column the migration has not added yet is
+            # simply not written.
+            present = _optional_buyer_columns(cur)
+            extra_values = tuple(
+                _BUYER_COLUMN_NORMALIZERS[name](data.get(name)) for name in present)
+            extra_names = "".join(", " + name for name in present)
+            extra_slots = ",%s" * len(present)
             cur.execute(
                 f"""
                 INSERT INTO buyers
                   (client_id, business_name, address, province, ntn_cnic, strn,
-                   registration_type, buyer_code, is_default{', phone' if has_phone else ''})
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s{',%s' if has_phone else ''})
+                   registration_type, buyer_code, is_default{extra_names})
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s{extra_slots})
                 RETURNING id
                 """,
                 (
@@ -602,7 +698,7 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                     data.get("registration_type", "Unregistered"),
                     buyer_code,
                     data.get("is_default", False),
-                ) + ((_normalize_phone(data.get("phone")),) if has_phone else ()),
+                ) + extra_values,
             )
             new_id = cur.fetchone()[0]
             conn.commit()
@@ -688,15 +784,15 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                 "buyer_code",
                 "is_default",
             ]
-            if _buyer_phone_supported(cur):
-                fields.append("phone")
+            fields.extend(_optional_buyer_columns(cur))
             updates = []
             values = []
             for field in fields:
                 if field in data:
                     updates.append(f"{field} = %s")
                     value = data[field] if data[field] is not None else ""
-                    values.append(_normalize_phone(value) if field == "phone" else value)
+                    normalize = _BUYER_COLUMN_NORMALIZERS.get(field)
+                    values.append(normalize(value) if normalize else value)
             
             if not updates:
                 return jsonify({"error": "No fields to update"}), 400
@@ -1708,6 +1804,12 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         prints_buyer_phone = (prints_sales_person
                               or client_features.prints_buyer_phone(
                                   username, user_id, client_id))
+        # The buyer's vendor number and delivery plant, same rule again: the
+        # form hides them for everyone else, but a hidden input is a UI
+        # decision and a client whose replica does not print them must not end
+        # up with either on their invoice.
+        prints_buyer_supplier_fields = client_features.prints_buyer_supplier_fields(
+            username, user_id, client_id)
         fixed_sro_297 = _wants_sro_297(username)
         # Advance Tax u/s 236(h). The rate is the only part of the line that
         # is stored -- the amount is derived when the PDF is rendered. Gated
@@ -1830,6 +1932,16 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         buyer_phone = _normalize_phone(buyer.get("buyerPhone")) if prints_buyer_phone else ""
         if buyer_phone:
             invoice_json["buyerPhone"] = buyer_phone
+        # Copied onto the invoice rather than looked up at render time, so a
+        # reprint reproduces the sheet as it was sent even if the buyer's
+        # vendor number or delivery plant is changed afterwards.
+        if prints_buyer_supplier_fields:
+            supplier_number = _normalize_supplier_number(buyer.get("buyerSupplierNumber"))
+            if supplier_number:
+                invoice_json["buyerSupplierNumber"] = supplier_number
+            delivery_address = _normalize_delivery_address(buyer.get("buyerDeliveryAddress"))
+            if delivery_address:
+                invoice_json["buyerDeliveryAddress"] = delivery_address
         # Stored whatever the buyer's registration type is: whether the line
         # actually prints is decided at render time, so changing a buyer from
         # unregistered to registered later still prints the rate they chose.

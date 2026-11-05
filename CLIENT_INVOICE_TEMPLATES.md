@@ -898,14 +898,17 @@ Step 1 does not apply — there is no artwork to extract. Times New Roman
 
 **Measure the reserve off their sheet; it is the whole template.** Their
 masthead ink runs 5.2 → 16.2 mm from the top edge and their footer ink
-starts at 276.3 mm, so the page is `margin: 19mm 18mm 23mm 24mm` — their
-ink plus the air their own sheet leaves. Get this wrong and the invoice
+starts at 276.3 mm, so the page is `margin: 21mm 18mm 23mm 24mm` — their
+ink plus the air their own sheet leaves. The top began at 19 mm and the
+client asked for 2 mm more after seeing it printed: a sheet that measures
+right can still feed a millimetre or two high, and the margin is the only
+place that tolerance can live. Get this wrong and the invoice
 prints over their logo.
 
 **Pin it on pixels, not on CSS.** `MaterialCraftLetterpad` renders real
 pages, rasterises each at 10 px/mm and asserts the first and last inked
 row on *every* page, continuation pages included. Asserting the stylesheet
-says `19mm` proves nothing about where ink lands. Mutation-check it both
+says `21mm` proves nothing about where ink lands. Mutation-check it both
 ways — shrinking either margin must fail it.
 
 **A photographed sheet is still measurable.** This one clipped the top edge
@@ -936,17 +939,18 @@ rectangular row for `ItemsTableAlignment`. Check which of the two a client's
 sheet actually does before copying the Global Surface pattern.
 
 **`client_features.py` now holds a cap map, not a set.** `FOUR_CUSTOM_FIELDS`
-became `CUSTOM_FIELD_CAPS = {id: n}`, because this client needs five.
-`custom_fields_max` returns the highest cap any id it was given names. The
-create-invoice form needed no change — it reads the number the server
-renders, which is the payoff of that pattern.
+became `CUSTOM_FIELD_CAPS = {id: n}`, because this client briefly needed
+five. `custom_fields_max` returns the highest cap any id it was given
+names. The create-invoice form needed no change — it reads the number the
+server renders, which is the payoff of that pattern.
 
 **A custom field can be routed somewhere other than the field grid.** Four
-of the five fill the grid at the top right; the fifth, Delivery Address, is
-the plant the goods go to and belongs in the buyer identifier box. The
-template picks it out **by name**, so re-ordering the fields on the form
-cannot put the plant in the P.O row. The setup SQL says the spelling
-matters.
+of the five filled the grid at the top right; the fifth, Delivery Address,
+was picked out **by name** and printed in the buyer identifier box, so
+re-ordering the fields on the form could not put the plant in the P.O row.
+Round 2 moved Delivery Address off the invoice and onto the buyer, which is
+where it belonged — but the by-name routing is still the pattern to copy
+when a custom field has to land somewhere specific on a sheet.
 
 **A replica may write money in its own notation, and that is not a waiver.**
 They write `Rs 102,000-00`. Rather than exempt them from
@@ -962,14 +966,76 @@ sign-off reads "For &lt;company&gt;," in the body. Printing that live from
 `data.sellerBusinessName` satisfies the test honestly, and it is what names
 the seller on a PDF that is e-mailed rather than printed on their paper.
 
-HS Code is waived for them — the second waiver ever, after F.K. Printers.
-Their five-column table has nowhere to put one and the client asked for it
-exactly as drawn. Still submitted to FBR on every line.
+HS Code was waived for them in this round — their first sheet's five-column
+table had nowhere to put one and the client asked for it exactly as drawn.
+Round 2 withdrew the waiver: their second sheet has an HS Code column.
 
-Capacity: **5 two-line items promised, 6 the measured ceiling, 11 one-line.**
-Between roughly 12 and 25 one-line items the table fills page 1 and the
-closing block lands alone on page 2 — inherent to keeping that block
-together, and preferable to splitting the QR from its number.
+### Material Craft, round 2 — the two-page invoice
+
+They sent a generated invoice that ran to two pages beside the sheet they
+wanted. One cause dominated, and it is worth knowing about for any replica:
+
+**A long unit of measure will quietly double your row height.** FBR's own
+name for a countable thing is `Numbers, pieces, units` — 22 characters,
+which wrapped to four lines in a 19 mm Qty column. Six line items cost
+about 78 mm of page that way, and nothing in the markup looks wrong. Their
+sheet writes `04 each`. The template now shortens that one FBR unit name
+and prints a whole quantity as a padded integer; every other unit prints as
+FBR spells it, and a fractional quantity is left exactly as it came,
+because rounding one would change what the sheet says was supplied.
+
+**Check whether the client shrank their own type to make it fit.** Their
+second sheet is set at about 8.85 pt throughout where the first is 10 pt —
+they had scaled the whole page down in Word to get six items on it. Copying
+either number blindly is wrong. The page keeps the 10 pt of the sheet they
+pointed at, and only the items table drops to 9 pt, which is the size at
+which their own longest description fits one line as it does on their
+paper. Capacity went from 6 two-line items to **6 promised / 7 measured,
+and 12 of their own single-line descriptions** — it was 7/8 until the top
+margin grew by 2 mm, which at 9 pt is most of a row and cost exactly one,
+and only of a description longer than any on either of their sheets.
+
+**A second sheet from the same client is a second measurement, not a
+contradiction.** This one confirmed the letterpad bands exactly — masthead
+ink to 16.2 mm, footer from 276.3 mm — so those two margins are now
+measured from two independent sheets. It also changed real content: an HS
+Code column appeared (so the HS-code waiver came off), the CNIC row went,
+and Supplier # changed from 0000332375 to 1006060.
+
+**A value that changes between two of a client's sheets is a field, not a
+constant.** Supplier # is the vendor number the *buyer* files the seller
+under — it is what that buyer matches the invoice against when paying.
+Hardcoding the first one would have printed the wrong number on every other
+customer's invoice. It and Delivery Address both moved out of the invoice's
+custom fields and onto the **buyer**, where they belong: set once per
+customer on the Buyers page, filled in automatically when that customer is
+picked, copied onto the invoice so a reprint reproduces the sheet as sent.
+Both are printed-only (`PDF_ONLY_INVOICE_FIELDS`).
+
+Adding a third optional buyer column made the `has_phone`-style f-string
+guards unmanageable, so they are generalised: `OPTIONAL_BUYER_COLUMNS` plus
+`buyer_select_list` / `buyer_optional_values` / `_BUYER_COLUMN_NORMALIZERS`
+in `invoice_form_routes.py`. The SELECT keeps the same arity whatever the
+schema holds, so callers unpack positionally. Exercised against a throwaway
+Postgres in all three schema states — no columns, phone only, and after the
+migration applied twice.
+
+**A replica may print a figure in its own notation, and that is not a
+waiver.** They write money as `Rs 1,234-56` and quantities as `04`. Rather
+than exempt them from `RequiredIdentifiers`, that test grew
+`FIGURE_NOTATION`: a per-template, per-field re-spelling applied only to
+the fields in `RequiredIdentifiers.FIGURES`, with a test asserting the
+re-spelling preserves the digits (trailing zeros may be dropped, nothing
+else may change). Identifiers — NTN, STRN, HS code — are never re-spelled,
+because a differently-spelled identifier is a different identifier.
+
+**Before "fix the profile", check what FBR already knows them by.** Their
+sheet shows NTN 1270230-7 while the profile holds 3520229157309 — their
+CNIC. The tell is in their own invoice: the FBR invoice number reads
+`3520229157309DI39CBBP165272`, and FBR builds that from the seller's
+registration. So changing the profile would file under a different
+identifier. `material_craft_setup.sql` carries that UPDATE commented out,
+behind a header saying what to confirm first.
 
 ---
 

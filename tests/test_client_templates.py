@@ -70,15 +70,36 @@ CLIENT_TEMPLATES = {
     "invoice_material_craft.html": "71a52649-1b77-4748-9a51-fd33ce621000",
 }
 
-# Replicas that write money in their own notation rather than '1,234.56'.
-# RequiredIdentifiers checks that the figures on the face of the invoice are
-# the ones in the payload; a client who prints 'Rs 1,234-56' still prints
-# them, so the check is applied in the sheet's own spelling rather than
-# waived. The transform must be a re-spelling of the SAME figure -- anything
-# that changes the number belongs nowhere near this table.
-MONEY_NOTATION = {
-    # Material Craft put a dash where everyone else puts a decimal point.
-    "invoice_material_craft.html": lambda value: value.replace(".", "-"),
+def _dash_decimal(value):
+    """'127,779.00' -> '127,779-00'. Material Craft's money notation."""
+    return value.replace(".", "-")
+
+
+def _whole_number(value):
+    """'191.00' -> '191'. A quantity with nothing after the point."""
+    return value.rstrip("0").rstrip(".") if "." in value else value
+
+
+# Replicas that print a figure in their own notation rather than the
+# payload's. RequiredIdentifiers checks that the figures on the face of the
+# invoice are the ones in the payload; a client who writes 'Rs 1,234-56' or
+# '04 each' still prints them, so the check is applied in the sheet's own
+# spelling rather than waived -- a waiver would stop checking the figure at
+# all. Each entry maps a label from RequiredIdentifiers.CASES to a
+# re-spelling of the SAME figure; a transform that changes the number
+# belongs nowhere near this table, and the integrity test below enforces
+# that by comparing digits.
+FIGURE_NOTATION = {
+    "invoice_material_craft.html": {
+        # A dash where everyone else puts a decimal point.
+        "unit price": _dash_decimal,
+        "value excluding tax": _dash_decimal,
+        "sales tax": _dash_decimal,
+        "value including tax": _dash_decimal,
+        # Their sheet writes a whole quantity as an integer -- '04 each',
+        # not '4.0 Numbers, pieces, units'.
+        "quantity": _whole_number,
+    },
 }
 
 # The paper clients who asked for a "No. of Reams" column beside the quantity.
@@ -780,119 +801,213 @@ class GlobalSurfacePagination(unittest.TestCase):
 
 
 class MaterialCraftFields(unittest.TestCase):
-    """Material Craft's five custom fields, and the block that is fixed.
+    """Material Craft's four custom fields, and the two that moved.
 
-    Four of the five -- P.O #, P.O Date, D Challan #, DC Date -- fill the
-    grid at the top right. The fifth, Delivery Address, is the plant the
-    goods go to: not the buyer's address, not an FBR field, and it belongs
-    in the buyer identifier box rather than the grid.
+    P.O #, P.O Date, D Challan # and DC Date fill the grid at the top
+    right. Supplier # and Delivery Address began here as custom fields too
+    and were moved onto the BUYER, which is what they are properties of:
+    the vendor number that buyer files this client under, and the plant the
+    goods go to. Both are printed-only -- app.py strips them from the FBR
+    payload (`PDF_ONLY_INVOICE_FIELDS`) and nothing is derived from either.
     """
 
     TEMPLATE = "invoice_material_craft.html"
     CLIENT = CLIENT_TEMPLATES["invoice_material_craft.html"]
 
-    GRID_FIELDS = [
-        {"name": "P.O #", "value": "18149263"},
-        {"name": "P.O Date", "value": "12-10-2026"},
-        {"name": "D Challan #", "value": "39"},
-        {"name": "DC Date", "value": "22-10-2026"},
+    FIELDS = [
+        {"name": "P.O #", "value": "4900039374"},
+        {"name": "P.O Date", "value": "19-08-2026"},
+        {"name": "D Challan #", "value": "38"},
+        {"name": "DC Date", "value": "20-10-2026"},
     ]
-    DELIVERY = {"name": "Delivery Address", "value": "Bhai Pheru Plant."}
-    FIELDS = GRID_FIELDS + [DELIVERY]
+    SUPPLIER_NUMBER = "1006060"
+    DELIVERY_ADDRESS = "Sahiwal Factory"
 
-    def test_all_five_custom_fields_print(self):
-        # Two is what every other client gets and four is Global Surface's
-        # number; the fifth is the one a shared cap would have dropped.
-        markup = render(self.TEMPLATE, dict(PAYLOAD, customFields=self.FIELDS))
+    def payload(self, **overrides):
+        data = dict(PAYLOAD, customFields=self.FIELDS,
+                    buyerSupplierNumber=self.SUPPLIER_NUMBER,
+                    buyerDeliveryAddress=self.DELIVERY_ADDRESS)
+        data.update(overrides)
+        return data
+
+    def test_all_four_custom_fields_print(self):
+        markup = render(self.TEMPLATE, self.payload())
         for field in self.FIELDS:
             self.assertIn(field["name"], markup)
             self.assertIn(field["value"], markup)
 
-    def test_the_cap_is_five_here_four_for_global_surface_two_for_the_rest(self):
-        self.assertEqual(5, client_features.custom_fields_max(self.CLIENT))
-        self.assertEqual(5, client_features.custom_fields_max(None, self.CLIENT))
-        self.assertEqual(
-            4, client_features.custom_fields_max(
-                CLIENT_TEMPLATES["invoice_global_surface.html"]))
+    def test_the_cap_is_four_here_and_two_for_a_client_who_did_not_ask(self):
+        self.assertEqual(4, client_features.custom_fields_max(self.CLIENT))
+        self.assertEqual(4, client_features.custom_fields_max(None, self.CLIENT))
         for other in (None, "", "J527785", "3520223163127",
                       "00000000-0000-0000-0000-000000000000"):
             self.assertEqual(2, client_features.custom_fields_max(other), other)
 
-    def test_a_sixth_field_is_not_printed(self):
+    def test_a_fifth_field_is_not_printed(self):
         # Defence in depth. app.py caps the list before it gets here, but a
         # payload stored before the cap existed must not widen the sheet.
         extra = self.FIELDS + [{"name": "Gate Pass", "value": "SHOULD-NOT-PRINT"}]
-        markup = render(self.TEMPLATE, dict(PAYLOAD, customFields=extra))
+        markup = render(self.TEMPLATE, self.payload(customFields=extra))
         self.assertNotIn("SHOULD-NOT-PRINT", markup)
-
-    def test_the_delivery_address_goes_in_the_buyer_box_not_the_invoice_grid(self):
-        # Matched by name, not by position: re-ordering the fields on the
-        # form must not put the plant in the P.O row. The grid is the table
-        # that carries Invoice #, so the delivery value must fall after the
-        # buyer identifier label and nowhere near it.
-        markup = render(self.TEMPLATE, dict(PAYLOAD, customFields=self.FIELDS))
-        label = markup.index("Delivery Address")
-        value = markup.index(self.DELIVERY["value"])
-        self.assertLess(label, value)
-        self.assertLess(value, markup.index("Supplier #"))
-        self.assertGreater(label, markup.index("DC Date"))
-        # And exactly once: not in the grid as well.
-        self.assertEqual(1, markup.count(self.DELIVERY["value"]))
-
-    def test_the_row_is_ruled_even_when_no_plant_was_given(self):
-        # Their sheet rules three rows in that box whatever is typed, so the
-        # label prints with an empty cell rather than the box losing a row.
-        markup = render(self.TEMPLATE, dict(PAYLOAD, customFields=self.GRID_FIELDS))
-        self.assertIn("Delivery Address", markup)
-        self.assertNotIn(self.DELIVERY["value"], markup)
 
     def test_an_empty_field_leaves_no_empty_label(self):
         # "Gate Pass" and not "P.O Date": a CSS comment IS in the rendered
         # markup, and this template's stylesheet names the four fields in
         # one, so the obvious assertion would pass vacuously.
-        fields = [self.GRID_FIELDS[0], {"name": "Gate Pass", "value": ""}]
-        markup = render(self.TEMPLATE, dict(PAYLOAD, customFields=fields))
+        fields = [self.FIELDS[0], {"name": "Gate Pass", "value": ""}]
+        markup = render(self.TEMPLATE, self.payload(customFields=fields))
         self.assertIn("P.O #", markup)
         self.assertNotIn("Gate Pass", markup)
 
-    def test_the_table_is_their_five_columns_and_nothing_else(self):
-        # The client asked for the table exactly as their own sheet draws
-        # it. `items_table_rows` counts cells, colspans summed.
-        rows = items_table_rows(render(self.TEMPLATE))
-        self.assertEqual({5}, set(rows))
-        markup = render(self.TEMPLATE)
-        for heading in ("S.No", "Description", "Qty", "Unit Price", "Amount"):
+    # ---- the two fields that live on the buyer --------------------------
+
+    def test_the_supplier_number_and_delivery_address_come_from_the_buyer(self):
+        markup = render(self.TEMPLATE, self.payload())
+        self.assertIn(self.SUPPLIER_NUMBER, markup)
+        self.assertIn(self.DELIVERY_ADDRESS, markup)
+
+    def test_the_supplier_number_is_not_hardcoded_to_one_buyer(self):
+        # It was, in the first build. Their two sheets carry two different
+        # numbers -- it is the vendor number the BUYER files them under, and
+        # a wrong one is the number that buyer pays against.
+        markup = render(self.TEMPLATE, self.payload(buyerSupplierNumber="0000332375"))
+        self.assertIn("0000332375", markup)
+        self.assertNotIn(self.SUPPLIER_NUMBER, markup)
+
+    def test_both_rows_are_ruled_even_when_the_buyer_has_neither(self):
+        # Their sheet rules three rows in each box whatever is filled in.
+        markup = render(self.TEMPLATE, self.payload(
+            buyerSupplierNumber="", buyerDeliveryAddress=""))
+        self.assertIn("Delivery Address", markup)
+        self.assertIn("Supplier #", markup)
+        self.assertNotIn(self.DELIVERY_ADDRESS, markup)
+
+    def test_no_other_replica_prints_either_of_them(self):
+        # A client who did not ask for them must not get them, whatever the
+        # payload happens to carry.
+        data = dict(PAYLOAD, buyerSupplierNumber=self.SUPPLIER_NUMBER,
+                    buyerDeliveryAddress=self.DELIVERY_ADDRESS)
+        for template in set(CLIENT_TEMPLATES) - {self.TEMPLATE}:
+            markup = render(template, data)
+            self.assertNotIn(self.SUPPLIER_NUMBER, markup, template)
+            self.assertNotIn(self.DELIVERY_ADDRESS, markup, template)
+
+    def test_only_this_client_is_offered_the_two_buyer_fields(self):
+        self.assertTrue(client_features.prints_buyer_supplier_fields(self.CLIENT))
+        for other in (None, "", "J527785",
+                      CLIENT_TEMPLATES["invoice_global_surface.html"],
+                      "00000000-0000-0000-0000-000000000000"):
+            self.assertFalse(
+                client_features.prints_buyer_supplier_fields(other), other)
+
+    def test_neither_field_is_ever_filed(self):
+        # The pair are printed-only. If they were not in this tuple they
+        # would be sent to FBR, whose invoice schema has no such element.
+        import app as application
+        self.assertIn("buyerSupplierNumber", application.PDF_ONLY_INVOICE_FIELDS)
+        self.assertIn("buyerDeliveryAddress", application.PDF_ONLY_INVOICE_FIELDS)
+
+    def test_the_form_is_told_which_clients_get_the_two_fields(self):
+        # The form cannot import client_features, so app.py renders the
+        # answer into the page. If that context variable is dropped, Jinja
+        # quietly evaluates it as false and the fields never appear -- which
+        # looks exactly like the client not having asked for them.
+        source = io.open(os.path.join(ROOT, "app.py"), encoding="utf-8").read()
+        self.assertIn(
+            "buyer_supplier_fields_for_client=client_features.prints_buyer_supplier_fields",
+            source)
+        form = io.open(os.path.join(ROOT, "templates", "create-invoice.html"),
+                       encoding="utf-8").read()
+        self.assertIn("{{ 'true' if buyer_supplier_fields_for_client else 'false' }}", form)
+
+    # ---- the table ------------------------------------------------------
+
+    def test_the_table_is_their_six_columns(self):
+        # Their second sheet added an HS Code column, which is why this
+        # template no longer waives the HS code in RequiredIdentifiers.
+        rows = items_table_rows(render(self.TEMPLATE, self.payload()))
+        self.assertEqual({6}, set(rows))
+        markup = render(self.TEMPLATE, self.payload())
+        for heading in ("S.No", "Description", "HS Code", "Qty",
+                        "Unit Price", "Amount"):
             self.assertIn(">%s<" % heading, markup)
-        self.assertNotIn("HS", markup.split("<tbody>")[0].split("<thead>")[1])
+
+    def test_the_quantity_prints_the_way_their_sheet_writes_it(self):
+        # '04 each', not '4.0 Numbers, pieces, units'. The long FBR unit
+        # name wrapped to four lines in this column and is what pushed
+        # their six-line invoice onto a second page.
+        data = self.payload(items=[dict(PAYLOAD["items"][0], quantity=4.0,
+                                        uoM="Numbers, pieces, units")])
+        markup = render(self.TEMPLATE, data)
+        self.assertIn("04 each", markup)
+        self.assertNotIn("Numbers, pieces, units", markup)
+
+    def test_a_fractional_quantity_is_left_exactly_as_it_came(self):
+        # Rounding a quantity would change what the sheet says was supplied.
+        data = self.payload(items=[dict(PAYLOAD["items"][0], quantity="12.5",
+                                        uoM="Kilogram")])
+        markup = render(self.TEMPLATE, data)
+        self.assertIn("12.5 Kilogram", markup)
+
+    def test_every_other_unit_prints_as_fbr_spells_it(self):
+        data = self.payload(items=[dict(PAYLOAD["items"][0], quantity=3,
+                                        uoM="Square Metre")])
+        self.assertIn("03 Square Metre", render(self.TEMPLATE, data))
 
     def test_money_is_written_in_their_dash_notation(self):
         # 'Rs 102,000-00', not 'Rs 102,000.00'. RequiredIdentifiers checks
-        # the figures themselves through MONEY_NOTATION; this pins the
+        # the figures themselves through FIGURE_NOTATION; this pins the
         # notation, which is the part a future tidy-up would "fix".
-        markup = render(self.TEMPLATE)
+        markup = render(self.TEMPLATE, self.payload())
         self.assertIn("Rs 127,779-00", markup)
         self.assertNotIn("Rs 127,779.00", markup)
 
-    def test_the_fixed_block_prints_their_supplier_number_and_cnic(self):
-        # Neither is an FBR field -- the payload has no element for either
-        # -- so they are the client's own values, verbatim, on every sheet.
-        markup = render(self.TEMPLATE)
-        self.assertIn("0000332375", markup)
-        self.assertIn("35202-2915730-9", markup)
+    def test_the_amount_in_words_is_phrased_the_way_their_sheet_phrases_it(self):
+        # Theirs carries no joining "and" and no hyphens, and no currency
+        # tail after the figure -- the label in front of it says Rupees.
+        data = self.payload(amountInWords=(
+            "one million, one hundred and sixty-one thousand, one hundred "
+            "and twenty rupees, zero paisa only"))
+        markup = render(self.TEMPLATE, data)
+        self.assertIn(
+            "Rupees: One million one hundred sixty one thousand one hundred "
+            "twenty only.", markup)
+
+    def test_a_non_zero_paisa_amount_is_not_left_dangling(self):
+        data = self.payload(amountInWords="nine hundred rupees, fifty paisa only")
+        self.assertIn("Rupees: Nine hundred and fifty paisa only.",
+                      render(self.TEMPLATE, data))
+
+    # ---- the seller block ------------------------------------------------
+
+    def test_the_cnic_row_their_second_sheet_dropped_is_gone(self):
+        markup = render(self.TEMPLATE, self.payload())
+        self.assertNotIn("CNIC", markup)
+
+    def test_the_bare_ntn_prints_with_its_check_digit(self):
+        # The client asked for 1270230-7 while their profile holds the bare
+        # seven characters. The digit is derived from them, so the sheet and
+        # the filing state the same number.
+        markup = render(self.TEMPLATE, self.payload(sellerNTNCNIC="1270230"))
+        self.assertIn("1270230-7", markup)
+
+    def test_an_ntn_that_already_carries_it_is_left_alone(self):
+        markup = render(self.TEMPLATE, self.payload(sellerNTNCNIC="1270230-7"))
+        self.assertIn("1270230-7", markup)
+        self.assertNotIn("1270230-7-7", markup)
+
+    def test_no_other_sellers_ntn_is_ever_rewritten(self):
+        markup = render(self.TEMPLATE, self.payload(sellerNTNCNIC="1203281-6"))
+        self.assertIn("1203281-6", markup)
+        self.assertNotIn("1270230-7", markup)
 
     def test_their_gst_number_prints_in_the_grouping_their_sheet_uses(self):
-        markup = render(self.TEMPLATE, dict(PAYLOAD, sellerSTRN="0300127023012"))
+        markup = render(self.TEMPLATE, self.payload(sellerSTRN="0300127023012"))
         self.assertIn("03-00-1270-230-12", markup)
         self.assertNotIn(">0300127023012<", markup)
 
-    def test_a_gst_number_already_grouped_is_left_alone(self):
-        markup = render(self.TEMPLATE, dict(PAYLOAD, sellerSTRN="03-00-1270-230-12"))
-        self.assertIn("03-00-1270-230-12", markup)
-
     def test_no_other_sellers_gst_number_is_ever_regrouped(self):
-        # The whole risk of a presentational substitution: it must key on
-        # this one company's digits and pass everything else through.
-        markup = render(self.TEMPLATE, dict(PAYLOAD, sellerSTRN="3520224169621"))
+        markup = render(self.TEMPLATE, self.payload(sellerSTRN="3520224169621"))
         self.assertIn("3520224169621", markup)
         self.assertNotIn("03-00-1270-230-12", markup)
 
@@ -920,7 +1035,7 @@ class MaterialCraftLetterpad(unittest.TestCase):
     THEIR_MASTHEAD_ENDS = 16.2
     THEIR_FOOTER_STARTS = 276.3
     # What the template actually reserves.
-    TOP_RESERVE = 19.0
+    TOP_RESERVE = 21.0
     BOTTOM_RESERVE = 23.0
     PX_PER_MM = 10
 
@@ -990,6 +1105,117 @@ class MaterialCraftLetterpad(unittest.TestCase):
 
 
 @unittest.skipIf(WeasyHTML is None, "WeasyPrint/pypdfium2 not installed")
+class MaterialCraftIdentifierBoxes(unittest.TestCase):
+    """The two ruled boxes in each banded row must stay two boxes.
+
+    Their sheet puts the buyer block at 24.1-87.2mm and the invoice grid
+    at 135.5-191.8mm, with ~48mm of paper between them, and does the same
+    again with the two identifier boxes underneath. Both rows are laid out
+    by a three-cell table whose middle cell is empty.
+
+    That empty cell is the whole risk. Under the browser's default auto
+    table layout a percentage width is a hint, every cell is given its
+    content's minimum first, and an empty cell's minimum is zero -- so
+    when the boxes hold something wide the gap is what gets squeezed, and
+    the two boxes print touching as one merged table. It shipped that way:
+    the width rules were scoped to the first row's class, the second row
+    had no declared widths at all, and short test values hid it until a
+    buyer with no delivery address and a 13-digit seller NTN came along.
+
+    Nothing about that is visible in the markup, which is why this
+    rasterises the page and looks at where the ink actually falls.
+    """
+
+    TEMPLATE = "invoice_material_craft.html"
+    PX_PER_MM = 10
+
+    # The content box: their boxes must start and end on these.
+    LEFT_EDGE = 24.0
+    RIGHT_EDGE = 192.0
+    # The two banded rows, as mm windows down the page.
+    BANDS = {"buyer block and invoice grid": (33.5, 66.0),
+             "client and seller identifiers": (68.5, 91.0)}
+
+    @classmethod
+    def setUpClass(cls):
+        cls.fbr_logo = real_fbr_logo()
+
+    def ink_columns(self, band, data):
+        """The runs of inked columns in a horizontal band, in mm."""
+        markup = render(self.TEMPLATE, data, logo=self.fbr_logo)
+        pdf = WeasyHTML(string=markup, base_url=ROOT).write_pdf()
+        document = pypdfium2.PdfDocument(io.BytesIO(pdf))
+        page = document[0].render(scale=self.PX_PER_MM * 25.4 / 72.0)
+        pixels = page.to_pil().convert("L")
+        top, bottom = (int(edge * self.PX_PER_MM) for edge in band)
+        strip = pixels.crop((0, top, pixels.width, bottom))
+        inked = [x for x in range(strip.width)
+                 if min(strip.crop((x, 0, x + 1, strip.height)).getdata()) < 200]
+        runs, start, previous = [], inked[0], inked[0]
+        for x in inked[1:]:
+            # 5mm of clear paper ends a run; a cell rule is 1px.
+            if x - previous > 5 * self.PX_PER_MM:
+                runs.append((start / self.PX_PER_MM, previous / self.PX_PER_MM))
+                start = x
+            previous = x
+        runs.append((start / self.PX_PER_MM, previous / self.PX_PER_MM))
+        return runs
+
+    def worst_case(self):
+        """The payload that broke it: both optional rows empty, long NTN.
+
+        An empty cell is what lets the gap collapse, and the 13-digit
+        seller NTN is what makes the boxes want the room.
+        """
+        return dict(PAYLOAD,
+                    customFields=MaterialCraftFields.FIELDS,
+                    sellerNTNCNIC="3520229157309",
+                    buyerSupplierNumber="",
+                    buyerDeliveryAddress="")
+
+    def test_each_banded_row_is_two_boxes_with_paper_between_them(self):
+        for label, band in self.BANDS.items():
+            runs = self.ink_columns(band, self.worst_case())
+            self.assertEqual(
+                2, len(runs),
+                "%s: expected two separate boxes, got %s -- the gap between "
+                "them has collapsed and they print as one table"
+                % (label, ["%.1f-%.1f" % r for r in runs]))
+            (left_start, left_end), (right_start, right_end) = runs
+            self.assertGreaterEqual(
+                right_start - left_end, 40.0,
+                "%s: only %.1fmm of paper between the boxes; their sheet "
+                "leaves about 48" % (label, right_start - left_end))
+
+    def test_neither_box_runs_past_the_margins(self):
+        # The other way this goes wrong: a layout fix that makes the table
+        # wider than its container pushes the right-hand box into the
+        # margin, which on this sheet is their pre-printed letterpad.
+        for label, band in self.BANDS.items():
+            runs = self.ink_columns(band, self.worst_case())
+            self.assertGreaterEqual(runs[0][0], self.LEFT_EDGE - 0.5,
+                                    "%s: ink left of the content box" % label)
+            self.assertLessEqual(
+                runs[-1][1], self.RIGHT_EDGE + 0.5,
+                "%s: ink at %.1fmm is past the %gmm right margin"
+                % (label, runs[-1][1], self.RIGHT_EDGE))
+
+    def test_the_two_rows_line_up_with_each_other(self):
+        # Their sheet rules both rows on the same two verticals. A row that
+        # sizes itself by content drifts out of line with the one above.
+        measured = [self.ink_columns(band, self.worst_case())
+                    for band in self.BANDS.values()]
+        for index, edge in enumerate(("left box start", "left box end",
+                                      "right box start", "right box end")):
+            values = [run[index % 2] for runs in measured
+                      for run in [runs[index // 2]]]
+            self.assertAlmostEqual(
+                values[0], values[1], delta=1.0,
+                msg="%s differs between the two rows: %.1f vs %.1f"
+                    % (edge, values[0], values[1]))
+
+
+@unittest.skipIf(WeasyHTML is None, "WeasyPrint/pypdfium2 not installed")
 class MaterialCraftPagination(unittest.TestCase):
     """How many line items reach the buyer on one sheet.
 
@@ -1003,20 +1229,29 @@ class MaterialCraftPagination(unittest.TestCase):
 
     TEMPLATE = "invoice_material_craft.html"
 
-    # Their own sample's description, which wraps to two lines in the
-    # Description column. A one-word description fits far more rows and
-    # would make this pass while a real invoice overflowed.
-    WRAPPING = "Supply of 65188167-Cutter HSS W20 XL235X mounted fitting 60mm M %d"
-    # What the client can count on: five of their own two-line descriptions.
-    REQUIRED = 5
-    # What it actually takes, measured -- the sixth lands 0.8mm inside the
-    # footer reserve. The gap between the two numbers is the headroom, and
-    # losing it is the warning bell that the next change breaks the promise
-    # above rather than the promise breaking silently.
-    WRAPPING_CAPACITY = 6
-    # A description that stays on one line.
-    SHORT = "Cutter HSS W20 No. %d"
-    SHORT_CAPACITY = 11
+    # A description longer than any on either of their sheets, so it wraps
+    # to two lines in the Description column. A one-word description fits
+    # far more rows and would make this pass while a real invoice
+    # overflowed -- which is exactly what the first build did.
+    WRAPPING = ("Supply of reconditioned Jaw bottom assembly 5940383-2664 LD "
+                "A.P.S MW1200 with hardened shank no. %d")
+    # What the client can count on: six of those. Their own invoices run to
+    # six items, all of which fit on one line and twelve of which fit a
+    # page, so this is already past anything they have sent.
+    REQUIRED = 6
+    # What it actually takes, measured. The gap between the two numbers is
+    # the headroom, and losing it is the warning bell that the next change
+    # breaks the promise above rather than the promise breaking silently.
+    #
+    # This was 7/8 until the top margin went from 19mm to 21mm, at the
+    # client's request, so their logo clears the content when the sheet
+    # feeds through their printer. 2mm is most of a row at 9pt and it cost
+    # exactly one -- but only of a description longer than any on either of
+    # their sheets. Their own still fit twelve to a page.
+    WRAPPING_CAPACITY = 7
+    # One of their own descriptions, which fits a single line at 9pt.
+    SHORT = "Supply of Flight through knife 5940383-2659 LD A.P.S no. %d"
+    SHORT_CAPACITY = 12
 
     NOTE = "system generated invoice"
     TOTAL = "Gross Amount"
@@ -1036,11 +1271,18 @@ class MaterialCraftPagination(unittest.TestCase):
         return re.sub(r"\s+", "", text)
 
     def pages(self, count, description):
+        # The long FBR unit name on every line, because shortening it to
+        # "each" is what bought most of this capacity and a test that never
+        # exercises it would not notice the shortening being lost.
         data = dict(
             PAYLOAD,
-            items=[dict(PAYLOAD["items"][0], productDescription=description % (i + 1))
+            items=[dict(PAYLOAD["items"][0],
+                        productDescription=description % (i + 1),
+                        quantity=4.0, uoM="Numbers, pieces, units")
                    for i in range(count)],
             customFields=MaterialCraftFields.FIELDS,
+            buyerSupplierNumber=MaterialCraftFields.SUPPLIER_NUMBER,
+            buyerDeliveryAddress=MaterialCraftFields.DELIVERY_ADDRESS,
         )
         markup = render(self.TEMPLATE, data, logo=self.fbr_logo)
         pdf = WeasyHTML(string=markup, base_url=ROOT).write_pdf()
@@ -1069,7 +1311,7 @@ class MaterialCraftPagination(unittest.TestCase):
             "letterpad reserve, the header matter or the closing block "
             "has grown" % self.REQUIRED)
 
-    def test_eleven_one_line_items_fit_one_sheet(self):
+    def test_their_own_single_line_descriptions_fit_twelve_to_a_sheet(self):
         pages = self.pages(self.SHORT_CAPACITY, self.SHORT)
         self.assertEqual(1, len(pages),
                          "%d one-line items spilled onto %d pages"
@@ -1088,7 +1330,7 @@ class MaterialCraftPagination(unittest.TestCase):
         # The failure this guards: the sign-off, the FBR marks and the
         # closing note split across a page boundary, so the QR code and the
         # number it belongs to end up on different sheets.
-        for count in (12, 20, 30):
+        for count in (self.SHORT_CAPACITY + 1, 20, 30):
             pages = self.pages(count, self.SHORT)
             carrying = [i for i, text in enumerate(pages)
                         if self.flat(self.NOTE) in self.flat(text)]
@@ -1103,7 +1345,7 @@ class MaterialCraftPagination(unittest.TestCase):
         # Figures under no headings are unreadable, and worse, look like
         # they belong to whatever column the eye lands on.
         pages = self.pages(30, self.SHORT)
-        stem = self.flat(self.SHORT.split(" No.")[0])
+        stem = self.flat(self.SHORT.split(" no. %d")[0])
         carrying = [i for i, text in enumerate(pages) if stem in self.flat(text)]
         self.assertGreater(len(carrying), 1,
                            "expected item rows on more than one page; this "
@@ -1167,11 +1409,13 @@ class RequiredIdentifiers(unittest.TestCase):
         "value including tax": "150,779.00",
     }
 
-    # The cases above that are sums of money, and so may be re-spelled by a
-    # replica's own notation (see MONEY_NOTATION). A tax number or an HS code
-    # is an identifier, not a figure, and is never re-spelled.
-    MONEY = {"unit price", "value excluding tax", "sales tax",
-             "value including tax"}
+    # The cases above that are figures, and so may be re-spelled by a
+    # replica's own notation (see FIGURE_NOTATION). A tax number or an HS
+    # code is an identifier, not a figure, and is never re-spelled -- a
+    # template that printed one of those differently would be printing a
+    # different identifier.
+    FIGURES = {"quantity", "unit price", "value excluding tax", "sales tax",
+               "value including tax"}
 
     # F.K. Printers asked for the HS code to be left off the printed sheet --
     # as a column first, then from under the description. Their own invoice
@@ -1181,24 +1425,18 @@ class RequiredIdentifiers(unittest.TestCase):
     # needs the client to have asked for it.
     WAIVED = {
         "invoice_fk_printers.html": {"HS code"},
-        # Material Craft asked for their table exactly as their own sheet
-        # draws it -- S.No, Description, Qty, Unit Price, Amount -- and it
-        # has nowhere an HS code could go without adding a sixth column
-        # they did not ask for. Submitted to FBR on every line as always;
-        # this waives how the paper looks, not what is filed.
-        "invoice_material_craft.html": {"HS code"},
     }
 
     def test_every_template_prints_every_required_field(self):
         for template in CLIENT_TEMPLATES:
             markup = render(template)
             waived = self.WAIVED.get(template, set())
-            respell = MONEY_NOTATION.get(template)
+            respell = FIGURE_NOTATION.get(template, {})
             for label, value in self.CASES.items():
                 if label in waived:
                     continue
-                if respell and label in self.MONEY:
-                    value = respell(value)
+                if label in respell:
+                    value = respell[label](value)
                 self.assertIn(value, markup, f"{template}: {label} missing")
 
     def test_nothing_is_waived_that_the_client_did_not_ask_to_waive(self):
@@ -1210,21 +1448,32 @@ class RequiredIdentifiers(unittest.TestCase):
             for label in labels:
                 self.assertIn(label, self.CASES, label)
 
-    def test_a_money_notation_names_a_real_template_and_changes_nothing_else(self):
-        # A re-spelling is not a waiver: it must leave the digits alone and
-        # only apply to figures. This fails if an entry is left behind for a
-        # template that no longer exists, or if one is ever written so
+    def test_a_notation_names_a_real_template_and_changes_no_figure(self):
+        # A re-spelling is not a waiver: it keeps the figure under test and
+        # only changes how it is written. This fails if an entry is left
+        # behind for a template that no longer exists, if it is applied to
+        # an identifier rather than a figure, or if one is ever written so
         # loosely that it would alter the number being checked.
-        for template, respell in MONEY_NOTATION.items():
+        #
+        # The rule: the re-spelled digits must be the original's digits, or
+        # the original's with trailing zeros dropped -- which is what
+        # writing '191.00' as '191' does. Nothing may be invented, and no
+        # digit may change.
+        for template, respellings in FIGURE_NOTATION.items():
             self.assertIn(template, CLIENT_TEMPLATES, template)
-            for label in self.MONEY:
-                original = self.CASES[label]
-                self.assertEqual(
-                    re.sub(r"\D", "", original),
-                    re.sub(r"\D", "", respell(original)),
-                    f"{template}: the {label} notation changed the digits")
-        for label in self.MONEY:
-            self.assertIn(label, self.CASES, label)
+            for label, respell in respellings.items():
+                self.assertIn(label, self.CASES, label)
+                self.assertIn(
+                    label, self.FIGURES,
+                    f"{template}: {label} is an identifier, not a figure")
+                original = re.sub(r"\D", "", self.CASES[label])
+                respelled = re.sub(r"\D", "", respell(self.CASES[label]))
+                self.assertTrue(
+                    original == respelled
+                    or (original.startswith(respelled)
+                        and set(original[len(respelled):]) <= {"0"}),
+                    f"{template}: the {label} notation changed the digits "
+                    f"({original} -> {respelled})")
 
     def test_buyer_and_seller_details_survive_a_missing_logo(self):
         # Most clients have no logo file; the masthead must still identify them.

@@ -703,6 +703,22 @@
                                     class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
                                     placeholder="e.g. 0300-1234567" />
                             </div>
+                            <!-- Supplier # and Delivery address. Shown only for the clients
+                                 whose invoice prints them. Both are saved on the buyer, so
+                                 picking a customer fills them in; neither is sent to FBR,
+                                 whose invoice schema has no such field. -->
+                            <div id="buyer-supplier-number-wrapper" class="hidden">
+                                <label for="buyer-supplier-number" class="block text-gray-700 font-medium mb-2">Supplier #</label>
+                                <input type="text" id="buyer-supplier-number" maxlength="40" autocomplete="off"
+                                    class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
+                                    placeholder="e.g. 0000332375" />
+                            </div>
+                            <div id="buyer-delivery-address-wrapper" class="hidden">
+                                <label for="buyer-delivery-address" class="block text-gray-700 font-medium mb-2">Delivery address</label>
+                                <input type="text" id="buyer-delivery-address" maxlength="200" autocomplete="off"
+                                    class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
+                                    placeholder="e.g. Sahiwal Factory" />
+                            </div>
                             <div class="md:col-span-2">
                                 <label for="buyer-address" class="block text-gray-700 font-medium mb-2">Address*</label>
                                 <textarea id="buyer-address" rows="3"
@@ -2186,6 +2202,25 @@
                 || BUYER_PHONE_CLIENTS.has((username || '').toString().trim());
         }
 
+        /** Whether this client's buyers carry a supplier number and a delivery
+         *  address. Answered by the server alone -- there is no username list
+         *  to fall back on, because the clients that have these are keyed on
+         *  their id in client_features.py. */
+        const BUYER_SUPPLIER_FIELDS_FOR_THIS_CLIENT = {{ 'true' if buyer_supplier_fields_for_client else 'false' }};
+
+        function isBuyerSupplierFieldsClient() {
+            return BUYER_SUPPLIER_FIELDS_FOR_THIS_CLIENT;
+        }
+
+        /** One of the two vendor fields, or "" for a client who has neither.
+         *  The server gates them again on the way in -- this only keeps a
+         *  stale value out of the payload when the inputs are hidden. */
+        function supplierFieldValue(id) {
+            if (!isBuyerSupplierFieldsClient()) return "";
+            const el = document.getElementById(id);
+            return el ? el.value.trim() : "";
+        }
+
         // The names this client has used before. Filled from /api/sales-persons
         // and added to as soon as a new one is submitted, so the list is right
         // without a page reload.
@@ -2242,6 +2277,23 @@
                 const phone = document.getElementById('buyer-phone');
                 if (phone) phone.value = '';
             }
+            applyBuyerSupplierFieldsUI();
+        }
+
+        // Server-answered, so these are right on first paint rather than
+        // after the username round trip.
+        function applyBuyerSupplierFieldsUI() {
+            const enabled = isBuyerSupplierFieldsClient();
+            [['buyer-supplier-number-wrapper', 'buyer-supplier-number'],
+             ['buyer-delivery-address-wrapper', 'buyer-delivery-address']].forEach(([wrapId, inputId]) => {
+                const wrapper = document.getElementById(wrapId);
+                if (!wrapper) return;
+                wrapper.classList.toggle('hidden', !enabled);
+                if (!enabled) {
+                    const input = document.getElementById(inputId);
+                    if (input) input.value = '';
+                }
+            });
         }
 
         function applySalesPersonUI(username = currentUsername) {
@@ -2598,6 +2650,10 @@
                     document.getElementById('buyer-code').value = invoiceData.buyerData.buyerCode || '';
                     const draftPhoneEl = document.getElementById('buyer-phone');
                     if (draftPhoneEl) draftPhoneEl.value = invoiceData.buyerData.buyerPhone || '';
+                    const draftSupplierEl = document.getElementById('buyer-supplier-number');
+                    if (draftSupplierEl) draftSupplierEl.value = invoiceData.buyerData.buyerSupplierNumber || '';
+                    const draftDeliveryEl = document.getElementById('buyer-delivery-address');
+                    if (draftDeliveryEl) draftDeliveryEl.value = invoiceData.buyerData.buyerDeliveryAddress || '';
                 }
 
                 const draftSalesPersonEl = document.getElementById('sales-person');
@@ -3076,6 +3132,10 @@
             document.getElementById("buyer-address").value = buyer.address || "";
             const buyerPhoneField = document.getElementById("buyer-phone");
             if (buyerPhoneField) buyerPhoneField.value = buyer.phone || "";
+            const supplierNumberField = document.getElementById("buyer-supplier-number");
+            if (supplierNumberField) supplierNumberField.value = buyer.supplier_number || "";
+            const deliveryAddressField = document.getElementById("buyer-delivery-address");
+            if (deliveryAddressField) deliveryAddressField.value = buyer.delivery_address || "";
 
             // Update state
             state.buyerData = {
@@ -3088,6 +3148,8 @@
                 buyerRegistrationType: buyer.registration_type,
                 buyerCode: buyer.buyer_code,
                 buyerPhone: buyer.phone || "",
+                buyerSupplierNumber: buyer.supplier_number || "",
+                buyerDeliveryAddress: buyer.delivery_address || "",
             };
 
             syncFurtherTaxDefaults();
@@ -4075,6 +4137,8 @@
                         buyerRegistrationType: buyerRegType,
                         buyerCode: document.getElementById("buyer-code").value,
                         buyerPhone: isBuyerPhoneClient() && buyerPhoneEl ? buyerPhoneEl.value.trim() : "",
+                        buyerSupplierNumber: supplierFieldValue("buyer-supplier-number"),
+                        buyerDeliveryAddress: supplierFieldValue("buyer-delivery-address"),
                     };
 
                     syncFurtherTaxDefaults();
