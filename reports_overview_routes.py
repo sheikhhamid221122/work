@@ -7,7 +7,8 @@ Reports page, for one date range, in one request.
 Same basis as the existing report endpoints in reports_routes.py so the
 numbers agree with them:
   * production invoices only (reports always show real business data),
-  * dated by invoiceDate, falling back to created_at,
+  * dated by created_at, i.e. when the invoice was entered here, not by
+    the invoiceDate written on the document,
   * sales  = sum of items' totalValues (tax inclusive),
   * tax    = sum of items' salesTaxApplicable,
   * status 'Success' counts as submitted; anything else as failed.
@@ -54,11 +55,9 @@ def _as_dict(raw):
     return {}
 
 
-def _day(data, created_at):
-    try:
-        return datetime.strptime(str(data.get("invoiceDate") or "")[:10], "%Y-%m-%d").date()
-    except ValueError:
-        return created_at.date() if created_at else None
+def _day(created_at):
+    """The day an invoice counts towards: the day it was entered here."""
+    return created_at.date() if created_at else None
 
 
 def _parse(value):
@@ -121,7 +120,7 @@ def add_reports_overview_routes(app, get_db_connection):
             rows = []
             for raw, status, created_at in cur.fetchall():
                 data = _as_dict(raw)
-                day = _day(data, created_at)
+                day = _day(created_at)
                 if day is None:
                     continue
                 rows.append((data, str(status or "") == "Success", day))
