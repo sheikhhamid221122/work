@@ -1120,8 +1120,8 @@ vacuous.
 **The closing block is one `page-break-inside: avoid` unit**, as on Zahid
 Steel's sheet, and for the same reason: the first overflowing invoice put
 the FBR stamp, the amount in words and the totals at the foot of page 1 and
-left "Prepared By" alone at the top of page 2, which reads as a second,
-empty document.
+left the sign-off line alone at the top of page 2, which reads as a
+second, empty document.
 
 One more thing worth copying: the obvious assertion that the FBR invoice
 number is on the closing page is **wrong** for any sheet built this way. It
@@ -1131,8 +1131,24 @@ what travels with the stamp.
 Their seller name prints as live text under the logo. F.K.'s name is legible
 in their 169 mm masthead; a 45 mm mark is not a substitute for naming the
 seller, and their own sheet types "Supplier Name:" for the same reason. The
-address, NTN and Sales Tax No. are live; the phone, fax, the signature
-caption "Muhamad Basit / Owner" and the services line are fixed text.
+address, NTN and Sales Tax No. are live; the phone, fax, the bottom-left
+sign-off "Muhamad Basit / Owner" and the services line are fixed text.
+**Round 2 took two things off, and both were F.K.'s rather than theirs.**
+The Special Excise Duty row in the totals — on an invoice with no federal
+excise it only ever printed `0.00`, and FED on a line is still filed to FBR
+either way — and F.K.'s two signature rules, "Prepared By :" and "Accounts
+Manager". Their own sheet signs off with one unruled bold line at the
+bottom left and nothing opposite it, which is now all this one prints. The
+lesson from the first build repeats: **when you copy another client's
+sheet, every piece of it is a candidate for removal, because none of it was
+this client's to begin with.**
+
+That also moved the pagination numbers — the two removals bought back about
+5 mm, which is most of a filler unit. The budget stays at 12 and the
+capacity table above is unchanged, but **re-sweep after any change to the
+closing block**: before, budget 14 broke on a three-item invoice; now it
+breaks on a seven-item one, and is still not safe.
+
 `rubberx_setup.sql` assigns the template and optionally seeds two custom
 field names, and its footer records what their profile rows should hold —
 including a Sales Tax No. that is worth confirming, because the thirteen

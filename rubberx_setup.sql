@@ -146,6 +146,6 @@ COMMIT;
 --
 --   Phone: 92-423 5067598     Fax: 92-423 7651783
 --
--- So is the right-hand signature caption, "Muhamad Basit / Owner", and the
+-- So is the sign-off at the bottom left, "Muhamad Basit / Owner", and the
 -- services line in the footer.
 -- ============================================================

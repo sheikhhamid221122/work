@@ -21,6 +21,7 @@
     * the services line -- "We Deal in all kind of Rubber, Silicon, ..." --
       which on their sheet is a list beside the logo and here is a fixed
       footer, where the client asked for it
+    * the sign-off, "Muhamad Basit / Owner", bottom left
 
   What is ADDED, and must never be removed
   ----------------------------------------
@@ -51,8 +52,16 @@
   * The page keeps a 22 mm bottom margin for the fixed services footer, where
     F.K. needs only 10 mm. That costs about two item rows -- see the filler
     budget below.
-  * The right-hand signature rule reads "Muhamad Basit / Owner", which is how
-    their own sheet signs off, rather than F.K.'s "Accounts Manager".
+  * There are no signature RULES. F.K. draws two, "Prepared By :" and
+    "Accounts Manager"; this client asked for both off. Their sheet signs
+    off with one unruled line at the bottom left, and that is all this one
+    prints.
+  * There is no Special Excise Duty row in the totals, which F.K. carries.
+    The client asked for it off -- their sheet has never had one, and with
+    no federal excise on the goods it only ever printed 0.00. FED on a line
+    is still filed to FBR either way; what changed is what this sheet
+    shows. The row and the fedPayable sum it was fed from are in
+    invoice_fk_printers.html if it is ever wanted back.
 
   Deliberate departures from their own sheet
   ------------------------------------------
@@ -77,8 +86,6 @@
   * Figures are comma-grouped to two decimals everywhere.
   * The sales tax rate in the totals block is taken from the goods, and only
     shown when every line shares one rate.
-  * "Special Excise Duty" prints the federal excise actually payable on the
-    invoice rather than a hard-coded nought.
   * A "Time" row prints the clock time the PDF is produced, which is not
     necessarily when the invoice was first raised: a reprint from the
     Download Center stamps the hour it was reprinted.
@@ -256,10 +263,10 @@
 
     /* ---- Footer: FBR stamp + words box on the left, totals on the right */
     /* Everything below the items table breaks as ONE unit. Without this the
-       signature rules spill on their own the moment the items run past a
-       page: the first invoice over capacity put the FBR stamp, the amount in
-       words and the totals at the foot of page 1 and "Prepared By" alone at
-       the top of page 2. Same trap as invoice_zahid_steel.html. */
+       sign-off spills on its own the moment the items run past a page: the
+       first invoice over capacity put the FBR stamp, the amount in words and
+       the totals at the foot of page 1 and the signature line alone at the
+       top of page 2. Same trap as invoice_zahid_steel.html. */
     .closing { page-break-inside: avoid; }
 
     .foot { width: 100%; margin-top: 4mm; border-collapse: collapse; }
@@ -296,20 +303,13 @@
     .totals tr.rule td { height: 0; padding: 0; }
     .totals tr.rule td.num { border-top: 1px solid #000; }
 
-    /* ---- Signature rules --------------------------------------------- */
-    .sign { width: 100%; margin-top: 8mm; border-collapse: collapse; }
-    .sign td { border: none; padding: 0; vertical-align: top; font-size: 13.5px; }
-    .sign .prepared {
-      width: 46mm;
-      border-top: 1px solid #000;
-      padding-top: 1.2mm;
-    }
-    .sign .owner {
-      width: 52mm;
-      margin: 0 10mm 0 auto;
-      border-top: 1px solid #000;
-      padding-top: 1.2mm;
-      text-align: center;
+    /* ---- Sign-off ----------------------------------------------------- */
+    /* One bold line at the bottom left, as on their own sheet. No rule over
+       it: theirs has none, and nothing sits opposite it. */
+    .sign {
+      margin-top: 8mm;
+      font-size: 13px;
+      font-weight: bold;
     }
 
     /* ---- Services footer --------------------------------------------- */
@@ -512,11 +512,17 @@
           BUDGET = 12 units, which is as much as the page will take with
           a margin. Swept on real pages against descriptions setting one,
           two, three, four and six lines: at 13 nothing spills, at 14 a
-          three-item invoice of one-line descriptions does. 12 leaves two
-          units -- about 11 mm -- of headroom for the line estimate above to
-          be wrong, and still fills the sheet: a one-item invoice's last
-          inked row lands 259-264 mm down a 297 mm page, against a content
-          box ending at 275 mm and the services footer's rule at 288 mm.
+          seven-item invoice of one-line descriptions does, and at 15 a
+          one-item one does. 12 leaves about 14 mm -- two and a half filler
+          rows -- of headroom for the line estimate above to be wrong, and
+          still fills the sheet: a one-item invoice's last inked row lands
+          252-261 mm down a 297 mm page, against a content box ending at
+          275 mm and the services footer's rule at 288 mm.
+
+          Re-sweep this after any change to the closing block. Dropping the
+          Special Excise Duty row and the two signature rules bought back
+          about 5 mm, which is most of a unit -- it moved where budget 14
+          breaks from three items to seven without making 14 safe.
 
           The budget does not set the capacity. Measured, and identical at
           every budget from 10 to 13, so padding can never be what pushes a
@@ -589,13 +595,13 @@
       </td>
 
       <td class="right" style="width:48%">
-        {#- Federal excise actually payable on the lines. Older drafts and the
-            spreadsheet importer can leave fedPayable blank, which must not
-            take the whole print down. -#}
-        {% set duty = namespace(total=0) %}
-        {% for item in data['items'] %}
-          {% if item.fedPayable is number %}{% set duty.total = duty.total + item.fedPayable %}{% endif %}
-        {% endfor %}
+        {#- No Special Excise Duty row. F.K. Printers' sheet carries one and
+            this client asked for it off: theirs has never had it, and on an
+            invoice with no federal excise it only ever printed 0.00. Any FED
+            on a line is still filed to FBR; it is this sheet's totals block
+            that does not show it. Put the row back the moment they ask, and
+            take the figure from item.fedPayable rather than hard-coding a
+            nought -- see invoice_fk_printers.html. -#}
         <table class="totals">
           <tr>
             <td class="lab">Total Value (Exclusive Sales Tax) :</td>
@@ -604,10 +610,6 @@
           <tr>
             <td class="lab">Sales Tax{% if one_rate %} ({{ one_rate }}){% endif %} :</td>
             <td class="num">{{ data.totalTax | comma_format }}</td>
-          </tr>
-          <tr>
-            <td class="lab">Special Excise Duty :</td>
-            <td class="num">{{ duty.total | comma_format }}</td>
           </tr>
           <tr class="grand">
             <td class="lab">Sales Tax Inclusive Value :</td>
@@ -623,12 +625,11 @@
   </table>
 
   {# --------------------------------------------------------- signature #}
-  <table class="sign">
-    <tr>
-      <td style="width:50%"><div class="prepared">Prepared By :</div></td>
-      <td style="width:50%"><div class="owner">Muhamad Basit / Owner</div></td>
-    </tr>
-  </table>
+  {#- Their own sheet's sign-off, and the whole of it: one line at the
+      bottom left, no rule over it and nothing opposite. F.K. Printers'
+      "Prepared By :" rule was in the first cut and the client asked for it
+      off -- their sheet has never had one. -#}
+  <div class="sign">Muhamad Basit / Owner</div>
   </div>
 
   {# ------------------------------------------------- services footer #}

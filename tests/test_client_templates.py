@@ -1380,8 +1380,8 @@ class RubberXPagination(unittest.TestCase):
 
     The failure this exists for actually happened: the first cut put the FBR
     stamp, the amount in words and the totals at the foot of page 1 and left
-    "Prepared By" alone at the top of page 2, which reads as a second, empty
-    document. Same trap as ZahidSteelPagination above, and pinned the same
+    the sign-off line alone at the top of page 2, which reads as a second,
+    empty document. Same trap as ZahidSteelPagination above, and pinned the same
     way -- on real pages, because markup cannot answer "does it fit".
     """
 
