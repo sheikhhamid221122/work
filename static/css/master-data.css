@@ -467,6 +467,13 @@ main .md-table .md-muted {
   color: var(--tlp-amber-text);
 }
 
+/* Registration type never recorded: neutral, so it does not read as a state. */
+.md-badge-unknown {
+  border-color: var(--tlp-line-strong);
+  background: var(--tlp-surface-2);
+  color: var(--tlp-muted);
+}
+
 .md-badge-default {
   border-radius: 999px;
   background: var(--tlp-purple-soft);

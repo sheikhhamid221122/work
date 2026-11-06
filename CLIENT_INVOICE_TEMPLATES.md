@@ -1037,6 +1037,124 @@ registration. So changing the profile would file under a different
 identifier. `material_craft_setup.sql` carries that UPDATE commented out,
 behind a header saying what to confirm first.
 
+`templates/invoice_rubberx.html` — Rubber X Technologies, `users.id`
+`af5d3ee4-f799-49a0-84db-813e18fdb9a7`. The first replica of **somebody
+else's sheet**: the client asked for F.K. Printers' invoice with their own
+branding on it, and sent their own invoice for reference only. So this is
+`invoice_fk_printers.html` almost line for line, with three things taken
+from their own document because they are theirs — the logo, the Original /
+Duplicate / Triplicate marks, and the services line.
+
+**When a client asks for another client's sheet, copy the sheet — but not
+the waivers.** F.K. Printers is the one replica that prints no HS code,
+because they asked twice for it to go. That waiver is recorded against
+their template *by name* in `RequiredIdentifiers.WAIVED`, and it does not
+travel with the layout: this client has not asked for it, an HS code is
+required on the face of a sales tax invoice, and the column is simply
+added back. Ten columns, not nine. Check what is waived before copying
+anything.
+
+Their logo is a **322 × 135 px PNG** — the smallest artwork any client has
+sent. It works where F.K.'s and SAAD's photographs did not, for one
+reason: it is flat three-colour vector-style art (white, `#ff9900`,
+`#990000`), so there is no detail to lose, only edges, and edges can be
+re-cut. `scripts/extract_rubberx_brand.py` crops, upscales 3× with Lanczos,
+re-steepens with an unsharp mask and quantises to 16 colours with octree —
+about 14 KiB inlined. At the 45 mm it prints at that is 178 DPI, below the
+~300 DPI everyone else runs at, so it is a **stand-in: ask for the vector
+file and re-run the script.** Nothing in the template changes; it sizes by
+width with `height: auto`.
+
+The near-white panel wrinkle from Power Vision and Bilal Brothers appears
+here a third time, and snapping the paper *before* quantising was not
+enough on its own. Octree averages the colours in a node, and the palest
+edge pixels still land in the paper node, so it came back 254 — a flat
+panel one level off the page, clearly visible behind the logo. The script
+snaps at 240 **and then rewrites the lightest palette entry to 255 after
+quantising**. Do both.
+
+**The services line is a footer, and it is typed, not lifted.** On their
+own sheet it runs down the left of the page beside the logo, under an
+orange arrow. The client asked for it at the bottom, so it is `position:
+fixed` in a 22 mm bottom margin and repeats on every page, as a pre-printed
+band would. The list's seven line breaks become interpuncts; the words are
+verbatim. The rule above it is their brand orange and the words are set in
+the logo's dark red, because 10 px orange on white does not survive print.
+
+**That 22 mm bottom margin is the only structural difference from F.K.'s
+sheet, and it is the whole pagination story.** F.K. needs 10 mm. The 12 mm
+difference comes straight out of the items box, and F.K.'s filler budget —
+a flat 2 units charged per line — overflowed here: three items whose
+descriptions wrap to four lines were charged 6 units, padded with 6 more
+rows, and the sheet ran to two pages.
+
+**A filler budget must charge an item what it actually costs.** This one
+estimates the printed depth from the description's length — the column sets
+about 20 characters to the line at 10.5 px Arial — and charges one unit per
+line. The estimate only decides how floaty a short invoice looks; what it
+must never do is overflow, so the budget is set below the measured maximum.
+Swept on real pages at five description depths: at 13 nothing spills, at 14
+a three-item invoice of one-line descriptions does, so the budget is **12**,
+leaving about 11 mm of headroom for the estimate to be wrong.
+
+Capacity is a function of description depth, not a row count, and is
+identical at every budget from 10 to 13 — which is the proof that padding
+is never what pushes a line onto a second page:
+
+| description | items on one page |
+|---|---|
+| one line | 12 or more (no limit found) |
+| two lines | 8 |
+| three lines — their own longest | 6 |
+| four lines | 6 |
+| six lines | 4 |
+
+`RubberXPagination` pins both ends and is mutation-checked three ways:
+restoring the flat charge, raising the budget to 14, and letting the
+closing block split each fail it. The filler test renders the sheet
+**twice**, once with the blank rows stripped out of the markup, because the
+question is not "does this fit" but "did the padding change the answer" —
+a single render cannot tell those apart, and a first cut of that test was
+vacuous.
+
+**The closing block is one `page-break-inside: avoid` unit**, as on Zahid
+Steel's sheet, and for the same reason: the first overflowing invoice put
+the FBR stamp, the amount in words and the totals at the foot of page 1 and
+left the sign-off line alone at the top of page 2, which reads as a
+second, empty document.
+
+One more thing worth copying: the obvious assertion that the FBR invoice
+number is on the closing page is **wrong** for any sheet built this way. It
+prints once, with the other identifiers at the top of page 1 — the QR is
+what travels with the stamp.
+
+Their seller name prints as live text under the logo. F.K.'s name is legible
+in their 169 mm masthead; a 45 mm mark is not a substitute for naming the
+seller, and their own sheet types "Supplier Name:" for the same reason. The
+address, NTN and Sales Tax No. are live; the phone, fax, the bottom-left
+sign-off "Muhamad Basit / Owner" and the services line are fixed text.
+**Round 2 took two things off, and both were F.K.'s rather than theirs.**
+The Special Excise Duty row in the totals — on an invoice with no federal
+excise it only ever printed `0.00`, and FED on a line is still filed to FBR
+either way — and F.K.'s two signature rules, "Prepared By :" and "Accounts
+Manager". Their own sheet signs off with one unruled bold line at the
+bottom left and nothing opposite it, which is now all this one prints. The
+lesson from the first build repeats: **when you copy another client's
+sheet, every piece of it is a candidate for removal, because none of it was
+this client's to begin with.**
+
+That also moved the pagination numbers — the two removals bought back about
+5 mm, which is most of a filler unit. The budget stays at 12 and the
+capacity table above is unchanged, but **re-sweep after any change to the
+closing block**: before, budget 14 broke on a three-item invoice; now it
+breaks on a seven-item one, and is still not safe.
+
+`rubberx_setup.sql` assigns the template and optionally seeds two custom
+field names, and its footer records what their profile rows should hold —
+including a Sales Tax No. that is worth confirming, because the thirteen
+digits on their sheet are also their mobile number with one digit added.
+A4, no reams column.
+
 ---
 
 ## Quick reference

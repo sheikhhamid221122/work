@@ -12,6 +12,8 @@ import zipfile
 import builtins
 import errno
 
+from master_data import canonical_registration_type
+
 
 def print(*args, **kwargs):
     """Best-effort debug output that must never break a web request."""
@@ -39,6 +41,29 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
             return float(v)
         except Exception:
             return 0.0
+
+    def saved_registration_types(cur, conn, client_id):
+        """{lower-cased business name: registration type} from the client's
+        saved buyer list, used only where an invoice does not state it."""
+        saved = {}
+        try:
+            cur.execute(
+                """
+                SELECT LOWER(BTRIM(business_name)), BTRIM(registration_type)
+                FROM buyers
+                WHERE client_id = %s
+                  AND COALESCE(BTRIM(registration_type), '') <> ''
+                """,
+                (client_id,),
+            )
+            for name, registration in cur.fetchall():
+                if name:
+                    saved[name] = registration
+        except Exception as exc:
+            # A missing buyers table must not cost us the whole report.
+            conn.rollback()
+            print(f"[buyer-analytics] saved registration types unavailable: {exc}")
+        return saved
     @app.route("/reports")
     @app.route("/reports.html")
     def reports_html():
@@ -109,7 +134,7 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
         params = [client_id, env]
 
         if start_date and end_date:
-            date_condition = "AND COALESCE((invoice_data::jsonb->>'invoiceDate')::date, DATE(created_at)) BETWEEN %s AND %s"
+            date_condition = "AND DATE(created_at) BETWEEN %s AND %s"
             params.extend([start_date, end_date])
 
         # Initialize defaults so response can be built even if some queries fail
@@ -291,9 +316,9 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
     def get_time_series_data(cur, client_id, env, period, start_date, end_date):
         """Get time series data for the dashboard charts"""
         format_string = "%Y-%m-%d"
-        # Prefer invoice date stored inside invoice_data JSON when present,
-        # otherwise fall back to created_at. We'll use DATE_TRUNC on the
-        # COALESCE of invoiceDate (casted to timestamp) and created_at.
+        # Reports are dated by created_at -- when the invoice was entered
+        # into TaxLinkPro -- not by the invoiceDate written on the document,
+        # so a period always holds exactly the work done in it.
         date_trunc = "day"
 
         if period == "year":
@@ -308,8 +333,7 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
         params = [client_id, env]
 
         if start_date and end_date:
-            # Filter using invoice date when available, otherwise use created_at
-            date_condition = "AND COALESCE((invoice_data::jsonb->>'invoiceDate')::date, DATE(created_at)) BETWEEN %s AND %s"
+            date_condition = "AND DATE(created_at) BETWEEN %s AND %s"
             params.extend([start_date, end_date])
 
         # Get daily/monthly sales - FIXED
@@ -317,7 +341,7 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
             f"""
             WITH time_periods AS (
                 SELECT 
-                    DATE_TRUNC('{date_trunc}', COALESCE((invoice_data::jsonb->>'invoiceDate')::timestamp, created_at)) as period,
+                    DATE_TRUNC('{date_trunc}', created_at) as period,
                     invoice_data,
                     id
                 FROM invoices 
@@ -416,7 +440,7 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
         params = [client_id, env]
 
         if start_date and end_date:
-            date_condition = "AND COALESCE((invoice_data::jsonb->>'invoiceDate')::date, DATE(created_at)) BETWEEN %s AND %s"
+            date_condition = "AND DATE(created_at) BETWEEN %s AND %s"
             params.extend([start_date, end_date])
 
         cur.execute(
@@ -481,7 +505,7 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
         params = [client_id, env]
 
         if start_date and end_date:
-            date_condition = "AND COALESCE((invoice_data::jsonb->>'invoiceDate')::date, DATE(created_at)) BETWEEN %s AND %s"
+            date_condition = "AND DATE(created_at) BETWEEN %s AND %s"
             params.extend([start_date, end_date])
 
         # FIXED buyer query
@@ -590,7 +614,7 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
         sort_order = request.args.get("sort_order", "desc").upper()
 
         # Validate sort parameters
-        valid_sort_fields = ["created_at", "invoice_ref", "buyer_name", "total_amount"]
+        valid_sort_fields = ["created_at", "invoice_date", "invoice_ref", "buyer_name", "total_amount"]
         if sort_field not in valid_sort_fields:
             sort_field = "created_at"
 
@@ -605,7 +629,7 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
         params = [client_id, env]
 
         if start_date and end_date:
-            where_conditions.append("COALESCE((invoice_data::jsonb->>'invoiceDate')::date, DATE(created_at)) BETWEEN %s AND %s")
+            where_conditions.append("DATE(created_at) BETWEEN %s AND %s")
             params.extend([start_date, end_date])
 
         # Add buyer name filter if provided
@@ -674,6 +698,15 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
         order_by = ""
         if sort_field == "created_at":
             order_by = f"created_at {sort_order}"
+        elif sort_field == "invoice_date":
+            # The date written on the document, which need not be the day the
+            # invoice was entered here; undated invoices sort last either way.
+            order_by = f"""
+                CASE WHEN jsonb_typeof(invoice_data::jsonb) = 'object'
+                     THEN NULLIF(BTRIM(COALESCE(invoice_data::jsonb->>'invoiceDate', '')), '')
+                     ELSE NULL
+                END {sort_order} NULLS LAST
+            """
         elif sort_field == "invoice_ref":
             order_by = f"""
                 COALESCE(
@@ -1170,7 +1203,7 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
         # Date condition
         date_condition = ""
         if start_date and end_date:
-            date_condition = "AND COALESCE((invoice_data::jsonb->>'invoiceDate')::date, DATE(created_at)) BETWEEN %s AND %s"
+            date_condition = "AND DATE(created_at) BETWEEN %s AND %s"
             params.extend([start_date, end_date])
         
         # Product name filter
@@ -1202,7 +1235,7 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
                     (item->>'valueSalesExcludingST')::numeric as value_excl,
                     (item->>'salesTaxApplicable')::numeric as tax,
                     (item->>'totalValues')::numeric as total_value,
-                    TO_CHAR(COALESCE((inv.invoice_data::jsonb->>'invoiceDate')::timestamp, inv.created_at), 'YYYY-MM') as month
+                    TO_CHAR(inv.created_at, 'YYYY-MM') as month
             FROM 
                 invoices inv,
                 jsonb_array_elements(
@@ -1271,7 +1304,7 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
         # Date condition
         date_condition = ""
         if start_date and end_date:
-            date_condition = "AND COALESCE((invoice_data::jsonb->>'invoiceDate')::date, DATE(created_at)) BETWEEN %s AND %s"
+            date_condition = "AND DATE(created_at) BETWEEN %s AND %s"
             params.extend([start_date, end_date])
         
         # Add top products as parameters
@@ -1282,7 +1315,7 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
         WITH product_months AS (
             SELECT 
                 item->>'productDescription' as product_description,
-                TO_CHAR(COALESCE((inv.invoice_data::jsonb->>'invoiceDate')::timestamp, inv.created_at), 'YYYY-MM') as month,
+                TO_CHAR(inv.created_at, 'YYYY-MM') as month,
                 SUM((item->>'quantity')::numeric) as quantity,
                 SUM((item->>'totalValues')::numeric) as total_sales
             FROM 
@@ -1336,7 +1369,7 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
         # Date condition
         date_condition = ""
         if start_date and end_date:
-            date_condition = "AND COALESCE((invoice_data::jsonb->>'invoiceDate')::date, DATE(created_at)) BETWEEN %s AND %s"
+            date_condition = "AND DATE(created_at) BETWEEN %s AND %s"
             params.extend([start_date, end_date])
         
         # Product filter
@@ -1474,6 +1507,23 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
                             END
                         ELSE 'Unknown Buyer'
                     END as buyer_name,
+                    NULLIF(BTRIM(
+                        CASE
+                            WHEN jsonb_typeof(invoice_data::jsonb) = 'object' THEN
+                                CASE
+                                    WHEN COALESCE(invoice_data::jsonb->>'buyerRegistrationType', '') <> '' THEN
+                                        invoice_data::jsonb->>'buyerRegistrationType'
+                                    WHEN invoice_data::jsonb ? 'buyerData' AND
+                                         jsonb_typeof(invoice_data::jsonb->'buyerData') = 'object' THEN
+                                        COALESCE(
+                                            invoice_data::jsonb->'buyerData'->>'buyerRegistrationType',
+                                            invoice_data::jsonb->'buyerData'->>'registration_type'
+                                        )
+                                    ELSE NULL
+                                END
+                            ELSE NULL
+                        END
+                    ), '') as registration_type,
                     invoice_data,
                     id,
                     created_at
@@ -1537,6 +1587,15 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
                     MAX(created_at) as last_purchase
                 FROM buyers
                 GROUP BY buyer_name
+            ),
+            buyer_reg AS (
+                -- The registration type this buyer was last invoiced under.
+                SELECT DISTINCT ON (buyer_name)
+                    buyer_name,
+                    registration_type
+                FROM buyers
+                WHERE registration_type IS NOT NULL
+                ORDER BY buyer_name, created_at DESC
             )
             SELECT 
                 bt.buyer_name,
@@ -1544,10 +1603,12 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
                 COALESCE(btx.total_tax, 0) as total_tax,
                 bc.invoice_count,
                 bc.first_purchase,
-                bc.last_purchase
+                bc.last_purchase,
+                brg.registration_type
             FROM buyer_totals bt
             JOIN buyer_counts bc ON bt.buyer_name = bc.buyer_name
             LEFT JOIN buyer_tax btx ON bt.buyer_name = btx.buyer_name
+            LEFT JOIN buyer_reg brg ON bt.buyer_name = brg.buyer_name
             WHERE bt.buyer_name != 'Unknown Buyer'
             ORDER BY bt.total_purchase DESC
             LIMIT 50
@@ -1556,9 +1617,11 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
         )
 
         now = datetime.now()
+        rows = cur.fetchall()
+        saved_registration = saved_registration_types(cur, conn, client_id)
 
         buyers = []
-        for row in cur.fetchall():
+        for row in rows:
             (
                 buyer_name,
                 total_purchase,
@@ -1566,7 +1629,14 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
                 invoice_count,
                 first_purchase,
                 last_purchase,
+                registration_type,
             ) = row
+            # The invoices themselves are the record of how the buyer was
+            # treated; the saved buyer list only covers older invoices whose
+            # JSON never carried buyerRegistrationType.
+            registration = canonical_registration_type(registration_type) or canonical_registration_type(
+                saved_registration.get(str(buyer_name or "").strip().lower())
+            )
             # Calculate days since last purchase safely
             days_since_last = 0
             try:
@@ -1584,6 +1654,7 @@ def add_reports_routes(app, get_db_connection, get_env, generate_invoice_pdf_for
             buyers.append(
                 {
                     "buyer_name": buyer_name,
+                    "registration_type": registration or "Unknown",
                     "total_purchase": safe_float(total_purchase),
                     "total_tax": safe_float(total_tax),
                     "total_value_excl": safe_float(total_purchase) - safe_float(total_tax),

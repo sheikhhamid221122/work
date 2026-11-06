@@ -34,6 +34,9 @@
     selected cell in Excel, not a design choice. The unit of measure is taken
     from the items themselves, so it follows the goods rather than being
     hard-coded to Kg.
+  * AT THE CLIENT'S REQUEST, the items table has no row rules: one open box
+    per column, ruled off by the totals row, the way invoice_paper_experts.html
+    prints. Their own sheet ruled every cell, which they found boxy.
   * AT THE CLIENT'S REQUEST, a "No. of Reams" column sits between Quantity
     and Price. It is printed only: nothing on the invoice is calculated from
     it, and app.py leaves it out of the FBR payload, whose item schema has no
@@ -138,17 +141,27 @@
     .items th, .items td {
       border: 1px solid #000;
       padding: 1.6mm 1.2mm;
+      vertical-align: top;
       text-align: center;
     }
-    .items th { font-weight: bold; }
+    .items th { font-weight: bold; vertical-align: middle; }
     /* A line item must not split across a page break: its description would
        land on one page and its figures on the other. */
     .items tr { page-break-inside: avoid; }
+    /* No row rules in the body -- one open box per column, as on the other
+       client replicas. The filler rows below then read as empty space in the
+       box rather than as a grid of empty cells. */
+    .items tbody td { border-top: none; border-bottom: none; }
     .items td.desc { text-align: left; }
     /* Filler rows keep the box the depth their printed sheet has, so a
        one-line invoice does not leave the totals row floating up the page. */
     .items td.filler { height: 6.5mm; }
-    .items tr.totals td { font-weight: bold; }
+    /* Ruled off top and bottom, so the totals close the open box. */
+    .items tr.totals td {
+      font-weight: bold;
+      border-top: 1px solid #000;
+      border-bottom: 1px solid #000;
+    }
 
     /* ---- Summary + signature ----------------------------------------- */
     .foot { width: 100%; margin-top: 8mm; border-collapse: collapse; }

@@ -121,7 +121,7 @@
                             <div class="rp-filters no-print">
                                 <div class="md-field"><label for="buyer-filter">Buyer</label><input type="text" class="md-input" id="buyer-filter" placeholder="Filter by buyer name"></div>
                                 <div class="md-field"><label for="invoice-ref-filter">Invoice reference</label><input type="text" class="md-input" id="invoice-ref-filter" placeholder="Filter by invoice number"></div>
-                                <div class="md-field"><label for="invoice-date-filter">Invoice date</label><input type="date" class="md-input" id="invoice-date-filter"></div>
+                                <div class="md-field"><label for="invoice-date-filter">Entered on</label><input type="date" class="md-input" id="invoice-date-filter"></div>
                                 <div class="rp-filters-actions">
                                     <button type="button" class="md-btn md-btn-primary md-btn-sm" id="apply-invoice-filters"><i class="fas fa-filter"></i> Apply</button>
                                     <button type="button" class="md-btn md-btn-ghost md-btn-sm" id="reset-invoice-filters">Reset</button>
@@ -134,7 +134,8 @@
                                         <tr>
                                             <th style="width:40px"><input type="checkbox" id="select-all-invoices" aria-label="Select all invoices on this page"></th>
                                             <th data-sort="invoice_ref">Invoice #<i class="fas fa-sort"></i></th>
-                                            <th data-sort="invoice_date">Date<i class="fas fa-sort"></i></th>
+                                            <th data-sort="invoice_date">Invoice date<i class="fas fa-sort"></i></th>
+                                            <th data-sort="created_at">Entered on<i class="fas fa-sort"></i></th>
                                             <th data-sort="buyer_name">Buyer<i class="fas fa-sort"></i></th>
                                             <th class="num" data-sort="total_value_excl">Value excl. tax<i class="fas fa-sort"></i></th>
                                             <th class="num" data-sort="total_tax">Tax<i class="fas fa-sort"></i></th>
@@ -143,7 +144,7 @@
                                         </tr>
                                     </thead>
                                     <tbody id="invoices-table-body">
-                                        <tr class="md-loading"><td colspan="8">Loading invoices…</td></tr>
+                                        <tr class="md-loading"><td colspan="9">Loading invoices…</td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -225,7 +226,7 @@
                             </div>
                             <div class="md-table-wrap">
                                 <table class="md-table">
-                                    <thead><tr><th>Buyer</th><th class="num">Invoices</th><th class="num">Value excl. tax</th><th class="num">Tax</th><th class="num">Total purchase</th><th class="num">Average purchase</th><th class="num">Last purchase</th></tr></thead>
+                                    <thead><tr><th>Buyer</th><th>Registration</th><th class="num">Invoices</th><th class="num">Value excl. tax</th><th class="num">Tax</th><th class="num">Total purchase</th><th class="num">Average purchase</th><th class="num">Last purchase</th></tr></thead>
                                     <tbody id="buyers-table-body"></tbody>
                                 </table>
                             </div>
@@ -333,6 +334,21 @@
             const d = new Date(dateString);
             if (isNaN(d)) return dateString;
             return new Intl.DateTimeFormat('en-GB', { year: 'numeric', month: 'short', day: 'numeric' }).format(d);
+        }
+        function csvDateTime(value) {
+            // Excel reads "2026-10-11 14:32" as a date; a raw ISO string it does not.
+            if (!value) return '';
+            const d = new Date(value);
+            if (isNaN(d)) return value;
+            const p = (n) => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+        }
+        function registrationBadge(value) {
+            const label = String(value || '').trim() || 'Unknown';
+            const key = label.toLowerCase();
+            const variant = key === 'registered' ? 'md-badge-registered'
+                : key === 'unregistered' ? 'md-badge-unregistered' : 'md-badge-unknown';
+            return `<span class="md-badge ${variant}">${esc(label)}</span>`;
         }
         function showNotification(type, title, message) {
             MD.toast(type === 'error' ? 'error' : type === 'success' ? 'success' : 'info', title + (message ? ': ' + message : ''));
@@ -762,7 +778,7 @@
                 .then(data => {
                     state.invoices.last = data;
                     if (!data.invoices || data.invoices.length === 0) {
-                        body.innerHTML = `<tr><td colspan="8" class="md-empty"><div class="md-empty-icon"><i class="fas fa-file-invoice"></i></div>
+                        body.innerHTML = `<tr><td colspan="9" class="md-empty"><div class="md-empty-icon"><i class="fas fa-file-invoice"></i></div>
                             <div class="md-empty-title">No invoices found</div><div class="md-empty-sub">No submitted invoices match the period and filters. Try widening the date range or clearing the filters.</div>
                             <a class="md-btn md-btn-primary md-btn-sm" href="/create-invoice"><i class="fas fa-plus"></i> Create invoice</a></td></tr>`;
                         $('invoices-range').textContent = '';
@@ -773,6 +789,7 @@
                         <td><input type="checkbox" class="invoice-select-checkbox" value="${esc(inv.id)}" ${state.invoices.selected.has(String(inv.id)) ? 'checked' : ''} aria-label="Select invoice"></td>
                         <td class="nowrap"><span class="md-strong">${esc(inv.invoice_ref)}</span></td>
                         <td class="nowrap md-muted">${esc(formatDate(inv.invoice_date))}</td>
+                        <td class="nowrap md-muted">${esc(formatDate(inv.created_at))}</td>
                         <td><span class="md-strong" style="font-weight:400">${esc(inv.buyer_name)}</span></td>
                         <td class="num">${formatCurrency(inv.total_value_excl)}</td>
                         <td class="num md-muted">${formatCurrency(inv.total_tax)}</td>
@@ -794,7 +811,7 @@
                 })
                 .catch(err => {
                     console.error('Error loading invoice list:', err);
-                    body.innerHTML = '<tr><td colspan="8" class="md-empty"><div class="md-empty-title">Could not load invoices</div></td></tr>';
+                    body.innerHTML = '<tr><td colspan="9" class="md-empty"><div class="md-empty-title">Could not load invoices</div></td></tr>';
                 });
         }
         function syncSelectAll() {
@@ -974,11 +991,12 @@
                 $('buyers-count').textContent = MD.num(list.length) + ' buyer' + (list.length === 1 ? '' : 's');
                 $('buyers-table-body').innerHTML = list.length ? list.map(b => `<tr>
                     <td><span class="md-strong">${MD.highlight(b.buyer_name, state.buyers.search)}</span></td>
+                    <td>${registrationBadge(b.registration_type)}</td>
                     <td class="num">${MD.num(b.invoice_count)}</td><td class="num">${formatCurrency(b.total_value_excl)}</td>
                     <td class="num md-muted">${formatCurrency(b.total_tax)}</td><td class="num md-strong">${formatCurrency(b.total_purchase)}</td>
                     <td class="num">${formatCurrency(b.average_purchase)}</td>
                     <td class="num md-muted" style="font-size:12px">${esc(formatDate(b.last_purchase))}<div>${esc(b.days_since_last_purchase)} days ago</div></td></tr>`).join('')
-                    : '<tr><td colspan="7" class="md-empty"><div class="md-empty-title">No buyers found</div><div class="md-empty-sub">No purchases match the period and search.</div></td></tr>';
+                    : '<tr><td colspan="8" class="md-empty"><div class="md-empty-title">No buyers found</div><div class="md-empty-sub">No purchases match the period and search.</div></td></tr>';
                 lineTrend('buyer-trends-chart', data.monthly_trends, data.top_buyers, '_total');
                 distCards($('buyer-product-distribution'), data.product_distribution, 'No product data for these buyers.');
             }).catch(err => { console.error('Error loading buyer data:', err); MD.toast('error', 'Failed to load buyer data.'); });
@@ -1041,11 +1059,11 @@
                         ...o.series.map(s => [s.period, s.invoices, s.sales, s.tax, s.sales_excl])]);
                 } else if (tab === 'invoices') {
                     const data = await getJson(`/api/reports/invoices?${invoiceParams(1, 100000)}`);
-                    saveCsv('invoices', [['Invoice #', 'Date', 'Buyer', 'Value excl. tax', 'Tax', 'Total'],
-                        ...(data.invoices || []).map(i => [i.invoice_ref, i.invoice_date, i.buyer_name, i.total_value_excl, i.total_tax, i.total_amount])]);
+                    saveCsv('invoices', [['Invoice #', 'Invoice date', 'Entered on', 'Buyer', 'Value excl. tax', 'Tax', 'Total'],
+                        ...(data.invoices || []).map(i => [i.invoice_ref, i.invoice_date, csvDateTime(i.created_at), i.buyer_name, i.total_value_excl, i.total_tax, i.total_amount])]);
                 } else if (tab === 'buyers' && state.buyers.data) {
-                    saveCsv('buyers', [['Buyer', 'Invoices', 'Value excl. tax', 'Tax', 'Total purchase', 'Average purchase', 'Last purchase'],
-                        ...state.buyers.data.buyers.map(b => [b.buyer_name, b.invoice_count, b.total_value_excl, b.total_tax, b.total_purchase, b.average_purchase, b.last_purchase])]);
+                    saveCsv('buyers', [['Buyer', 'Registration type', 'Invoices', 'Value excl. tax', 'Tax', 'Total purchase', 'Average purchase', 'Last purchase'],
+                        ...state.buyers.data.buyers.map(b => [b.buyer_name, b.registration_type || 'Unknown', b.invoice_count, b.total_value_excl, b.total_tax, b.total_purchase, b.average_purchase, csvDateTime(b.last_purchase)])]);
                 } else if (tab === 'products' && state.products.data) {
                     saveCsv('products', [['Product', 'Quantity sold', 'Value excl. tax', 'Tax', 'Total sales', 'Months active'],
                         ...state.products.data.products.map(p => [p.product_name, p.total_quantity, p.total_value_excl, p.total_tax, p.total_sales, p.months_active])]);
