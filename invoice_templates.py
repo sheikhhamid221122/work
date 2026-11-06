@@ -74,6 +74,7 @@ LEGACY_TEMPLATES = {
     "invoice_zahid_steel.html",
     "invoice_global_surface.html",
     "invoice_material_craft.html",
+    "invoice_rubberx.html",
 }
 
 

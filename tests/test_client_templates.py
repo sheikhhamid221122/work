@@ -68,6 +68,7 @@ CLIENT_TEMPLATES = {
     "invoice_zahid_steel.html": "J527785",
     "invoice_global_surface.html": "ed156fdd-086e-480c-be18-a2c85d9e31b1",
     "invoice_material_craft.html": "71a52649-1b77-4748-9a51-fd33ce621000",
+    "invoice_rubberx.html": "af5d3ee4-f799-49a0-84db-813e18fdb9a7",
 }
 
 def _dash_decimal(value):
@@ -1367,6 +1368,187 @@ class MaterialCraftPagination(unittest.TestCase):
                              % (count, carrying))
 
 
+@unittest.skipIf(WeasyHTML is None, "WeasyPrint/pypdfium2 not installed")
+class RubberXPagination(unittest.TestCase):
+    """Six line items fit one page, a seventh spills, and the foot stays whole.
+
+    Rubber X's sheet is F.K. Printers' arrangement with an extra column and a
+    services footer fixed in a 22 mm bottom margin -- 12 mm more than F.K.
+    needs. That margin is the whole difference, and it comes straight out of
+    the items box, so anything that grows the header or the type scale costs
+    a row here before it costs one anywhere else.
+
+    The failure this exists for actually happened: the first cut put the FBR
+    stamp, the amount in words and the totals at the foot of page 1 and left
+    "Prepared By" alone at the top of page 2, which reads as a second, empty
+    document. Same trap as ZahidSteelPagination above, and pinned the same
+    way -- on real pages, because markup cannot answer "does it fit".
+    """
+
+    TEMPLATE = "invoice_rubberx.html"
+
+    # Measured, not chosen, and measured per description depth -- capacity
+    # on this sheet is a function of how deep a line prints, not of a row
+    # count. A one-word description fits twice as many rows as their own
+    # longest one and would let a test pass while a real invoice overflowed,
+    # so each of these is checked with text that actually sets that depth.
+    #
+    #   DESCRIPTION is their own longest, which sets three printed lines in
+    #   a 21% column; DEEP sets six, which is deeper than anything on either
+    #   of their sheets and is here as the pessimistic end.
+    DESCRIPTION = "CHAIN SOLID ROLLER RC50 SS GERMANY/JAPAN %d"
+    CAPACITY = 6
+
+    DEEP = ("CHAIN SOLID ROLLER RC50 SS GERMANY/JAPAN CONSIGNMENT "
+            "LINE ITEM EXTRA LONG DETAIL %d")
+    DEEP_CAPACITY = 4
+
+    SHALLOW = "RUBBER SHEET %d"
+    SHALLOW_CAPACITY = 12
+
+    WORDS = "Rupees Only"
+    TOTAL = "Sales Tax Inclusive Value"
+    SIGNATURE = "Muhamad Basit / Owner"
+    SERVICES = "General order supplier"
+    ITEMS_HEADING = "Value Incl."
+
+    @classmethod
+    def setUpClass(cls):
+        # The real mark, downscaled: the template sizes it `width: 26mm;
+        # height: auto`, so a broken image would collapse the row and
+        # silently change the fit.
+        logo = Image.open(os.path.join(ROOT, "static", "uploads", "FBR LOGO.png"))
+        logo.thumbnail((240, 240))
+        buffer = io.BytesIO()
+        logo.save(buffer, format="PNG")
+        cls.fbr_logo = ("data:image/png;base64,"
+                        + base64.b64encode(buffer.getvalue()).decode())
+
+    @staticmethod
+    def flat(text):
+        """Text with every space and line break removed.
+
+        A wrapped table cell comes back from the PDF as several lines, so a
+        wrapped description never matches the string that produced it.
+        """
+        return re.sub(r"\s+", "", text)
+
+    def markup(self, count, description=None):
+        data = dict(PAYLOAD, items=[
+            dict(PAYLOAD["items"][0],
+                 productDescription=(description or self.DESCRIPTION) % (i + 1))
+            for i in range(count)
+        ])
+        return render(self.TEMPLATE, data, logo=self.fbr_logo)
+
+    @staticmethod
+    def paginate(markup):
+        pdf = WeasyHTML(string=markup, base_url=ROOT).write_pdf()
+        document = pypdfium2.PdfDocument(io.BytesIO(pdf))
+        return [document[i].get_textpage().get_text_bounded()
+                for i in range(len(document))]
+
+    def pages(self, count, description=None):
+        """Text of each page of a `count`-line invoice, as rendered."""
+        return self.paginate(self.markup(count, description))
+
+    def pages_unpadded(self, count, description=None):
+        """The same invoice with the filler rows taken back out.
+
+        Rendering it twice is what makes the next test mean something: the
+        question is not "does this fit" but "did the padding change the
+        answer", and only the same sheet without its blank rows can say.
+        """
+        stripped = re.sub(r"<tr>\s*(?:<td class=\"filler\">[^<]*</td>\s*)+</tr>",
+                          "", self.markup(count, description))
+        self.assertNotIn('class="filler"', stripped,
+                         "the filler rows did not match the pattern that "
+                         "strips them; this test would be vacuous")
+        return self.paginate(stripped)
+
+    def test_each_measured_capacity_still_fits_one_page(self):
+        for description, capacity in ((self.DESCRIPTION, self.CAPACITY),
+                                      (self.DEEP, self.DEEP_CAPACITY),
+                                      (self.SHALLOW, self.SHALLOW_CAPACITY)):
+            for count in range(1, capacity + 1):
+                pages = self.pages(count, description)
+                self.assertEqual(
+                    1, len(pages),
+                    "%d line(s) of %r spilled onto %d pages -- the masthead, "
+                    "the type scale or the bottom margin has grown and eaten "
+                    "a row" % (count, description, len(pages)))
+
+    def test_the_filler_rows_are_never_what_overflows_the_page(self):
+        # The budget pads a short invoice out to the depth of their printed
+        # box. It must do that only in space the page already had: a sheet
+        # that fits must not stop fitting because blank rows were added
+        # under it. This is the bug that was actually shipped once -- three
+        # four-line items were charged a flat 2 units each and padded with
+        # six more rows, and the sheet ran to two pages.
+        for description in (self.DESCRIPTION, self.DEEP, self.SHALLOW):
+            for count in range(1, self.SHALLOW_CAPACITY + 1):
+                if len(self.pages(count, description)) == 1:
+                    continue
+                self.assertGreater(
+                    len(self.pages_unpadded(count, description)), 1,
+                    "%d line(s) of %r fit on their own but spill once the "
+                    "filler rows are added" % (count, description))
+
+    def test_a_line_past_capacity_spills_rather_than_being_dropped(self):
+        for description, capacity in ((self.DESCRIPTION, self.CAPACITY),
+                                      (self.DEEP, self.DEEP_CAPACITY)):
+            over = capacity + 1
+            pages = self.pages(over, description)
+            self.assertGreater(len(pages), 1,
+                               "%r: %d lines still fit one page, so the "
+                               "capacity recorded here is stale"
+                               % (description, over))
+            self.assertIn(self.flat(description % over),
+                          self.flat("".join(pages)),
+                          "the overflowing line vanished instead of spilling")
+
+    def test_an_overflowing_invoice_keeps_its_closing_block_together(self):
+        # The signature rules must not part company with the totals, the
+        # amount in words and the FBR stamp. All four are one block.
+        for count in (self.CAPACITY + 1, self.CAPACITY + 3, self.CAPACITY + 10):
+            pages = self.pages(count)
+            last = self.flat(pages[-1])
+            # NOT the FBR invoice number: it prints once, with the
+            # other identifiers at the top of page 1. What belongs with the
+            # closing block is the QR and the Digital Invoicing logo.
+            for piece in (self.SIGNATURE, self.TOTAL, self.WORDS, "FBR QR code"):
+                self.assertIn(self.flat(piece), last,
+                              "%d lines: %r is not on the closing page"
+                              % (count, piece))
+            earlier = self.flat("".join(pages[:-1]))
+            self.assertNotIn(self.flat(self.SIGNATURE), earlier,
+                             "%d lines: the signature block is on two pages"
+                             % count)
+
+    def test_the_services_footer_prints_on_every_page(self):
+        # It stands in for the pre-printed band on their stationery: a second
+        # page without it is a sheet that does not match the first.
+        for count in (1, self.CAPACITY + 1, self.CAPACITY + 10):
+            for index, text in enumerate(self.pages(count)):
+                self.assertIn(self.flat(self.SERVICES), self.flat(text),
+                              "%d lines: page %d has no services footer"
+                              % (count, index + 1))
+
+    def test_a_continued_items_table_repeats_its_headings(self):
+        # Figures under no headings are unreadable, and worse, look like they
+        # belong to whatever column the eye lands on.
+        pages = self.pages(self.CAPACITY + 10, self.DEEP)
+        stem = self.flat(self.DEEP.split(" CONSIGNMENT")[0])
+        carrying = [i for i, text in enumerate(pages) if stem in self.flat(text)]
+        self.assertGreater(len(carrying), 1,
+                           "expected item rows on more than one page; this "
+                           "test is vacuous otherwise")
+        for index in carrying:
+            self.assertIn(self.flat(self.ITEMS_HEADING), self.flat(pages[index]),
+                          "page %d carries item rows with no headings"
+                          % (index + 1))
+
+
 class ComplianceMarks(unittest.TestCase):
     """The three things every FBR invoice must carry."""
 
@@ -1509,6 +1691,7 @@ class BrandArtwork(unittest.TestCase):
         "invoice_salon_marketings.html": "brand/3520223163127.html",
         "invoice_zahid_steel.html": "brand/J527785.html",
         "invoice_global_surface.html": "brand/global_surface.html",
+        "invoice_rubberx.html": "brand/rubberx.html",
     }
 
     def test_artwork_renders_with_no_logo_url_at_all(self):
