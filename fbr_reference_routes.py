@@ -229,6 +229,61 @@ def fbr_get(endpoint, token, params=None):
         return None, f"Unexpected error: {str(e)}"
 
 
+def fetch_hs_code_description(code, get_db_connection, get_env):
+    """FBR's own words for one HS code, or "" if they cannot be had.
+
+    The invoice form already keeps this beside the code it was picked from
+    and sends it with the line, so this is the fallback for a line that
+    arrived without one -- a code typed rather than picked, a product saved
+    before the column existed, a draft filed before it did. The column it
+    fills is printed-only, so a miss here costs an empty cell and nothing
+    else: every caller treats "" as "nothing to print" and no figure, total
+    or FBR field is derived from it.
+
+    Reads the same per-client `hs_codes_{client_id}` cache the HS code
+    autocomplete fills, so the common case costs no round trip. On a miss it
+    fetches the list once and caches it, which is the same 24 hours the
+    autocomplete uses -- never a per-code call, because FBR has no endpoint
+    for one.
+    """
+    wanted = str(code or "").strip()
+    if not wanted:
+        return ""
+
+    client_id = session.get("client_id")
+    if not client_id:
+        return ""
+
+    def _match(rows):
+        for row in rows or []:
+            if not isinstance(row, dict):
+                continue
+            value = row.get("hS_CODE") or row.get("hs_code") or ""
+            if str(value).strip() == wanted:
+                return str(row.get("description") or "").strip()
+        return ""
+
+    cache_key = "hs_codes_{}".format(client_id)
+    cached = _get_cache(cache_key)
+    if cached:
+        return _match(cached)
+
+    try:
+        _, token = get_client_fbr_token(get_db_connection, get_env)
+        if not token:
+            return ""
+        data, error = fbr_get("/pdi/v1/itemdesccode", token)
+        if error or not isinstance(data, list):
+            return ""
+        _set_cache(cache_key, data, CACHE_DURATION_HS_CODES)
+        return _match(data)
+    except Exception as exc:
+        # Printed-only, so a lookup that fails must never fail the invoice.
+        print("[FBR Reference] HS description lookup failed for {}: {}".format(
+            wanted, exc))
+        return ""
+
+
 def fetch_provinces(get_db_connection, get_env):
     """
     Single source of truth for the province list (FBR DI API 5.1,

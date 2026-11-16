@@ -69,6 +69,7 @@ CLIENT_TEMPLATES = {
     "invoice_global_surface.html": "ed156fdd-086e-480c-be18-a2c85d9e31b1",
     "invoice_material_craft.html": "71a52649-1b77-4748-9a51-fd33ce621000",
     "invoice_rubberx.html": "af5d3ee4-f799-49a0-84db-813e18fdb9a7",
+    "invoice_zahid_brothers.html": "74a2012a-8bf8-46e8-94fd-611e748e7c35",
 }
 
 def _dash_decimal(value):
@@ -1549,6 +1550,407 @@ class RubberXPagination(unittest.TestCase):
                           % (index + 1))
 
 
+class ZahidBrothersSheet(unittest.TestCase):
+    """Their Excel form: thirteen measured columns and four client rules.
+
+    The columns are the point of this template -- the client asked for the
+    items table at exactly the size they set and for everything else to be
+    fitted around it -- so the tests here are about the table, and about the
+    rules they gave for what goes in it.
+    """
+
+    TEMPLATE = "invoice_zahid_brothers.html"
+
+    HEADINGS = [
+        "Sr.No.", "HS CODE", "HS CODE DESCRIPTION", "Item Type",
+        "Product Code &amp; Description", "Qty", "UOM", "Part Unit",
+        "Unit Rate", "Gross Amount", "Sales Tax",
+        "Further Sales Tax if ANY", "Value Including Sales Tax",
+    ]
+
+    # Measured off the vertical rules in their own PDF, in millimetres.
+    # These are not a style choice: a change to one of them is a change to
+    # the thing the client actually asked for.
+    WIDTHS = ["6.92mm", "13.97mm", "18.24mm", "18.52mm", "15.88mm", "8.61mm",
+              "9.31mm", "10.02mm", "14.50mm", "16.69mm", "15.34mm", "8.15mm",
+              "18.45mm"]
+
+    # What the client asked to print the same whatever the business profile
+    # says. See the note on RequiredIdentifiers.FIXED.
+    PHONE = "0542-450989"
+
+    def line(self, **overrides):
+        item = dict(PAYLOAD["items"][0])
+        item.update(overrides)
+        return dict(PAYLOAD, items=[item])
+
+    def test_the_table_is_their_thirteen_measured_columns(self):
+        markup = render(self.TEMPLATE)
+        for heading in self.HEADINGS:
+            self.assertIn(heading, markup, heading)
+        for width in self.WIDTHS:
+            self.assertIn("width:" + width, markup, width)
+
+    def test_the_columns_add_up_to_the_width_of_their_frame(self):
+        # 174.6 mm, which is what puts the frame on A4 where theirs sits on
+        # their taller sheet. One column nudged without the others moving
+        # would pass every other test here and still print a table of the
+        # wrong size, which is the one thing the client asked about.
+        total = sum(float(w[:-2]) for w in self.WIDTHS)
+        self.assertAlmostEqual(174.6, total, places=1)
+        self.assertIn("width: 174.6mm", render(self.TEMPLATE))
+
+    def test_the_phone_ntn_and_registration_number_are_the_pinned_ones(self):
+        # The payload carries Apple International's seller, so a template
+        # reading these off it would print those instead.
+        markup = render(self.TEMPLATE)
+        for value in (self.PHONE, "1472236-4", "3520267684365"):
+            self.assertIn(value, markup, value)
+        self.assertNotIn(PAYLOAD["sellerNTNCNIC"], markup)
+        # Not a whole-document search for the payload's STRN: the FBR
+        # invoice number begins with it, and that one is not the seller's
+        # registration printed as a field. Check the two rows instead.
+        ntn_row = markup.split("NTN No.")[1].split("</tr>")[0]
+        self.assertIn("1472236-4", ntn_row)
+        strn_row = markup.split("Sales Tax Registration No.")[1].split("</tr>")[0]
+        self.assertIn("3520267684365", strn_row)
+        self.assertNotIn(PAYLOAD["sellerSTRN"], strn_row)
+
+    def test_the_seller_name_and_address_are_still_live(self):
+        # Only the three identifiers are pinned. A sheet that froze the name
+        # or the premises would be the next thing to contradict FBR.
+        markup = render(self.TEMPLATE)
+        self.assertIn(PAYLOAD["sellerBusinessName"], markup)
+        self.assertIn("Urdu Bazar", markup)
+
+    def test_a_thirteen_digit_buyer_id_is_a_cnic(self):
+        data = self.line()
+        data["buyerNTNCNIC"] = "3520212345671"
+        markup = render(self.TEMPLATE, data)
+        cnic = markup.split("CNIC No")[1].split("</tr>")[0]
+        self.assertIn("3520212345671", cnic)
+        ntn = markup.split("NTN if any")[1].split("</tr>")[0]
+        self.assertNotIn("3520212345671", ntn)
+
+    def test_anything_else_is_an_ntn(self):
+        # The payload's own buyer, 0178847-7: seven digits and a check digit.
+        markup = render(self.TEMPLATE)
+        ntn = markup.split("NTN if any")[1].split("</tr>")[0]
+        self.assertIn(PAYLOAD["buyerNTNCNIC"], ntn)
+        cnic = markup.split("CNIC No")[1].split("</tr>")[0]
+        self.assertNotIn(PAYLOAD["buyerNTNCNIC"], cnic)
+
+    def test_the_unit_prints_its_first_term_only(self):
+        markup = render(self.TEMPLATE, self.line(uoM="Numbers, pieces, units"))
+        self.assertIn(">Numbers<", markup)
+        self.assertNotIn("pieces", markup)
+
+    def test_a_single_word_unit_is_untouched(self):
+        self.assertIn(">KG<", render(self.TEMPLATE, self.line(uoM="KG")))
+
+    def test_a_two_word_unit_keeps_both_words(self):
+        # Taking the first WORD would print "Square", which is a different
+        # unit. The rule is the first comma-separated term.
+        self.assertIn(">Square Metre<",
+                      render(self.TEMPLATE, self.line(uoM="Square Metre")))
+
+    def test_the_column_prints_the_description_alone(self):
+        # "Product Code & Description" is their heading, but the code in that
+        # column is part of the text they type. The separate Product Code box
+        # printed the application's own P-0001 series in front of it, so the
+        # client asked for the box to go and the prefix with it.
+        markup = render(self.TEMPLATE)
+        self.assertIn(">Thermal Paper<", markup)
+        self.assertNotIn("-Thermal Paper", markup)
+
+    def test_a_stored_product_code_is_not_printed_either(self):
+        # An invoice filed while the box existed still has a productCode on
+        # its line. Reprinting it must not bring the prefix back: what that
+        # field holds is this application's code, not a part number.
+        markup = render(self.TEMPLATE, self.line(productCode="P-0002"))
+        self.assertNotIn("P-0002", markup)
+        self.assertIn(">Thermal Paper<", markup)
+
+    def test_fbrs_description_of_the_hs_code_prints(self):
+        description = "NUCLEAR REACTOR, BOILERS, MACH...NUCL"
+        markup = render(self.TEMPLATE, self.line(hsCodeDescription=description))
+        self.assertIn(description, markup)
+
+    def test_the_item_type_column_is_the_sale_type(self):
+        markup = render(self.TEMPLATE, self.line(saleType="3rd Schedule Goods"))
+        self.assertIn("3rd Schedule Goods", markup)
+
+    def test_part_unit_falls_back_to_the_gross_over_the_unit_rate(self):
+        # What a line with no figure of its own does -- every line filed
+        # before the box existed. The row then multiplies out to the figures
+        # printed beside it: 127,779.00 / 669.00 = 191.
+        self.assertIn(">191.00<", render(self.TEMPLATE))
+
+    def test_a_typed_part_unit_is_the_one_that_prints(self):
+        # Their old software carried it separately and they asked for it
+        # back, so a figure they type wins over the derivation.
+        # 191 is the derived figure AND the quantity, so the check is that
+        # the typed one is in the Part Unit cell, not that 191 is absent.
+        markup = render(self.TEMPLATE, self.line(partUnit=26))
+        part_unit_cells = markup.count(">26.00<")
+        self.assertEqual(2, part_unit_cells,
+                         "the line's Part Unit cell and the column total")
+
+    def test_a_typed_zero_prints_as_a_zero(self):
+        # Nothing is calculated from this column, so a deliberate zero is a
+        # figure like any other and must not be read as "no figure given".
+        self.assertIn(">0.00<", render(self.TEMPLATE, self.line(partUnit=0)))
+
+    def test_the_total_row_adds_the_figures_that_printed(self):
+        # Two lines, one typed and one derived: the column has to add up to
+        # what is above it or the sheet contradicts itself.
+        data = dict(PAYLOAD, items=[
+            dict(PAYLOAD["items"][0], partUnit=26),
+            dict(PAYLOAD["items"][0]),
+        ])
+        # 26 typed + 191 derived = 217.
+        self.assertIn(">217.00<", render(self.TEMPLATE, data))
+
+    def test_the_box_is_always_ten_rows(self):
+        # Their sheet is a ten-line form. One item, nine padding rows.
+        rows = items_table_rows(render(self.TEMPLATE))
+        self.assertEqual(12, len(rows), "heading + ten lines + total")
+
+    def test_a_deep_line_does_not_change_the_number_of_rows(self):
+        # Every cell that can wrap is clipped to the height of their row, so
+        # a long description cannot make a row taller -- which is what lets
+        # the box be a flat ten rows and still fit the page.
+        deep = "BALANCER UNIT NEW LS 183104 MEL ASSEMBLY COMPLETE SPARE"
+        rows = items_table_rows(
+            render(self.TEMPLATE, self.line(productDescription=deep)))
+        self.assertEqual(12, len(rows), "heading + ten lines + total")
+
+    def test_no_other_replica_grows_these_columns(self):
+        data = self.line(hsCodeDescription="NUCLEAR REACTOR, BOILERS",
+                         productCode="1183104-1-1")
+        for template in set(CLIENT_TEMPLATES) - {self.TEMPLATE}:
+            markup = render(template, data)
+            self.assertNotIn("HS CODE DESCRIPTION", markup, template)
+            self.assertNotIn("1183104-1-1", markup, template)
+
+    def test_no_other_replica_prints_their_pinned_numbers(self):
+        for template in set(CLIENT_TEMPLATES) - {self.TEMPLATE}:
+            self.assertNotIn(self.PHONE, render(template), template)
+
+
+class ZahidBrothersFields(unittest.TestCase):
+    """Reference, Term of Sales, their product code and the HS description.
+
+    All four are printed-only. The client does not use custom fields -- their
+    sheet has named boxes -- so the first two are proper fields on the invoice
+    form, and the test that matters most here is the one proving that none of
+    the four ever reaches FBR.
+    """
+
+    TEMPLATE = "invoice_zahid_brothers.html"
+    CLIENT = CLIENT_TEMPLATES["invoice_zahid_brothers.html"]
+
+    def test_both_rows_print_when_they_are_filled_in(self):
+        markup = render(self.TEMPLATE,
+                        dict(PAYLOAD, reference="PO-4471",
+                             termOfSales="Cash on delivery"))
+        self.assertIn("PO-4471", markup)
+        self.assertIn("Cash on delivery", markup)
+
+    def test_both_rows_are_ruled_even_when_empty(self):
+        # They are boxes on a form, not optional lines: an empty one is a
+        # blank rule to write on, which is what their own sheet prints.
+        markup = render(self.TEMPLATE)
+        self.assertIn("Reference", markup)
+        self.assertIn("Term of Sales", markup)
+
+    def test_no_other_replica_prints_either_of_them(self):
+        data = dict(PAYLOAD, reference="PO-4471", termOfSales="Cash on delivery")
+        for template in set(CLIENT_TEMPLATES) - {self.TEMPLATE}:
+            markup = render(template, data)
+            self.assertNotIn("PO-4471", markup, template)
+            self.assertNotIn("Cash on delivery", markup, template)
+
+    def test_only_this_client_is_offered_the_two_fields(self):
+        self.assertTrue(client_features.prints_invoice_reference_fields(self.CLIENT))
+        self.assertFalse(client_features.prints_invoice_reference_fields(
+            "71a52649-1b77-4748-9a51-fd33ce621000"))
+        self.assertFalse(client_features.prints_invoice_reference_fields(None))
+
+    def test_nobody_is_offered_a_product_code_box_any_more(self):
+        # This client was the only member of MANUAL_PRODUCT_CODES and asked
+        # for the box to go. The switch is kept for the next client who wants
+        # a manufacturer's part number, so what is asserted here is that it
+        # is EMPTY rather than that it is gone.
+        self.assertFalse(client_features.types_own_product_code(self.CLIENT))
+        self.assertEqual(frozenset(), client_features.MANUAL_PRODUCT_CODES)
+
+    def test_this_client_types_their_own_part_unit(self):
+        self.assertTrue(client_features.types_part_unit(self.CLIENT))
+        self.assertFalse(client_features.types_part_unit(
+            "ed156fdd-086e-480c-be18-a2c85d9e31b1"))
+        self.assertFalse(client_features.types_part_unit(None))
+
+    def test_this_client_opens_fixed_notified_value_at_the_line_value(self):
+        self.assertTrue(client_features.fixed_notified_defaults_to_value(self.CLIENT))
+        self.assertFalse(client_features.fixed_notified_defaults_to_value(
+            "ed156fdd-086e-480c-be18-a2c85d9e31b1"))
+        self.assertFalse(client_features.fixed_notified_defaults_to_value(None))
+
+    def test_the_sale_type_survives_for_a_client_who_types_codes(self):
+        # The SPECIAL_USERNAMES clients get a code box AND lose the sale type
+        # and both SRO fields. This client needs the code box and the sale
+        # type both -- Item Type on their sheet IS the sale type -- so the
+        # two switches have to stay separate.
+        import invoice_form_routes
+        self.assertNotIn(self.CLIENT, invoice_form_routes.SPECIAL_USERNAMES)
+        source = io.open(os.path.join(ROOT, "invoice_form_routes.py"),
+                         encoding="utf-8").read()
+        self.assertEqual(
+            2,
+            source.count("own_product_code = is_special_user or client_features"),
+            "create_product and update_product both decide it the same way")
+
+    def test_nothing_here_is_ever_filed(self):
+        # The guard that matters. FBR's schemas have none of these four, and
+        # an unknown key is what gets an invoice rejected.
+        source = io.open(os.path.join(ROOT, "app.py"), encoding="utf-8").read()
+        invoice_fields = source.split("PDF_ONLY_INVOICE_FIELDS = (")[1].split(")")[0]
+        for field in ("reference", "termOfSales"):
+            self.assertIn('"' + field + '"', invoice_fields, field)
+        item_fields = source.split("PDF_ONLY_ITEM_FIELDS = frozenset({")[1].split("})")[0]
+        for field in ("hsCodeDescription", "productCode", "partUnit"):
+            self.assertIn('"' + field + '"', item_fields, field)
+
+    def test_the_form_is_told_which_clients_get_them(self):
+        # The page is rendered with the answer, so the boxes are there on
+        # first paint rather than after a username round trip.
+        source = io.open(os.path.join(ROOT, "app.py"), encoding="utf-8").read()
+        for name, helper in (
+            ("invoice_reference_fields_for_client", "prints_invoice_reference_fields"),
+            ("product_code_for_client", "types_own_product_code"),
+            ("hs_code_description_for_client", "prints_hs_code_description"),
+            ("part_unit_for_client", "types_part_unit"),
+        ):
+            self.assertIn(name + "=client_features." + helper, source, name)
+        form = io.open(os.path.join(ROOT, "templates", "create-invoice.html"),
+                       encoding="utf-8").read()
+        for name in ("invoice_reference_fields_for_client",
+                     "product_code_for_client",
+                     "hs_code_description_for_client",
+                     "part_unit_for_client",
+                     "fixed_notified_from_value_for_client"):
+            self.assertIn("{{ 'true' if " + name + " else 'false' }}", form, name)
+        for field in ('id="invoice-reference"', 'id="invoice-term-of-sales"',
+                      'id="product-hs-description"'):
+            self.assertIn(field, form, field)
+
+
+@unittest.skipIf(WeasyHTML is None, "WeasyPrint/pypdfium2 not installed")
+class ZahidBrothersPagination(unittest.TestCase):
+    """Their ten-line form has to come out as one page, and does.
+
+    Their own sheet is 329.9 mm tall. This one is A4, and it has to carry a
+    masthead where they had two typed lines and an FBR band they never had,
+    so the fit is tight by construction. The filler budget in the template is
+    set from these measurements -- re-run them after changing anything above
+    or below the items table.
+    """
+
+    TEMPLATE = "invoice_zahid_brothers.html"
+    FOOT = "Name & Designation"
+    HEADING = "Value Including Sales Tax"
+
+    @classmethod
+    def setUpClass(cls):
+        cls.fbr_logo = real_fbr_logo()
+
+    def markup(self, count, description="PLATE FENDER LH %d"):
+        items = [dict(PAYLOAD["items"][0],
+                      productDescription=description % (i + 1),
+                      productCode="1343051F-3-%d" % (i + 1),
+                      hsCodeDescription="VEHICLES OTHER THAN RAILWAY OR...VEHICLE",
+                      saleType="3rd Schedule Goods")
+                 for i in range(count)]
+        return render(self.TEMPLATE, dict(PAYLOAD, items=items), logo=self.fbr_logo)
+
+    def pages(self, count, description="PLATE FENDER LH %d"):
+        pdf = WeasyHTML(string=self.markup(count, description),
+                        base_url=ROOT).write_pdf()
+        document = pypdfium2.PdfDocument(io.BytesIO(pdf))
+        return [document[i].get_textpage().get_text_bounded()
+                for i in range(len(document))]
+
+    def test_a_one_line_invoice_is_one_page(self):
+        self.assertEqual(1, len(self.pages(1)))
+
+    def test_their_own_five_line_invoice_is_one_page(self):
+        self.assertEqual(1, len(self.pages(5)))
+
+    def test_the_full_ten_line_form_is_one_page(self):
+        self.assertEqual(1, len(self.pages(10)))
+
+    def test_the_twelfth_line_is_the_last_one_that_fits(self):
+        # Measured. Their form is ten ruled rows and always prints ten, but
+        # the page now holds twelve: the rows were sized content-box and came
+        # out at 10.66 mm against the 9.45 mm measured off their sheet, and
+        # putting that right gave back 12 mm -- two lines of headroom the
+        # sheet never had.
+        #
+        # So this is no longer a tripwire for anything added above or below
+        # the table; it is the real capacity, and a change that eats those
+        # two lines will show up here before it shows up on an invoice.
+        self.assertEqual(1, len(self.pages(10)))
+        self.assertEqual(1, len(self.pages(12)))
+        self.assertEqual(2, len(self.pages(13)))
+
+    def test_the_rows_are_the_height_the_client_measured(self):
+        # 9.45 mm is off their own sheet and the whole table is built on it.
+        # A row that renders taller is a table that does not fit the form it
+        # is ruled to, which is what this template is for.
+        document = WeasyHTML(string=self.markup(1), base_url=ROOT).render()
+        page = document.pages[0]
+
+        def walk(box):
+            yield box
+            for child in getattr(box, "children", ()) or ():
+                for item in walk(child):
+                    yield item
+
+        px_mm = 25.4 / 96.0
+        heights = [box.height * px_mm for box in walk(page._page_box)
+                   if getattr(box, "element_tag", None) == "tr"]
+        self.assertTrue(heights, "no rows found")
+
+        # The heading and the ten ruled lines. The Total row is their 6.1 mm
+        # and is the one row that is not on this measurement.
+        ruled = [h for h in heights if abs(h - 9.45) <= 0.2]
+        self.assertEqual(11, len(ruled),
+                         "heading + ten lines at their 9.45 mm; got %s"
+                         % ["%.2f" % h for h in heights])
+
+        # The regression this is really for: sized content-box, every one of
+        # those rows came out at 9.45 + 1.0 of padding + 0.21 of border.
+        self.assertEqual([], [h for h in heights if 9.7 <= h <= 11.5],
+                         "a row is carrying its padding on top of its height")
+
+    def test_the_closing_block_never_lands_alone_on_a_second_page(self):
+        # The failure this exists for: a last page holding nothing but the
+        # signature rules and the FBR band reads as a second, empty invoice.
+        for count in (1, 5, 10, 13, 20, 30):
+            pages = self.pages(count)
+            self.assertIn(self.FOOT, pages[-1], "%d items" % count)
+            if len(pages) > 1:
+                self.assertIn(
+                    self.HEADING, pages[-1],
+                    "%d items: the closing page has no items table above "
+                    "the foot" % count)
+
+    def test_a_line_past_capacity_spills_rather_than_being_dropped(self):
+        text = "".join(self.pages(30))
+        self.assertIn("PLATE FENDER LH 30", re.sub(r"\s+", " ", text))
+
+
 class ComplianceMarks(unittest.TestCase):
     """The three things every FBR invoice must carry."""
 
@@ -1599,6 +2001,21 @@ class RequiredIdentifiers(unittest.TestCase):
     FIGURES = {"quantity", "unit price", "value excluding tax", "sales tax",
                "value including tax"}
 
+    # Zahid Brothers asked for their phone, NTN and sales tax registration
+    # number to print the same whatever the business profile says, so those
+    # two identifiers are fixed text in their template rather than payload
+    # fields. That is NOT a waiver: the sheet still has to show a seller NTN
+    # and a seller STRN, and they still have to be THEIR registration -- so
+    # the check is applied against the pinned value instead. The risk the
+    # client accepted is that a change of registration has to be made in the
+    # template; the risk this table refuses is the numbers disappearing.
+    FIXED = {
+        "invoice_zahid_brothers.html": {
+            "seller NTN": "1472236-4",
+            "seller STRN": "3520267684365",
+        },
+    }
+
     # F.K. Printers asked for the HS code to be left off the printed sheet --
     # as a column first, then from under the description. Their own invoice
     # never carried one. It is still submitted to FBR on every line, so this
@@ -1614,12 +2031,36 @@ class RequiredIdentifiers(unittest.TestCase):
             markup = render(template)
             waived = self.WAIVED.get(template, set())
             respell = FIGURE_NOTATION.get(template, {})
+            pinned = self.FIXED.get(template, {})
             for label, value in self.CASES.items():
                 if label in waived:
                     continue
-                if label in respell:
+                if label in pinned:
+                    value = pinned[label]
+                elif label in respell:
                     value = respell[label](value)
                 self.assertIn(value, markup, f"{template}: {label} missing")
+
+    def test_a_pinned_identifier_names_a_real_template_and_a_real_field(self):
+        # Pinning is a decision the client made about two identifiers. This
+        # fails if an entry is left behind for a template that no longer
+        # exists, names a field that is not checked, or is quietly widened
+        # to a figure -- a pinned figure would stop the sheet being checked
+        # against the payload at all, which is the opposite of the point.
+        for template, pins in self.FIXED.items():
+            self.assertIn(template, CLIENT_TEMPLATES, template)
+            for label, value in pins.items():
+                self.assertIn(label, self.CASES, label)
+                self.assertNotIn(
+                    label, self.FIGURES,
+                    f"{template}: {label} is a figure, and a figure is never pinned")
+                self.assertTrue(value.strip(), f"{template}: {label} pinned to nothing")
+
+    def test_a_pinned_identifier_is_not_also_waived(self):
+        for template, pins in self.FIXED.items():
+            self.assertFalse(
+                set(pins) & self.WAIVED.get(template, set()),
+                f"{template}: an identifier cannot be both pinned and waived")
 
     def test_nothing_is_waived_that_the_client_did_not_ask_to_waive(self):
         # A waiver is a decision, not a way around a failing assertion. This
@@ -1692,6 +2133,7 @@ class BrandArtwork(unittest.TestCase):
         "invoice_zahid_steel.html": "brand/J527785.html",
         "invoice_global_surface.html": "brand/global_surface.html",
         "invoice_rubberx.html": "brand/rubberx.html",
+        "invoice_zahid_brothers.html": "brand/zahid_brothers.html",
     }
 
     def test_artwork_renders_with_no_logo_url_at_all(self):

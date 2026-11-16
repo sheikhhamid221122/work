@@ -30,6 +30,7 @@ from decimal import Decimal
 
 from flask import jsonify, render_template, request, send_file, session, current_app
 
+import client_features
 import invoice_form_routes as ifr
 import master_data as md
 from fbr_reference_routes import canonical_province, fetch_provinces
@@ -560,11 +561,17 @@ def add_master_data_routes(app, get_db_connection, get_env):
                 p["quantity"] = _plain(p["quantity"])
                 p["last_sold"] = p["last_sold"].isoformat() if p["last_sold"] else ""
 
-            special = _is_special(_username(cur, client_id))
+            username = _username(cur, client_id)
+            special = _is_special(username)
+            # Who fills the Code box in. The special usernames always have;
+            # client_features adds the clients who type their own codes but
+            # still use the sale type and SRO fields `is_special` hides.
+            code_editable = special or client_features.types_own_product_code(
+                username, client_id, session.get("user_id"))
             return jsonify({
                 "products": products,
                 "codes_enabled": has_code,
-                "code_editable": special,
+                "code_editable": code_editable,
                 "is_special": special,
                 "next_code": md.peek_next_code(cur, "products", "product_code", md.PRODUCT_CODE_PREFIX, client_id)
                 if has_code else "",
