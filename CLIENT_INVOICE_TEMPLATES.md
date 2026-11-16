@@ -1155,6 +1155,197 @@ including a Sales Tax No. that is worth confirming, because the thirteen
 digits on their sheet are also their mobile number with one digit added.
 A4, no reams column.
 
+### Zahid Brothers — a measured table, and a client who pinned three numbers
+
+`templates/invoice_zahid_brothers.html`, users.id
+`74a2012a-8bf8-46e8-94fd-611e748e7c35`. Not Zahid Steel Industries
+(`J527785`), who are a different client with a different sheet.
+
+Theirs is an **Excel form**, and the first one here where the table was the
+brief: the client asked for the items table "exactly the way they have
+added" and for everything else to be fitted around it. So the thirteen
+column widths were not chosen, they were **measured off the vertical rules
+in their PDF** and written into the template in millimetres:
+
+```python
+# the x of every vertical rule, in points, straight out of their file
+import pypdfium2 as p, pypdfium2.raw as c
+page = p.PdfDocument("templates/user-invoices/zahid_brothers.pdf")[0]
+for o in page.get_objects():
+    if o.type == c.FPDF_PAGEOBJ_PATH:
+        x0, y0, x1, y1 = o.get_pos()
+        if x1 - x0 < 2 and y1 - y0 > 4:
+            print(round(x0, 1), round(y1 - y0, 1))
+```
+
+That gave 6.92 / 13.97 / 18.24 / 18.52 / 15.88 / 8.61 / 9.31 / 10.02 /
+14.50 / 16.69 / 15.34 / 8.15 / 18.45 mm — 174.6 mm, their frame — and the
+rows at 9.45 mm, the heading at 9.45 and the total at 6.1. Do the same on
+any sheet whose geometry the client cares about; it takes a minute and it
+is not a thing to eyeball. `ZahidBrothersSheet` asserts the widths and that
+they still add to 174.6, so a nudge to one of them fails rather than
+shipping a table of the wrong size.
+
+Their page is 215.9 × 329.9 mm. This one is A4 with 17.7 mm side margins,
+which puts the 174.6 mm frame where theirs sits. **The height is where it
+got tight**: the frame has to carry a masthead where they had two typed
+lines, and an FBR band they never had, on a page 33 mm shorter. Ten lines
+fit and the eleventh starts a second page — there is no headroom left, so
+anything added above or below the table costs a line.
+
+**Clipping is what makes a fixed-height row work.** Their HS Code
+Description cell holds the whole of FBR's chapter heading and shows the
+three lines that fit, which is why "VEHICLES OTHER THAN RAILWAY
+OR...VEHICLE" prints as `VEHICLES / OTHER THAN / RAILWAY`. Reproduced with
+`max-height` + `overflow: hidden` rather than a character count, so
+whatever FBR returns prints the way theirs does. Every wrapping cell is
+clipped the same way — which is also what lets the box be a flat ten rows
+with no filler budget, unlike Rubber X and Material Craft above, whose
+descriptions set their own row heights.
+
+The exception is **Product Code & Description**, the column the buyer
+identifies the goods by: a clipped part number is a different part number.
+Their own sheet cut `1183104-1-1BALANCER UNIT new LS - 183104 (MEL)` after
+"LS -". Here it is set at 5.6 pt on 1.05 leading instead of 7 pt, which
+fits four lines in the same 9.45 mm row and prints the whole of it. Still
+clipped past four, so the row can never grow.
+
+It prints the **description alone**. The code in that column is part of the
+text they type, not a second field — and the separate Product Code box they
+were given printed the application's own `P-0001` series in front of it
+(`P-0002-1183104-1-1BALANCER UNIT…`), so the client asked for the box to
+go. `MANUAL_PRODUCT_CODES` is now empty and says why; an invoice filed
+while the box existed still has a `productCode` on its line and reprints
+without it, deliberately.
+
+**Rows are sized border-box.** `height: 9.45 mm` on a cell whose box is the
+default `content-box` renders at 9.45 + 1.0 of padding + 0.21 of border =
+10.66 mm, and every row of this table did — 12 mm of table that is not on
+the client's form, which is what pushed the sheet past the frame it is
+ruled to. `box-sizing: border-box` on `.items` and its cells is what makes
+the measured figures mean what they say, and it gave back two lines of
+capacity: the page now holds twelve, where before the eleventh started a
+second page. `ZahidBrothersPagination` measures both the row height and the
+capacity, so a change that spends that headroom shows up there rather than
+on an invoice. The signature block and the FBR band are wrapped in one
+`.closing` div for the same reason — separately, a spilling invoice could
+end on a page carrying the QR code and nothing else.
+
+**Three figures are pinned.** The client asked for the supplier's phone,
+NTN and sales tax registration number to print the same whatever the
+business profile says, and they are `FIXED_PHONE` / `FIXED_NTN` /
+`FIXED_STRN` at the top of the template. This is the first replica to put a
+seller NTN or STRN anywhere but the payload, and it is worth being plain
+about what it costs: **if their registration changes, the sheet will print
+the old number while the new one is filed.** The client was told. The name
+and the address stay live, and the artwork carries no numbers at all.
+
+It is not a waiver, either. `RequiredIdentifiers.FIXED` checks the sheet
+against the pinned value instead of the payload's, so the two identifiers
+are still under test and still have to be theirs; `FIXED` refuses to hold a
+*figure*, because pinning one would stop the sheet being checked against
+the payload at all. Copy that shape if another client ever asks.
+
+**Four rules the client gave, all in the template:**
+
+* **13 digits is a CNIC, anything else is an NTN.** Their sheet has a
+  "CNIC No" row and an "NTN if any" row; the payload has one field,
+  `buyerNTNCNIC`. That is the rule for splitting it.
+* **UOM prints its first term.** FBR's `Numbers, pieces, units` prints as
+  `Numbers`. The split is on the first **comma**, not the first word —
+  "first word" would print `Square Metre` as "Square", which is a different
+  unit.
+* **Item Type is the sale type** the line was filed under.
+* **Part Unit is theirs to type.** Their old software held it separately
+  and they asked for it back, so it is a box on the invoice form
+  (`client_features.PART_UNIT`). A line that carries no figure — every line
+  filed before the box existed — falls back to the derivation this column
+  used to be, Gross Amount ÷ Unit Rate, so the row still multiplies out to
+  the figures printed beside it. A typed **0** is a figure and prints as
+  one, which is why both the template and `_normalize_part_unit` test for a
+  missing value rather than a falsy one.
+
+**The printed-only fields added for them** are the pattern to copy rather
+than the reams/sales-person one, because they are keyed on the client's
+**id** in `client_features.py` and answered by the server when the page
+renders — so the boxes are there on first paint instead of after the
+username round trip:
+
+| Field | Switch | Stripped by |
+|---|---|---|
+| Reference | `prints_invoice_reference_fields` | `PDF_ONLY_INVOICE_FIELDS` |
+| Term of Sales | `prints_invoice_reference_fields` | `PDF_ONLY_INVOICE_FIELDS` |
+| `hsCodeDescription` | `prints_hs_code_description` | `PDF_ONLY_ITEM_FIELDS` |
+| `partUnit` | `types_part_unit` | `PDF_ONLY_ITEM_FIELDS` |
+| `productCode` | `types_own_product_code` *(empty)* | `PDF_ONLY_ITEM_FIELDS` |
+
+One more switch is **not** a printed field and files nothing of its own:
+`fixed_notified_defaults_to_value` opens the Advanced tax fields' **Fixed
+Notified Value** box at the line's value excluding sales tax instead of at
+zero. They file 3rd Schedule goods, where FBR charges tax on the notified
+or printed retail price and rejects a zero outright (`errorCode 0300`), and
+they sell at that price. It is a starting figure only: typing in the box
+stops it following for the rest of that line, and the server never
+substitutes one, so a line that is not 3rd Schedule has the box cleared and
+stays cleared. What is filed is whatever the box holds.
+
+Reference and Term of Sales are **proper fields on the Invoice Details
+step, not custom fields**, at the client's request: their sheet has named
+boxes, and being offered a blank "name / value" pair to retype the same two
+labels into on every invoice is worse than having the two boxes.
+
+The HS code description is read off the same `/pdi/v1/itemdesccode`
+response the code was picked from — `setHsDescription` when a code is
+chosen from the autocomplete, `lookupHsDescription` when one is typed or
+filled in from a saved product — and shown as a hint under the box so they
+can see what will print.
+
+**The server answers it too, and that is the one that matters.** Relying on
+the browser to have carried the description is what left the column empty:
+a code typed rather than picked, a product saved before the column existed
+or a draft filed before it did all arrive with a bare `hsCode`.
+`fetch_hs_code_description` in `fbr_reference_routes.py` fills it in when
+the line comes without one, reading the same per-client `hs_codes_{id}`
+cache the autocomplete fills — so the common case costs no round trip, and
+a miss costs an empty cell and nothing else, because the column is
+printed-only and no figure is derived from it.
+
+**`types_own_product_code` is empty now**, but kept, and the note below is
+why it is worth keeping rather than deleting — the next client who wants a
+manufacturer's part number needs exactly this switch and nothing else.
+
+**`types_own_product_code` is deliberately NOT `SPECIAL_USERNAMES`.** That
+older switch gives a client a Code box *and* blanks the sale type and both
+SRO fields on the products page. This client needs the Code box and the
+sale type, because Item Type on their sheet is the sale type. So
+`code_editable` on the products page is now `special OR
+types_own_product_code` while `is_special` stays what it was, and
+`create_product` / `update_product` decide the same way.
+`ZahidBrothersFields` pins all of that, including that none of the four
+fields can reach FBR.
+
+The artwork is their CamScanner photograph of a printed letterhead —
+`scripts/extract_zahid_brothers_brand.py`, a mode `extract_brand.py` does
+not have. There is nothing to lift (the page is one image) and a `--band`
+crop would print the camera's defects at size. Instead the scan is split
+into **coverage and hue** and re-inked: how dark a pixel is between paper
+and the measured core of the ink becomes the alpha, how red it is picks
+between the two printed colours, and the result is composited over white.
+Gamma 0.80 on the coverage re-cuts the edges the camera blurred. That turns
+RGB (57,57,57) back into black and a desaturated brick back into their red
+without thresholding away the hairlines in the script. **Re-ink before
+upscaling**, not after, or the halo is interpolated and baked in at twice
+the size. Not upscaled at all in the end: 1713 px across 62 mm is ~700 DPI
+and doubling it tripled the payload for no difference on paper.
+
+`zahid_brothers_setup.sql` assigns the template, checks that
+`products.product_code` exists (the Code box degrades silently without it)
+and offers to clear any automatic `P-####` codes, which would otherwise
+print on the face of the invoice where the part number belongs. A4, no
+reams column, no amount in words — their sheet has never had one.
+
+---
+
 ---
 
 ## Quick reference

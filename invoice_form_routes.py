@@ -7,7 +7,12 @@ from datetime import datetime
 from decimal import Decimal, ROUND_HALF_UP
 from psycopg2.extras import Json
 
-from fbr_reference_routes import canonical_province, fetch_provinces, fetch_transaction_types
+from fbr_reference_routes import (
+    canonical_province,
+    fetch_hs_code_description,
+    fetch_provinces,
+    fetch_transaction_types,
+)
 import advance_tax
 import client_features
 import master_data
@@ -256,6 +261,27 @@ def _normalize_phone(value):
 
 def _wants_reams(username):
     return (username or "").strip() in REAMS_USERNAMES
+
+
+def _normalize_part_unit(value):
+    """The Part Unit figure for a line, or None when the box was left empty.
+
+    None rather than 0 or "": an empty box means "no figure of my own", and
+    the template answers that by deriving one the way it always has. A zero
+    typed deliberately is kept and prints as a zero, which is why this is not
+    written as a falsy check.
+
+    A float, unlike the reams count beside it, because this one is a quantity
+    the client's sheet prints to two decimals next to the Qty it usually
+    equals -- not a label. Nothing is calculated from it either way.
+    """
+    text = str(value if value is not None else "").strip().replace(",", "")
+    if not text:
+        return None
+    try:
+        return float(Decimal(text))
+    except (ArithmeticError, ValueError):
+        return None
 
 
 def _normalize_reams(value):
@@ -1031,6 +1057,12 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             row = cur.fetchone()
             username = (row[0] or "").strip() if row else None
             is_special_user = _is_special_username(username)
+            # Whether the Code box on the products page is theirs to fill in.
+            # The special usernames have always been; client_features adds
+            # the clients who type their own codes but still use the sale
+            # type and SRO fields that `is_special_user` blanks below.
+            own_product_code = is_special_user or client_features.types_own_product_code(
+                username, client_id, session.get("user_id"))
 
             # Normalize numeric inputs
             try:
@@ -1077,7 +1109,7 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             # on their invoices); everyone else gets the next P-#### code.
             product_code = ""
             if has_product_code:
-                if is_special_user:
+                if own_product_code:
                     product_code = (data.get("product_code") or "").strip()
                 else:
                     product_code = master_data.reserve_codes(
@@ -1159,6 +1191,8 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
             row = cur.fetchone()
             username = (row[0] or "").strip() if row else None
             is_special_user = _is_special_username(username)
+            own_product_code = is_special_user or client_features.types_own_product_code(
+                username, client_id, session.get("user_id"))
 
             def safe_float(val):
                 try:
@@ -1196,7 +1230,7 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                 add_update("sro_item_serial_no", payload_sro_item)
 
             if has_product_code:
-                if is_special_user:
+                if own_product_code:
                     add_update("product_code", (data.get("product_code") or "").strip())
                 else:
                     # Assigned codes are not edited; the invoice form's hidden
@@ -1810,6 +1844,24 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         # up with either on their invoice.
         prints_buyer_supplier_fields = client_features.prints_buyer_supplier_fields(
             username, user_id, client_id)
+        # Reference and Term of Sales: two rows on one client's sheet, kept
+        # off everyone else's invoice for the same reason as the fields
+        # above -- the form hides the inputs, and the server is what makes
+        # that stick.
+        prints_reference_fields = client_features.prints_invoice_reference_fields(
+            username, user_id, client_id)
+        # The HS code's description as FBR spells it, and the client's own
+        # product code. Both are columns on one replica's items table and
+        # neither is in FBR's item schema; app.py strips them on the way out.
+        prints_hs_description = client_features.prints_hs_code_description(
+            username, user_id, client_id)
+        types_own_product_code = client_features.types_own_product_code(
+            username, user_id, client_id)
+        # Part Unit, where it is a figure the client types rather than one
+        # derived from the line. Printed-only, gated here for the same reason
+        # as the two above.
+        types_part_unit = client_features.types_part_unit(
+            username, user_id, client_id)
         fixed_sro_297 = _wants_sro_297(username)
         # Advance Tax u/s 236(h). The rate is the only part of the line that
         # is stored -- the amount is derived when the PDF is rendered. Gated
@@ -1948,6 +2000,17 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         if advance_tax_percent is not None:
             invoice_json["advanceTaxPercent"] = float(advance_tax_percent)
 
+        # Printed-only, both of them: FBR's invoice schema has neither, and
+        # app.py strips them again before the call. Stored with the invoice
+        # so a reprint from the Download Center reproduces the same sheet.
+        if prints_reference_fields:
+            reference = sanitize_string(data.get("reference"))[:120]
+            if reference:
+                invoice_json["reference"] = reference
+            term_of_sales = sanitize_string(data.get("termOfSales"))[:120]
+            if term_of_sales:
+                invoice_json["termOfSales"] = term_of_sales
+
         if username == "8974121" and data.get("CNIC"):
             invoice_json["CNIC"] = data["CNIC"]
         if data.get("invoiceRefNo"):
@@ -2055,6 +2118,42 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                 if is_special_user:
                     item["hs_code"] = item_data.get("hs_code") or item_data.get("hsCode") or ""
                     item["product_code"] = item_data.get("product_code") or item_data.get("productCode") or ""
+                # FBR's own words for the HS code, read off the same
+                # /pdi/v1/itemdesccode response the code was picked from.
+                # Printed beside it on one client's sheet; nothing is derived
+                # from it and FBR is not told it back.
+                if prints_hs_description:
+                    hs_description = sanitize_string(
+                        item_data.get("hsCodeDescription")
+                        or item_data.get("hs_code_description")
+                    )
+                    # The form sends it with the line, but only when the code
+                    # was picked from the autocomplete in this session. A code
+                    # that was typed, or one that came back on a saved product
+                    # or a draft, arrives bare and used to print an empty
+                    # cell. Look it up here instead of trusting the browser to
+                    # have carried it: the column is FBR's text for a code
+                    # that is already on the line, so the server can always
+                    # answer it.
+                    if not hs_description:
+                        hs_description = sanitize_string(
+                            fetch_hs_code_description(
+                                item.get("hsCode"), get_db_connection, get_env))
+                    item["hsCodeDescription"] = hs_description[:200]
+                # The manufacturer's part number, printed in front of the
+                # description in their Product Code & Description column.
+                if types_own_product_code:
+                    item["productCode"] = sanitize_string(
+                        item_data.get("productCode") or item_data.get("product_code")
+                    )[:60]
+                # Their Part Unit column, where it is a figure of its own.
+                # Sent only when it has one: a blank box leaves the field off
+                # the line entirely, and the template falls back to the
+                # derivation it has always used rather than printing a zero.
+                if types_part_unit:
+                    part_unit = _normalize_part_unit(item_data.get("partUnit"))
+                    if part_unit is not None:
+                        item["partUnit"] = part_unit
                 # Printed beside the quantity on the paper clients' replicas.
                 # Only theirs carry the column, so only their payload carries
                 # the field; app.py strips it again before FBR sees it.
@@ -2090,20 +2189,33 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                     except (ValueError, TypeError):
                         tax_rate_num = "17"
                         
+                    # The clients who type their own codes keep the one they
+                    # typed on the line, so the next invoice fills it in for
+                    # them. Everybody else's code is assigned on the products
+                    # page and is not this route's business. Guarded on the
+                    # column existing so a deploy ahead of the migration
+                    # still saves the product.
+                    columns = ["client_id", "description", "hs_code", "uom",
+                               "default_tax_rate", "sale_type"]
+                    values = [
+                        client_id,
+                        item_data["productDescription"],
+                        item_data.get("hsCode", ""),
+                        item_data.get("uoM", "Numbers, pieces, units"),
+                        tax_rate_num,
+                        item_data.get("saleType", "Goods at Reduced Rate"),
+                    ]
+                    line_code = (item.get("productCode") or "").strip()
+                    if (types_own_product_code and line_code
+                            and master_data.product_code_column_exists(cur)):
+                        columns.append("product_code")
+                        values.append(line_code)
                     cur.execute(
-                        """
-                        INSERT INTO products
-                          (client_id, description, hs_code, uom, default_tax_rate, sale_type, is_active)
-                        VALUES (%s,%s,%s,%s,%s,%s, TRUE)
+                        f"""
+                        INSERT INTO products ({', '.join(columns)}, is_active)
+                        VALUES ({', '.join(['%s'] * len(values))}, TRUE)
                         """,
-                        (
-                            client_id,
-                            item_data["productDescription"],
-                            item_data.get("hsCode", ""),
-                            item_data.get("uoM", "Numbers, pieces, units"),
-                            tax_rate_num,
-                            item_data.get("saleType", "Goods at Reduced Rate"),
-                        ),
+                        values,
                     )
                     conn.commit()
                 cur.close()
@@ -2132,6 +2244,8 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                 "poNumber": data.get("poNumber", ""),
                 "PO": data.get("poNumber", ""),
                 "dnNumber": data.get("dnNumber", ""),
+                "reference": invoice_json.get("reference", ""),
+                "termOfSales": invoice_json.get("termOfSales", ""),
                 "sellerData": seller,
                 "buyerData": buyer,
                 "items": data["items"],

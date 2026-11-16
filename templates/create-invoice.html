@@ -531,6 +531,26 @@
                                 class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
                                 placeholder="Enter delivery note number" />
                         </div>
+                        <!-- Reference and Term of Sales. Rows on one client's own
+                             sheet, so they are proper fields here rather than a pair
+                             of custom fields whose labels have to be retyped on every
+                             invoice. Printed-only: app.py strips both from the payload
+                             before FBR sees it, and the server gates them again so a
+                             client whose invoice has no such rows never gets either
+                             value on theirs. -->
+                        <div id="invoice-reference-container" class="hidden">
+                            <label for="invoice-reference" class="block text-gray-700 font-medium mb-2">Reference</label>
+                            <input type="text" id="invoice-reference" maxlength="120"
+                                class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
+                                placeholder="Enter reference" />
+                        </div>
+                        <div id="invoice-term-of-sales-container" class="hidden">
+                            <label for="invoice-term-of-sales" class="block text-gray-700 font-medium mb-2">Term of
+                                Sales</label>
+                            <input type="text" id="invoice-term-of-sales" maxlength="120"
+                                class="form-input w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500"
+                                placeholder="e.g. Cash on delivery" />
+                        </div>
                         <div id="delivery-challan-container" class="hidden">
                             <label for="delivery-challan" class="block text-gray-700 font-medium mb-2">Delivery Challan
                                 #</label>
@@ -822,12 +842,35 @@
                                     class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm"
                                     placeholder="Type to search HS codes..." autocomplete="off">
                                 <div id="hs-code-dropdown" class="hs-autocomplete-dropdown"></div>
+                                <!-- FBR returns a description beside every HS code on
+                                     /pdi/v1/itemdesccode. One client's invoice has a
+                                     column for it, so it is kept here when a code is
+                                     picked and read back when the line is added. Not
+                                     typed and not editable: it is FBR's text for the
+                                     code, not the seller's. -->
+                                <input type="hidden" id="product-hs-description">
+                                <p id="product-hs-description-hint" class="hidden mt-1 text-xs text-gray-500"></p>
                             </div>
                             <div>
                                 <label for="product-quantity" class="block text-gray-700 text-sm mb-1">Quantity*</label>
                                 <input type="number" id="product-quantity"
                                     class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm"
                                     placeholder="Quantity" min="0" step="1">
+                            </div>
+                            <!-- One client's Part Unit. A figure of their own, not a
+                                 derived one: their old software carried it separately and
+                                 their invoice prints it beside the quantity, which is what
+                                 it equals on every line they have filed so far. Left empty
+                                 the invoice derives it as before, so this box is never
+                                 required. Nothing is calculated from it and
+                                 PDF_ONLY_ITEM_FIELDS in app.py keeps it out of the FBR
+                                 call. It takes the slot Product Code used to hold. -->
+                            <div id="product-part-unit-wrapper" class="hidden">
+                                <label for="product-part-unit" class="block text-gray-700 text-sm mb-1">Part Unit</label>
+                                <input type="number" id="product-part-unit"
+                                    class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm"
+                                    placeholder="Same as quantity" min="0" step="0.01"
+                                    title="Printed in the Part Unit column. Left empty it follows the quantity; nothing is calculated from it.">
                             </div>
                             <!-- The paper clients' reams count. Printed beside the quantity on
                                  their invoice and used in no calculation at all. It takes the
@@ -1177,6 +1220,14 @@
                                     <p id="review-dn-number-container" class="hidden">
                                         <span class="font-semibold">DN#:</span>
                                         <span id="review-dn-number"></span>
+                                    </p>
+                                    <p id="review-reference-container" class="hidden">
+                                        <span class="font-semibold">Reference:</span>
+                                        <span id="review-reference"></span>
+                                    </p>
+                                    <p id="review-term-of-sales-container" class="hidden">
+                                        <span class="font-semibold">Term of Sales:</span>
+                                        <span id="review-term-of-sales"></span>
                                     </p>
                                     <p id="review-scenario-container" class="hidden">
                                         <span class="font-semibold">Scenario ID:</span>
@@ -2090,7 +2141,9 @@
                 return;
             }
 
-            const enabled = isH075895User(username);
+            // Only the two product-code boxes here. Everything else
+            // applyH075895UI does stays on the special-username test.
+            const enabled = showsProductCode();
 
             const productCodeWrapper = document.getElementById('product-code-wrapper');
             if (productCodeWrapper) {
@@ -2138,6 +2191,7 @@
             syncFurtherTaxDefaults();
             applyH075895UI(currentUsername);
             applyReamsUI(currentUsername);
+            applyPartUnitUI();
             applySalesPersonUI(currentUsername);
             applySro297Defaults(currentUsername);
             updateProductTable();
@@ -2207,6 +2261,83 @@
          *  to fall back on, because the clients that have these are keyed on
          *  their id in client_features.py. */
         const BUYER_SUPPLIER_FIELDS_FOR_THIS_CLIENT = {{ 'true' if buyer_supplier_fields_for_client else 'false' }};
+
+        /** Whether this client's invoice has a Reference row and a Term of
+         *  Sales row, so the two boxes appear on the Invoice Details step.
+         *  Keyed on the client's id in client_features.py, so the server is
+         *  the only thing that can answer it -- and it answers on first
+         *  paint, rather than after the username round trip. */
+        const INVOICE_REFERENCE_FIELDS_FOR_THIS_CLIENT = {{ 'true' if invoice_reference_fields_for_client else 'false' }};
+
+        /** Whether this client types their own product codes and prints them
+         *  on the invoice line. True for the SPECIAL_USERNAMES clients, who
+         *  always have, and for the clients listed by id in
+         *  client_features.MANUAL_PRODUCT_CODES. */
+        const PRODUCT_CODE_FOR_THIS_CLIENT = {{ 'true' if product_code_for_client else 'false' }};
+
+        /** Whether this client's items table has an HS Code Description
+         *  column, filled from the description FBR returns beside the code. */
+        const HS_CODE_DESCRIPTION_FOR_THIS_CLIENT = {{ 'true' if hs_code_description_for_client else 'false' }};
+
+        /** Whether this client types a Part Unit figure of their own rather
+         *  than letting the invoice derive one from the line. */
+        const PART_UNIT_FOR_THIS_CLIENT = {{ 'true' if part_unit_for_client else 'false' }};
+
+        /** Whether Fixed Notified Value opens at the line's value excluding
+         *  sales tax instead of at zero. A starting figure only: the box stays
+         *  editable and whatever it holds when the line is added is what is
+         *  filed. See client_features.FIXED_NOTIFIED_FROM_VALUE. */
+        const FIXED_NOTIFIED_FROM_VALUE = {{ 'true' if fixed_notified_from_value_for_client else 'false' }};
+
+        function isInvoiceReferenceFieldsClient() {
+            return INVOICE_REFERENCE_FIELDS_FOR_THIS_CLIENT;
+        }
+
+        /** The Product Code box, its table column and the code on the line.
+         *  isH075895User() still answers for everything else those clients
+         *  do differently -- blanking the sale type, the save-then-reselect
+         *  flow -- which this client does not want. */
+        function showsProductCode() {
+            return PRODUCT_CODE_FOR_THIS_CLIENT || isH075895User();
+        }
+
+        function showsHsCodeDescription() {
+            return HS_CODE_DESCRIPTION_FOR_THIS_CLIENT;
+        }
+
+        function showsPartUnit() {
+            return PART_UNIT_FOR_THIS_CLIENT;
+        }
+
+        /** Show the Part Unit box for the clients whose invoice has the
+         *  column. Hidden everywhere else, and cleared when hidden so a
+         *  stale figure cannot reach the payload. */
+        function applyPartUnitUI() {
+            const wrapper = document.getElementById('product-part-unit-wrapper');
+            if (!wrapper) return;
+            const enabled = showsPartUnit();
+            wrapper.classList.toggle('hidden', !enabled);
+            if (!enabled) {
+                const input = document.getElementById('product-part-unit');
+                if (input) input.value = '';
+            }
+        }
+
+        /* Fixed Notified Value follows Value Excl. ST until the user types in
+           it. One flag, flipped by the first edit of the box and cleared when
+           the line is added, so the figure is a starting point and never an
+           override: a client who clears the box or types their own retail
+           price keeps what they typed for the rest of that line. */
+        let fixedNotifiedEdited = false;
+
+        function syncFixedNotifiedValue() {
+            if (!FIXED_NOTIFIED_FROM_VALUE || fixedNotifiedEdited) return;
+            const source = document.getElementById('product-value-excl');
+            const target = document.getElementById('product-fixed-value');
+            if (!source || !target) return;
+            const value = parseFloat(source.value);
+            target.value = isFinite(value) && value > 0 ? value : 0;
+        }
 
         function isBuyerSupplierFieldsClient() {
             return BUYER_SUPPLIER_FIELDS_FOR_THIS_CLIENT;
@@ -2601,6 +2732,8 @@
                     ),
                     signatureArea: normalizeSignatureArea(invoiceData.signatureArea),
                     salesPerson: invoiceData.salesPerson || '',
+                    reference: invoiceData.reference || '',
+                    termOfSales: invoiceData.termOfSales || '',
                 };
 
                 // Populate seller data
@@ -2626,6 +2759,10 @@
                 if (invoiceRefEl) invoiceRefEl.value = invoiceData.invoiceRefNo || invoiceData.invoice_ref_no || '';
                 const dnInput = document.getElementById('dn-number');
                 if (dnInput) dnInput.value = invoiceData.dnNumber || '';
+                const draftReferenceEl = document.getElementById('invoice-reference');
+                if (draftReferenceEl) draftReferenceEl.value = invoiceData.reference || '';
+                const draftTermsEl = document.getElementById('invoice-term-of-sales');
+                if (draftTermsEl) draftTermsEl.value = invoiceData.termOfSales || '';
                 renderCustomFields();
                 applySignatureAreaToDOM(state.invoiceData.signatureArea);
 
@@ -2753,6 +2890,20 @@
 
                     if (isReamsClient()) {
                         normalizedItem.numberOfReams = (item.numberOfReams ?? '').toString().trim();
+                    }
+
+                    // Kept only when the saved line actually had one, so a
+                    // draft written before the box existed still derives its
+                    // Part Unit rather than being pinned to a zero.
+                    if (showsPartUnit() && item.partUnit !== undefined
+                            && item.partUnit !== null && item.partUnit !== '') {
+                        normalizedItem.partUnit = item.partUnit;
+                    }
+
+                    // FBR's words for the HS code, kept across a draft reload
+                    // so the column is not left to a fresh lookup.
+                    if (showsHsCodeDescription() && item.hsCodeDescription) {
+                        normalizedItem.hsCodeDescription = item.hsCodeDescription;
                     }
 
                     return normalizedItem;
@@ -3165,11 +3316,14 @@
             calculateValueAndTax();
             const description = document.getElementById("product-description").value;
             const hsCode = document.getElementById("product-hs-code").value;
+            const hsDescription = document.getElementById("product-hs-description")?.value || "";
             const productCodeInput = document.getElementById("product-code");
             const productCode = productCodeInput ? productCodeInput.value.trim() : "";
             const quantity = parseFloat(document.getElementById("product-quantity").value);
             const reamsInput = document.getElementById("product-reams");
             const reams = reamsInput ? reamsInput.value.trim() : "";
+            const partUnitInput = document.getElementById("product-part-unit");
+            const partUnit = partUnitInput ? partUnitInput.value.trim() : "";
             const uom = document.getElementById("product-uom").value;
             const rate = parseFloat(document.getElementById("product-rate").value) || 0;
             const valueExcl = parseFloat(document.getElementById("product-value-excl").value);
@@ -3278,11 +3432,32 @@
                 item.hs_code = hsCode;
             }
 
+            // The manufacturer's part number, printed in front of the
+            // description in this client's Product Code & Description column.
+            if (showsProductCode()) {
+                item.productCode = productCode;
+            }
+
+            // FBR's own words for the HS code, taken from the same
+            // /pdi/v1/itemdesccode response the code was picked from. Printed
+            // in its own column; nothing is calculated from it and app.py
+            // keeps it out of what FBR is sent.
+            if (showsHsCodeDescription()) {
+                item.hsCodeDescription = hsDescription;
+            }
+
             // Printed beside the quantity on their invoice. Deliberately absent
             // from every calculation above, and not required -- a line with no
             // reams figure prints an empty cell.
             if (isReamsClient()) {
                 item.numberOfReams = reams;
+            }
+
+            // Their Part Unit figure. Only sent when the box holds one: an
+            // empty box leaves the field off the line and the invoice derives
+            // the figure as it always has, rather than printing a zero.
+            if (showsPartUnit() && partUnit !== "") {
+                item.partUnit = partUnit;
             }
 
             console.log("Item created:", item);
@@ -3297,6 +3472,7 @@
             // Clear form fields
             document.getElementById("product-description").value = "";
             document.getElementById("product-hs-code").value = "";
+            setHsDescription("");
             document.getElementById("product-quantity").value = "";
             document.getElementById("product-uom").value = "";
             document.getElementById("product-rate").value = "";
@@ -3309,6 +3485,9 @@
             if (reamsInput) {
                 reamsInput.value = "";
             }
+            if (partUnitInput) {
+                partUnitInput.value = "";
+            }
 
             // Reset SRO fields with proper defaults for the current user
             setSRODefaults(currentUsername);
@@ -3320,6 +3499,9 @@
             if (document.getElementById('product-fed-payable')) document.getElementById('product-fed-payable').value = '0';
             if (document.getElementById('product-discount')) document.getElementById('product-discount').value = '0';
             if (document.getElementById('product-fixed-value')) document.getElementById('product-fixed-value').value = '0';
+            // The next line starts over: its Fixed Notified Value follows the
+            // value again until that line's box is typed in.
+            fixedNotifiedEdited = false;
 
             console.log("Form cleared");
         }
@@ -3335,7 +3517,7 @@
             if (!tableBody) {
                 return;
             }
-            const showProductCode = isH075895User();
+            const showProductCode = showsProductCode();
             const productCodeHeader = document.getElementById("product-code-header");
 
             if (productCodeHeader) {
@@ -3840,6 +4022,23 @@
                 }
             }
 
+            // Reference and Term of Sales, for the clients whose sheet has
+            // the two rows. Each line shows only when there is something on it.
+            const reviewReference = document.getElementById('review-reference-container');
+            if (reviewReference) {
+                const value = (state.invoiceData.reference || "").trim();
+                document.getElementById('review-reference').textContent = value;
+                reviewReference.classList.toggle('hidden',
+                    !(isInvoiceReferenceFieldsClient() && value));
+            }
+            const reviewTerms = document.getElementById('review-term-of-sales-container');
+            if (reviewTerms) {
+                const value = (state.invoiceData.termOfSales || "").trim();
+                document.getElementById('review-term-of-sales').textContent = value;
+                reviewTerms.classList.toggle('hidden',
+                    !(isInvoiceReferenceFieldsClient() && value));
+            }
+
             if (ENV === "sandbox" && state.invoiceData.scenarioId) {
                 document.getElementById("review-scenario-id").textContent =
                     state.invoiceData.scenarioId;
@@ -3907,7 +4106,7 @@
             if (!tableBody) {
                 return;
             }
-            const showProductCode = isH075895User();
+            const showProductCode = showsProductCode();
             const reviewProductCodeHeader = document.getElementById("review-product-code-header");
 
             if (reviewProductCodeHeader) {
@@ -4077,6 +4276,11 @@
                         customFields: getCustomFieldsFromDOM(),
                         signatureArea: readSignatureAreaFromDOM(),
                         salesPerson: carriedSalesPerson,
+                        // Two rows on one client's sheet. "" for everyone else,
+                        // and the server drops them again for anyone who is
+                        // not on the list in client_features.py.
+                        reference: invoiceReferenceValue("invoice-reference"),
+                        termOfSales: invoiceReferenceValue("invoice-term-of-sales"),
                     };
 
                     // Add delivery challan for specific user
@@ -4179,8 +4383,19 @@
                         delete cloned.product_code;
                         delete cloned.hs_code;
                     }
+                    // Both are gated again on the server; this only keeps a
+                    // stale value out of the payload when the column is off.
+                    if (!showsProductCode()) {
+                        delete cloned.productCode;
+                    }
+                    if (!showsHsCodeDescription()) {
+                        delete cloned.hsCodeDescription;
+                    }
                     if (!isReamsClient()) {
                         delete cloned.numberOfReams;
+                    }
+                    if (!showsPartUnit()) {
+                        delete cloned.partUnit;
                     }
                     return cloned;
                 });
@@ -4208,6 +4423,12 @@
                 // Only the clients whose sheet prints it send it at all.
                 if (isSalesPersonClient()) {
                     invoiceData.salesPerson = (state.invoiceData.salesPerson || "").trim();
+                }
+
+                // Same rule for the two rows on Zahid Brothers' sheet.
+                if (isInvoiceReferenceFieldsClient()) {
+                    invoiceData.reference = (state.invoiceData.reference || "").trim();
+                    invoiceData.termOfSales = (state.invoiceData.termOfSales || "").trim();
                 }
 
                 // The rate only. The amount and the new total are derived
@@ -4540,8 +4761,15 @@
             } else {
                 valueEl.value = "";
                 taxAmtEl.value = "";
+                // Follows the value down as well as up, so a cleared line
+                // does not leave the last line's retail price behind.
+                syncFixedNotifiedValue();
                 return;
             }
+            // For the clients who file 3rd Schedule goods at the price they
+            // sell at. A no-op for everyone else, and for a box the user has
+            // already typed in.
+            syncFixedNotifiedValue();
 
             let taxPercent = 0;
             if (taxRateSelect.selectedIndex > 0) {
@@ -4591,6 +4819,7 @@
             fetchFormOptions();
             fetchBusinessProfiles();
             fetchBuyers();
+            initInvoiceReferenceFields();
             initUserSpecificFields();
 
             // If draft ID is present, load the draft after other initializations are done
@@ -4760,6 +4989,22 @@
             if (taxRateSelect) {
                 taxRateSelect.addEventListener('input', () => { calculateValueAndTax(); });
             }
+
+            // Typing in Fixed Notified Value stops it following the line's
+            // value for the rest of this line. The figure is a starting
+            // point, not a rule -- a line that is not 3rd Schedule has the
+            // box cleared and must stay cleared.
+            const fixedValueInput = document.getElementById('product-fixed-value');
+            if (fixedValueInput) {
+                fixedValueInput.addEventListener('input', () => {
+                    fixedNotifiedEdited = true;
+                });
+            }
+
+            // Shown only for the clients whose invoice has the column. Called
+            // here as well as from setCurrentUsernameValue because the flag is
+            // rendered with the page and does not wait on a username.
+            applyPartUnitUI();
 
             // Navigation buttons
             document
@@ -5139,11 +5384,13 @@
             if (!p) return; document.getElementById('product-selected-label').textContent = p.description || '-- Select Product --'; // populate main form
             document.getElementById('product-description').value = p.description || '';
             document.getElementById('product-hs-code').value = p.hs_code || '';
+            setHsDescription('');
+            if (showsHsCodeDescription()) { lookupHsDescription(p.hs_code || ''); }
             if (p.rate != null) { document.getElementById('product-rate').value = p.rate; }
             if (p.uom) { document.getElementById('product-uom').value = p.uom; }
             if (p.default_tax_rate != null) { const taxSelect = document.getElementById('product-tax-rate'); const target = `${p.default_tax_rate}%`; for (let i = 0; i < taxSelect.options.length; i++) { if (taxSelect.options[i].textContent.trim() === target) { taxSelect.selectedIndex = i; break; } } }
             document.getElementById('product-sale-type').value = p.sale_type || document.getElementById('product-sale-type').value;
-            if (isH075895User()) {
+            if (showsProductCode()) {
                 const productCodeInput = document.getElementById('product-code');
                 if (productCodeInput) {
                     productCodeInput.value = p.product_code || '';
@@ -5173,7 +5420,7 @@
             try {
                 await ensureCurrentUsername();
                 const baseUrl = apiUrl("/api/products");
-                const url = isH075895User() ? `${baseUrl}&includeProductCode=true` : baseUrl;
+                const url = showsProductCode() ? `${baseUrl}&includeProductCode=true` : baseUrl;
                 const resp = await fetch(url);
                 if (!resp.ok) throw new Error("Failed to fetch products");
                 productList = await resp.json();
@@ -5320,8 +5567,10 @@
 
             document.getElementById("product-description").value = product.description;
             document.getElementById("product-hs-code").value = product.hs_code || "";
+            setHsDescription("");
+            if (showsHsCodeDescription()) { lookupHsDescription(product.hs_code || ""); }
 
-            if (isH075895User()) {
+            if (showsProductCode()) {
                 const productCodeInput = document.getElementById("product-code");
                 if (productCodeInput) {
                     productCodeInput.value = product.product_code || "";
@@ -5404,6 +5653,30 @@
                 console.error("Error saving custom product:", error);
                 showNotification("error", "Error", error.message || "Failed to save product");
             }
+        }
+
+        /** Reference and Term of Sales. Answered by the server on first
+         *  paint, so unlike the two fields below this needs no round trip. */
+        function initInvoiceReferenceFields() {
+            if (!isInvoiceReferenceFieldsClient()) {
+                return;
+            }
+            ["invoice-reference-container", "invoice-term-of-sales-container"]
+                .forEach((id) => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        el.classList.remove("hidden");
+                    }
+                });
+        }
+
+        /** The value of one of the two, or "" for a client who has neither.
+         *  The server gates them again on the way in -- this only keeps a
+         *  stale value out of the payload when the inputs are hidden. */
+        function invoiceReferenceValue(id) {
+            if (!isInvoiceReferenceFieldsClient()) return "";
+            const el = document.getElementById(id);
+            return el ? el.value.trim() : "";
         }
 
         // Add this function after the fetchFormOptions, fetchBusinessProfiles, etc. functions
@@ -5961,7 +6234,7 @@
             if (!p) return; 
             document.getElementById('pm-desc').value = p.description || ''; 
             const pmCodeInput = document.getElementById('pm-code'); 
-            if (pmCodeInput) { pmCodeInput.value = isH075895User() ? (p.product_code || '') : ''; } 
+            if (pmCodeInput) { pmCodeInput.value = showsProductCode() ? (p.product_code || '') : ''; } 
             document.getElementById('pm-hs').value = p.hs_code || ''; 
             document.getElementById('pm-rate').value = p.rate || ''; 
             document.getElementById('pm-uom').value = p.uom || ''; 
@@ -6030,7 +6303,13 @@
             showNotification('success', 'Product Applied', 'Fields populated from product');
         }
         async function saveProductFromModal() {
-            const pmRate = parseFloat(document.getElementById('pm-rate').value) || 0; const payload = { description: document.getElementById('pm-desc').value.trim(), hs_code: document.getElementById('pm-hs').value.trim(), rate: pmRate, uom: document.getElementById('pm-uom').value, default_tax_rate: parseFloat(document.getElementById('pm-tax').value) || 0, sale_type: document.getElementById('pm-sale-type').value.trim(), sro_schedule_no: document.getElementById('pm-sro-schedule').value.trim(), sro_item_serial_no: document.getElementById('pm-sro-item').value.trim() }; const pmCodeInput = document.getElementById('pm-code'); if (isH075895User()) { payload.product_code = pmCodeInput ? pmCodeInput.value.trim() : ''; payload.sale_type = ''; payload.sro_schedule_no = ''; payload.sro_item_serial_no = ''; } if (!payload.description || !payload.uom) { showNotification('error', 'Validation', 'Description and UoM required'); return; } const creatingNew = !editingProductId; try {
+            const pmRate = parseFloat(document.getElementById('pm-rate').value) || 0; const payload = { description: document.getElementById('pm-desc').value.trim(), hs_code: document.getElementById('pm-hs').value.trim(), rate: pmRate, uom: document.getElementById('pm-uom').value, default_tax_rate: parseFloat(document.getElementById('pm-tax').value) || 0, sale_type: document.getElementById('pm-sale-type').value.trim(), sro_schedule_no: document.getElementById('pm-sro-schedule').value.trim(), sro_item_serial_no: document.getElementById('pm-sro-item').value.trim() }; const pmCodeInput = document.getElementById('pm-code');
+            // The code box is open to more clients than the special usernames
+            // are. Blanking the sale type and the SRO fields is the special
+            // usernames' own behaviour and stays with them -- this client's
+            // invoice has an Item Type column and it is the sale type.
+            if (showsProductCode()) { payload.product_code = pmCodeInput ? pmCodeInput.value.trim() : ''; }
+            if (isH075895User()) { payload.sale_type = ''; payload.sro_schedule_no = ''; payload.sro_item_serial_no = ''; } if (!payload.description || !payload.uom) { showNotification('error', 'Validation', 'Description and UoM required'); return; } const creatingNew = !editingProductId; try {
                 let res, data; if (editingProductId) { res = await fetch(apiUrl(`/api/products/${editingProductId}`), { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); data = await res.json(); if (!res.ok) throw new Error(data.error || 'Update failed'); showNotification('success', 'Updated', 'Product updated'); } else { res = await fetch(apiUrl('/api/products'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); data = await res.json(); if (!res.ok) throw new Error(data.error || 'Create failed'); showNotification('success', 'Created', 'Product created'); }
                 await loadProductsModal();
                 if (creatingNew && isH075895User()) {
@@ -6112,7 +6391,8 @@
                     e.preventDefault();
                     const selectedItem = items[selectedIndex];
                     if (selectedItem) {
-                        selectHsCode(selectedItem.dataset.code, input, dropdown, uomSelect);
+                        selectHsCode(selectedItem.dataset.code, input, dropdown, uomSelect,
+                                     selectedItem.dataset.desc || '');
                     }
                 } else if (e.key === 'Escape') {
                     hideDropdown(dropdown);
@@ -6128,6 +6408,11 @@
                 if (hsCode && hsCode.length >= 4 && uomSelect) {
                     console.log(`[HS Code Blur] Triggering UOM fetch for: ${hsCode}`);
                     fetchValidUomsForHsCode(hsCode, uomSelect);
+                }
+                // A code typed by hand has no description yet.
+                if (this.id === 'product-hs-code'
+                        && !document.getElementById('product-hs-description')?.value) {
+                    lookupHsDescription(hsCode);
                 }
             });
             
@@ -6196,6 +6481,7 @@
                 const item = document.createElement('div');
                 item.className = 'hs-autocomplete-item';
                 item.dataset.code = code;
+                item.dataset.desc = desc;
                 item.dataset.index = index;
                 
                 item.innerHTML = `
@@ -6204,7 +6490,7 @@
                 `;
                 
                 item.addEventListener('click', function() {
-                    selectHsCode(code, input, dropdown, uomSelect);
+                    selectHsCode(code, input, dropdown, uomSelect, desc);
                 });
                 
                 dropdown.appendChild(item);
@@ -6213,8 +6499,53 @@
             showDropdown(dropdown);
         }
         
-        function selectHsCode(code, input, dropdown, uomSelect) {
+        /** Remember FBR's description of the code, and show it under the
+         *  box for the clients whose invoice prints it so they can see what
+         *  will appear there. Called with "" when the code was typed rather
+         *  than picked, which then triggers a lookup. */
+        function setHsDescription(description) {
+            const field = document.getElementById('product-hs-description');
+            if (field) {
+                field.value = description || '';
+            }
+            const hint = document.getElementById('product-hs-description-hint');
+            if (hint) {
+                hint.textContent = description || '';
+                hint.classList.toggle('hidden', !(description && showsHsCodeDescription()));
+            }
+        }
+
+        /** FBR's description for a code the user typed instead of picking.
+         *  Looks in whatever the autocomplete has already cached before
+         *  asking the API, so the common case costs nothing. */
+        async function lookupHsDescription(code) {
+            const wanted = (code || '').trim();
+            if (!wanted) {
+                setHsDescription('');
+                return;
+            }
+            const match = (list) => (list || []).find(
+                (hs) => ((hs.hS_CODE || hs.hs_code || '').trim() === wanted));
+            let hit = hsCodeCache.loaded ? match(hsCodeCache.data) : null;
+            if (!hit) {
+                try {
+                    const response = await fetch(
+                        apiUrl(`/api/reference/hs-codes?search=${encodeURIComponent(wanted)}`));
+                    const data = await response.json();
+                    hit = match(data.hs_codes);
+                } catch (error) {
+                    console.error('HS description lookup failed:', error);
+                    return;      // leave whatever is there rather than blanking it
+                }
+            }
+            setHsDescription(hit ? (hit.description || '') : '');
+        }
+
+        function selectHsCode(code, input, dropdown, uomSelect, description) {
             input.value = code;
+            if (input.id === 'product-hs-code') {
+                setHsDescription(description || '');
+            }
             hideDropdown(dropdown);
             
             // Trigger change event to update UOM options

@@ -168,6 +168,12 @@ def create_invoice_html(step=None):
         invoice_custom_fields_max=client_features.custom_fields_max(*client_ids),
         buyer_phone_for_client=client_features.prints_buyer_phone(*client_ids),
         buyer_supplier_fields_for_client=client_features.prints_buyer_supplier_fields(*client_ids),
+        invoice_reference_fields_for_client=client_features.prints_invoice_reference_fields(*client_ids),
+        product_code_for_client=client_features.types_own_product_code(*client_ids),
+        hs_code_description_for_client=client_features.prints_hs_code_description(*client_ids),
+        part_unit_for_client=client_features.types_part_unit(*client_ids),
+        fixed_notified_from_value_for_client=(
+            client_features.fixed_notified_defaults_to_value(*client_ids)),
         current_step=step,
     )
 
@@ -1293,7 +1299,17 @@ last_json_data = {}
 # Line-item keys that exist for the printed invoice only. FBR's item schema has
 # no room for them, so submit_fbr() leaves them out of the payload while the
 # stored invoice and the PDF keep them.
-PDF_ONLY_ITEM_FIELDS = frozenset({"numberOfReams"})
+PDF_ONLY_ITEM_FIELDS = frozenset({
+    "numberOfReams",
+    # FBR's own description of the HS code, read back off
+    # /pdi/v1/itemdesccode, and the client's product code. Both are
+    # columns on one client's replica; neither is in FBR's item schema.
+    "hsCodeDescription", "productCode",
+    # One client's Part Unit column. Their old software carried it as a
+    # figure of its own and their sheet prints it; FBR's item schema has no
+    # field for it, so it travels with the invoice and is dropped here.
+    "partUnit",
+})
 
 # The same idea one level up: top-level keys a client's replica prints and
 # FBR's invoice schema has no place for. They stay on the stored invoice --
@@ -1301,6 +1317,9 @@ PDF_ONLY_ITEM_FIELDS = frozenset({"numberOfReams"})
 PDF_ONLY_INVOICE_FIELDS = (
     "signatureArea", "salesPerson", "buyerPhone", "advanceTaxPercent",
     "buyerSupplierNumber", "buyerDeliveryAddress",
+    # Two rows on Zahid Brothers' sheet, and proper fields on the invoice
+    # form rather than custom fields because that is what their sheet has.
+    "reference", "termOfSales",
 )
 
 
