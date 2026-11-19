@@ -1568,12 +1568,16 @@ class ZahidBrothersSheet(unittest.TestCase):
         "Further Sales Tax if ANY", "Value Including Sales Tax",
     ]
 
-    # Measured off the vertical rules in their own PDF, in millimetres.
-    # These are not a style choice: a change to one of them is a change to
-    # the thing the client actually asked for.
-    WIDTHS = ["6.92mm", "13.97mm", "18.24mm", "18.52mm", "15.88mm", "8.61mm",
-              "9.31mm", "10.02mm", "14.50mm", "16.69mm", "15.34mm", "8.15mm",
-              "18.45mm"]
+    # The columns, in millimetres. These were once measured off the vertical
+    # rules in their own PDF, because the client asked for the table at
+    # exactly the size they set. They then asked for the invoice to look
+    # modern, which replaced that ask: the widths below are proportioned for
+    # legibility across the 186 mm an A4 gives at 12 mm margins. What is
+    # still pinned is that there are THIRTEEN of them, that they are their
+    # thirteen, and that they add up to the page.
+    WIDTHS = ["8.0mm", "15.0mm", "19.0mm", "16.0mm", "21.0mm", "11.0mm",
+              "10.0mm", "10.0mm", "14.5mm", "17.0mm", "15.0mm", "11.0mm",
+              "18.5mm"]
 
     # What the client asked to print the same whatever the business profile
     # says. See the note on RequiredIdentifiers.FIXED.
@@ -1584,21 +1588,20 @@ class ZahidBrothersSheet(unittest.TestCase):
         item.update(overrides)
         return dict(PAYLOAD, items=[item])
 
-    def test_the_table_is_their_thirteen_measured_columns(self):
+    def test_the_table_is_their_thirteen_columns(self):
         markup = render(self.TEMPLATE)
         for heading in self.HEADINGS:
             self.assertIn(heading, markup, heading)
         for width in self.WIDTHS:
             self.assertIn("width:" + width, markup, width)
 
-    def test_the_columns_add_up_to_the_width_of_their_frame(self):
-        # 174.6 mm, which is what puts the frame on A4 where theirs sits on
-        # their taller sheet. One column nudged without the others moving
-        # would pass every other test here and still print a table of the
-        # wrong size, which is the one thing the client asked about.
+    def test_the_columns_add_up_to_the_width_of_the_page(self):
+        # 186 mm: A4 less the 12 mm margins. One column widened without the
+        # others moving would pass every other test here and still push the
+        # table off the page.
         total = sum(float(w[:-2]) for w in self.WIDTHS)
-        self.assertAlmostEqual(174.6, total, places=1)
-        self.assertIn("width: 174.6mm", render(self.TEMPLATE))
+        self.assertAlmostEqual(186.0, total, places=1)
+        self.assertIn("width: 186mm", render(self.TEMPLATE))
 
     def test_the_phone_ntn_and_registration_number_are_the_pinned_ones(self):
         # The payload carries Apple International's seller, so a template
@@ -1734,19 +1737,24 @@ class ZahidBrothersSheet(unittest.TestCase):
         # 26 typed + 191 derived = 217.
         self.assertIn(">217.00<", render(self.TEMPLATE, data))
 
-    def test_the_box_is_always_ten_rows(self):
-        # Their sheet is a ten-line form. One item, nine padding rows.
-        rows = items_table_rows(render(self.TEMPLATE))
-        self.assertEqual(12, len(rows), "heading + ten lines + total")
+    def test_the_table_lists_the_lines_it_has(self):
+        # Their Excel form always printed ten rows and padded the empty ones
+        # with dashes. The restyle dropped the padding -- a modern invoice
+        # lists its lines -- so the table is the heading, the items, and the
+        # total, and nothing else.
+        self.assertEqual(3, len(items_table_rows(render(self.TEMPLATE))),
+                         "heading + one line + total")
+        data = dict(PAYLOAD, items=[PAYLOAD["items"][0]] * 4)
+        self.assertEqual(6, len(items_table_rows(render(self.TEMPLATE, data))),
+                         "heading + four lines + total")
 
     def test_a_deep_line_does_not_change_the_number_of_rows(self):
-        # Every cell that can wrap is clipped to the height of their row, so
-        # a long description cannot make a row taller -- which is what lets
-        # the box be a flat ten rows and still fit the page.
+        # Every cell that can wrap is clipped, so a long description grows
+        # its row a little and adds no rows at all.
         deep = "BALANCER UNIT NEW LS 183104 MEL ASSEMBLY COMPLETE SPARE"
         rows = items_table_rows(
             render(self.TEMPLATE, self.line(productDescription=deep)))
-        self.assertEqual(12, len(rows), "heading + ten lines + total")
+        self.assertEqual(3, len(rows), "heading + one line + total")
 
     def test_no_other_replica_grows_these_columns(self):
         data = self.line(hsCodeDescription="NUCLEAR REACTOR, BOILERS",
@@ -1914,26 +1922,31 @@ class ZahidBrothersPagination(unittest.TestCase):
     def test_the_full_ten_line_form_is_one_page(self):
         self.assertEqual(1, len(self.pages(10)))
 
-    def test_the_twelfth_line_is_the_last_one_that_fits(self):
-        # Measured. Their form is ten ruled rows and always prints ten, but
-        # the page now holds twelve: the rows were sized content-box and came
-        # out at 10.66 mm against the 9.45 mm measured off their sheet, and
-        # putting that right gave back 12 mm -- two lines of headroom the
-        # sheet never had.
-        #
-        # So this is no longer a tripwire for anything added above or below
-        # the table; it is the real capacity, and a change that eats those
-        # two lines will show up here before it shows up on an invoice.
-        self.assertEqual(1, len(self.pages(10)))
-        self.assertEqual(1, len(self.pages(12)))
-        self.assertEqual(2, len(self.pages(13)))
+    def test_the_eleventh_line_is_the_last_one_that_fits(self):
+        # Measured on the restyled sheet: eleven lines and the whole closing
+        # block fit one page, the twelfth starts a second. The party cards
+        # and the totals card cost more room than the ruled form they
+        # replaced, and the lines they bought back went the other way -- so
+        # a change above or below the table shows up here first.
+        self.assertEqual(1, len(self.pages(11)))
+        self.assertEqual(2, len(self.pages(12)))
 
-    def test_the_rows_are_the_height_the_client_measured(self):
-        # 9.45 mm is off their own sheet and the whole table is built on it.
-        # A row that renders taller is a table that does not fit the form it
-        # is ruled to, which is what this template is for.
-        document = WeasyHTML(string=self.markup(1), base_url=ROOT).render()
-        page = document.pages[0]
+    def test_no_money_column_is_too_narrow_for_its_figures(self):
+        # A wrapped figure reads as two figures -- "1,534,000.0" over "0" --
+        # and that is exactly what the first cut of the restyle printed in
+        # the Value Including Sales Tax column. This measures the rendered
+        # line boxes against the cells that hold them, so a column narrowed
+        # for any reason fails here rather than on an invoice.
+        # Five of their own lines, so the TOTAL row is measured too -- the
+        # Qty column was wide enough for a line's 64.00 and not for the
+        # column's 320.00, which is the shape of mistake this is here for.
+        line = dict(PAYLOAD["items"][0], quantity=64, partUnit=8,
+                    unitrate=8847.97, valueSalesExcludingST=70783.76,
+                    salesTaxApplicable=12741.08, totalValues=83524.84)
+        markup = render(self.TEMPLATE, dict(
+            PAYLOAD, items=[line] * 5,
+            totalExcl=353918.80, totalTax=63705.40, totalInclusive=417624.20))
+        page = WeasyHTML(string=markup, base_url=ROOT).render().pages[0]
 
         def walk(box):
             yield box
@@ -1942,21 +1955,29 @@ class ZahidBrothersPagination(unittest.TestCase):
                     yield item
 
         px_mm = 25.4 / 96.0
-        heights = [box.height * px_mm for box in walk(page._page_box)
-                   if getattr(box, "element_tag", None) == "tr"]
-        self.assertTrue(heights, "no rows found")
-
-        # The heading and the ten ruled lines. The Total row is their 6.1 mm
-        # and is the one row that is not on this measurement.
-        ruled = [h for h in heights if abs(h - 9.45) <= 0.2]
-        self.assertEqual(11, len(ruled),
-                         "heading + ten lines at their 9.45 mm; got %s"
-                         % ["%.2f" % h for h in heights])
-
-        # The regression this is really for: sized content-box, every one of
-        # those rows came out at 9.45 + 1.0 of padding + 0.21 of border.
-        self.assertEqual([], [h for h in heights if 9.7 <= h <= 11.5],
-                         "a row is carrying its padding on top of its height")
+        wrapped = []
+        for box in walk(page._page_box):
+            if getattr(box, "element_tag", None) != "td":
+                continue
+            try:
+                classes = (box.element.get("class") or "").split()
+            except Exception:
+                classes = []
+            if "num" not in classes:
+                continue
+            lines = [inner for inner in walk(box)
+                     if type(inner).__name__ == "LineBox"]
+            # Comparing the widest line against the cell cannot find this:
+            # wrapping is how the text AVOIDS being wider than its box, so
+            # both halves measure narrow and the cell looks fine. A numeric
+            # cell holds one figure, so the tell is the line COUNT.
+            if len(lines) > 1:
+                text = "".join(
+                    child.text for inner in lines for child in walk(inner)
+                    if type(child).__name__ == "TextBox")
+                wrapped.append("%r over %d lines in a %.2fmm cell"
+                               % (text, len(lines), box.width * px_mm))
+        self.assertEqual([], wrapped)
 
     def test_the_closing_block_never_lands_alone_on_a_second_page(self):
         # The failure this exists for: a last page holding nothing but the

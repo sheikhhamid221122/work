@@ -2,93 +2,86 @@
   Zahid Brothers (users.id 74a2012a-8bf8-46e8-94fd-611e748e7c35) --
   sales tax invoice.
 
-  A replica of their own sheet, `templates/user-invoices/zahid_brothers.pdf`
-  (their invoice 092606 of 10.09.2026). It is an Excel form: one ruled frame
-  holding a centred masthead, two columns of label-and-rule fields, a
-  thirteen-column items table padded to ten lines, and a signature block.
+  This started as a replica of their own sheet,
+  `templates/user-invoices/zahid_brothers.pdf` (invoice 092606 of
+  10.09.2026) -- an Excel form: one ruled frame around a centred masthead,
+  two columns of label-and-rule fields, a thirteen-column items table padded
+  to ten lines, and a signature block. The client has since asked for the
+  same invoice to look modern, so the ruled form is gone and the content is
+  not. See "What the restyle kept" below before changing anything here.
 
-  The table is the sheet
-  ----------------------
-  The client asked for the items table to come out at exactly the size they
-  set, and everything else to be fitted around it. So the column widths are
-  not estimates -- they are measured off the vertical rules in their PDF and
-  written in millimetres:
+  What the restyle kept
+  ---------------------
+  Every field and every column their form had, in the order it had them:
 
-      Sr.No 6.92 | HS Code 13.97 | HS Code Description 18.24 |
-      Item Type 18.52 | Product Code & Description 15.88 | Qty 8.61 |
-      UOM 9.31 | Part Unit 10.02 | Unit Rate 14.50 | Gross Amount 16.69 |
-      Sales Tax 15.34 | Further Sales Tax 8.15 | Value Incl. 18.45
+    * the masthead artwork, untouched -- it is their letterhead
+    * Invoice Number, Invoice Date, FBR Invoice No., Reference, Term of
+      Sales, and any custom field that carries a value
+    * supplier: name, address (two lines), Phone, NTN No., Sales Tax
+      Registration No.
+    * buyer: name, address (two lines), CNIC No, NTN if any, Sales Tax
+      Reg. No.
+    * the thirteen items columns, with their headings spelled as theirs are:
+      Sr.No. | HS CODE | HS CODE DESCRIPTION | Item Type |
+      Product Code & Description | Qty | UOM | Part Unit | Unit Rate |
+      Gross Amount | Sales Tax | Further Sales Tax if ANY |
+      Value Including Sales Tax
+    * the totals, the signature rules, Name & Designation and Stamp
+    * the FBR marks: invoice number, Digital Invoicing logo, QR code
 
-  which is 174.6 mm, their frame to the tenth of a millimetre, and the rows
-  are their 9.45 mm. That fixes the page: A4 with 17.7 mm side margins puts
-  the frame exactly where theirs sits on their taller sheet. Do not re-style
-  this table by eye -- re-measure their PDF.
-
-  Their HS Code Description column is a fixed-height cell with the text
-  clipped, not truncated: "NUCLEAR REACTOR, BOILERS, MACH...NUCL" comes back
-  from FBR's itemdesccode API in full and their sheet shows the three lines
-  that fit. `.clip3` does the same thing here, so whatever FBR returns prints
-  the way theirs does without a rule about character counts.
-
-  What is ADDED, and must never be removed
-  ----------------------------------------
-    1. the FBR invoice number   -- in the identifier column at the top right,
-                                   under Invoice Date (once only: the QR
-                                   carries it too)
-    2. the FBR Digital Invoicing logo
-    3. the QR code              -- both in the band at the foot of the frame
-    4. the buyer's sales tax registration number -- their sheet has rows for
-       the buyer's CNIC and NTN but none for the registration number, and it
-       belongs on the face of a sales tax invoice
-
-  Deliberate departures from their sheet
+  What the restyle dropped, deliberately
   --------------------------------------
-  * **The masthead is their letterhead logo**, not the two typed lines
-    "ZAHID BROTHERS" / "Main Dealer: Millat Tractors Limited." the sheet
-    carried. The client asked for this and supplied the letterhead; the
-    artwork is rebuilt from it by scripts/extract_zahid_brothers_brand.py.
-    The address line under it stays typed, live from the payload.
-  * **Phone, NTN No. and Sales Tax Registration No. in the supplier column
-    are fixed text**, in FIXED_* below. The client asked for these three to
-    print the same whatever the business profile says. Note what that costs:
-    if their registration ever changes, this sheet will print the old number
-    while the new one is filed. Three lines to change, and they are the
-    first thing to check if FBR ever disputes a seller identifier.
-    Everything else about the seller -- name, address -- is live from the
-    payload.
-  * Figures print to two decimals. Their sheet formats the line columns to
-    whole rupees and only the Total row to two, so their lines visibly do
-    not add up to their total (90,748 of lines against 90,748.44). What is
-    filed has two decimals, so this prints two decimals and the column adds
-    up. Change `comma_format` to a rounding filter here if they ever ask for
-    their own notation back.
-  * The five padding rows on their sheet print "0.0000" under HS Code and
-    "0.00" under HS Code Description -- empty spreadsheet cells with a
-    number format on them. Here a padding row is a dash in every column but
-    the serial number. Same shape, none of the noise.
-  * Their buyer block has a CNIC row and an "NTN if any" row and no way of
-    knowing which to use. The payload has one field, `buyerNTNCNIC`, so the
-    rule the client gave is applied: thirteen digits is a CNIC, anything
-    else is an NTN. See `buyer_is_cnic`.
-  * UOM prints its first term only -- "Numbers" for FBR's
-    "Numbers, pieces, units" -- which is how their sheet writes it. KG, MT
-    and the other single-word units are unchanged.
-  * Part Unit is the client's own figure, typed on the invoice form, because
-    in their old software it was a separate number and they asked for it
-    back. A line that carries none -- every line filed before the box
-    existed -- falls back to the derivation this column used to be: Gross
-    Amount / Unit Rate, so the row still multiplies out to what is printed
-    beside it, and on their invoices that is the quantity.
-  * The Product Code & Description column prints the DESCRIPTION only. The
-    code their sheet shows in it is part of the text they type; a separate
-    Product Code box printed the application's own P-0001 series in front of
-    it instead, so the client asked for the box to go. See
-    client_features.MANUAL_PRODUCT_CODES, which is now empty and says why.
-  * No amount in words. Their sheet has never had one.
-  * Custom fields print under Reference when they have values. The client
-    says they do not use them -- Reference and Term of Sales are proper
-    fields on the invoice form rather than custom fields, which is what they
-    asked for -- but a value typed into one must not vanish.
+    * **The measured geometry.** The old table was 174.6 mm of columns
+      measured off the vertical rules in their PDF, in 9.45 mm rows. That
+      was the client's earlier ask -- "exactly the size we set" -- and the
+      modern ask replaces it. Columns are now proportioned for legibility
+      across the 186 mm of an A4 with 12 mm margins.
+    * **The ten-row form.** Their Excel sheet always printed ten lines and
+      padded the empty ones with dashes. A modern invoice lists the lines it
+      has. If they want the padding back it is a `{% raw %}{% for %}{% endraw %}` over
+      `range(items|length + 1, 11)` writing a row of thirteen dashes -- it
+      was removed because it reads as an unfinished form, not because it was
+      hard to keep.
+    * **The frame.** One hairline rule under the masthead and the table's
+      own rules do the work the box used to.
+
+  Rules the client gave, all still here
+  -------------------------------------
+  * **13 digits is a CNIC, anything else is an NTN.** Their form has a
+    "CNIC No" row and an "NTN if any" row; the payload has one field,
+    `buyerNTNCNIC`. See `buyer_is_cnic`.
+  * **UOM prints its first comma-separated term** -- "Numbers" for FBR's
+    "Numbers, pieces, units". The first *term*, not the first word, or
+    "Square Metre" would print as "Square".
+  * **Item Type is the sale type** the line was filed under.
+  * **Part Unit is their own figure**, typed on the invoice form, and it is
+    what the line is priced by: Part Unit x Unit Rate = Gross Amount, with
+    the quantity a weight that takes no part in it. A line carrying none
+    falls back to the derivation this column used to be, Gross / Unit Rate.
+    A typed 0 is a figure and prints as one, which is why this tests for a
+    missing value and not a falsy one.
+  * **Product Code & Description prints the description alone.** The code in
+    that column is part of the text they type; the separate box printed this
+    application's own P-0001 series in front of it and was removed.
+  * **Figures print to two decimals.** Their sheet rounded the line columns
+    to whole rupees and only the total to two, so their lines visibly did
+    not add up to their total. What is filed has two decimals, so this
+    prints two and the column adds up.
+  * **Phone, NTN No. and Sales Tax Registration No. are fixed text**, in
+    FIXED_* below, at the client's request. Note the cost: if their
+    registration changes this sheet prints the old number while the new one
+    is filed. Three lines to change, and the first thing to check if FBR
+    ever disputes a seller identifier. Name and address stay live.
+
+  Added, and must never be removed
+  --------------------------------
+    1. the FBR invoice number -- in the document details, once only; the QR
+       carries it too
+    2. the FBR Digital Invoicing logo
+    3. the QR code
+    4. the buyer's sales tax registration number -- their form had rows for
+       the buyer's CNIC and NTN but none for the registration, and it
+       belongs on the face of a sales tax invoice
 
   Contract: rendered by app.py with data, qr_base64, client_logo_url,
   fbr_logo_url, username, settings, theme. See invoice_template3.html for the
@@ -116,12 +109,11 @@
 {%- set buyer_digits = buyer_id | replace('-', '') | replace(' ', '') -%}
 {%- set buyer_is_cnic = buyer_digits | length == 13 and buyer_digits.isdigit() -%}
 
-{#- Their sheet gives an address two ruled lines, with the district on the
-    second: "IKHLASPUR ROAD, SHAKARGAH" over "DIST-NAROWAL.", and "BADWAL"
-    over "DIST-NAROWAL". The payload has one string, so it is split at its
-    LAST comma, which is what puts the district on the second rule in both
-    of their examples. An address with no comma stays on the first rule and
-    wraps if it has to. -#}
+{#- Their form gave an address two lines, with the district on the second:
+    "IKHLASPUR ROAD, SHAKARGAH" over "DIST-NAROWAL.". The payload has one
+    string, so it is split at its LAST comma, which is what puts the district
+    on the second line in both of their examples. An address with no comma
+    stays on the first and wraps if it has to. -#}
 {%- macro address_lines(value) -%}
   {%- set text = (value or '') | string | trim -%}
   {%- if ',' in text -%}
@@ -153,548 +145,661 @@
   <meta charset="utf-8">
   <title>Sales Tax Invoice {{ data.invoiceRefNo or '' }}</title>
   <style>
-    /* Their sheet is 215.9 x 329.9 mm with the frame inset 20.6 mm at the
-       left and 20.9 mm at the right. A4 is 5.9 mm narrower, so the frame
-       keeps its 174.6 mm and the margins come in to 17.7 mm -- the table
-       below is then exactly the size they measured. */
     @page {
       size: A4;
-      /* 17.7 mm at the sides is what puts their 174.6 mm frame on A4. The
-         top and bottom are as tight as the sheet will take: the frame is
-         their 209 mm plus the masthead the logo replaces the two typed
-         lines with, plus the FBR band they never had, and it has to stay
-         on one page. */
-      margin: 11mm 17.7mm 9mm 17.7mm;
+      /* 186 mm of content, which is what the thirteen columns are
+         proportioned against. */
+      margin: 12mm 12mm 10mm 12mm;
+    }
+
+    /* Their letterhead is black and one red; the sheet takes its accent
+       from the artwork rather than inventing a colour. Both are read off
+       templates/brand/zahid_brothers.html, which re-inks the scan in the
+       printed colours. */
+    :root {
+      --ink: #1a1a1a;
+      --accent: #ba1e24;
+      --muted: #6f6f73;
+      --hair: #dcdce0;
+      --hair-soft: #ebebee;
+      --panel: #f6f6f8;
     }
 
     body {
-      font-family: "Times New Roman", Times, "Liberation Serif", serif;
-      color: #000;
+      font-family: "Segoe UI", "Helvetica Neue", Helvetica, Arial,
+                   "DejaVu Sans", sans-serif;
+      color: var(--ink);
       margin: 0;
       padding: 0;
-      /* Their type is tiny -- 3.6 pt labels and 6.7 pt values, an Excel form
-         printed small. Everything here is about 20% up on that, which is the
-         most that can be added without the thirteen columns running out of
-         room. The ratios between the sizes are theirs. */
-      font-size: 7.2pt;
-      line-height: 1.15;
+      font-size: 7.6pt;
+      line-height: 1.35;
+      /* Figures line up in the money columns whatever digits they are. */
+      font-variant-numeric: tabular-nums;
     }
 
-    .sheet { border: 1px solid #000; }
-
     /* ---- Masthead ---------------------------------------------------- */
-    .masthead { text-align: center; padding: 1.6mm 0 0 0; }
-    /* Sized by width so the artwork is never stretched. 62 mm is as wide as
-       the masthead can be and still leave the frame on one page; at 1713 px
-       across it prints there at about 700 DPI. */
-    .brand-masthead { width: 62mm; height: auto; }
+    .head {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+    .head td { vertical-align: top; border: none; padding: 0; }
+    .head td.right { text-align: right; }
 
-    /* Their address line, live from the payload under the logo. */
+    /* Sized by width so the artwork is never stretched. */
+    .brand-masthead { width: 74mm; height: auto; }
+
     .mast-address {
-      text-align: center;
-      font-size: 4.8pt;
-      padding-top: 0.8mm;
+      font-size: 6.4pt;
+      color: var(--muted);
+      padding-top: 1.4mm;
+      max-width: 80mm;
     }
 
     .doc-title {
-      text-align: center;
-      font-weight: bold;
-      font-size: 6.2pt;
-      padding: 2.0mm 0 0 0;
+      font-size: 15pt;
+      font-weight: 700;
+      letter-spacing: 0.9pt;
+      text-transform: uppercase;
+      line-height: 1.1;
+      color: var(--ink);
     }
-    .doc-title span { border-bottom: 0.6pt solid #000; padding-bottom: 0.3mm; }
+    .doc-sub {
+      font-size: 6.2pt;
+      letter-spacing: 1.1pt;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 700;
+      padding-top: 0.6mm;
+    }
+    /* The invoice number, set as the one figure the reader looks for. */
+    .doc-no {
+      font-size: 11pt;
+      font-weight: 700;
+      padding-top: 1.6mm;
+      line-height: 1.15;
+    }
+    .doc-date { font-size: 7pt; color: var(--muted); }
 
-    /* ---- The two field columns --------------------------------------- */
-    /* Four columns: supplier label, supplier rule, buyer label, buyer rule.
-       Measured off their sheet -- the rules run 39.0-73.4 mm on the left and
-       132.5-174.4 mm on the right, from the frame's left edge. */
-    .fields {
+    .rule {
+      border-bottom: 1.4pt solid var(--accent);
+      margin: 2.6mm 0 0 0;
+    }
+    .rule-soft {
+      border-bottom: 0.6pt solid var(--hair);
+      margin: 0;
+    }
+
+    /* ---- Party cards -------------------------------------------------- */
+    .parties {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 4mm 0;
+      table-layout: fixed;
+      margin: 3.4mm -4mm 0 -4mm;
+    }
+    .parties > tbody > tr > td {
+      width: 50%;
+      vertical-align: top;
+      background: var(--panel);
+      border: 0.6pt solid var(--hair);
+      border-radius: 1.2mm;
+      padding: 2.2mm 2.6mm 2.0mm 2.6mm;
+    }
+    .card-title {
+      font-size: 5.8pt;
+      letter-spacing: 1.0pt;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 700;
+      padding-bottom: 1.0mm;
+    }
+    .party-name {
+      font-size: 9pt;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+    .party-addr {
+      font-size: 6.8pt;
+      color: #3a3a3d;
+      padding-top: 0.5mm;
+      line-height: 1.3;
+    }
+
+    /* Label/value pairs. Kept as table rows on purpose: the identifiers are
+       checked row by row, and a row is what makes "this value belongs to
+       that label" true in the markup and not only on the page. */
+    .ids {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 3.2mm;
-      table-layout: fixed;
+      margin-top: 1.6mm;
     }
-    .fields td {
-      padding: 0 0 0.3mm 0;
-      vertical-align: bottom;
-      height: 5.8mm;              /* their row pitch, 16.5 pt */
+    .ids td {
+      border: none;
+      padding: 0.5mm 0 0 0;
+      vertical-align: top;
     }
-    .fields td.lab {
-      font-size: 4.4pt;
-      padding-left: 0.6mm;
+    /* The registration-number label is the longest of these and is what
+       sets this width; anything narrower and it runs into its own value.
+       (Spelled around here on purpose: the identifier tests find a row by
+       splitting the markup on its label, and a comment carrying the same
+       words would be found first.) */
+    .ids td.lab {
+      width: 37mm;
+      font-size: 5.6pt;
+      letter-spacing: 0.25pt;
+      text-transform: uppercase;
+      color: var(--muted);
       white-space: nowrap;
+      padding-right: 2mm;
     }
-    .fields td.val {
-      font-weight: bold;
-      font-size: 6.9pt;
-      padding-left: 1.6mm;
-      padding-bottom: 0.5mm;
+    .ids td.val {
+      font-size: 7.2pt;
+      font-weight: 600;
     }
-    /* Only a row that carries a value is ruled, exactly as on their sheet --
-       the rows above Suppliers Name have a rule on the right only. */
-    .fields td.ruled { border-bottom: 0.6pt solid #000; }
-    /* The invoice number and date are set a size up, right-aligned, and
-       their rule is the short one -- 26.5 mm against the 41.9 mm the rest
-       of the buyer column runs to. The rule is on the inner box so the
-       cell can keep the column's width. */
-    .fields td.big { padding: 0; }
-    .fields td.big div {
-      font-size: 7.6pt;
-      font-weight: bold;
-      text-align: right;
-      margin-left: 15.4mm;
-      padding: 0 2.6mm 0.5mm 0;
-      border-bottom: 0.6pt solid #000;
-    }
-    /* The supplier column's values run past their rule on the client's own
-       sheet -- "IKHLASPUR ROAD, SHAKARGAH" ends 4.4 mm beyond it, Excel
-       spilling into the empty cell next door. Reproduced, because the
-       alternative is the address wrapping and the row growing. There is
-       28.2 mm of empty column to the right of the rule to spill into. The
-       buyer column is NOT given this: it ends at the frame. */
-    .fields td.sval { white-space: nowrap; }
-    .fields td.gap { width: 6mm; }
 
-    /* ---- Items ------------------------------------------------------- */
-    /* 174.6 mm of fixed columns. See the header note: these are measured,
-       not chosen. */
-    .items {
-      width: 174.6mm;
+    /* ---- Document details strip --------------------------------------- */
+    .meta {
+      width: 100%;
       border-collapse: collapse;
       table-layout: fixed;
-      margin-top: 3.4mm;
+      margin-top: 3.0mm;
+      border-top: 0.6pt solid var(--hair);
+      border-bottom: 0.6pt solid var(--hair);
     }
-    /* border-box on the cells, so the measured figures below mean what they
-       say. Without it `height` sizes the CONTENT box and every row came out
-       at 9.45 + 1.0 of padding + 0.21 of border = 10.66 mm -- 13 mm of table
-       that is not on the client's form, which is what pushed the sheet out
-       of the frame it is ruled to. Same reason on the table itself: its
-       width is their frame, and the border belongs inside it. */
-    .items { box-sizing: border-box; }
+    .meta td {
+      border: none;
+      border-right: 0.6pt solid var(--hair-soft);
+      padding: 1.6mm 2.4mm 1.6mm 0;
+      vertical-align: top;
+    }
+    .meta td:last-child { border-right: none; padding-right: 0; }
+    .meta td:not(:first-child) { padding-left: 2.4mm; }
+    .meta .k {
+      font-size: 5.7pt;
+      letter-spacing: 0.4pt;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding-bottom: 0.4mm;
+    }
+    .meta .v { font-size: 7.1pt; font-weight: 600; word-wrap: break-word; }
+    .meta .v.small { font-size: 6.1pt; letter-spacing: 0.1pt; }
+
+    /* ---- Items -------------------------------------------------------- */
+    /* 186 mm of columns: the content width of an A4 at 12 mm margins.
+       Proportioned for legibility, not measured off their old sheet -- see
+       the header note on what the restyle replaced. */
+    .items {
+      width: 186mm;
+      box-sizing: border-box;
+      border-collapse: collapse;
+      table-layout: fixed;
+      margin-top: 4.0mm;
+    }
     .items th, .items td {
       box-sizing: border-box;
-      border: 0.6pt solid #000;
-      font-weight: bold;
-      padding: 0.5mm 0.6mm;
+      border: none;
+      border-right: 0.6pt solid var(--hair-soft);
+      border-bottom: 0.6pt solid var(--hair-soft);
+      padding: 1.3mm 1.1mm;
       vertical-align: top;
-      line-height: 1.12;
+      line-height: 1.22;
       overflow: hidden;
       word-wrap: break-word;
     }
-    .items th {
-      /* Their 5.2 pt. "Further Sales Tax if ANY" sets four lines in an
-         8.15 mm column and the heading row is 9.45 mm like every other --
-         a size up and it is five lines and the row grows. */
+    .items th:last-child, .items td:last-child { border-right: none; }
+
+    /* No text-transform anywhere the WORDING matters. The headings are
+       their spellings -- "HS CODE" is already capitals, "Item Type" is not
+       -- and uppercasing them in CSS would also change what a PDF text
+       extraction reads back, which is how the pagination tests find the
+       table and the signature block on a page. */
+    .items thead th {
+      background: var(--ink);
+      color: #fff;
       font-size: 5.3pt;
+      font-weight: 700;
+      letter-spacing: 0.1pt;
       text-align: center;
       vertical-align: middle;
-      background: #c0c0c0;
-      height: 9.45mm;
+      line-height: 1.15;
+      padding: 1.6mm 1.0mm;
+      border-right-color: #3a3a3d;
+      border-bottom: none;
     }
-    .items td {
-      font-size: 7pt;
-      height: 9.45mm;             /* their row, 26.8 pt */
-    }
+    .items thead th:last-child { border-right: none; }
+
+    .items tbody td { font-size: 6.6pt; }
+    .items tbody tr:nth-child(even) td { background: #fafafb; }
     .items tr { page-break-inside: avoid; }
 
-    /* The signature rules and the FBR band as one block, so a spilling
-       invoice can never end on a page holding the QR code alone. */
-    .closing { page-break-inside: avoid; }
-
-    .items td.sn { text-align: right; }
+    .items td.sn { text-align: right; color: var(--muted); }
     .items td.mid { text-align: center; }
     .items td.num { text-align: right; }
     .items td.left { text-align: left; }
-    /* "Numbers" has to sit on one line in a 9.31 mm column, the way their
-       sheet writes it. */
-    .items td.uom { font-size: 5.4pt; text-align: left; white-space: nowrap; }
+    .items td.uom { text-align: left; }
 
-    /* Their fixed-height cell: three lines of the description show and the
-       rest is clipped, which is what makes an FBR chapter heading print as
-       "VEHICLES / OTHER THAN / RAILWAY". 3 x 7 pt x 1.12 = 23.5 pt.
+    /* The description is what the buyer identifies the goods by, so it gets
+       the room: set a size down and allowed four lines, which fits the
+       whole of their longest ("1183104-1-1BALANCER UNIT new LS - 183104
+       (MEL)") where their own sheet cut it after "LS -". */
+    .items td.pcode { font-size: 6.0pt; line-height: 1.15; font-weight: 600; }
 
-       Every cell that can wrap is clipped, so a row is never taller than
-       the 9.45 mm their form rules it at and the sheet is always the
-       ten-line form they print. */
-    .clip3 {
-      max-height: 8.3mm;
-      overflow: hidden;
-    }
-
-    /* Product Code & Description is the column with the most to say in the
-       least room, and it is the one the buyer identifies the goods by, so a
-       clipped part number is a different part number. Their sheet does clip
-       it -- "UNIT new LS -" runs out of the cell on invoice 092606 -- and
-       so does this, but later: at 5.6 pt on 1.05 leading, FOUR lines fit
-       the same 9.45 mm row, which is the whole of their longest
-       ("1183104-1-1-BALANCER UNIT new LS - 183104 (MEL)") where their own
-       sheet cut it after "LS -".
-
-       8.3 mm is four lines exactly (4 x 5.6 pt x 1.05 = 23.5 pt) and is
-       also the 9.45 mm row less its 1 mm of padding, so a fifth line
-       cannot push the row taller and the ten-line box cannot grow. */
-    .items td.pcode { font-size: 5.6pt; line-height: 1.05; }
-    .items td.pcode .clip3 { max-height: 8.3mm; }
+    /* FBR's chapter headings run to a paragraph. Three lines show and the
+       rest is clipped, which is what their fixed-height cell did -- a rule
+       about height, not about character counts, so whatever FBR returns
+       prints tidily. */
+    /* Exact multiples of the line box, so a clip never cuts a line of type
+       in half: 6.6 pt x 1.22 = 8.05 pt = 2.84 mm a line, three lines =
+       8.52 mm; the description is 6.0 pt x 1.15 = 2.43 mm, four = 9.72 mm. */
+    .clip3 { max-height: 8.52mm; overflow: hidden; }
+    .items td.pcode .clip3 { max-height: 9.72mm; }
 
     .items tr.total td {
-      height: 6.1mm;              /* their total row, 17.2 pt */
-      vertical-align: middle;
+      background: #efeff2;
+      border-top: 0.9pt solid var(--ink);
+      border-bottom: none;
+      font-weight: 700;
+      font-size: 6.9pt;
+      padding-top: 1.6mm;
+      padding-bottom: 1.6mm;
     }
-    .items tr.total td.title { text-align: center; font-size: 7.4pt; }
+    .items tr.total td.title {
+      text-align: right;
+      letter-spacing: 0.6pt;
+      text-transform: uppercase;
+      font-size: 6.2pt;
+    }
 
-    /* ---- Signature block --------------------------------------------- */
-    .foot {
+    /* ---- Close: signature block and the totals card -------------------- */
+    .closing { page-break-inside: avoid; margin-top: 4.6mm; }
+
+    .close {
       width: 100%;
       border-collapse: collapse;
       table-layout: fixed;
-      margin-top: 3.6mm;
     }
-    .foot td {
-      padding: 0 0 0.3mm 0;
-      vertical-align: bottom;
-      height: 5.8mm;
-    }
-    .foot td.lab { font-size: 4.4pt; padding-left: 0.6mm; white-space: nowrap; }
-    .foot td.val {
-      font-weight: bold;
-      font-size: 7.2pt;
-      text-align: right;
-      padding-right: 1.4mm;
-      padding-bottom: 0.5mm;
-    }
-    .foot td.ruled { border-bottom: 0.6pt solid #000; }
-    /* The signature rules are the short ones on their sheet -- 26.5 mm,
-       not the 41.9 mm the buyer column above runs to. */
-    .foot td.sign { padding: 0; }
-    .foot td.sign div {
-      margin-left: 15.4mm;
-      height: 5.3mm;
-      border-bottom: 0.6pt solid #000;
-    }
-    .foot td.gap { width: 6mm; }
+    .close > tbody > tr > td { border: none; padding: 0; vertical-align: top; }
+    .close td.gap { width: 6mm; }
 
-    /* ---- FBR compliance band ----------------------------------------- */
-    /* The band their sheet does not have. It sits inside the frame, under
-       the signature block, so the whole document stays one ruled form. */
+    /* Signature rules: a line to sign on, a line to print a name on, and
+       room for the stamp. */
+    .sigs { width: 100%; border-collapse: collapse; }
+    .sigs td { border: none; padding: 0; }
+    .sigs td.lab {
+      font-size: 6.2pt;
+      letter-spacing: 0.4pt;
+      color: var(--muted);
+      padding-top: 1.0mm;
+      white-space: nowrap;
+    }
+    .sigs td.sign div {
+      height: 7.4mm;
+      border-bottom: 0.6pt solid var(--hair);
+    }
+
+    /* The money, as a card, because it is what the reader came for. */
+    .totals {
+      width: 100%;
+      border-collapse: collapse;
+      border: 0.6pt solid var(--hair);
+      border-radius: 1.2mm;
+    }
+    .totals td {
+      border: none;
+      border-bottom: 0.6pt solid var(--hair-soft);
+      padding: 1.5mm 2.6mm;
+      font-size: 7.1pt;
+    }
+    .totals tr:last-child td { border-bottom: none; }
+    .totals td.k { color: var(--muted); }
+    .totals td.v { text-align: right; font-weight: 600; }
+    .totals tr.grand td {
+      background: var(--ink);
+      color: #fff;
+      font-size: 8.4pt;
+      font-weight: 700;
+      padding-top: 2.0mm;
+      padding-bottom: 2.0mm;
+    }
+    .totals tr.grand td.k {
+      color: #fff;
+      letter-spacing: 0.3pt;
+      font-size: 7.0pt;
+    }
+
+    /* ---- FBR compliance band ------------------------------------------ */
     .fbr-band {
-      border-top: 0.6pt solid #000;
-      margin-top: 2.4mm;
-      padding: 1.2mm 1.4mm 1.0mm 1.4mm;
+      margin-top: 4.4mm;
+      padding-top: 2.4mm;
+      border-top: 0.6pt solid var(--hair);
       page-break-inside: avoid;
     }
     .fbr { border-collapse: collapse; }
-    .fbr td { padding: 0 3mm 0 0; vertical-align: middle; border: none; }
-    .fbr img.qr { width: 16mm; height: 16mm; }
+    .fbr td { padding: 0 3.4mm 0 0; vertical-align: middle; border: none; }
+    .fbr img.qr { width: 17mm; height: 17mm; }
     .fbr img.di { height: 11mm; width: auto; }
     .fbr td.note {
-      font-size: 4.6pt;
+      font-size: 5.4pt;
+      color: var(--muted);
       padding-left: 1mm;
-      line-height: 1.3;
+      line-height: 1.35;
     }
-    .pending { font-size: 5.2pt; font-style: italic; }
+    .pending { font-size: 6pt; font-style: italic; color: var(--accent); }
   </style>
 </head>
 
 <body>
-  <div class="sheet">
 
-    {# -------------------------------------------------------- masthead #}
-    {#- Their own letterhead mark, inlined by the brand partial -- never
-        client_logo_url, which does not resolve on every PDF route. It
-        carries the wordmark and the "Main Dealer: MILLAT TRACTORS LTD.
-        LAHORE" line, which is what the client asked to replace the two
-        typed lines their sheet had. -#}
-    <div class="masthead">{{ brand.masthead(data.sellerBusinessName or "Zahid Brothers") }}</div>
-    <div class="mast-address">{{ data.sellerAddress }}</div>
+  {# ---------------------------------------------------------- masthead #}
+  {#- Their own letterhead mark, inlined by the brand partial -- never
+      client_logo_url, which does not resolve on every PDF route. It carries
+      the wordmark and the "Main Dealer: MILLAT TRACTORS LTD. LAHORE" line,
+      and it is the one thing the restyle was told not to touch. -#}
+  <table class="head">
+    <colgroup>
+      <col style="width:98mm">
+      <col style="width:88mm">
+    </colgroup>
+    <tr>
+      <td>
+        <div>{{ brand.masthead(data.sellerBusinessName or "Zahid Brothers") }}</div>
+        <div class="mast-address">{{ data.sellerAddress }}</div>
+      </td>
+      <td class="right">
+        <div class="doc-title">Sales Tax Invoice</div>
+        <div class="doc-sub">FBR Digital Invoicing</div>
+        <div class="doc-no">{{ data.invoiceRefNo }}</div>
+        <div class="doc-date">{{ invoice_date }}</div>
+      </td>
+    </tr>
+  </table>
+  <div class="rule"></div>
 
-    <div class="doc-title"><span>Sales Tax Invoice</span></div>
+  {# ------------------------------------------------------ party cards #}
+  <table class="parties">
+    <tr>
+      <td>
+        <div class="card-title">Supplier</div>
+        <div class="party-name">{{ data.sellerBusinessName }}</div>
+        <div class="party-addr">
+          {{ seller_address[0] }}{% if seller_address[1] %}<br>{{ seller_address[1] }}{% endif %}
+        </div>
+        {#- Fixed text, at the client's request. See FIXED_* at the top. -#}
+        <table class="ids">
+          <tr>
+            <td class="lab">Phone</td>
+            <td class="val">{{ FIXED_PHONE }}</td>
+          </tr>
+          <tr>
+            <td class="lab">NTN No.</td>
+            <td class="val">{{ FIXED_NTN }}</td>
+          </tr>
+          <tr>
+            <td class="lab">Sales Tax Registration No.</td>
+            <td class="val">{{ FIXED_STRN }}</td>
+          </tr>
+        </table>
+      </td>
+      <td>
+        <div class="card-title">Buyer</div>
+        <div class="party-name">{{ data.buyerBusinessName }}</div>
+        <div class="party-addr">
+          {{ buyer_address[0] }}{% if buyer_address[1] %}<br>{{ buyer_address[1] }}{% endif %}
+        </div>
+        <table class="ids">
+          <tr>
+            <td class="lab">CNIC No</td>
+            <td class="val">{{ buyer_id if buyer_is_cnic else '' }}</td>
+          </tr>
+          <tr>
+            <td class="lab">NTN if any</td>
+            <td class="val">{{ '' if buyer_is_cnic else buyer_id }}</td>
+          </tr>
+          {#- Added. Their form has no row for it and a sales tax invoice has
+              to show the buyer's registration on its face. -#}
+          <tr>
+            <td class="lab">Sales Tax Reg. No.</td>
+            <td class="val">{{ data.buyerSTRN }}</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 
-    {# ------------------------------------------------ the field columns #}
-    <table class="fields">
-      <colgroup>
-        <col style="width:38.4mm">   {# supplier labels                   #}
-        <col style="width:34.4mm">   {# supplier rules, 39.0-73.4 mm       #}
-        <col class="gap" style="width:28.2mm">
-        <col style="width:31.4mm">   {# buyer labels, from 101.7 mm        #}
-        <col style="width:42.2mm">   {# buyer rules, 132.5-174.4 mm        #}
-      </colgroup>
+  {# -------------------------------------------- document details strip #}
+  {#- FBR Invoice No. is printed once. The QR below carries it as well, and
+      repeating it under the stamp is clutter. -#}
+  <table class="meta">
+    <colgroup>
+      <col style="width:62mm">
+      <col style="width:30mm">
+      <col style="width:46mm">
+      <col style="width:48mm">
+    </colgroup>
+    <tr>
+      <td>
+        <div class="k">FBR Invoice No.</div>
+        <div class="v small">{{ data.fbrInvoiceNumber or "&mdash;" | safe }}</div>
+      </td>
+      <td>
+        <div class="k">Invoice Date</div>
+        <div class="v">{{ invoice_date }}</div>
+      </td>
+      <td>
+        <div class="k">Reference</div>
+        <div class="v">{{ data.reference or "&mdash;" | safe }}</div>
+      </td>
+      <td>
+        <div class="k">Term of Sales</div>
+        <div class="v">{{ data.termOfSales or "&mdash;" | safe }}</div>
+      </td>
+    </tr>
+  </table>
 
+  {#- Only when something was typed into one. The client does not use them
+      -- Reference and Term of Sales are proper fields on the form for
+      exactly that reason -- but a value must not vanish. -#}
+  {% if custom_fields %}
+    <table class="meta" style="border-top:none">
       <tr>
-        <td></td><td></td><td></td>
-        <td class="lab">Invoice Number:</td>
-        <td class="big"><div>{{ data.invoiceRefNo }}</div></td>
+        {% for field in custom_fields %}
+          <td>
+            <div class="k">{{ field.name }}</div>
+            <div class="v">{{ field.value }}</div>
+          </td>
+        {% endfor %}
       </tr>
+    </table>
+  {% endif %}
+
+  {# ------------------------------------------------------------- items #}
+  {%- set items = data['items'] or [] -%}
+  {%- set ns = namespace(qty=0.0, parts=0.0, further=0.0) -%}
+  {%- for item in items -%}
+    {%- set ns.qty = ns.qty + (item.quantity | default(0) | float) -%}
+    {%- set unit_rate = item.unitrate | default(0) | float -%}
+    {%- set excl = item.valueSalesExcludingST | default(0) | float -%}
+    {#- The client's own figure when the line carries one, else the
+        derivation below. Same rule as the cell, so the column adds up. -#}
+    {%- set typed = item.get('partUnit') -%}
+    {%- set ns.parts = ns.parts + ((typed | float) if typed is not none
+          else ((excl / unit_rate) if unit_rate
+                else (item.quantity | default(0) | float))) -%}
+    {%- set ns.further = ns.further + (item.furtherTax | default(0) | float) -%}
+  {%- endfor -%}
+
+  <table class="items">
+    <colgroup>
+      {#- 186 mm in all. Each money column is wide enough for the widest
+          figure it can hold -- "1,300,000.00" is 13 mm at 6.6 pt plus
+          2.2 mm of padding -- because a wrapped figure reads as two
+          figures. The four-line "Further Sales Tax if ANY" heading sets
+          its own column's width, not the figures under it. -#}
+      <col style="width:8.0mm">    {# Sr.No.                      #}
+      <col style="width:15.0mm">   {# HS CODE                     #}
+      <col style="width:19.0mm">   {# HS CODE DESCRIPTION         #}
+      <col style="width:16.0mm">   {# Item Type                   #}
+      <col style="width:21.0mm">   {# Product Code & Description  #}
+      <col style="width:11.0mm">   {# Qty                         #}
+      <col style="width:10.0mm">   {# UOM                         #}
+      <col style="width:10.0mm">   {# Part Unit                   #}
+      <col style="width:14.5mm">   {# Unit Rate                   #}
+      <col style="width:17.0mm">   {# Gross Amount                #}
+      <col style="width:15.0mm">   {# Sales Tax                   #}
+      <col style="width:11.0mm">   {# Further Sales Tax if ANY    #}
+      <col style="width:18.5mm">   {# Value Including Sales Tax   #}
+    </colgroup>
+    <thead>
       <tr>
-        <td></td><td></td><td></td>
-        <td class="lab">Invoice Date</td>
-        <td class="big"><div>{{ invoice_date }}</div></td>
+        <th>Sr.No.</th>
+        <th>HS CODE</th>
+        <th>HS CODE DESCRIPTION</th>
+        <th>Item Type</th>
+        <th>Product Code &amp; Description</th>
+        <th>Qty</th>
+        <th>UOM</th>
+        <th>Part Unit</th>
+        <th>Unit Rate</th>
+        <th>Gross Amount</th>
+        <th>Sales Tax</th>
+        <th>Further Sales Tax if ANY</th>
+        <th>Value Including Sales Tax</th>
       </tr>
-      <tr>
-        <td></td><td></td><td></td>
-        {#- Printed once. The QR below carries it as well, and repeating it
-            under the stamp is clutter. -#}
-        <td class="lab">FBR Invoice No.</td>
-        <td class="val ruled" style="font-size:5.6pt">
-          {{- data.fbrInvoiceNumber or "&mdash;" | safe -}}
-        </td>
-      </tr>
-      <tr>
-        <td></td><td></td><td></td>
-        <td class="lab">Reference</td>
-        <td class="val ruled">{{ data.reference or '' }}</td>
-      </tr>
-      {#- Only when something was typed into one. The client does not use
-          them -- Reference and Term of Sales are proper fields on the form
-          for exactly that reason -- but a value must not vanish. -#}
-      {% for field in custom_fields %}
+    </thead>
+    <tbody>
+      {% for item in items %}
+        {%- set unit_rate = item.unitrate | default(0) | float -%}
+        {%- set excl = item.valueSalesExcludingST | default(0) | float -%}
+        {#- Part Unit is the client's own figure when they have typed one,
+            and it is what the line is priced by. The derivation is the
+            fallback for a line that carries none, which is every line filed
+            before the box existed. A typed 0 is a figure and prints as one,
+            so this tests for a missing key rather than for falsiness. -#}
+        {%- set typed_part_unit = item.get('partUnit') -%}
+        {%- set part_unit = (typed_part_unit | float)
+              if typed_part_unit is not none
+              else ((excl / unit_rate) if unit_rate
+                    else (item.quantity | default(0) | float)) -%}
         <tr>
-          <td></td><td></td><td></td>
-          <td class="lab">{{ field.name }}</td>
-          <td class="val ruled">{{ field.value }}</td>
+          <td class="sn">{{ loop.index }}</td>
+          <td class="mid">{{ item.hsCode or item.hs_code or '' }}</td>
+          {#- Clipped to three lines, the way their fixed-height cell
+              clipped FBR's description. -#}
+          <td class="mid"><div class="clip3">{{ item.hsCodeDescription or '' }}</div></td>
+          {#- "Item Type" is the sale type the line was filed under. -#}
+          <td class="left"><div class="clip3">{{ item.saleType or '' }}</div></td>
+          {#- Description alone. The column is headed "Product Code &
+              Description" on their form, but the code in it is part of the
+              text they type, not a second field -- so the separate Product
+              Code box was removed and the prefix this cell used to print
+              with it. An invoice filed while that box existed has a
+              productCode on its line and reprints WITHOUT it, which is the
+              point: what it held was this application's own P-0001 series,
+              not a part number of theirs. -#}
+          <td class="left pcode"><div class="clip3">
+            {{- item.productDescription -}}
+          </div></td>
+          <td class="num">{{ item.quantity | comma_format }}</td>
+          <td class="uom">{{ unit(item.uoM) }}</td>
+          <td class="num">{{ part_unit | comma_format }}</td>
+          <td class="num">{{ item.unitrate | comma_format }}</td>
+          <td class="num">{{ excl | comma_format }}</td>
+          <td class="num">{{ item.salesTaxApplicable | comma_format }}</td>
+          <td class="num">
+            {{- (item.furtherTax | comma_format) if (item.furtherTax | default(0) | float) else '&ndash;' | safe -}}
+          </td>
+          <td class="num">
+            {{- (item.totalValues if item.totalValues is not none
+                 else (excl + (item.salesTaxApplicable | default(0) | float))) | comma_format -}}
+          </td>
         </tr>
       {% endfor %}
 
-      <tr>
-        <td class="lab">Suppliers Name:</td>
-        <td class="val sval ruled">{{ data.sellerBusinessName }}</td>
+      {#- The column totals, in the table so each lands under the column it
+          adds up. Thirteen cells like every other row: four taken by the
+          title, nine figures or blanks. -#}
+      <tr class="total">
+        <td class="title" colspan="4">Total</td>
         <td></td>
-        <td class="lab">Buyer's Name:</td>
-        <td class="val ruled">{{ data.buyerBusinessName }}</td>
+        <td class="num">{{ ns.qty | comma_format }}</td>
+        <td></td>
+        <td class="num">{{ ns.parts | comma_format }}</td>
+        <td></td>
+        <td class="num">{{ data.totalExcl | comma_format }}</td>
+        <td class="num">{{ data.totalTax | comma_format }}</td>
+        <td class="num">{{ (ns.further | comma_format) if ns.further else '' }}</td>
+        <td class="num">{{ data.totalInclusive | comma_format }}</td>
       </tr>
-      <tr>
-        <td class="lab">Address:</td>
-        <td class="val sval ruled">{{ seller_address[0] }}</td>
-        <td></td>
-        <td class="lab">Address:</td>
-        <td class="val ruled">{{ buyer_address[0] }}</td>
-      </tr>
-      <tr>
-        <td class="lab"></td>
-        <td class="val sval ruled">{{ seller_address[1] }}</td>
-        <td></td>
-        <td class="lab"></td>
-        <td class="val ruled">{{ buyer_address[1] }}</td>
-      </tr>
-      <tr>
-        {#- Fixed text, at the client's request. See FIXED_* at the top. -#}
-        <td class="lab">Phone</td>
-        <td class="val sval ruled">{{ FIXED_PHONE }}</td>
-        <td></td>
-        <td class="lab">CNIC No</td>
-        <td class="val ruled">{{ buyer_id if buyer_is_cnic else '' }}</td>
-      </tr>
-      <tr>
-        <td class="lab">NTN No.</td>
-        <td class="val sval ruled">{{ FIXED_NTN }}</td>
-        <td></td>
-        <td class="lab">NTN if any</td>
-        <td class="val ruled">{{ '' if buyer_is_cnic else buyer_id }}</td>
-      </tr>
-      <tr>
-        <td class="lab">Sales Tax Registration No.</td>
-        <td class="val sval ruled">{{ FIXED_STRN }}</td>
-        <td></td>
-        {#- Added. Their sheet has no row for it and a sales tax invoice has
-            to show the buyer's registration on its face. -#}
-        <td class="lab">Sales Tax Reg. No.</td>
-        <td class="val ruled">{{ data.buyerSTRN }}</td>
-      </tr>
-      <tr>
-        <td class="lab"></td>
-        <td></td>
-        <td></td>
-        <td class="lab">Term of Sales</td>
-        <td class="val ruled">{{ data.termOfSales or '' }}</td>
-      </tr>
-    </table>
+    </tbody>
+  </table>
 
-    {# ------------------------------------------------------------ items #}
-    {%- set items = data['items'] or [] -%}
-    {%- set ns = namespace(qty=0.0, parts=0.0, further=0.0) -%}
-    {%- for item in items -%}
-      {%- set ns.qty = ns.qty + (item.quantity | default(0) | float) -%}
-      {%- set unit_rate = item.unitrate | default(0) | float -%}
-      {%- set excl = item.valueSalesExcludingST | default(0) | float -%}
-      {#- The client's own figure when the line carries one, else the
-          derivation below. Same rule as the cell, so the column adds up. -#}
-      {%- set typed = item.get('partUnit') -%}
-      {%- set ns.parts = ns.parts + ((typed | float) if typed is not none
-            else ((excl / unit_rate) if unit_rate
-                  else (item.quantity | default(0) | float))) -%}
-      {%- set ns.further = ns.further + (item.furtherTax | default(0) | float) -%}
-    {%- endfor -%}
-
-    <table class="items">
+  {#- The signature rules, the money and the FBR band travel together.
+      Separately, an invoice long enough to spill could put the band on a
+      page of its own -- a last sheet carrying a QR code and nothing else,
+      which reads as a second, empty invoice. -#}
+  <div class="closing">
+    <table class="close">
       <colgroup>
-        <col style="width:6.92mm">    {# Sr.No.                      #}
-        <col style="width:13.97mm">   {# HS CODE                     #}
-        <col style="width:18.24mm">   {# HS CODE DESCRIPTION         #}
-        <col style="width:18.52mm">   {# Item Type                   #}
-        <col style="width:15.88mm">   {# Product Code & Description  #}
-        <col style="width:8.61mm">    {# Qty                         #}
-        <col style="width:9.31mm">    {# UOM                         #}
-        <col style="width:10.02mm">   {# Part Unit                   #}
-        <col style="width:14.50mm">   {# Unit Rate                   #}
-        <col style="width:16.69mm">   {# Gross Amount                #}
-        <col style="width:15.34mm">   {# Sales Tax                   #}
-        <col style="width:8.15mm">    {# Further Sales Tax if ANY    #}
-        <col style="width:18.45mm">   {# Value Including Sales Tax   #}
-      </colgroup>
-      <thead>
-        <tr>
-          <th>Sr.No.</th>
-          <th>HS CODE</th>
-          <th>HS CODE DESCRIPTION</th>
-          <th>Item Type</th>
-          <th>Product Code &amp; Description</th>
-          <th>Qty</th>
-          <th>UOM</th>
-          <th>Part Unit</th>
-          <th>Unit Rate</th>
-          <th>Gross Amount</th>
-          <th>Sales Tax</th>
-          <th>Further Sales Tax if ANY</th>
-          <th>Value Including Sales Tax</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for item in items %}
-          {%- set unit_rate = item.unitrate | default(0) | float -%}
-          {%- set excl = item.valueSalesExcludingST | default(0) | float -%}
-          {#- Part Unit is the client's own figure when they have typed one.
-              It was a separate number in their old software and is a box on
-              the invoice form again; the derivation below is the fallback
-              for a line that carries none, which is every line filed before
-              the box existed. A typed 0 is a figure and prints as one, so
-              this tests for a missing key rather than for falsiness. -#}
-          {%- set typed_part_unit = item.get('partUnit') -%}
-          {%- set part_unit = (typed_part_unit | float)
-                if typed_part_unit is not none
-                else ((excl / unit_rate) if unit_rate
-                      else (item.quantity | default(0) | float)) -%}
-          <tr>
-            <td class="sn">{{ loop.index }}</td>
-            <td class="mid">{{ item.hsCode or item.hs_code or '' }}</td>
-            {#- Clipped to three lines, the way their fixed-height cell
-                clips FBR's description. -#}
-            <td class="mid"><div class="clip3">{{ item.hsCodeDescription or '' }}</div></td>
-            {#- "Item Type" is the sale type the line was filed under. -#}
-            <td class="left"><div class="clip3">{{ item.saleType or '' }}</div></td>
-            {#- Description alone. The column is headed "Product Code &
-                Description" on their sheet, but the code in it is part of
-                the text they type ("1183104-1-1BALANCER UNIT new LS -"),
-                not a second field -- so the client asked for the separate
-                Product Code box to go, and with it the prefix this cell
-                used to print. An invoice filed while that box existed has a
-                productCode on its line and reprints WITHOUT it, which is
-                the point: what it held was the application's own P-0001
-                series, not a part number of theirs. -#}
-            <td class="left pcode"><div class="clip3">
-              {{- item.productDescription -}}
-            </div></td>
-            <td class="num">{{ item.quantity | comma_format }}</td>
-            <td class="uom">{{ unit(item.uoM) }}</td>
-            <td class="num">{{ part_unit | comma_format }}</td>
-            <td class="num">{{ item.unitrate | comma_format }}</td>
-            <td class="num">{{ excl | comma_format }}</td>
-            <td class="num">{{ item.salesTaxApplicable | comma_format }}</td>
-            <td class="num">
-              {{- (item.furtherTax | comma_format) if (item.furtherTax | default(0) | float) else '-' -}}
-            </td>
-            <td class="num">
-              {{- (item.totalValues if item.totalValues is not none
-                   else (excl + (item.salesTaxApplicable | default(0) | float))) | comma_format -}}
-            </td>
-          </tr>
-        {% endfor %}
-
-        {#- Their sheet is a ten-line form and always prints ten rows. A
-            padding row is a dash in every column but the serial number;
-            theirs prints "0.0000" and "0.00" in the first two, which are
-            empty spreadsheet cells with a number format on them.
-
-            Ten rows, flat. Every cell that can wrap is clipped to the
-            height of their row, so a row is never taller than the 9.45 mm
-            they rule it at and ten of them always fit -- no budget of
-            row-units is needed here the way it is on the replicas whose
-            descriptions set their own row heights. An invoice of more than
-            ten lines simply runs on, with the closing block intact.
-
-            Ten is also the measured capacity, not just the padding: the
-            eleventh line starts a second page. There is no headroom left
-            over -- the masthead and the FBR band spent it -- so anything
-            added above or below this table costs a line.
-            ZahidBrothersPagination pins both ends. -#}
-        {% for n in range(items | length + 1, 11) %}
-          <tr>
-            <td class="sn">{{ n }}</td>
-            <td class="mid">-</td><td class="mid">-</td><td class="num">-</td>
-            <td class="num">-</td><td class="num">-</td><td class="num">-</td>
-            <td class="num">-</td><td class="num">-</td><td class="num">-</td>
-            <td class="num">-</td><td class="num">-</td><td class="num">-</td>
-          </tr>
-        {% endfor %}
-
-        <tr class="total">
-          <td class="title" colspan="4">Total</td>
-          <td class="num">-</td>
-          <td class="num">{{ ns.qty | comma_format }}</td>
-          <td class="num">-</td>
-          <td class="num">{{ ns.parts | comma_format }}</td>
-          <td></td>
-          <td class="num">{{ data.totalExcl | comma_format }}</td>
-          <td class="num">{{ data.totalTax | comma_format }}</td>
-          <td class="num">{{ (ns.further | comma_format) if ns.further else '' }}</td>
-          <td class="num">{{ data.totalInclusive | comma_format }}</td>
-        </tr>
-      </tbody>
-    </table>
-
-    {#- The signature rules and the FBR band travel together. Separately,
-        an invoice long enough to spill could put the band on a page of its
-        own -- a last sheet carrying a QR code and nothing else, which reads
-        as a second, empty invoice. ZahidBrothersPagination is where that
-        shows up rather than on a client's invoice. -#}
-    <div class="closing">
-    {# ------------------------------------------------- signature block #}
-    <table class="foot">
-      <colgroup>
-        <col style="width:38.4mm">
-        <col style="width:34.4mm">
-        <col class="gap" style="width:28.2mm">
-        <col style="width:31.4mm">
-        <col style="width:42.2mm">
+        <col style="width:98mm">
+        <col class="gap" style="width:6mm">
+        <col style="width:82mm">
       </colgroup>
       <tr>
-        <td class="lab">Sales Tax&nbsp; (Rs.)</td>
-        <td class="val ruled">{{ data.totalTax | comma_format }}</td>
+        <td>
+          <table class="sigs">
+            <colgroup>
+              <col style="width:46mm">
+              <col style="width:6mm">
+              <col style="width:46mm">
+            </colgroup>
+            <tr>
+              <td class="sign"><div></div></td>
+              <td></td>
+              <td class="sign"><div></div></td>
+            </tr>
+            <tr>
+              <td class="lab">Signature</td>
+              <td></td>
+              <td class="lab">Name &amp; Designation</td>
+            </tr>
+            <tr>
+              <td class="lab" style="padding-top:4.2mm">Stamp</td>
+              <td></td>
+              <td></td>
+            </tr>
+          </table>
+        </td>
         <td></td>
-        <td class="lab">Signature</td>
-        <td class="sign"><div></div></td>
-      </tr>
-      <tr>
-        <td class="lab">Value Including Sales Tax (Rs).</td>
-        <td class="val ruled">{{ data.totalInclusive | comma_format }}</td>
-        <td></td>
-        <td class="lab">Name &amp; Designation</td>
-        <td class="sign"><div></div></td>
-      </tr>
-      <tr>
-        <td></td><td></td><td></td>
-        <td class="lab">Stamp</td>
-        <td></td>
+        <td>
+          <table class="totals">
+            <tr>
+              <td class="k">Value Excluding Sales Tax (Rs.)</td>
+              <td class="v">{{ data.totalExcl | comma_format }}</td>
+            </tr>
+            <tr>
+              <td class="k">Sales Tax&nbsp; (Rs.)</td>
+              <td class="v">{{ data.totalTax | comma_format }}</td>
+            </tr>
+            {% if ns.further %}
+              <tr>
+                <td class="k">Further Sales Tax (Rs.)</td>
+                <td class="v">{{ ns.further | comma_format }}</td>
+              </tr>
+            {% endif %}
+            <tr class="grand">
+              <td class="k">Value Including Sales Tax (Rs).</td>
+              <td class="v">{{ data.totalInclusive | comma_format }}</td>
+            </tr>
+          </table>
+        </td>
       </tr>
     </table>
 
-    {# ------------------------------------------------ FBR compliance #}
-    {#- The QR and the Digital Invoicing logo side by side, inside the
-        frame so the sheet stays one ruled form. The invoice number is NOT
-        repeated here -- it is in the identifier column at the top, and the
-        QR already carries it.
-
-        Renders only once the invoice has actually been submitted and has a
-        number; before that it says so plainly rather than printing a QR
-        that resolves to nothing. -#}
+    {# -------------------------------------------------- FBR compliance #}
+    {#- The QR and the Digital Invoicing logo. Renders only once the invoice
+        has actually been submitted and has a number; before that it says so
+        plainly rather than printing a QR that resolves to nothing. -#}
     <div class="fbr-band">
       <table class="fbr">
         <tr>
@@ -715,9 +820,8 @@
         </tr>
       </table>
     </div>
-    </div>
-
   </div>
+
 </body>
 
 </html>

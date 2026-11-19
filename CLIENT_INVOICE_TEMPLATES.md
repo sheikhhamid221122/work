@@ -1218,18 +1218,55 @@ go. `MANUAL_PRODUCT_CODES` is now empty and says why; an invoice filed
 while the box existed still has a `productCode` on its line and reprints
 without it, deliberately.
 
-**Rows are sized border-box.** `height: 9.45 mm` on a cell whose box is the
-default `content-box` renders at 9.45 + 1.0 of padding + 0.21 of border =
-10.66 mm, and every row of this table did — 12 mm of table that is not on
-the client's form, which is what pushed the sheet past the frame it is
-ruled to. `box-sizing: border-box` on `.items` and its cells is what makes
-the measured figures mean what they say, and it gave back two lines of
-capacity: the page now holds twelve, where before the eleventh started a
-second page. `ZahidBrothersPagination` measures both the row height and the
-capacity, so a change that spends that headroom shows up there rather than
-on an invoice. The signature block and the FBR band are wrapped in one
-`.closing` div for the same reason — separately, a spilling invoice could
-end on a page carrying the QR code and nothing else.
+**Then they asked for it to look modern, and the measured geometry went.**
+This is the one replica whose brief changed after it was built. The ruled
+Excel frame, the 174.6 mm of measured columns, the 9.45 mm rows and the
+ten-row padded box are all gone; every field and every column they had is
+still there, in their order, with their spellings. What replaced them:
+
+* a masthead row — their artwork left, `SALES TAX INVOICE` and the invoice
+  number right — over a 1.4 pt rule in the letterhead's own red `#ba1e24`
+* two tinted **party cards**, Supplier and Buyer, with the identifiers as
+  label/value rows inside them
+* a **document details strip** for FBR Invoice No., Invoice Date, Reference
+  and Term of Sales, with custom fields in a second strip when any carry
+  values
+* the items table with a **dark header band**, hairline rules, zebra rows
+  and no outer box, 186 mm wide — A4 less 12 mm margins
+* a **totals card** carrying their two labels (`Sales Tax (Rs.)` and
+  `Value Including Sales Tax (Rs).`) plus the value excluding tax, with the
+  grand total reversed out on black
+* signature rules, `Name & Designation` and `Stamp` beside it
+
+Three things are worth knowing before touching it again:
+
+**Never `text-transform: uppercase` a label whose wording is asserted.** A
+PDF text extraction reads back the *rendered* glyphs, so uppercasing the
+table headings in CSS made `ZahidBrothersPagination` — which finds the
+table and the signature block by searching page text — stop finding either.
+Decorative labels (`SUPPLIER`, `PHONE`, the strip keys) are uppercased;
+the headings and the signature labels are typed in the case they print in.
+
+**Clip heights are exact multiples of the line box**, or a clip cuts a line
+of type in half: 6.6 pt × 1.22 = 2.84 mm a line, so `.clip3` is 8.52 mm for
+three.
+
+**A wrapped figure reads as two figures.** The first cut of the restyle
+printed `1,534,000.0` over `0`, and a later one printed the Qty total as
+`320.0` over `0` — wide enough for a line's `64.00`, not for the column's
+`320.00`. `test_no_money_column_is_too_narrow_for_its_figures` renders five
+lines and counts **line boxes** in every `.num` cell, totals row included.
+Note why it counts rather than measures: wrapping is how text avoids being
+wider than its box, so comparing the widest line against the cell finds
+nothing. One figure, one line.
+
+Capacity is eleven lines to a page; the twelfth starts a second. The
+signature block, the totals card and the FBR band are wrapped in one
+`.closing` div so a spilling invoice never ends on a page carrying the QR
+code and nothing else.
+
+If they ever want the ten-row padded box back, it is a `{% raw %}{% for %}{% endraw %}` over
+`range(items|length + 1, 11)` writing a row of thirteen dashes.
 
 **Three figures are pinned.** The client asked for the supplier's phone,
 NTN and sales tax registration number to print the same whatever the
@@ -1256,14 +1293,39 @@ the payload at all. Copy that shape if another client ever asks.
   "first word" would print `Square Metre` as "Square", which is a different
   unit.
 * **Item Type is the sale type** the line was filed under.
-* **Part Unit is theirs to type.** Their old software held it separately
-  and they asked for it back, so it is a box on the invoice form
-  (`client_features.PART_UNIT`). A line that carries no figure — every line
-  filed before the box existed — falls back to the derivation this column
-  used to be, Gross Amount ÷ Unit Rate, so the row still multiplies out to
-  the figures printed beside it. A typed **0** is a figure and prints as
-  one, which is why both the template and `_normalize_part_unit` test for a
-  missing value rather than a falsy one.
+* **Part Unit is theirs to type, and it is what the line is priced by.**
+  This is the part to read twice, because it is not how any other client in
+  this file works. Their money is **Part Unit × Unit Rate = Gross Amount**,
+  and the quantity takes no part in it. From their own invoice 102619:
+
+  | Qty | UOM | Part Unit | Unit Rate | Gross Amount |
+  |---|---|---|---|---|
+  | 64 | Liter | 8 | 8,848 | 70,784 |
+
+  Eight 8-litre packs of 20W50 oil: the quantity is the litres, the Part
+  Unit is the packs, and 8 × 8,848 is what they charged. Multiplying the
+  quantity by the rate would have billed 566,272.
+
+  FBR does not cross-check quantity against value — what it checks is the
+  tax against `valueSalesExcludingST` — so the value is the figure that has
+  to be right, and the quantity is filed as the quantity and nothing more.
+  `calculateValueAndTax` in create-invoice.html uses the Part Unit as the
+  multiplier when the box holds one and the quantity when it does not,
+  which is what every other client does and what these lines did before the
+  box existed.
+
+  The **rate travels with the line** for the same reason. app.py derives the
+  PDF's Unit Rate column as value ÷ quantity when a line carries none — the
+  same number for everyone else, and the wrong one here: it would print
+  1,106.00 against a Gross Amount of 70,784. `unitrate` joins `partUnit` in
+  `PDF_ONLY_ITEM_FIELDS`; FBR's item schema has no per-unit rate at all,
+  where `rate` is the *tax* rate.
+
+  A line that carries no Part Unit falls back to the derivation this column
+  used to be, Gross Amount ÷ Unit Rate, so the row still multiplies out. A
+  typed **0** is a figure and prints as one, which is why both the template
+  and `_normalize_part_unit` test for a missing value rather than a falsy
+  one.
 
 **The printed-only fields added for them** are the pattern to copy rather
 than the reams/sales-person one, because they are keyed on the client's
