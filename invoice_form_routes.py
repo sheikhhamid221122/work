@@ -2154,6 +2154,16 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                     part_unit = _normalize_part_unit(item_data.get("partUnit"))
                     if part_unit is not None:
                         item["partUnit"] = part_unit
+                        # Their money is Part Unit x Rate, not Quantity x
+                        # Rate -- the quantity is a weight or a pack count
+                        # and is filed as the quantity, nothing more. So the
+                        # rate has to travel with the line: app.py derives
+                        # the Unit Rate column as value / quantity when a
+                        # line does not carry one, which is the same figure
+                        # for everyone else and the wrong one here.
+                        unit_rate = _normalize_part_unit(item_data.get("unitrate"))
+                        if unit_rate is not None:
+                            item["unitrate"] = unit_rate
                 # Printed beside the quantity on the paper clients' replicas.
                 # Only theirs carry the column, so only their payload carries
                 # the field; app.py strips it again before FBR sees it.

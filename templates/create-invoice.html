@@ -3458,6 +3458,13 @@
             // the figure as it always has, rather than printing a zero.
             if (showsPartUnit() && partUnit !== "") {
                 item.partUnit = partUnit;
+                // The rate as typed. Everyone else's Unit Rate column is
+                // derived on the way to the PDF as value / quantity, which is
+                // the same number -- but not for these lines, where the value
+                // is Part Unit x Rate. Without this the sheet would print a
+                // rate that does not multiply out to the Gross Amount beside
+                // it. Printed only; app.py strips it before the FBR call.
+                item.unitrate = rate;
             }
 
             console.log("Item created:", item);
@@ -4396,6 +4403,7 @@
                     }
                     if (!showsPartUnit()) {
                         delete cloned.partUnit;
+                        delete cloned.unitrate;
                     }
                     return cloned;
                 });
@@ -4752,10 +4760,23 @@
             const qty = parseFloat(qtyEl.value) || 0;
             const ratePerUnit = parseFloat(rateEl.value) || 0;
 
+            // What the rate is charged on. For most clients that is the
+            // quantity. One client prices by Part Unit instead -- their
+            // quantity is a weight or a pack count and the money is
+            // Part Unit x Rate -- so when they have typed one it is the
+            // multiplier, and the quantity is carried as the quantity and
+            // nothing more. An empty box falls back to the quantity, so a
+            // line they do not fill behaves exactly as before.
+            const partUnitEl = document.getElementById('product-part-unit');
+            const typedPartUnit = (showsPartUnit() && partUnitEl)
+                ? parseFloat(partUnitEl.value) : NaN;
+            const multiplier = isFinite(typedPartUnit) && typedPartUnit > 0
+                ? typedPartUnit : qty;
+
             // Round the value FIRST -- this rounded figure is what gets sent as
             // valueSalesExcludingST, so the tax must be derived from it, not from
             // the unrounded product.
-            const valueExcl = roundHalfUp(qty * ratePerUnit, 2);
+            const valueExcl = roundHalfUp(multiplier * ratePerUnit, 2);
             if (qty > 0 && ratePerUnit > 0) {
                 valueEl.value = valueExcl.toFixed(2);
             } else {
@@ -4988,6 +5009,14 @@
             }
             if (taxRateSelect) {
                 taxRateSelect.addEventListener('input', () => { calculateValueAndTax(); });
+            }
+
+            // Part Unit is a multiplier for the clients who price by it, so
+            // the line's value has to follow it the way it follows quantity
+            // and rate.
+            const partUnitInputEl = document.getElementById('product-part-unit');
+            if (partUnitInputEl) {
+                partUnitInputEl.addEventListener('input', () => { calculateValueAndTax(); });
             }
 
             // Typing in Fixed Notified Value stops it following the line's

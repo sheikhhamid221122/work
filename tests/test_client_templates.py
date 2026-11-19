@@ -1701,6 +1701,29 @@ class ZahidBrothersSheet(unittest.TestCase):
         # figure like any other and must not be read as "no figure given".
         self.assertIn(">0.00<", render(self.TEMPLATE, self.line(partUnit=0)))
 
+    def test_the_line_multiplies_out_when_it_is_priced_by_part_unit(self):
+        # The client's own arithmetic: Part Unit x Unit Rate = Gross Amount,
+        # with the quantity a weight that takes no part in it. 26 x 50,000 =
+        # 1,300,000 on a line of 30 KG.
+        data = self.line(partUnit=26, unitrate=50000, quantity=30,
+                         valueSalesExcludingST=1300000,
+                         salesTaxApplicable=234000, totalValues=1534000)
+        data["totalExcl"] = 1300000
+        data["totalTax"] = 234000
+        data["totalInclusive"] = 1534000
+        markup = render(self.TEMPLATE, data)
+        for figure in (">26.00<", ">50,000.00<", ">1,300,000.00<", ">30.00<"):
+            self.assertIn(figure, markup, figure)
+
+    def test_the_unit_rate_is_the_one_the_line_carries(self):
+        # Not value / quantity, which is what the PDF derives for everyone
+        # else and would print 43,333.33 on the line above.
+        data = self.line(partUnit=26, unitrate=50000, quantity=30,
+                         valueSalesExcludingST=1300000)
+        markup = render(self.TEMPLATE, data)
+        self.assertIn(">50,000.00<", markup)
+        self.assertNotIn("43,333", markup)
+
     def test_the_total_row_adds_the_figures_that_printed(self):
         # Two lines, one typed and one derived: the column has to add up to
         # what is above it or the sheet contradicts itself.
@@ -1819,7 +1842,8 @@ class ZahidBrothersFields(unittest.TestCase):
         for field in ("reference", "termOfSales"):
             self.assertIn('"' + field + '"', invoice_fields, field)
         item_fields = source.split("PDF_ONLY_ITEM_FIELDS = frozenset({")[1].split("})")[0]
-        for field in ("hsCodeDescription", "productCode", "partUnit"):
+        for field in ("hsCodeDescription", "productCode", "partUnit",
+                      "unitrate"):
             self.assertIn('"' + field + '"', item_fields, field)
 
     def test_the_form_is_told_which_clients_get_them(self):
