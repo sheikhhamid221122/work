@@ -36,12 +36,14 @@
       was the client's earlier ask -- "exactly the size we set" -- and the
       modern ask replaces it. Columns are now proportioned for legibility
       across the 186 mm of an A4 with 12 mm margins.
-    * **The ten-row form.** Their Excel sheet always printed ten lines and
-      padded the empty ones with dashes. A modern invoice lists the lines it
-      has. If they want the padding back it is a `{% raw %}{% for %}{% endraw %}` over
-      `range(items|length + 1, 11)` writing a row of thirteen dashes -- it
-      was removed because it reads as an unfinished form, not because it was
-      hard to keep.
+    * **The ten-row form, down to five.** Their Excel sheet always printed
+      ten lines and dashed the empty ones. The restyle dropped the padding
+      altogether and the client asked for the shape back at five, which is
+      what the `range(items | length + 1, 6)` loop below the items does: a
+      one-line invoice prints its line and four ruled blanks. FIVE IS A
+      FLOOR, NOT A CAP -- a longer invoice runs on and pads nothing. A blank
+      row is a dash in all thirteen columns and never a 0.00, which would
+      read as a real figure of nought.
     * **The frame.** One hairline rule under the masthead and the table's
       own rules do the work the box used to.
 
@@ -63,6 +65,11 @@
   * **Product Code & Description prints the description alone.** The code in
     that column is part of the text they type; the separate box printed this
     application's own P-0001 series in front of it and was removed.
+  * **The total is spelled out.** Their old sheet never carried an amount
+    in words; the client asked for one with the restyle. It is app.py's
+    `amountInWords`, derived from the same total printed beside it, so the
+    two can never disagree, and the band is left off when there is nothing
+    to spell.
   * **Figures print to two decimals.** Their sheet rounded the line columns
     to whole rupees and only the total to two, so their lines visibly did
     not add up to their total. What is filed has two decimals, so this
@@ -189,13 +196,6 @@
     /* Sized by width so the artwork is never stretched. */
     .brand-masthead { width: 74mm; height: auto; }
 
-    .mast-address {
-      font-size: 6.4pt;
-      color: var(--muted);
-      padding-top: 1.4mm;
-      max-width: 80mm;
-    }
-
     .doc-title {
       font-size: 15pt;
       font-weight: 700;
@@ -204,22 +204,36 @@
       line-height: 1.1;
       color: var(--ink);
     }
-    .doc-sub {
-      font-size: 6.2pt;
-      letter-spacing: 1.1pt;
+    /* The two figures under the title, each against its own label and set
+       hard right so they line up with the rule below them. */
+    .docmeta {
+      border-collapse: collapse;
+      margin-left: auto;
+      margin-top: 2.0mm;
+    }
+    .docmeta td {
+      border: none;
+      padding: 0.5mm 0 0 0;
+      vertical-align: baseline;
+    }
+    .docmeta td.k {
+      font-size: 5.9pt;
+      letter-spacing: 0.35pt;
       text-transform: uppercase;
-      color: var(--accent);
-      font-weight: 700;
-      padding-top: 0.6mm;
+      color: var(--muted);
+      text-align: right;
+      padding-right: 3mm;
+      white-space: nowrap;
     }
-    /* The invoice number, set as the one figure the reader looks for. */
-    .doc-no {
-      font-size: 11pt;
+    .docmeta td.v {
+      font-size: 8.2pt;
       font-weight: 700;
-      padding-top: 1.6mm;
-      line-height: 1.15;
+      text-align: right;
+      white-space: nowrap;
+      min-width: 26mm;
     }
-    .doc-date { font-size: 7pt; color: var(--muted); }
+    /* The invoice number is the one figure the reader looks for. */
+    .docmeta td.v.no { font-size: 11pt; line-height: 1.1; }
 
     .rule {
       border-bottom: 1.4pt solid var(--accent);
@@ -231,15 +245,26 @@
     }
 
     /* ---- Party cards -------------------------------------------------- */
+    /* 186 mm of cards and the 4 mm between them, counted rather than
+       assumed. `border-spacing` adds a gap OUTSIDE the first and last cell
+       as well as between them, and the negative margins that used to pull
+       those two back pushed the buyer's card over the right margin. Fixed
+       widths and one spacer column instead: 91 + 4 + 91 = 186. */
     .parties {
-      width: 100%;
-      border-collapse: separate;
-      border-spacing: 4mm 0;
+      width: 186mm;
+      border-collapse: collapse;
       table-layout: fixed;
-      margin: 3.4mm -4mm 0 -4mm;
+      margin: 3.4mm 0 0 0;
     }
-    .parties > tbody > tr > td {
-      width: 50%;
+    .parties > tbody > tr > td.spacer {
+      width: 4mm;
+      background: none;
+      border: none;
+      padding: 0;
+    }
+    .parties > tbody > tr > td.card {
+      width: 91mm;
+      box-sizing: border-box;
       vertical-align: top;
       background: var(--panel);
       border: 0.6pt solid var(--hair);
@@ -374,6 +399,10 @@
     .items tr { page-break-inside: avoid; }
 
     .items td.sn { text-align: right; color: var(--muted); }
+    /* The ruled blanks that bring a short invoice up to five lines. Their
+       dashes are set back so they read as an empty row and not as a figure
+       of nought. */
+    .items tr.pad td { color: #b9b9bf; text-align: center; }
     .items td.mid { text-align: center; }
     .items td.num { text-align: right; }
     .items td.left { text-align: left; }
@@ -413,6 +442,28 @@
 
     /* ---- Close: signature block and the totals card -------------------- */
     .closing { page-break-inside: avoid; margin-top: 4.6mm; }
+
+    .words {
+      border-left: 1.4pt solid var(--accent);
+      background: var(--panel);
+      padding: 1.8mm 2.6mm;
+      margin-bottom: 4.0mm;
+    }
+    .words .k {
+      font-size: 5.9pt;
+      letter-spacing: 0.35pt;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding-right: 2.4mm;
+    }
+    .words .v {
+      font-size: 7.4pt;
+      font-weight: 600;
+      hyphens: none;
+    }
+    /* num2words gives it back lower case; capitalise the opening word and
+       nothing else. */
+    .words .v::first-letter { text-transform: uppercase; }
 
     .close {
       width: 100%;
@@ -503,14 +554,26 @@
     </colgroup>
     <tr>
       <td>
+        {#- The address is NOT repeated under the mark: it is the first line
+            of the Supplier card below, and printing it twice on one sheet
+            was the client's own note. -#}
         <div>{{ brand.masthead(data.sellerBusinessName or "Zahid Brothers") }}</div>
-        <div class="mast-address">{{ data.sellerAddress }}</div>
       </td>
       <td class="right">
         <div class="doc-title">Sales Tax Invoice</div>
-        <div class="doc-sub">FBR Digital Invoicing</div>
-        <div class="doc-no">{{ data.invoiceRefNo }}</div>
-        <div class="doc-date">{{ invoice_date }}</div>
+        {#- Both figures are labelled. Unlabelled, the number and the date
+            read as two stray figures under the title -- which is what the
+            client said about the first cut of this. -#}
+        <table class="docmeta">
+          <tr>
+            <td class="k">Invoice Number</td>
+            <td class="v no">{{ data.invoiceRefNo }}</td>
+          </tr>
+          <tr>
+            <td class="k">Invoice Date</td>
+            <td class="v">{{ invoice_date }}</td>
+          </tr>
+        </table>
       </td>
     </tr>
   </table>
@@ -518,8 +581,13 @@
 
   {# ------------------------------------------------------ party cards #}
   <table class="parties">
+    <colgroup>
+      <col style="width:91mm">
+      <col style="width:4mm">
+      <col style="width:91mm">
+    </colgroup>
     <tr>
-      <td>
+      <td class="card">
         <div class="card-title">Supplier</div>
         <div class="party-name">{{ data.sellerBusinessName }}</div>
         <div class="party-addr">
@@ -541,7 +609,8 @@
           </tr>
         </table>
       </td>
-      <td>
+      <td class="spacer"></td>
+      <td class="card">
         <div class="card-title">Buyer</div>
         <div class="party-name">{{ data.buyerBusinessName }}</div>
         <div class="party-addr">
@@ -716,6 +785,24 @@
         </tr>
       {% endfor %}
 
+      {#- Their form was a ten-line box that always printed ten rows and
+          dashed the empty ones. The client asked for that shape back at
+          FIVE: a one-line invoice prints one line and four ruled blanks, so
+          the table is always a block rather than a single row floating over
+          white space. An invoice of more than five lines simply runs on and
+          pads nothing -- the minimum is a floor, not a cap. -#}
+      {% for n in range(items | length + 1, 6) %}
+        <tr class="pad">
+          <td class="sn">{{ n }}</td>
+          <td class="mid">&ndash;</td><td class="mid">&ndash;</td>
+          <td class="left">&ndash;</td><td class="left">&ndash;</td>
+          <td class="num">&ndash;</td><td class="uom">&ndash;</td>
+          <td class="num">&ndash;</td><td class="num">&ndash;</td>
+          <td class="num">&ndash;</td><td class="num">&ndash;</td>
+          <td class="num">&ndash;</td><td class="num">&ndash;</td>
+        </tr>
+      {% endfor %}
+
       {#- The column totals, in the table so each lands under the column it
           adds up. Thirteen cells like every other row: four taken by the
           title, nine figures or blanks. -#}
@@ -739,6 +826,18 @@
       page of its own -- a last sheet carrying a QR code and nothing else,
       which reads as a second, empty invoice. -#}
   <div class="closing">
+    {#- The total spelled out. Their old sheet never carried one -- the
+        client asked for it with the restyle -- and it is app.py's
+        `amountInWords`, derived from the same total printed below, so the
+        two can never disagree. Left off entirely when there is nothing to
+        spell. -#}
+    {% if data.amountInWords %}
+      <div class="words">
+        <span class="k">Amount in words</span>
+        <span class="v">{{ data.amountInWords }}</span>
+      </div>
+    {% endif %}
+
     <table class="close">
       <colgroup>
         <col style="width:98mm">

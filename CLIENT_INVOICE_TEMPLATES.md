@@ -1220,12 +1220,16 @@ without it, deliberately.
 
 **Then they asked for it to look modern, and the measured geometry went.**
 This is the one replica whose brief changed after it was built. The ruled
-Excel frame, the 174.6 mm of measured columns, the 9.45 mm rows and the
-ten-row padded box are all gone; every field and every column they had is
-still there, in their order, with their spellings. What replaced them:
+Excel frame, the 174.6 mm of measured columns and the 9.45 mm rows are all
+gone (the padded box came back at five rows — see below); every field and
+every column they had is still there, in their order, with their
+spellings. What replaced them:
 
-* a masthead row — their artwork left, `SALES TAX INVOICE` and the invoice
-  number right — over a 1.4 pt rule in the letterhead's own red `#ba1e24`
+* a masthead row — their artwork left, `SALES TAX INVOICE` right over a
+  labelled `Invoice Number` / `Invoice Date` pair — on a 1.4 pt rule in the
+  letterhead's own red `#ba1e24`. **The address is not repeated under the
+  mark**: it is the first line of the Supplier card, and printing it twice
+  was the client's own note.
 * two tinted **party cards**, Supplier and Buyer, with the identifiers as
   label/value rows inside them
 * a **document details strip** for FBR Invoice No., Invoice Date, Reference
@@ -1233,10 +1237,28 @@ still there, in their order, with their spellings. What replaced them:
   values
 * the items table with a **dark header band**, hairline rules, zebra rows
   and no outer box, 186 mm wide — A4 less 12 mm margins
+* an **amount in words** band, from app.py's `amountInWords` so it can
+  never disagree with the figure below it; left off entirely when there is
+  nothing to spell
 * a **totals card** carrying their two labels (`Sales Tax (Rs.)` and
   `Value Including Sales Tax (Rs).`) plus the value excluding tax, with the
   grand total reversed out on black
 * signature rules, `Name & Designation` and `Stamp` beside it
+
+**The table never prints fewer than five lines.** Their Excel form was a
+ten-line box that dashed the empty rows; the restyle dropped the padding and
+the client asked for the shape back at five, so a one-line invoice prints
+its line and four ruled blanks. Five is a **floor, not a cap** — a longer
+invoice runs on and pads nothing. A blank row is a dash in all thirteen
+columns and never a `0.00`, which would read as a real figure of nought and
+be checked against the totals.
+
+The two cards and the items table are all 186 mm and share a right edge.
+That is measured in `test_the_two_cards_stay_inside_the_page`, because the
+first cut used `border-spacing` for the gap between the cards — which also
+adds a gap *outside* the first and last cell, and the negative margins
+pulling those back pushed the buyer's card over the right margin. It is a
+fixed 91 + 4 + 91 now.
 
 Three things are worth knowing before touching it again:
 
@@ -1260,13 +1282,13 @@ Note why it counts rather than measures: wrapping is how text avoids being
 wider than its box, so comparing the widest line against the cell finds
 nothing. One figure, one line.
 
-Capacity is eleven lines to a page; the twelfth starts a second. The
-signature block, the totals card and the FBR band are wrapped in one
-`.closing` div so a spilling invoice never ends on a page carrying the QR
-code and nothing else.
-
-If they ever want the ten-row padded box back, it is a `{% raw %}{% for %}{% endraw %}` over
-`range(items|length + 1, 11)` writing a row of thirteen dashes.
+Capacity is ten lines to a page; the eleventh starts a second. It was
+eleven before the amount in words went in, which is what one row above the
+totals costs — `ZahidBrothersPagination` measures it, so anything else added
+outside the table shows up there rather than on an invoice. The amount in
+words, the signature block, the totals card and the FBR band are wrapped in
+one `.closing` div so a spilling invoice never ends on a page carrying the
+QR code and nothing else.
 
 **Three figures are pinned.** The client asked for the supplier's phone,
 NTN and sales tax registration number to print the same whatever the

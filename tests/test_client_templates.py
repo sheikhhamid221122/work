@@ -1603,6 +1603,69 @@ class ZahidBrothersSheet(unittest.TestCase):
         self.assertAlmostEqual(186.0, total, places=1)
         self.assertIn("width: 186mm", render(self.TEMPLATE))
 
+    def test_the_two_figures_under_the_title_are_labelled(self):
+        # Unlabelled they read as two stray figures under the heading.
+        markup = render(self.TEMPLATE)
+        self.assertIn("Invoice Number", markup)
+        self.assertIn("Invoice Date", markup)
+        # And the strapline the client asked to lose. Checked by its class,
+        # not its words: "FBR Digital Invoicing System" is also the alt text
+        # on the compliance mark at the foot, which stays.
+        self.assertNotIn('class="doc-sub"', markup)
+
+    def test_the_address_is_printed_once(self):
+        # It was under the mark AND the first line of the Supplier card.
+        data = self.line()
+        data["sellerAddress"] = "IKHLAS PUR ROAD, SHAKARGARH"
+        markup = render(self.TEMPLATE, data)
+        self.assertEqual(1, markup.count("IKHLAS PUR ROAD"))
+
+    def test_the_two_cards_stay_inside_the_page(self):
+        # Their right edge is the table's right edge; a card wider than that
+        # prints over the margin, which is what border-spacing did.
+        markup = render(self.TEMPLATE)
+        page = WeasyHTML(string=markup, base_url=ROOT).render().pages[0]
+
+        def walk(box):
+            yield box
+            for child in getattr(box, "children", ()) or ():
+                for item in walk(child):
+                    yield item
+
+        px_mm = 25.4 / 96.0
+        right_edges = []
+        for box in walk(page._page_box):
+            if getattr(box, "element_tag", None) != "table":
+                continue
+            # Every table appears twice in the box tree -- the wrapper that
+            # holds the caption and the table itself -- and only the second
+            # carries the width that is drawn.
+            name = type(box).__name__
+            if "Table" not in name or "Wrapper" in name:
+                continue
+            try:
+                classes = (box.element.get("class") or "").split()
+            except Exception:
+                continue
+            if "parties" in classes or "items" in classes:
+                right_edges.append(
+                    round((box.position_x + box.width) * px_mm, 1))
+        self.assertEqual(2, len(right_edges), "cards and items table")
+        self.assertAlmostEqual(right_edges[0], right_edges[1], delta=0.3)
+        # A4 less the 12 mm right margin.
+        self.assertLessEqual(max(right_edges), 198.0)
+
+    def test_the_total_is_spelled_out(self):
+        markup = render(self.TEMPLATE)
+        self.assertIn("Amount in words", markup)
+        self.assertIn(PAYLOAD["amountInWords"], markup)
+
+    def test_there_is_nothing_to_spell_before_it_is_totalled(self):
+        # The row is left off rather than printing an empty rule.
+        data = dict(PAYLOAD)
+        data.pop("amountInWords", None)
+        self.assertNotIn("Amount in words", render(self.TEMPLATE, data))
+
     def test_the_phone_ntn_and_registration_number_are_the_pinned_ones(self):
         # The payload carries Apple International's seller, so a template
         # reading these off it would print those instead.
@@ -1737,16 +1800,34 @@ class ZahidBrothersSheet(unittest.TestCase):
         # 26 typed + 191 derived = 217.
         self.assertIn(">217.00<", render(self.TEMPLATE, data))
 
-    def test_the_table_lists_the_lines_it_has(self):
-        # Their Excel form always printed ten rows and padded the empty ones
-        # with dashes. The restyle dropped the padding -- a modern invoice
-        # lists its lines -- so the table is the heading, the items, and the
-        # total, and nothing else.
-        self.assertEqual(3, len(items_table_rows(render(self.TEMPLATE))),
-                         "heading + one line + total")
+    def test_the_table_is_never_fewer_than_five_lines(self):
+        # Their Excel form was a ten-line box that dashed the empty rows.
+        # The restyle dropped the padding; the client asked for it back at
+        # five, so a short invoice prints its lines and ruled blanks up to
+        # five rather than one row floating over white space.
+        self.assertEqual(7, len(items_table_rows(render(self.TEMPLATE))),
+                         "heading + one line + four blanks + total")
         data = dict(PAYLOAD, items=[PAYLOAD["items"][0]] * 4)
-        self.assertEqual(6, len(items_table_rows(render(self.TEMPLATE, data))),
-                         "heading + four lines + total")
+        self.assertEqual(7, len(items_table_rows(render(self.TEMPLATE, data))),
+                         "heading + four lines + one blank + total")
+
+    def test_five_is_a_floor_and_not_a_cap(self):
+        # An invoice longer than their box runs on and pads nothing.
+        data = dict(PAYLOAD, items=[PAYLOAD["items"][0]] * 8)
+        self.assertEqual(10, len(items_table_rows(render(self.TEMPLATE, data))),
+                         "heading + eight lines + total, no blanks")
+
+    def test_the_blank_rows_carry_no_figures(self):
+        # A padding row is a dash in every column. A 0 printed in one would
+        # read as a real figure of nought, and the totals would be checked
+        # against it.
+        markup = render(self.TEMPLATE)
+        blanks = [row for row in markup.split('class="pad"')[1:]]
+        self.assertEqual(4, len(blanks))
+        for row in blanks:
+            cells = row.split("</tr>")[0]
+            self.assertNotIn("0.00", cells)
+            self.assertEqual(13, cells.count("<td"))
 
     def test_a_deep_line_does_not_change_the_number_of_rows(self):
         # Every cell that can wrap is clipped, so a long description grows
@@ -1754,7 +1835,7 @@ class ZahidBrothersSheet(unittest.TestCase):
         deep = "BALANCER UNIT NEW LS 183104 MEL ASSEMBLY COMPLETE SPARE"
         rows = items_table_rows(
             render(self.TEMPLATE, self.line(productDescription=deep)))
-        self.assertEqual(3, len(rows), "heading + one line + total")
+        self.assertEqual(7, len(rows), "heading + one line + four blanks + total")
 
     def test_no_other_replica_grows_these_columns(self):
         data = self.line(hsCodeDescription="NUCLEAR REACTOR, BOILERS",
@@ -1922,14 +2003,14 @@ class ZahidBrothersPagination(unittest.TestCase):
     def test_the_full_ten_line_form_is_one_page(self):
         self.assertEqual(1, len(self.pages(10)))
 
-    def test_the_eleventh_line_is_the_last_one_that_fits(self):
-        # Measured on the restyled sheet: eleven lines and the whole closing
-        # block fit one page, the twelfth starts a second. The party cards
-        # and the totals card cost more room than the ruled form they
-        # replaced, and the lines they bought back went the other way -- so
-        # a change above or below the table shows up here first.
-        self.assertEqual(1, len(self.pages(11)))
-        self.assertEqual(2, len(self.pages(12)))
+    def test_the_tenth_line_is_the_last_one_that_fits(self):
+        # Measured on the restyled sheet: ten lines and the whole closing
+        # block fit one page, the eleventh starts a second. It was eleven
+        # before the amount in words was added, which is what a row above
+        # the totals costs -- so a change anywhere outside the table shows
+        # up here first rather than on a client's invoice.
+        self.assertEqual(1, len(self.pages(10)))
+        self.assertEqual(2, len(self.pages(11)))
 
     def test_no_money_column_is_too_narrow_for_its_figures(self):
         # A wrapped figure reads as two figures -- "1,534,000.0" over "0" --
