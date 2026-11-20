@@ -1308,7 +1308,14 @@ PDF_ONLY_ITEM_FIELDS = frozenset({
     # One client's Part Unit column. Their old software carried it as a
     # figure of its own and their sheet prints it; FBR's item schema has no
     # field for it, so it travels with the invoice and is dropped here.
-    "partUnit",
+    #
+    # `unitrate` rides with it. The PDF has always had one -- derived as
+    # value / quantity further down this file -- but these lines are priced
+    # Part Unit x Rate, so theirs has to be the rate they typed or the sheet
+    # prints a figure that does not multiply out. FBR's item schema has no
+    # per-unit rate at all ("rate" there is the TAX rate), so it is dropped
+    # here like the rest.
+    "partUnit", "unitrate",
 })
 
 # The same idea one level up: top-level keys a client's replica prints and

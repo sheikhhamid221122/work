@@ -305,10 +305,16 @@
             color: #92400e;
         }
         
-        /* UOM filtered state - shows green border when filtered by HS code */
+        /* UOM filtered state - shows green border when filtered by HS code.
+           The colour has to be pinned alongside the background: this rule
+           forces a near-white fill with !important, and on the dark theme the
+           inherited text stayed light, so the chosen unit was light-on-light
+           and barely legible. Both ends of the contrast are set here so the
+           state reads the same whichever theme is underneath it. */
         .uom-filtered {
             border-color: #10b981 !important;
             background-color: #ecfdf5 !important;
+            color: #064e3b !important;
         }
         
         .uom-filtered:focus {
@@ -891,7 +897,8 @@
                                     id="product-uom"
                                     class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm">
                                     <option value="">-- Select Unit --</option>
-                                </select> </div>
+                                </select>
+                                <p id="product-uom-hint" class="text-xs text-gray-500 mt-1"></p> </div>
                             <div> <label for="product-rate" class="block text-gray-700 text-sm mb-1">Rate (per
                                     unit)</label> <input type="number" id="product-rate"
                                     class="form-input w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-primary-500 text-sm"
@@ -3035,18 +3042,11 @@
                     const linked = buyers.find((b) => String(b.id) === linkedBuyerId);
                     if (linked) {
                         select.value = linked.id;
+                        // The province rides along with the rest of the buyer:
+                        // populateBuyerForm parks it if the province list has not
+                        // arrived, and populateSelect applies it when it does. The
+                        // setTimeout poll that used to live here is gone.
                         populateBuyerForm(linked);
-                        // Provinces load in parallel; re-apply once they arrive.
-                        const provinceEl = document.getElementById("buyer-province");
-                        let tries = 0;
-                        const applyProvince = () => {
-                            if (provinceEl.options.length > 1) {
-                                setSelectValueCaseInsensitive(provinceEl, linked.province || "");
-                            } else if (tries++ < 50) {
-                                setTimeout(applyProvince, 200);
-                            }
-                        };
-                        applyProvince();
                     }
                 }
             } catch (error) {
@@ -3134,6 +3134,14 @@
                 }
                 selectElement.appendChild(optElement);
             });
+
+            // A value was asked for before these options existed -- apply it now
+            // that they do. See setSelectValueCaseInsensitive for the race this
+            // closes.
+            const pending = selectElement.dataset.pendingValue;
+            if (pending && applySelectValueNow(selectElement, pending)) {
+                delete selectElement.dataset.pendingValue;
+            }
         }
 
         // Special function to populate scenario dropdown
@@ -3215,35 +3223,64 @@
             "BLOCHISTAN": "BALOCHISTAN",
         };
 
-        // Helper function to set select value with case-insensitive matching
-        function setSelectValueCaseInsensitive(selectElement, value) {
-            if (!selectElement || !value) return;
+        /* Match a value against the options that are on the element RIGHT NOW,
+           case- and spacing-insensitively, falling back to the legacy province
+           spellings above. Returns whether an option actually matched, which is
+           the part the old version could not tell its callers: it ended by
+           assigning `.value`, and assigning a value a <select> does not have is
+           silently ignored by the browser, so a miss looked like a hit. */
+        function applySelectValueNow(selectElement, value) {
             const normalize = (v) => String(v || "").trim().toUpperCase().replace(/\s+/g, " ");
             const target = normalize(value);
-            if (!target) return;
+            if (!target) return false;
 
-            for (let i = 0; i < selectElement.options.length; i++) {
-                if (normalize(selectElement.options[i].value) === target) {
-                    selectElement.selectedIndex = i;
-                    return;
+            const matchOption = (wanted) => {
+                for (let i = 0; i < selectElement.options.length; i++) {
+                    if (normalize(selectElement.options[i].value) === wanted) {
+                        selectElement.selectedIndex = i;
+                        return true;
+                    }
                 }
-            }
+                return false;
+            };
+
+            if (matchOption(target)) return true;
 
             // Legacy/abbreviated province spellings stored before the province list
             // was driven by FBR's provinces API.
             const alias = PROVINCE_ALIASES[target];
-            if (alias) {
-                const aliasTarget = normalize(alias);
-                for (let i = 0; i < selectElement.options.length; i++) {
-                    if (normalize(selectElement.options[i].value) === aliasTarget) {
-                        selectElement.selectedIndex = i;
-                        return;
-                    }
-                }
+            return alias ? matchOption(normalize(alias)) : false;
+        }
+
+        /* Set a dropdown to a stored value -- and if the dropdown has not been
+           filled yet, remember the value so it can be set the moment it is.
+
+           WHY. The province list comes from FBR, by way of /api/form-options,
+           while the saved business profiles are fetched alongside it. Whichever
+           answers first wins: when the profiles arrive first, the profile's
+           province is applied to a dropdown holding nothing but its placeholder,
+           no option matches, and the field is left empty -- so the client picks
+           their own province by hand on every single invoice even though they
+           saved it on their profile. That is the complaint.
+
+           The fix belongs here rather than in each caller. One path had already
+           worked around it by polling with setTimeout until the options showed
+           up; the others had no workaround at all. Instead the wanted value is
+           parked on the element and populateSelect applies it when the options
+           land -- no polling, no ordering requirement, and it covers every
+           dropdown on the page rather than the one that was noticed. */
+        function setSelectValueCaseInsensitive(selectElement, value) {
+            if (!selectElement) return false;
+            const wanted = String(value === null || value === undefined ? "" : value).trim();
+            if (!wanted) return false;
+
+            if (applySelectValueNow(selectElement, wanted)) {
+                delete selectElement.dataset.pendingValue;
+                return true;
             }
 
-            // Fallback: try exact match
-            selectElement.value = value;
+            selectElement.dataset.pendingValue = wanted;
+            return false;
         }
 
         function populateSellerForm(profile) {
@@ -3458,6 +3495,13 @@
             // the figure as it always has, rather than printing a zero.
             if (showsPartUnit() && partUnit !== "") {
                 item.partUnit = partUnit;
+                // The rate as typed. Everyone else's Unit Rate column is
+                // derived on the way to the PDF as value / quantity, which is
+                // the same number -- but not for these lines, where the value
+                // is Part Unit x Rate. Without this the sheet would print a
+                // rate that does not multiply out to the Gross Amount beside
+                // it. Printed only; app.py strips it before the FBR call.
+                item.unitrate = rate;
             }
 
             console.log("Item created:", item);
@@ -3474,7 +3518,12 @@
             document.getElementById("product-hs-code").value = "";
             setHsDescription("");
             document.getElementById("product-quantity").value = "";
-            document.getElementById("product-uom").value = "";
+            /* Put the unit box back to the unnarrowed list rather than just
+               blanking it. The HS code was cleared on the line above, so the
+               narrowed list no longer belongs to anything -- and with no
+               placeholder in a narrowed list, assigning "" selects nothing at
+               all and the box reads as empty with no way back to it. */
+            restoreOriginalUomOptions(document.getElementById("product-uom"));
             document.getElementById("product-rate").value = "";
             document.getElementById("product-value-excl").value = "";
             document.getElementById("product-tax-rate").value = "";
@@ -4396,6 +4445,7 @@
                     }
                     if (!showsPartUnit()) {
                         delete cloned.partUnit;
+                        delete cloned.unitrate;
                     }
                     return cloned;
                 });
@@ -4752,10 +4802,23 @@
             const qty = parseFloat(qtyEl.value) || 0;
             const ratePerUnit = parseFloat(rateEl.value) || 0;
 
+            // What the rate is charged on. For most clients that is the
+            // quantity. One client prices by Part Unit instead -- their
+            // quantity is a weight or a pack count and the money is
+            // Part Unit x Rate -- so when they have typed one it is the
+            // multiplier, and the quantity is carried as the quantity and
+            // nothing more. An empty box falls back to the quantity, so a
+            // line they do not fill behaves exactly as before.
+            const partUnitEl = document.getElementById('product-part-unit');
+            const typedPartUnit = (showsPartUnit() && partUnitEl)
+                ? parseFloat(partUnitEl.value) : NaN;
+            const multiplier = isFinite(typedPartUnit) && typedPartUnit > 0
+                ? typedPartUnit : qty;
+
             // Round the value FIRST -- this rounded figure is what gets sent as
             // valueSalesExcludingST, so the tax must be derived from it, not from
             // the unrounded product.
-            const valueExcl = roundHalfUp(qty * ratePerUnit, 2);
+            const valueExcl = roundHalfUp(multiplier * ratePerUnit, 2);
             if (qty > 0 && ratePerUnit > 0) {
                 valueEl.value = valueExcl.toFixed(2);
             } else {
@@ -4819,6 +4882,9 @@
             fetchFormOptions();
             fetchBusinessProfiles();
             fetchBuyers();
+            // FBR's unit catalogue, to replace the static list as soon as it
+            // lands. Independent of the others, so it is not ordered with them.
+            preloadAllUoms();
             initInvoiceReferenceFields();
             initUserSpecificFields();
 
@@ -4988,6 +5054,14 @@
             }
             if (taxRateSelect) {
                 taxRateSelect.addEventListener('input', () => { calculateValueAndTax(); });
+            }
+
+            // Part Unit is a multiplier for the clients who price by it, so
+            // the line's value has to follow it the way it follows quantity
+            // and rate.
+            const partUnitInputEl = document.getElementById('product-part-unit');
+            if (partUnitInputEl) {
+                partUnitInputEl.addEventListener('input', () => { calculateValueAndTax(); });
             }
 
             // Typing in Fixed Notified Value stops it following the line's
@@ -6572,17 +6646,13 @@
                 return;
             }
             
-            // Store original options BEFORE modifying (save from formOptions if available)
-            if (!uomSelect.dataset.originalOptionsStored) {
-                const originalOpts = [];
-                for (let i = 0; i < uomSelect.options.length; i++) {
-                    originalOpts.push({ value: uomSelect.options[i].value, text: uomSelect.options[i].text });
-                }
-                uomSelect.dataset.originalOptions = JSON.stringify(originalOpts);
-                uomSelect.dataset.originalOptionsStored = 'true';
-                console.log(`[fetchValidUomsForHsCode] Stored ${originalOpts.length} original UOM options`);
-            }
-            
+            // No snapshot of the current options is taken any more. It used to
+            // be restored when FBR could not answer, which meant whatever
+            // happened to be in the box at the time -- usually the offline list,
+            // because the snapshot was taken before FBR's catalogue had loaded.
+            // restoreOriginalUomOptions rebuilds from the best list we hold
+            // instead, which is FBR's own whenever we have it.
+
             // Show loading state
             uomSelect.innerHTML = '<option value="">Loading UOMs for HS code...</option>';
             uomSelect.disabled = true;
@@ -6601,9 +6671,9 @@
                     uomCache.byHsCode[hsCode] = data.valid_uoms;
                     populateUomSelect(uomSelect, data.valid_uoms, true);
                     
-                    // Show info about restricted UOMs
+                    // The note under the box says this; a toast per HS code was
+                    // noise on a form where every line has one.
                     console.log(`HS code ${hsCode} has ${data.count} valid UOMs: ${data.valid_uoms.map(u => u.description).join(', ')}`);
-                    showNotification('info', 'UOM Filter', `Only ${data.count} UOM(s) are valid for this HS code`);
                 } else if (data.source === 'fallback' || data.source === 'error') {
                     // API failed or not configured - restore original options
                     console.log('[fetchValidUomsForHsCode] API returned fallback/error, restoring original UOM options');
@@ -6611,10 +6681,10 @@
                     if (data.error) {
                         console.warn('HS-UOM API error:', data.error);
                     }
-                    // Show notification that all UOMs are available
-                    if (data.message) {
-                        showNotification('warning', 'UOM Info', data.message);
-                    }
+                    setUomHint(uomSelect,
+                        'FBR could not confirm the units for this HS code, so all '
+                        + 'units are listed. Check the unit before you submit.',
+                        'warn');
                 } else if (data.valid_uoms && data.valid_uoms.length > 0 && (data.source === 'cache' || data.source === 'fallback')) {
                     // Fallback data with UOMs - show all available
                     console.log('[fetchValidUomsForHsCode] Using fallback UOM list');
@@ -6634,72 +6704,146 @@
             console.log(`[fetchValidUomsForHsCode] Done. UOM select now has ${uomSelect.options.length} options`);
         }
         
+        /* The list to show when no HS code has narrowed it.
+
+           FBR's own catalogue (reference API 5.6) whenever we have it, and the
+           static list in /api/form-options only when FBR cannot be reached.
+           That static list is the one clients get confused by: it is a guess at
+           FBR's vocabulary rather than a copy of it, so it offers units FBR does
+           not use under those names and a line built from it can be rejected on
+           submission. It stays as a stand-in for an unreachable FBR, not as the
+           list people are shown by default. */
+        function baseUomList() {
+            if (uomCache.all && uomCache.all.length > 0) return uomCache.all;
+            const staticList = (state.formOptions && state.formOptions.uoms) || [];
+            return staticList.map(o => ({
+                value: o.value,
+                description: o.label || o.value
+            }));
+        }
+
         function restoreOriginalUomOptions(select) {
-            if (select.dataset.originalOptions) {
-                const options = JSON.parse(select.dataset.originalOptions);
-                select.innerHTML = '';
-                options.forEach(opt => {
-                    const option = document.createElement('option');
-                    option.value = opt.value;
-                    option.textContent = opt.text;
-                    select.appendChild(option);
-                });
-                select.title = 'All UOMs available (no HS code restriction)';
-            }
+            if (!select) return;
+            const list = baseUomList();
+            if (list.length === 0) return;
+            populateUomSelect(select, list, false);
+            const live = uomCache.all && uomCache.all.length > 0;
+            select.title = live
+                ? 'All units FBR recognises (no HS code restriction)'
+                : 'Offline unit list (FBR unreachable)';
+            setUomHint(select, live
+                ? 'Enter an HS code to narrow this to the units FBR accepts for it.'
+                : 'The FBR unit list is unavailable, so a stand-in list is shown.',
+                live ? '' : 'warn');
         }
         
+        /* The note under the UoM box. It replaces the toast that used to pop up
+           on every HS code: a unit is picked once per line and a notification
+           for it is noise, while the thing the user actually needs to know --
+           whether this list is FBR's answer for THIS HS code, FBR's whole
+           catalogue, or the offline stand-in -- belongs beside the box. */
+        function setUomHint(select, text, tone) {
+            if (!select || select.id !== 'product-uom') return;
+            const el = document.getElementById('product-uom-hint');
+            if (!el) return;
+            el.textContent = text || '';
+            el.className = 'text-xs mt-1 ' +
+                (tone === 'warn' ? 'text-amber-600' : 'text-gray-500');
+        }
+
         function populateUomSelect(select, uoms, isFiltered) {
-            const currentValue = select.value;
-            select.innerHTML = '<option value="">-- Select Unit --</option>';
-            
-            uoms.forEach(uom => {
+            const previous = select.value;
+            select.innerHTML = '';
+
+            const options = (uoms || []).map(uom => ({
+                /* What gets POSTED has to be FBR's own word for the unit. The
+                   reference endpoints set value === description for live data,
+                   so either works there; the offline list carries a short code
+                   in `value` and a friendlier wording in `description`, and it
+                   is the code that goes to FBR. Reading `description` first --
+                   which is what this did -- sent "KG - Kilogram" whenever the
+                   offline list was in play. */
+                value: uom.value || uom.description || '',
+                label: uom.description || uom.value || ''
+            })).filter(o => o.value);
+
+            /* No placeholder once FBR has told us which units this HS code
+               takes: one of them is selected below, so an empty first entry
+               would only be a way to land back on "nothing chosen". */
+            if (!isFiltered || options.length === 0) {
+                const placeholder = document.createElement('option');
+                placeholder.value = '';
+                placeholder.textContent = '-- Select Unit --';
+                select.appendChild(placeholder);
+            }
+
+            options.forEach(o => {
                 const option = document.createElement('option');
-                // Use description as the value (this is what FBR expects)
-                option.value = uom.description || uom.value || '';
-                option.textContent = uom.description || uom.value || '';
+                option.value = o.value;
+                option.textContent = o.label;
                 select.appendChild(option);
             });
-            
-            // Try to restore previous selection if it's still valid
-            if (currentValue) {
-                for (let i = 0; i < select.options.length; i++) {
-                    if (select.options[i].value === currentValue) {
-                        select.selectedIndex = i;
-                        break;
-                    }
-                }
+
+            /* Keep what they had if the new list still offers it. Otherwise fall
+               on index 0 -- which, for a list FBR has narrowed, is the first
+               valid unit, and for the unnarrowed list is the placeholder. That
+               is the default the client asked for: the top one is chosen, and
+               it is an ordinary selected option they can change. */
+            if (!previous || !applySelectValueNow(select, previous)) {
+                select.selectedIndex = 0;
             }
-            
-            // Add visual indicator that UOMs are filtered for this HS code
-            if (isFiltered && uoms.length > 0) {
-                select.title = `Showing ${uoms.length} valid UOM(s) for this HS code`;
+            delete select.dataset.pendingValue;
+
+            if (isFiltered && options.length > 0) {
+                select.title = `FBR lists ${options.length} valid unit(s) for this HS code`;
                 select.classList.add('uom-filtered');
+                setUomHint(select, options.length === 1
+                    ? `Only unit FBR accepts for this HS code: ${options[0].label}`
+                    : `${options.length} units valid for this HS code; the first is selected.`);
             } else {
                 select.classList.remove('uom-filtered');
             }
         }
         
-        // Preload all UOMs from FBR if available
+        /* Fetch FBR's unit catalogue and PUT IT ON THE PAGE.
+
+           This function already existed and already fetched the list -- and then
+           dropped it, with the line that would have used it commented out and no
+           caller anywhere. So every user picked their unit from the static list
+           in /api/form-options while FBR's real one sat unused behind a working
+           endpoint. That is the "hardcoded list" the clients are confused by. */
         async function preloadAllUoms() {
             if (uomCache.all.length > 0 || uomCache.loading) return;
-            
+
             uomCache.loading = true;
-            
+
             try {
                 const response = await fetch(apiUrl('/api/reference/uoms'));
                 const data = await response.json();
-                
-                if (data.uoms && data.uoms.length > 0) {
+
+                // 'fallback' is the server handing back the same static list,
+                // so it is not worth promoting over what is already shown --
+                // and recording it as live would silence the warning that the
+                // list cannot be trusted against FBR.
+                const live = data.source === 'api' || data.source === 'cache';
+                if (live && data.uoms && data.uoms.length > 0) {
                     uomCache.all = data.uoms;
                     console.log(`Loaded ${data.uoms.length} UOMs from FBR (source: ${data.source})`);
-                    
-                    // Optionally update the UOM dropdowns with full list
-                    // updateAllUomDropdowns(data.uoms);
+
+                    // Swap the static list out wherever it is still showing.
+                    // A box already narrowed by an HS code is left alone: that
+                    // list is the more specific answer to the same question.
+                    ['product-uom', 'pm-uom'].forEach(id => {
+                        const select = document.getElementById(id);
+                        if (select && !select.classList.contains('uom-filtered')) {
+                            restoreOriginalUomOptions(select);
+                        }
+                    });
                 }
             } catch (error) {
                 console.error('Error preloading UOMs:', error);
             }
-            
+
             uomCache.loading = false;
         }
         
