@@ -3035,18 +3035,11 @@
                     const linked = buyers.find((b) => String(b.id) === linkedBuyerId);
                     if (linked) {
                         select.value = linked.id;
+                        // The province rides along with the rest of the buyer:
+                        // populateBuyerForm parks it if the province list has not
+                        // arrived, and populateSelect applies it when it does. The
+                        // setTimeout poll that used to live here is gone.
                         populateBuyerForm(linked);
-                        // Provinces load in parallel; re-apply once they arrive.
-                        const provinceEl = document.getElementById("buyer-province");
-                        let tries = 0;
-                        const applyProvince = () => {
-                            if (provinceEl.options.length > 1) {
-                                setSelectValueCaseInsensitive(provinceEl, linked.province || "");
-                            } else if (tries++ < 50) {
-                                setTimeout(applyProvince, 200);
-                            }
-                        };
-                        applyProvince();
                     }
                 }
             } catch (error) {
@@ -3134,6 +3127,14 @@
                 }
                 selectElement.appendChild(optElement);
             });
+
+            // A value was asked for before these options existed -- apply it now
+            // that they do. See setSelectValueCaseInsensitive for the race this
+            // closes.
+            const pending = selectElement.dataset.pendingValue;
+            if (pending && applySelectValueNow(selectElement, pending)) {
+                delete selectElement.dataset.pendingValue;
+            }
         }
 
         // Special function to populate scenario dropdown
@@ -3215,35 +3216,64 @@
             "BLOCHISTAN": "BALOCHISTAN",
         };
 
-        // Helper function to set select value with case-insensitive matching
-        function setSelectValueCaseInsensitive(selectElement, value) {
-            if (!selectElement || !value) return;
+        /* Match a value against the options that are on the element RIGHT NOW,
+           case- and spacing-insensitively, falling back to the legacy province
+           spellings above. Returns whether an option actually matched, which is
+           the part the old version could not tell its callers: it ended by
+           assigning `.value`, and assigning a value a <select> does not have is
+           silently ignored by the browser, so a miss looked like a hit. */
+        function applySelectValueNow(selectElement, value) {
             const normalize = (v) => String(v || "").trim().toUpperCase().replace(/\s+/g, " ");
             const target = normalize(value);
-            if (!target) return;
+            if (!target) return false;
 
-            for (let i = 0; i < selectElement.options.length; i++) {
-                if (normalize(selectElement.options[i].value) === target) {
-                    selectElement.selectedIndex = i;
-                    return;
+            const matchOption = (wanted) => {
+                for (let i = 0; i < selectElement.options.length; i++) {
+                    if (normalize(selectElement.options[i].value) === wanted) {
+                        selectElement.selectedIndex = i;
+                        return true;
+                    }
                 }
-            }
+                return false;
+            };
+
+            if (matchOption(target)) return true;
 
             // Legacy/abbreviated province spellings stored before the province list
             // was driven by FBR's provinces API.
             const alias = PROVINCE_ALIASES[target];
-            if (alias) {
-                const aliasTarget = normalize(alias);
-                for (let i = 0; i < selectElement.options.length; i++) {
-                    if (normalize(selectElement.options[i].value) === aliasTarget) {
-                        selectElement.selectedIndex = i;
-                        return;
-                    }
-                }
+            return alias ? matchOption(normalize(alias)) : false;
+        }
+
+        /* Set a dropdown to a stored value -- and if the dropdown has not been
+           filled yet, remember the value so it can be set the moment it is.
+
+           WHY. The province list comes from FBR, by way of /api/form-options,
+           while the saved business profiles are fetched alongside it. Whichever
+           answers first wins: when the profiles arrive first, the profile's
+           province is applied to a dropdown holding nothing but its placeholder,
+           no option matches, and the field is left empty -- so the client picks
+           their own province by hand on every single invoice even though they
+           saved it on their profile. That is the complaint.
+
+           The fix belongs here rather than in each caller. One path had already
+           worked around it by polling with setTimeout until the options showed
+           up; the others had no workaround at all. Instead the wanted value is
+           parked on the element and populateSelect applies it when the options
+           land -- no polling, no ordering requirement, and it covers every
+           dropdown on the page rather than the one that was noticed. */
+        function setSelectValueCaseInsensitive(selectElement, value) {
+            if (!selectElement) return false;
+            const wanted = String(value === null || value === undefined ? "" : value).trim();
+            if (!wanted) return false;
+
+            if (applySelectValueNow(selectElement, wanted)) {
+                delete selectElement.dataset.pendingValue;
+                return true;
             }
 
-            // Fallback: try exact match
-            selectElement.value = value;
+            selectElement.dataset.pendingValue = wanted;
+            return false;
         }
 
         function populateSellerForm(profile) {
