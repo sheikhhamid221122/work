@@ -2060,6 +2060,35 @@ class ZahidBrothersPagination(unittest.TestCase):
                                % (text, len(lines), box.width * px_mm))
         self.assertEqual([], wrapped)
 
+    def test_the_items_heading_stays_three_lines_deep(self):
+        # The heading band is tracked out so a row of small capitals reads
+        # as a heading. Tracking is paid for in width, and "Further Sales
+        # Tax if ANY" is the heading that sets its own column: past about
+        # 0.24pt it breaks to a fourth line, the band grows from 6.45mm to
+        # 8.60mm, and every page loses that depth from its item rows. So
+        # the band's depth is the thing to hold, not the tracking.
+        markup = render(self.TEMPLATE, PAYLOAD)
+        page = WeasyHTML(string=markup, base_url=ROOT).render().pages[0]
+
+        def walk(box):
+            yield box
+            for child in getattr(box, "children", ()) or ():
+                for item in walk(child):
+                    yield item
+
+        deepest = []
+        for box in walk(page._page_box):
+            if getattr(box, "element_tag", None) != "th":
+                continue
+            lines = [inner for inner in walk(box)
+                     if type(inner).__name__ == "LineBox"]
+            if len(lines) > 3:
+                text = "".join(
+                    child.text for inner in lines for child in walk(inner)
+                    if type(child).__name__ == "TextBox")
+                deepest.append("%r over %d lines" % (text, len(lines)))
+        self.assertEqual([], deepest)
+
     def test_the_closing_block_never_lands_alone_on_a_second_page(self):
         # The failure this exists for: a last page holding nothing but the
         # signature rules and the FBR band reads as a second, empty invoice.

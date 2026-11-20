@@ -162,10 +162,24 @@
     /* Their letterhead is black and one red; the sheet takes its accent
        from the artwork rather than inventing a colour. Both are read off
        templates/brand/zahid_brothers.html, which re-inks the scan in the
-       printed colours. */
+       printed colours.
+
+       The red earns its place ONCE -- the rule under the masthead, which is
+       the line that ties the sheet to the letterhead above it. Everywhere
+       it used to appear as decoration (the card headings, the bar beside
+       the amount in words) it is now ink or grey: a tax invoice is a formal
+       document and a second accent reads as a brochure. `--pending` is the
+       one exception, and it is a warning rather than a decoration.
+
+       `--band` is what the two solid bands are filled with -- the items
+       heading and the grand total. A charcoal rather than the body ink:
+       pure black in two blocks that size prints heavy and fights the
+       artwork, and the two must match or they read as two systems. */
     :root {
       --ink: #1a1a1a;
+      --band: #2b2f36;
       --accent: #ba1e24;
+      --label: #3f4248;
       --muted: #6f6f73;
       --hair: #dcdce0;
       --hair-soft: #ebebee;
@@ -268,16 +282,17 @@
       vertical-align: top;
       background: var(--panel);
       border: 0.6pt solid var(--hair);
-      border-radius: 1.2mm;
       padding: 2.2mm 2.6mm 2.0mm 2.6mm;
     }
     .card-title {
       font-size: 5.8pt;
       letter-spacing: 1.0pt;
       text-transform: uppercase;
-      color: var(--accent);
+      color: var(--label);
       font-weight: 700;
       padding-bottom: 1.0mm;
+      border-bottom: 0.6pt solid var(--hair);
+      margin-bottom: 1.4mm;
     }
     .party-name {
       font-size: 9pt;
@@ -380,16 +395,23 @@
        extraction reads back, which is how the pagination tests find the
        table and the signature block on a page. */
     .items thead th {
-      background: var(--ink);
+      background: var(--band);
       color: #fff;
       font-size: 5.3pt;
       font-weight: 700;
-      letter-spacing: 0.1pt;
+      /* Tracking is what makes a row of small capitals read as a heading
+         rather than as cramped text -- but it is paid for in width, and
+         "Further Sales Tax if ANY" is already the heading that sets its
+         own column. Measured: the band holds at three lines (6.45mm) up to
+         0.24pt and breaks to four (8.60mm) at 0.28pt. 0.2pt is the formal
+         end of that range with room left for a server that substitutes a
+         wider face for Segoe UI. A test holds it at three. */
+      letter-spacing: 0.2pt;
       text-align: center;
       vertical-align: middle;
       line-height: 1.15;
       padding: 1.6mm 1.0mm;
-      border-right-color: #3a3a3d;
+      border-right-color: #4a4e56;
       border-bottom: none;
     }
     .items thead th:last-child { border-right: none; }
@@ -426,7 +448,7 @@
 
     .items tr.total td {
       background: #efeff2;
-      border-top: 0.9pt solid var(--ink);
+      border-top: 0.9pt solid var(--band);
       border-bottom: none;
       font-weight: 700;
       font-size: 6.9pt;
@@ -444,7 +466,8 @@
     .closing { page-break-inside: avoid; margin-top: 4.6mm; }
 
     .words {
-      border-left: 1.4pt solid var(--accent);
+      border: 0.6pt solid var(--hair);
+      border-left: 1.2pt solid var(--band);
       background: var(--panel);
       padding: 1.8mm 2.6mm;
       margin-bottom: 4.0mm;
@@ -494,7 +517,6 @@
       width: 100%;
       border-collapse: collapse;
       border: 0.6pt solid var(--hair);
-      border-radius: 1.2mm;
     }
     .totals td {
       border: none;
@@ -506,7 +528,7 @@
     .totals td.k { color: var(--muted); }
     .totals td.v { text-align: right; font-weight: 600; }
     .totals tr.grand td {
-      background: var(--ink);
+      background: var(--band);
       color: #fff;
       font-size: 8.4pt;
       font-weight: 700;
