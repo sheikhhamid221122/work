@@ -116,6 +116,23 @@
 {%- set buyer_digits = buyer_id | replace('-', '') | replace(' ', '') -%}
 {%- set buyer_is_cnic = buyer_digits | length == 13 and buyer_digits.isdigit() -%}
 
+{#- The buyer's registration status, printed on the face of the invoice.
+    Read from the same two places app.py reads it from, and counted as
+    registered on the same words compliance/fields.py counts -- one spelling
+    of this per codebase, so the invoice cannot disagree with the report.
+
+    An invoice that does not carry the field at all prints NEITHER row. The
+    form defaults a missing value to "Unregistered", and an old invoice saved
+    before the field existed would then be stamped RETAIL CONSUMER on a tax
+    document whose buyer may well have an STRN. Saying nothing is the honest
+    answer to a question the record does not answer. -#}
+{%- set buyer_reg_raw = (data.get('buyerRegistrationType')
+      or (data.get('buyerData') or {}).get('buyerRegistrationType')
+      or (data.get('buyerData') or {}).get('registration_type')
+      or '') | string | trim -%}
+{%- set buyer_reg_known = buyer_reg_raw | length > 0 -%}
+{%- set buyer_registered = buyer_reg_raw | lower in ('registered', 'r', 'yes', '1') -%}
+
 {#- Their form gave an address two lines, with the district on the second:
     "IKHLASPUR ROAD, SHAKARGAH" over "DIST-NAROWAL.". The payload has one
     string, so it is split at its LAST comma, which is what puts the district
@@ -336,6 +353,17 @@
     .ids td.val {
       font-size: 7.2pt;
       font-weight: 600;
+    }
+    /* The buyer-type stamp. The other values on the card are identifiers the
+       reader looks up; this one is a status the reader acts on, so it is set
+       heavier than the rest rather than merely as heavy.
+       (The words it carries are deliberately NOT spelled here: a CSS comment
+       survives into the rendered page, and a test that asserts the stamp is
+       absent would find it in this comment and fail on a sheet that prints
+       it nowhere. That has caught us once already on this template.) */
+    .ids td.val.strong {
+      font-weight: 700;
+      letter-spacing: 0.25pt;
     }
 
     /* ---- Document details strip --------------------------------------- */
@@ -655,6 +683,20 @@
           </tr>
         </table>
       </td>
+          {%- if buyer_reg_known %}
+          <tr>
+            <td class="lab">Registration Type</td>
+            <td class="val">{{ 'Registered' if buyer_registered else 'Unregistered' }}</td>
+          </tr>
+          {%- if not buyer_registered %}
+          {#- Only under an unregistered buyer. A registered one gets nothing
+              here, at the client's instruction. -#}
+          <tr>
+            <td class="lab">Buyer Type</td>
+            <td class="val strong">RETAIL CONSUMER</td>
+          </tr>
+          {%- endif %}
+          {%- endif %}
     </tr>
   </table>
 

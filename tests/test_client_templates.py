@@ -1868,6 +1868,61 @@ class ZahidBrothersFields(unittest.TestCase):
                              termOfSales="Cash on delivery"))
         self.assertIn("PO-4471", markup)
         self.assertIn("Cash on delivery", markup)
+    # ---- the buyer's registration, printed on the face of the invoice ----
+
+    def test_an_unregistered_buyer_is_stamped_a_retail_consumer(self):
+        markup = render(self.TEMPLATE,
+                        dict(PAYLOAD, buyerRegistrationType="Unregistered"))
+        self.assertIn("Registration Type", markup)
+        self.assertIn("Unregistered", markup)
+        self.assertIn("Buyer Type", markup)
+        self.assertIn("RETAIL CONSUMER", markup)
+
+    def test_a_registered_buyer_gets_nothing_under_its_registration_row(self):
+        # The client's instruction: the stamp belongs to unregistered buyers
+        # and a registered one is to carry no second row at all.
+        markup = render(self.TEMPLATE,
+                        dict(PAYLOAD, buyerRegistrationType="Registered"))
+        self.assertIn("Registration Type", markup)
+        self.assertIn("Registered", markup)
+        self.assertNotIn("RETAIL CONSUMER", markup)
+        self.assertNotIn("Buyer Type", markup)
+
+    def test_retail_consumer_is_set_bolder_than_the_rest_of_the_card(self):
+        # "In bold" was the instruction, and the values on that card are
+        # already semi-bold -- so it has to be heavier than they are, not
+        # merely bold, or it does not read as a stamp at all.
+        markup = render(self.TEMPLATE,
+                        dict(PAYLOAD, buyerRegistrationType="Unregistered"))
+        self.assertIn('class="val strong">RETAIL CONSUMER', markup)
+        self.assertRegex(markup, r"\.ids td\.val\.strong \{[^}]*font-weight: 700")
+
+    def test_an_invoice_with_no_registration_field_claims_nothing(self):
+        # Older invoices predate the field. The create form defaults a missing
+        # value to "Unregistered", so trusting it here would stamp RETAIL
+        # CONSUMER onto a tax document whose buyer may hold an STRN. Printing
+        # neither row is the honest answer to a question the record cannot
+        # answer -- and is why this reads the raw value rather than a default.
+        data = dict(PAYLOAD)
+        data.pop("buyerRegistrationType", None)
+        markup = render(self.TEMPLATE, data)
+        self.assertNotIn("RETAIL CONSUMER", markup)
+        self.assertNotIn("Registration Type", markup)
+
+    def test_the_unregistered_spellings_the_rest_of_the_app_accepts(self):
+        # compliance/fields.py counts these as registered; the invoice must
+        # agree with the report, so the same words are tested here.
+        for value in ("registered", "R", "yes", "1"):
+            markup = render(self.TEMPLATE,
+                            dict(PAYLOAD, buyerRegistrationType=value))
+            self.assertNotIn("RETAIL CONSUMER", markup,
+                             "%r should count as registered" % value)
+        for value in ("Unregistered", "unregistered", "UNREGISTERED"):
+            markup = render(self.TEMPLATE,
+                            dict(PAYLOAD, buyerRegistrationType=value))
+            self.assertIn("RETAIL CONSUMER", markup,
+                          "%r should count as unregistered" % value)
+
 
     def test_both_rows_are_ruled_even_when_empty(self):
         # They are boxes on a form, not optional lines: an empty one is a
