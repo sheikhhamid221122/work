@@ -1571,13 +1571,19 @@ class ZahidBrothersSheet(unittest.TestCase):
     # The columns, in millimetres. These were once measured off the vertical
     # rules in their own PDF, because the client asked for the table at
     # exactly the size they set. They then asked for the invoice to look
-    # modern, which replaced that ask: the widths below are proportioned for
-    # legibility across the 186 mm an A4 gives at 12 mm margins. What is
-    # still pinned is that there are THIRTEEN of them, that they are their
-    # thirteen, and that they add up to the page.
-    WIDTHS = ["8.0mm", "15.0mm", "19.0mm", "16.0mm", "21.0mm", "11.0mm",
-              "10.0mm", "10.0mm", "14.5mm", "17.0mm", "15.0mm", "11.0mm",
-              "18.5mm"]
+    # modern, which replaced that ask.
+    #
+    # They are now sized by MEASUREMENT rather than proportion: each is at
+    # least as wide as its widest unbreakable content rendered in DejaVu
+    # Sans, the face the server falls back to, plus a margin. The previous
+    # set was proportioned against Segoe UI, which this machine has and the
+    # server does not, and the client's own sheet came back with the HS code
+    # and the Sales Tax total each split over two lines.
+    # test_nothing_wraps_in_the_font_the_server_actually_has is what holds
+    # that now; this list holds the shape of the table.
+    WIDTHS = ["9.3mm", "15.4mm", "18.5mm", "13.4mm", "16.5mm", "12.3mm",
+              "9.0mm", "10.5mm", "14.9mm", "18.4mm", "18.4mm", "11.1mm",
+              "18.3mm"]
 
     # What the client asked to print the same whatever the business profile
     # says. See the note on RequiredIdentifiers.FIXED.
@@ -1862,12 +1868,6 @@ class ZahidBrothersFields(unittest.TestCase):
     TEMPLATE = "invoice_zahid_brothers.html"
     CLIENT = CLIENT_TEMPLATES["invoice_zahid_brothers.html"]
 
-    def test_both_rows_print_when_they_are_filled_in(self):
-        markup = render(self.TEMPLATE,
-                        dict(PAYLOAD, reference="PO-4471",
-                             termOfSales="Cash on delivery"))
-        self.assertIn("PO-4471", markup)
-        self.assertIn("Cash on delivery", markup)
     # ---- the buyer's registration, printed on the face of the invoice ----
 
     def test_an_unregistered_buyer_is_stamped_a_retail_consumer(self):
@@ -1923,6 +1923,12 @@ class ZahidBrothersFields(unittest.TestCase):
             self.assertIn("RETAIL CONSUMER", markup,
                           "%r should count as unregistered" % value)
 
+    def test_both_rows_print_when_they_are_filled_in(self):
+        markup = render(self.TEMPLATE,
+                        dict(PAYLOAD, reference="PO-4471",
+                             termOfSales="Cash on delivery"))
+        self.assertIn("PO-4471", markup)
+        self.assertIn("Cash on delivery", markup)
 
     def test_both_rows_are_ruled_even_when_empty(self):
         # They are boxes on a form, not optional lines: an empty one is a
@@ -2143,6 +2149,107 @@ class ZahidBrothersPagination(unittest.TestCase):
                     if type(child).__name__ == "TextBox")
                 deepest.append("%r over %d lines" % (text, len(lines)))
         self.assertEqual([], deepest)
+
+    # The face the Linux server falls back to. Measuring in it is the only
+    # way this suite sees what the client is actually sent; everything else
+    # here renders in whatever this machine happens to have.
+    SERVER_FONT = '"DejaVu Sans", sans-serif'
+
+    def _render_in_server_font(self, data):
+        markup = render(self.TEMPLATE, data)
+        markup, n = re.subn(r"(body \{\s*\n\s*font-family: )[^;]+;",
+                            lambda m: m.group(1) + self.SERVER_FONT + ";",
+                            markup, count=1, flags=re.S)
+        self.assertEqual(1, n, "could not substitute the body font")
+        return markup
+
+    def test_nothing_wraps_in_the_font_the_server_actually_has(self):
+        """The client's HS code printed over two lines; here it never did.
+
+        The page asks for Segoe UI and falls back through Helvetica and Arial
+        to DejaVu Sans. A Windows desktop resolves the first, the Linux box
+        that prints these invoices resolves the last, and the last is
+        appreciably wider. Sized against Segoe UI alone, three cells fitted on
+        every render here and wrapped on the client's own sheet: the HS code
+        ("2710.195" over "1"), the Sales Tax total ("12,741.0" over "8") and
+        the "Sr.No." heading ("Sr.N" over "o.").
+
+        A figure split across two lines reads as two figures, and a split HS
+        code reads as two codes, so this checks the money columns, the HS code
+        and every heading that is a single word -- a heading of several words
+        may wrap between them, which is how the band is designed.
+        """
+        line = dict(PAYLOAD["items"][0], hsCode="2710.1951", quantity=64,
+                    partUnit=8, unitrate=8847.97,
+                    valueSalesExcludingST=70783.76,
+                    salesTaxApplicable=12741.08, totalValues=83524.84)
+        markup = self._render_in_server_font(dict(
+            PAYLOAD, items=[line] * 5,
+            totalExcl=353918.80, totalTax=63705.40, totalInclusive=417624.20))
+        page = WeasyHTML(string=markup, base_url=ROOT).render().pages[0]
+
+        def walk(box):
+            yield box
+            for child in getattr(box, "children", ()) or ():
+                for item in walk(child):
+                    yield item
+
+        px_mm = 25.4 / 96.0
+        wrapped = []
+        for box in walk(page._page_box):
+            tag = getattr(box, "element_tag", None)
+            if tag not in ("td", "th"):
+                continue
+            try:
+                classes = (box.element.get("class") or "").split()
+            except Exception:
+                classes = []
+            lines = [b for b in walk(box) if type(b).__name__ == "LineBox"]
+            if len(lines) < 2:
+                continue
+            text = "".join(c.text for ln in lines for c in walk(ln)
+                           if type(c).__name__ == "TextBox")
+            if tag == "th":
+                # Several words may share a heading's lines; one word may not.
+                # The heading's own source text is what says which it is --
+                # the rendered line boxes come back with the spaces at the
+                # breaks already consumed, so "Part Unit" reads as one token
+                # there and would be mistaken for a split word.
+                source = (getattr(box.element, "text", "") or "").strip()
+                if " " in source:
+                    continue
+            elif not ({"hs", "num"} & set(classes)):
+                continue
+            wrapped.append("%r over %d lines in a %.2fmm cell"
+                           % (text, len(lines), box.width * px_mm))
+
+        # A cell that cannot wrap does not wrap when it is too narrow -- it
+        # OVERFLOWS, and .items sets overflow:hidden, so the surplus is
+        # simply cut off. On the HS code that means a truncated code printed
+        # as though it were the whole one, which is worse than the split the
+        # nowrap was added to prevent. Counting lines cannot see it; this
+        # measures the text against the box it had to fit in.
+        clipped = []
+        for box in walk(page._page_box):
+            if getattr(box, "element_tag", None) not in ("td", "th"):
+                continue
+            try:
+                classes = (box.element.get("class") or "").split()
+            except Exception:
+                classes = []
+            if "hs" not in classes:
+                continue
+            for inner in walk(box):
+                if type(inner).__name__ != "LineBox":
+                    continue
+                if inner.width > box.width + 0.5:
+                    text = "".join(c.text for c in walk(inner)
+                                   if type(c).__name__ == "TextBox")
+                    clipped.append(
+                        "%r needs %.2fmm and was given %.2fmm"
+                        % (text, inner.width * px_mm, box.width * px_mm))
+
+        self.assertEqual([], wrapped + clipped)
 
     def test_the_closing_block_never_lands_alone_on_a_second_page(self):
         # The failure this exists for: a last page holding nothing but the

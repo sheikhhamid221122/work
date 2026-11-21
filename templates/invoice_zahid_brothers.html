@@ -449,6 +449,8 @@
     .items tr { page-break-inside: avoid; }
 
     .items td.sn { text-align: right; color: var(--muted); }
+    /* An HS code is one token and reads as one line or not at all. */
+    .items td.hs { white-space: nowrap; }
     /* The ruled blanks that bring a short invoice up to five lines. Their
        dashes are set back so they read as an empty row and not as a figure
        of nought. */
@@ -681,8 +683,6 @@
             <td class="lab">Sales Tax Reg. No.</td>
             <td class="val">{{ data.buyerSTRN }}</td>
           </tr>
-        </table>
-      </td>
           {%- if buyer_reg_known %}
           <tr>
             <td class="lab">Registration Type</td>
@@ -697,6 +697,8 @@
           </tr>
           {%- endif %}
           {%- endif %}
+        </table>
+      </td>
     </tr>
   </table>
 
@@ -765,24 +767,41 @@
   <table class="items">
     <colgroup>
       {#- 186 mm in all. Each money column is wide enough for the widest
-          figure it can hold -- "1,300,000.00" is 13 mm at 6.6 pt plus
-          2.2 mm of padding -- because a wrapped figure reads as two
-          figures. The four-line "Further Sales Tax if ANY" heading sets
-          its own column's width, not the figures under it. -#}
-      <col style="width:8.0mm">    {# Sr.No.                      #}
-      <col style="width:15.0mm">   {# HS CODE                     #}
-      <col style="width:19.0mm">   {# HS CODE DESCRIPTION         #}
-      <col style="width:16.0mm">   {# Item Type                   #}
-      <col style="width:21.0mm">   {# Product Code & Description  #}
-      <col style="width:11.0mm">   {# Qty                         #}
-      <col style="width:10.0mm">   {# UOM                         #}
-      <col style="width:10.0mm">   {# Part Unit                   #}
-      <col style="width:14.5mm">   {# Unit Rate                   #}
-      <col style="width:17.0mm">   {# Gross Amount                #}
-      <col style="width:15.0mm">   {# Sales Tax                   #}
-      <col style="width:11.0mm">   {# Further Sales Tax if ANY    #}
-      <col style="width:18.5mm">   {# Value Including Sales Tax   #}
-    </colgroup>
+          figure it can hold, because a wrapped figure reads as two figures.
+          The four-line "Further Sales Tax if ANY" heading sets its own
+          column's width, not the figures under it.
+
+          The second figure in each comment is the millimetres that
+          column's widest unbreakable content needs in the server's font --
+          the heading when it is one word, otherwise the widest figure the
+          column can hold, which for the money columns is the TOTAL row at
+          6.9pt bold over a full invoice ("707,837.60" is 17.80mm).
+
+          MEASURED AGAINST THE SERVER'S FONT, NOT THIS MACHINE'S. The page
+          asks for Segoe UI and falls back through Helvetica and Arial to
+          DejaVu Sans. A Windows desktop has Segoe UI; the Linux box that
+          actually prints these invoices has DejaVu Sans or Liberation Sans,
+          and both are appreciably wider. Sized against Segoe UI, three cells
+          that fit here wrapped on the client's own sheet: the HS code
+          ("2710.195" over "1"), the Sales Tax total ("12,741.0" over "8")
+          and the "Sr.No." heading. The widths below are the widths the
+          widest of those faces needs, so the sheet is the same shape on a
+          developer's screen and on the server. There is a test that renders
+          in DejaVu Sans and fails if any of these columns wraps. -#}
+      <col style="width:9.3mm">    {# needs  8.90  Sr.No.      heading "Sr.No."     #}
+      <col style="width:15.4mm">   {# needs 14.89  HS CODE     the code, nowrap     #}
+      <col style="width:18.5mm">   {# needs 17.81  HS DESCR.   heading "DESCRIPTION" #}
+      <col style="width:13.4mm">   {# needs 12.81  Item Type   cell word "Schedule" #}
+      <col style="width:16.5mm">   {# needs 14.96  Product C.  heading "Description" #}
+      <col style="width:12.3mm">   {# needs 11.73  Qty         total "640.00"       #}
+      <col style="width:9.0mm">    {# needs  7.43  UOM         cell "Liter"         #}
+      <col style="width:10.5mm">   {# needs 10.00  Part Unit   total "80.00"        #}
+      <col style="width:14.9mm">   {# needs 14.30  Unit Rate   "88,479.70"          #}
+      <col style="width:18.4mm">   {# needs 17.80  Gross Amt   total "707,837.60"   #}
+      <col style="width:18.4mm">   {# needs 17.80  Sales Tax   total "127,410.80"   #}
+      <col style="width:11.1mm">   {# needs 10.53  Further ST  heading "Further"    #}
+      <col style="width:18.3mm">   {# needs 17.80  Value Incl  total "835,248.40"   #}
+      </colgroup>
     <thead>
       <tr>
         <th>Sr.No.</th>
@@ -816,7 +835,11 @@
                     else (item.quantity | default(0) | float)) -%}
         <tr>
           <td class="sn">{{ loop.index }}</td>
-          <td class="mid">{{ item.hsCode or item.hs_code or '' }}</td>
+          {#- One line, always. The column is sized for the widest fallback
+              face, and this says so outright so no future narrowing can put
+              the code back onto two lines -- which is what the client
+              reported and what they read as two codes. -#}
+          <td class="mid hs">{{ item.hsCode or item.hs_code or '' }}</td>
           {#- Clipped to three lines, the way their fixed-height cell
               clipped FBR's description. -#}
           <td class="mid"><div class="clip3">{{ item.hsCodeDescription or '' }}</div></td>
