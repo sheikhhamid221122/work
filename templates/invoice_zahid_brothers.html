@@ -201,6 +201,7 @@
       --hair: #dcdce0;
       --hair-soft: #ebebee;
       --panel: #f6f6f8;
+      --fbr-mark: 17mm;
     }
 
     body {
@@ -580,8 +581,12 @@
     }
     .fbr { border-collapse: collapse; }
     .fbr td { padding: 0 3.4mm 0 0; vertical-align: middle; border: none; }
-    .fbr img.qr { width: 17mm; height: 17mm; }
-    .fbr img.di { height: 11mm; width: auto; }
+    /* The two FBR marks are one pair, so they are sized off one number.
+       The Digital Invoicing mark keeps its own aspect ratio -- matching the
+       QR on height, not stretched into a square -- so the pair reads as
+       equal without the wordmark being distorted. */
+    .fbr img.qr { width: var(--fbr-mark); height: var(--fbr-mark); }
+    .fbr img.di { height: var(--fbr-mark); width: auto; }
     .fbr td.note {
       font-size: 5.4pt;
       color: var(--muted);

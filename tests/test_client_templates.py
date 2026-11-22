@@ -2099,6 +2099,35 @@ class ZahidBrothersPagination(unittest.TestCase):
         self.assertEqual(1, len(self.pages(9)))
         self.assertEqual(2, len(self.pages(10)))
 
+    def test_the_two_fbr_marks_are_the_same_height(self):
+        # The client asked for the Digital Invoicing mark to match the QR.
+        # Both are sized off --fbr-mark, and the mark keeps its own aspect
+        # ratio rather than being squared off, so this checks the height
+        # and leaves the width alone.
+        page = WeasyHTML(string=self.markup(1), base_url=ROOT).render().pages[0]
+
+        def walk(box):
+            yield box
+            for child in getattr(box, "children", ()) or ():
+                for item in walk(child):
+                    yield item
+
+        marks = {}
+        for box in walk(page._page_box):
+            if getattr(box, "element_tag", None) != "img":
+                continue
+            try:
+                classes = (box.element.get("class") or "").split()
+            except Exception:
+                continue
+            for name in ("qr", "di"):
+                if name in classes:
+                    marks[name] = box.height * (25.4 / 96.0)
+        self.assertEqual({"qr", "di"}, set(marks), "both marks must render")
+        self.assertAlmostEqual(marks["qr"], marks["di"], places=2,
+                               msg="QR %.2fmm, Digital Invoicing mark %.2fmm"
+                                   % (marks["qr"], marks["di"]))
+
     def test_no_money_column_is_too_narrow_for_its_figures(self):
         # A wrapped figure reads as two figures -- "1,534,000.0" over "0" --
         # and that is exactly what the first cut of the restyle printed in
