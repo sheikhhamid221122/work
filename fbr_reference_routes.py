@@ -24,44 +24,6 @@ CACHE_DURATION_REG_TYPE = 3600  # 1 hour for registration type lookups
 FBR_SANDBOX_BASE = "https://gw.fbr.gov.pk"
 FBR_PRODUCTION_BASE = "https://gw.fbr.gov.pk"
 
-# Fallback static data (used when FBR API is unavailable)
-FALLBACK_UOMS = [
-    {"uoM_ID": 1, "value": "Numbers, pieces, units", "description": "Numbers, pieces, units"},
-    {"uoM_ID": 13, "value": "KG", "description": "KG - Kilogram"},
-    {"uoM_ID": 14, "value": "MT", "description": "MT - Metric Ton"},
-    {"uoM_ID": 15, "value": "LTR", "description": "LTR - Liter"},
-    {"uoM_ID": 16, "value": "KWH", "description": "KWH - Kilowatt Hour"},
-    {"uoM_ID": 17, "value": "MTR", "description": "MTR - Meter"},
-    {"uoM_ID": 77, "value": "Square Metre", "description": "Square Metre"},
-    {"uoM_ID": 18, "value": "CFT", "description": "CFT - Cubic Feet"},
-    {"uoM_ID": 19, "value": "SFT", "description": "SFT - Square Feet"},
-    {"uoM_ID": 20, "value": "PAIRS", "description": "PAIRS"},
-    {"uoM_ID": 21, "value": "DOZEN", "description": "DOZEN"},
-    {"uoM_ID": 22, "value": "GROSS", "description": "GROSS"},
-    {"uoM_ID": 23, "value": "SET", "description": "SET"},
-    {"uoM_ID": 24, "value": "PACK", "description": "PACK"},
-    {"uoM_ID": 25, "value": "REAM", "description": "REAM"},
-    {"uoM_ID": 26, "value": "ROLL", "description": "ROLL"},
-    {"uoM_ID": 27, "value": "SHEET", "description": "SHEET"},
-    {"uoM_ID": 28, "value": "TON", "description": "TON"},
-    {"uoM_ID": 29, "value": "YARD", "description": "YARD"},
-    {"uoM_ID": 30, "value": "FEET", "description": "FEET"},
-    {"uoM_ID": 31, "value": "INCH", "description": "INCH"},
-    {"uoM_ID": 32, "value": "CM", "description": "CM - Centimeter"},
-    {"uoM_ID": 33, "value": "MM", "description": "MM - Millimeter"},
-    {"uoM_ID": 34, "value": "GRAM", "description": "GRAM"},
-    {"uoM_ID": 35, "value": "ML", "description": "ML - Milliliter"},
-    {"uoM_ID": 36, "value": "GALLON", "description": "GALLON"},
-    {"uoM_ID": 37, "value": "BARREL", "description": "BARREL"},
-    {"uoM_ID": 38, "value": "BAG", "description": "BAG"},
-    {"uoM_ID": 39, "value": "BOX", "description": "BOX"},
-    {"uoM_ID": 40, "value": "CARTON", "description": "CARTON"},
-    {"uoM_ID": 41, "value": "BOTTLE", "description": "BOTTLE"},
-    {"uoM_ID": 42, "value": "CAN", "description": "CAN"},
-    {"uoM_ID": 43, "value": "DRUM", "description": "DRUM"},
-    {"uoM_ID": 44, "value": "BUNDLE", "description": "BUNDLE"},
-    {"uoM_ID": 45, "value": "BALE", "description": "BALE"},
-]
 
 
 # Fallback province list, used ONLY when the live FBR provinces API (5.1) cannot
@@ -418,6 +380,75 @@ def fetch_transaction_types(get_db_connection, get_env):
     return normalized, "api"
 
 
+def fetch_uoms(get_db_connection, get_env):
+    """
+    Single source of truth for the unit vocabulary (FBR DI API 5.6,
+    GET https://gw.fbr.gov.pk/pdi/v1/uom).
+
+    Returns (uoms, source) where uoms is a list of
+    {"uoM_ID": int, "value": str, "description": str} and source is one of
+    "cache", "api" or "unavailable". `value` is FBR's own description,
+    because that exact string is what gets posted as uoM.
+
+    THERE IS DELIBERATELY NO OFFLINE LIST HERE, and nothing in this file
+    should grow one again. The one that used to sit at the top of this
+    module was a guess at FBR's vocabulary rather than a copy of it: it
+    offered LTR where FBR says Litre, short codes FBR does not use for
+    a dozen other units, and invented uoM_IDs to go with them. A unit FBR
+    does not recognise is a worse outcome than no unit at all -- the form
+    takes it, the user believes the line is good, and the only thing that
+    ever contradicts them is FBR rejecting the invoice at submission, by
+    which point there is nothing on screen to point at. So when FBR cannot
+    be reached this returns nothing and says so, and the caller's job is to
+    tell the user the list is unavailable rather than to invent one.
+    """
+    client_id = session.get("client_id")
+    cache_key = f"uoms_{client_id}"
+
+    cached = _get_cache(cache_key)
+    if cached:
+        return cached, "cache"
+
+    _, token = get_client_fbr_token(get_db_connection, get_env)
+    if not token:
+        return [], "unavailable"
+
+    data, error = fbr_get("/pdi/v1/uom", token)
+    if error or not isinstance(data, list):
+        if error:
+            print(f"[UOM API] Error: {error}")
+        return [], "unavailable"
+
+    normalized = normalize_uoms(data)
+    if not normalized:
+        return [], "unavailable"
+
+    _set_cache(cache_key, normalized, CACHE_DURATION_UOMS)
+    return normalized, "api"
+
+
+def normalize_uoms(rows):
+    """FBR's [{"uoM_ID": 13, "description": "KG"}, ...] in the shape the
+    dropdowns want. Both 5.6 (all units) and 5.9 (units for one HS code)
+    answer in this shape, so both go through here and neither can drift
+    into posting a label where FBR expects its own word."""
+    normalized = []
+    seen = set()
+    for row in rows or []:
+        if not isinstance(row, dict):
+            continue
+        description = str(row.get("description") or "").strip()
+        if not description or description in seen:
+            continue
+        seen.add(description)
+        normalized.append({
+            "uoM_ID": row.get("uoM_ID") or row.get("uom_id") or row.get("id"),
+            "value": description,
+            "description": description,
+        })
+    return normalized
+
+
 def add_fbr_reference_routes(app, get_db_connection, get_env):
     """Add FBR reference data routes to the Flask app."""
 
@@ -613,54 +644,30 @@ def add_fbr_reference_routes(app, get_db_connection, get_env):
     @app.route("/api/reference/uoms", methods=["GET"])
     def get_uoms():
         """
-        Fetch all available UOMs from FBR API 5.6.
-        Returns cached data if available.
+        FBR's unit vocabulary (API 5.6). Cached per client for 24h.
+
+        `source` is "api", "cache", or "unavailable" -- and "unavailable"
+        comes with an empty list, not a stand-in one. The caller is expected
+        to say so on screen. See fetch_uoms for why there is no stand-in.
         """
         client_id = session.get("client_id")
         if not client_id:
             return jsonify({"error": "No client ID in session"}), 401
-        
-        force_refresh = request.args.get("refresh", "").lower() == "true"
-        cache_key = f"uoms_{client_id}"
-        
-        # Check cache first
-        if not force_refresh:
-            cached_data = _get_cache(cache_key)
-            if cached_data:
-                return jsonify({"uoms": cached_data, "source": "cache"})
-        
-        # Fetch from FBR API
-        _, token = _get_client_token()
-        if not token:
-            # Return fallback data if no token
-            print("No API token, using fallback UOMs")
-            return jsonify({"uoms": FALLBACK_UOMS, "source": "fallback"})
-        
-        data, error = _make_fbr_request("/pdi/v1/uom", token)
-        
-        if error:
-            print(f"FBR UOM API error: {error}, using fallback")
-            return jsonify({"uoms": FALLBACK_UOMS, "source": "fallback", "error": error})
-        
-        # Process and cache results - FBR returns [{"uoM_ID": 13, "description": "KG"}, ...]
-        if isinstance(data, list) and len(data) > 0:
-            # Normalize the data format
-            normalized = []
-            for item in data:
-                uom_id = item.get("uoM_ID") or item.get("uom_id") or item.get("id")
-                description = item.get("description", "")
-                normalized.append({
-                    "uoM_ID": uom_id,
-                    "value": description,  # Use description as value for dropdown
-                    "description": description
-                })
-            
-            print(f"UOM API: Loaded {len(normalized)} UOMs from FBR")
-            _set_cache(cache_key, normalized, CACHE_DURATION_UOMS)
-            return jsonify({"uoms": normalized, "source": "api", "count": len(normalized)})
-        
-        # Fallback if unexpected format
-        return jsonify({"uoms": FALLBACK_UOMS, "source": "fallback"})
+
+        if request.args.get("refresh", "").lower() == "true":
+            _clear_cache(f"uoms_{client_id}")
+
+        uoms, source = fetch_uoms(get_db_connection, get_env)
+        if source == "unavailable":
+            return jsonify({
+                "uoms": [],
+                "source": "unavailable",
+                "count": 0,
+                "message": "FBR's unit list could not be reached.",
+            })
+
+        print(f"UOM API: {len(uoms)} units ({source})")
+        return jsonify({"uoms": uoms, "source": source, "count": len(uoms)})
 
     # -------------------- HS Code UOM Validation API --------------------
     @app.route("/api/reference/hs-uom", methods=["GET"])
@@ -703,67 +710,70 @@ def add_fbr_reference_routes(app, get_db_connection, get_env):
                 "count": len(cached_data)
             })
         
-        # Fetch from FBR API
+        # Three different things used to be flattened into one answer here:
+        # "we could not ask FBR", "FBR has no restriction on this code" and
+        # "FBR listed these units". All three returned the same invented
+        # list under source "fallback", so the form could not tell the user
+        # which had happened, and the first two put words in FBR's mouth.
+        # They are now three sources: "unavailable", "unrestricted", "api".
         print("[HS-UOM API] Cache miss, fetching from FBR...")
         _, token = _get_client_token()
         if not token:
-            print("[HS-UOM API] ERROR: No API token found!")
-            # Return all UOMs as fallback (no restriction)
+            print("[HS-UOM API] No API token.")
             return jsonify({
                 "hs_code": hs_code,
-                "valid_uoms": FALLBACK_UOMS,
-                "source": "fallback",
-                "message": "API token not configured. All UOMs shown.",
+                "valid_uoms": [],
+                "source": "unavailable",
+                "message": "FBR could not be reached, so the units for this "
+                           "HS code are unknown.",
                 "debug": "token missing"
             })
-        
-        params = {
-            "hs_code": hs_code,
-            "annexure_id": annexure_id
-        }
-        
+
+        params = {"hs_code": hs_code, "annexure_id": annexure_id}
         data, error = _make_fbr_request("/pdi/v2/HS_UOM", token, params)
-        
+
         if error:
             print(f"FBR HS_UOM API error for {hs_code}: {error}")
-            # Return all UOMs as fallback when API fails
             return jsonify({
                 "hs_code": hs_code,
-                "valid_uoms": FALLBACK_UOMS,
-                "source": "fallback",
+                "valid_uoms": [],
+                "source": "unavailable",
                 "error": error,
-                "message": "Could not validate HS+UOM. All UOMs shown."
+                "message": "FBR could not be reached, so the units for this "
+                           "HS code are unknown.",
             })
-        
-        # Process and cache results - FBR returns [{"uoM_ID": 13, "description": "KG"}, ...]
-        if isinstance(data, list) and len(data) > 0:
-            normalized = []
-            for item in data:
-                uom_id = item.get("uoM_ID") or item.get("uom_id") or item.get("id")
-                description = item.get("description", "")
-                normalized.append({
-                    "uoM_ID": uom_id,
-                    "value": description,  # Use description as value for dropdown
-                    "description": description
-                })
-            
+
+        normalized = normalize_uoms(data if isinstance(data, list) else [])
+        if normalized:
             _set_cache(cache_key, normalized, CACHE_DURATION_HS_UOM)
-            
-            print(f"HS-UOM API: Found {len(normalized)} valid UOMs for HS code {hs_code}: {[u['description'] for u in normalized]}")
-            
+            print(f"HS-UOM API: {len(normalized)} valid units for {hs_code}: "
+                  f"{[u['description'] for u in normalized]}")
             return jsonify({
                 "hs_code": hs_code,
                 "valid_uoms": normalized,
                 "source": "api",
                 "count": len(normalized)
             })
-        
-        # Empty or unexpected response - return all UOMs
+
+        # FBR answered, and named no units for this code. That is not a
+        # failure and it is not a licence to guess: it means FBR records no
+        # restriction, so the whole of FBR's own catalogue is on offer.
+        all_uoms, all_source = fetch_uoms(get_db_connection, get_env)
+        if all_source == "unavailable":
+            return jsonify({
+                "hs_code": hs_code,
+                "valid_uoms": [],
+                "source": "unavailable",
+                "message": "FBR could not be reached, so the units for this "
+                           "HS code are unknown.",
+            })
         return jsonify({
             "hs_code": hs_code,
-            "valid_uoms": FALLBACK_UOMS,
-            "source": "fallback",
-            "message": "No specific UOMs found for this HS code. All UOMs shown."
+            "valid_uoms": all_uoms,
+            "source": "unrestricted",
+            "count": len(all_uoms),
+            "message": "FBR records no unit restriction for this HS code, "
+                       "so every FBR unit is listed.",
         })
 
     # -------------------- Validate HS+UOM Combination --------------------

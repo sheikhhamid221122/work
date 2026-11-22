@@ -12,6 +12,7 @@ from fbr_reference_routes import (
     fetch_hs_code_description,
     fetch_provinces,
     fetch_transaction_types,
+    fetch_uoms,
 )
 import advance_tax
 import client_features
@@ -1550,6 +1551,16 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
         # dropdown (5.8 SaleTypeToRate) can look up rates for the chosen sale
         # type without a second round-trip to resolve the ID.
         fbr_sale_types, sale_types_source = fetch_transaction_types(get_db_connection, get_env)
+
+        # FBR's unit vocabulary, the same list and the same per-client cache
+        # the invoice form's UoM box and /api/reference/uoms read, so the
+        # products page, the bulk import template and the invoice form can
+        # never disagree about what a valid unit is.
+        fbr_uoms, uoms_source = fetch_uoms(get_db_connection, get_env)
+        uoms_data = [
+            {"value": u["value"], "label": u["description"]}
+            for u in fbr_uoms
+        ]
         sale_types_data = [
             {
                 "value": t["transactioN_DESC"],
@@ -1575,45 +1586,16 @@ def add_invoice_form_routes(app, get_db_connection, get_env):
                 ],
                 "saleTypes": sale_types_data,
                 "saleTypesSource": sale_types_source,
-                # Extended UOM list - fallback values if FBR API unavailable
-                # Dynamic UOMs are fetched via /api/reference/uoms and /api/reference/hs-uom
-                "uoms": [
-                    {"value": "Numbers, pieces, units", "label": "Numbers, pieces, units"},
-                    {"value": "KG", "label": "KG - Kilogram"},
-                    {"value": "MT", "label": "MT - Metric Ton"},
-                    {"value": "LTR", "label": "LTR - Liter"},
-                    {"value": "KWH", "label": "KWH - Kilowatt Hour"},
-                    {"value": "MTR", "label": "MTR - Meter"},
-                    {"value": "Square Metre", "label": "Square Metre"},
-                    {"value": "CFT", "label": "CFT - Cubic Feet"},
-                    {"value": "SFT", "label": "SFT - Square Feet"},
-                    {"value": "PAIRS", "label": "PAIRS"},
-                    {"value": "DOZEN", "label": "DOZEN"},
-                    {"value": "GROSS", "label": "GROSS"},
-                    {"value": "SET", "label": "SET"},
-                    {"value": "PACK", "label": "PACK"},
-                    {"value": "REAM", "label": "REAM"},
-                    {"value": "ROLL", "label": "ROLL"},
-                    {"value": "SHEET", "label": "SHEET"},
-                    {"value": "TON", "label": "TON"},
-                    {"value": "YARD", "label": "YARD"},
-                    {"value": "FEET", "label": "FEET"},
-                    {"value": "INCH", "label": "INCH"},
-                    {"value": "CM", "label": "CM - Centimeter"},
-                    {"value": "MM", "label": "MM - Millimeter"},
-                    {"value": "GRAM", "label": "GRAM"},
-                    {"value": "ML", "label": "ML - Milliliter"},
-                    {"value": "GALLON", "label": "GALLON"},
-                    {"value": "BARREL", "label": "BARREL"},
-                    {"value": "BAG", "label": "BAG"},
-                    {"value": "BOX", "label": "BOX"},
-                    {"value": "CARTON", "label": "CARTON"},
-                    {"value": "BOTTLE", "label": "BOTTLE"},
-                    {"value": "CAN", "label": "CAN"},
-                    {"value": "DRUM", "label": "DRUM"},
-                    {"value": "BUNDLE", "label": "BUNDLE"},
-                    {"value": "BALE", "label": "BALE"},
-                ],
+                # Units come from FBR DI Reference API 5.6 (/pdi/v1/uom),
+                # cached per client for 24h. There is no static list behind
+                # this one any more: the thirty-five entries that used to sit
+                # here were a guess at FBR's vocabulary, so the form offered
+                # LTR where FBR says Litre and the invoice was rejected
+                # at submission with nothing on screen to explain it. When
+                # FBR cannot be reached this is empty and uomsSource says
+                # "unavailable", which the pages are expected to show.
+                "uoms": uoms_data,
+                "uomsSource": uoms_source,
                 "scenarioIds": [
                     {"value": "SN001", "label": "SN001 - Goods at standard rate (default)"},
                     {"value": "SN002", "label": "SN002 - Goods at standard rate (default)"},

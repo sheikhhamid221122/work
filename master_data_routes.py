@@ -629,6 +629,12 @@ def add_master_data_routes(app, get_db_connection, get_env):
 
         options = _form_options()
         uoms = _option_values(options, "uoms")
+        # The UoM column's dropdown IS the template's value: without it they
+        # are typing unit names at FBR and finding out at submission.
+        if not uoms:
+            return jsonify({"error": "FBR's list of units could not be reached, "
+                                     "so the template cannot be built with its "
+                                     "UoM dropdown. Try again in a few minutes."}), 503
         sale_types = _option_values(options, "saleTypes")
         tax_labels = [str(o.get("label") or "").replace("%", "") for o in options.get("taxRates") or []]
 
@@ -681,6 +687,14 @@ def add_master_data_routes(app, get_db_connection, get_env):
             return jsonify({"error": "This doesn't look like the products template: no Product Name column."}), 400
 
         options = _form_options()
+        # Units are checked against FBR's live list and nothing else. If that
+        # list could not be fetched, every row would fail with "not an FBR
+        # unit of measure" -- blaming the file for something that is wrong at
+        # our end. Say what actually happened and let them retry.
+        if not _option_values(options, "uoms"):
+            return jsonify({"error": "FBR's list of units could not be reached, "
+                                     "so units in this file cannot be checked. "
+                                     "Try the import again in a few minutes."}), 503
         uom_lookup = _uom_lookup(options)
         allowed_rates = _tax_rates(options)
         sale_types = {md.name_key(s): s for s in _option_values(options, "saleTypes")}

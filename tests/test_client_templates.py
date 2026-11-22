@@ -41,10 +41,11 @@ import invoice_templates  # noqa: E402
 # module runnable if the PDF stack is ever stripped out of a CI image.
 try:
     import pypdfium2
+    import qrcode
     from PIL import Image
     from weasyprint import HTML as WeasyHTML
 except Exception:  # pragma: no cover
-    pypdfium2 = Image = WeasyHTML = None
+    pypdfium2 = qrcode = Image = WeasyHTML = None
 
 # template file -> the client it was built for. Add a row when you build one.
 # The value is what `username` is rendered with, so it is the client's
@@ -250,6 +251,21 @@ def real_fbr_logo():
     buffer = io.BytesIO()
     logo.save(buffer, format="PNG")
     return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
+
+
+def real_qr(payload=FBR_NUMBER):
+    """A real QR code as a base64 PNG, made exactly as app.py makes it.
+
+    QR_B64 is seventeen bytes of nonsense, which is all a test asserting
+    the page carries the code needs. A page being MEASURED needs more:
+    a broken image renders as its alt text, and the Zahid Brothers band
+    sizes the mark at 17mm, so with the fake code the band measures the
+    height of one line of "FBR QR code" instead. Pagination read six
+    millimetres of slack that no printed invoice has.
+    """
+    buffer = io.BytesIO()
+    qrcode.make(payload).save(buffer, format="PNG")
+    return base64.b64encode(buffer.getvalue()).decode()
 
 
 def with_reams(count=REAMS):
@@ -1571,13 +1587,19 @@ class ZahidBrothersSheet(unittest.TestCase):
     # The columns, in millimetres. These were once measured off the vertical
     # rules in their own PDF, because the client asked for the table at
     # exactly the size they set. They then asked for the invoice to look
-    # modern, which replaced that ask: the widths below are proportioned for
-    # legibility across the 186 mm an A4 gives at 12 mm margins. What is
-    # still pinned is that there are THIRTEEN of them, that they are their
-    # thirteen, and that they add up to the page.
-    WIDTHS = ["8.0mm", "15.0mm", "19.0mm", "16.0mm", "21.0mm", "11.0mm",
-              "10.0mm", "10.0mm", "14.5mm", "17.0mm", "15.0mm", "11.0mm",
-              "18.5mm"]
+    # modern, which replaced that ask.
+    #
+    # They are now sized by MEASUREMENT rather than proportion: each is at
+    # least as wide as its widest unbreakable content rendered in DejaVu
+    # Sans, the face the server falls back to, plus a margin. The previous
+    # set was proportioned against Segoe UI, which this machine has and the
+    # server does not, and the client's own sheet came back with the HS code
+    # and the Sales Tax total each split over two lines.
+    # test_nothing_wraps_in_the_font_the_server_actually_has is what holds
+    # that now; this list holds the shape of the table.
+    WIDTHS = ["9.3mm", "15.4mm", "18.5mm", "13.4mm", "16.5mm", "12.3mm",
+              "9.0mm", "10.5mm", "14.9mm", "18.4mm", "18.4mm", "11.1mm",
+              "18.3mm"]
 
     # What the client asked to print the same whatever the business profile
     # says. See the note on RequiredIdentifiers.FIXED.
@@ -1862,6 +1884,61 @@ class ZahidBrothersFields(unittest.TestCase):
     TEMPLATE = "invoice_zahid_brothers.html"
     CLIENT = CLIENT_TEMPLATES["invoice_zahid_brothers.html"]
 
+    # ---- the buyer's registration, printed on the face of the invoice ----
+
+    def test_an_unregistered_buyer_is_stamped_a_retail_consumer(self):
+        markup = render(self.TEMPLATE,
+                        dict(PAYLOAD, buyerRegistrationType="Unregistered"))
+        self.assertIn("Registration Type", markup)
+        self.assertIn("Unregistered", markup)
+        self.assertIn("Buyer Type", markup)
+        self.assertIn("RETAIL CONSUMER", markup)
+
+    def test_a_registered_buyer_gets_nothing_under_its_registration_row(self):
+        # The client's instruction: the stamp belongs to unregistered buyers
+        # and a registered one is to carry no second row at all.
+        markup = render(self.TEMPLATE,
+                        dict(PAYLOAD, buyerRegistrationType="Registered"))
+        self.assertIn("Registration Type", markup)
+        self.assertIn("Registered", markup)
+        self.assertNotIn("RETAIL CONSUMER", markup)
+        self.assertNotIn("Buyer Type", markup)
+
+    def test_retail_consumer_is_set_bolder_than_the_rest_of_the_card(self):
+        # "In bold" was the instruction, and the values on that card are
+        # already semi-bold -- so it has to be heavier than they are, not
+        # merely bold, or it does not read as a stamp at all.
+        markup = render(self.TEMPLATE,
+                        dict(PAYLOAD, buyerRegistrationType="Unregistered"))
+        self.assertIn('class="val strong">RETAIL CONSUMER', markup)
+        self.assertRegex(markup, r"\.ids td\.val\.strong \{[^}]*font-weight: 700")
+
+    def test_an_invoice_with_no_registration_field_claims_nothing(self):
+        # Older invoices predate the field. The create form defaults a missing
+        # value to "Unregistered", so trusting it here would stamp RETAIL
+        # CONSUMER onto a tax document whose buyer may hold an STRN. Printing
+        # neither row is the honest answer to a question the record cannot
+        # answer -- and is why this reads the raw value rather than a default.
+        data = dict(PAYLOAD)
+        data.pop("buyerRegistrationType", None)
+        markup = render(self.TEMPLATE, data)
+        self.assertNotIn("RETAIL CONSUMER", markup)
+        self.assertNotIn("Registration Type", markup)
+
+    def test_the_unregistered_spellings_the_rest_of_the_app_accepts(self):
+        # compliance/fields.py counts these as registered; the invoice must
+        # agree with the report, so the same words are tested here.
+        for value in ("registered", "R", "yes", "1"):
+            markup = render(self.TEMPLATE,
+                            dict(PAYLOAD, buyerRegistrationType=value))
+            self.assertNotIn("RETAIL CONSUMER", markup,
+                             "%r should count as registered" % value)
+        for value in ("Unregistered", "unregistered", "UNREGISTERED"):
+            markup = render(self.TEMPLATE,
+                            dict(PAYLOAD, buyerRegistrationType=value))
+            self.assertIn("RETAIL CONSUMER", markup,
+                          "%r should count as unregistered" % value)
+
     def test_both_rows_print_when_they_are_filled_in(self):
         markup = render(self.TEMPLATE,
                         dict(PAYLOAD, reference="PO-4471",
@@ -1961,13 +2038,20 @@ class ZahidBrothersFields(unittest.TestCase):
 
 @unittest.skipIf(WeasyHTML is None, "WeasyPrint/pypdfium2 not installed")
 class ZahidBrothersPagination(unittest.TestCase):
-    """Their ten-line form has to come out as one page, and does.
+    """How many lines come out as one page, measured on a real sheet.
 
     Their own sheet is 329.9 mm tall. This one is A4, and it has to carry a
     masthead where they had two typed lines and an FBR band they never had,
     so the fit is tight by construction. The filler budget in the template is
     set from these measurements -- re-run them after changing anything above
     or below the items table.
+
+    These used to say ten lines fit. They do not, and never did: the renders
+    were handed QR_B64, seventeen bytes that are not a PNG, so the QR came
+    out as the words "FBR QR code" and the band measured one text line deep
+    instead of the mark's 17mm. Every page here is now rendered with a real
+    QR, which is why the figure dropped to nine -- nine is what their
+    clients have been getting all along.
     """
 
     TEMPLATE = "invoice_zahid_brothers.html"
@@ -1977,6 +2061,7 @@ class ZahidBrothersPagination(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.fbr_logo = real_fbr_logo()
+        cls.qr = real_qr()
 
     def markup(self, count, description="PLATE FENDER LH %d"):
         items = [dict(PAYLOAD["items"][0],
@@ -1985,7 +2070,10 @@ class ZahidBrothersPagination(unittest.TestCase):
                       hsCodeDescription="VEHICLES OTHER THAN RAILWAY OR...VEHICLE",
                       saleType="3rd Schedule Goods")
                  for i in range(count)]
-        return render(self.TEMPLATE, dict(PAYLOAD, items=items), logo=self.fbr_logo)
+        # Both FBR marks are real images here. Either one broken collapses
+        # the band and hands the items table depth the server never gives it.
+        return render(self.TEMPLATE, dict(PAYLOAD, items=items),
+                      qr=self.qr, logo=self.fbr_logo)
 
     def pages(self, count, description="PLATE FENDER LH %d"):
         pdf = WeasyHTML(string=self.markup(count, description),
@@ -2000,17 +2088,45 @@ class ZahidBrothersPagination(unittest.TestCase):
     def test_their_own_five_line_invoice_is_one_page(self):
         self.assertEqual(1, len(self.pages(5)))
 
-    def test_the_full_ten_line_form_is_one_page(self):
-        self.assertEqual(1, len(self.pages(10)))
+    def test_their_nine_line_form_is_one_page(self):
+        self.assertEqual(1, len(self.pages(9)))
 
-    def test_the_tenth_line_is_the_last_one_that_fits(self):
-        # Measured on the restyled sheet: ten lines and the whole closing
-        # block fit one page, the eleventh starts a second. It was eleven
-        # before the amount in words was added, which is what a row above
-        # the totals costs -- so a change anywhere outside the table shows
-        # up here first rather than on a client's invoice.
-        self.assertEqual(1, len(self.pages(10)))
-        self.assertEqual(2, len(self.pages(11)))
+    def test_the_ninth_line_is_the_last_one_that_fits(self):
+        # Measured on the restyled sheet with both FBR marks rendering:
+        # nine lines and the whole closing block fit one page, the tenth
+        # starts a second. A change anywhere outside the table shows up
+        # here first rather than on a client's invoice.
+        self.assertEqual(1, len(self.pages(9)))
+        self.assertEqual(2, len(self.pages(10)))
+
+    def test_the_two_fbr_marks_are_the_same_height(self):
+        # The client asked for the Digital Invoicing mark to match the QR.
+        # Both are sized off --fbr-mark, and the mark keeps its own aspect
+        # ratio rather than being squared off, so this checks the height
+        # and leaves the width alone.
+        page = WeasyHTML(string=self.markup(1), base_url=ROOT).render().pages[0]
+
+        def walk(box):
+            yield box
+            for child in getattr(box, "children", ()) or ():
+                for item in walk(child):
+                    yield item
+
+        marks = {}
+        for box in walk(page._page_box):
+            if getattr(box, "element_tag", None) != "img":
+                continue
+            try:
+                classes = (box.element.get("class") or "").split()
+            except Exception:
+                continue
+            for name in ("qr", "di"):
+                if name in classes:
+                    marks[name] = box.height * (25.4 / 96.0)
+        self.assertEqual({"qr", "di"}, set(marks), "both marks must render")
+        self.assertAlmostEqual(marks["qr"], marks["di"], places=2,
+                               msg="QR %.2fmm, Digital Invoicing mark %.2fmm"
+                                   % (marks["qr"], marks["di"]))
 
     def test_no_money_column_is_too_narrow_for_its_figures(self):
         # A wrapped figure reads as two figures -- "1,534,000.0" over "0" --
@@ -2088,6 +2204,107 @@ class ZahidBrothersPagination(unittest.TestCase):
                     if type(child).__name__ == "TextBox")
                 deepest.append("%r over %d lines" % (text, len(lines)))
         self.assertEqual([], deepest)
+
+    # The face the Linux server falls back to. Measuring in it is the only
+    # way this suite sees what the client is actually sent; everything else
+    # here renders in whatever this machine happens to have.
+    SERVER_FONT = '"DejaVu Sans", sans-serif'
+
+    def _render_in_server_font(self, data):
+        markup = render(self.TEMPLATE, data)
+        markup, n = re.subn(r"(body \{\s*\n\s*font-family: )[^;]+;",
+                            lambda m: m.group(1) + self.SERVER_FONT + ";",
+                            markup, count=1, flags=re.S)
+        self.assertEqual(1, n, "could not substitute the body font")
+        return markup
+
+    def test_nothing_wraps_in_the_font_the_server_actually_has(self):
+        """The client's HS code printed over two lines; here it never did.
+
+        The page asks for Segoe UI and falls back through Helvetica and Arial
+        to DejaVu Sans. A Windows desktop resolves the first, the Linux box
+        that prints these invoices resolves the last, and the last is
+        appreciably wider. Sized against Segoe UI alone, three cells fitted on
+        every render here and wrapped on the client's own sheet: the HS code
+        ("2710.195" over "1"), the Sales Tax total ("12,741.0" over "8") and
+        the "Sr.No." heading ("Sr.N" over "o.").
+
+        A figure split across two lines reads as two figures, and a split HS
+        code reads as two codes, so this checks the money columns, the HS code
+        and every heading that is a single word -- a heading of several words
+        may wrap between them, which is how the band is designed.
+        """
+        line = dict(PAYLOAD["items"][0], hsCode="2710.1951", quantity=64,
+                    partUnit=8, unitrate=8847.97,
+                    valueSalesExcludingST=70783.76,
+                    salesTaxApplicable=12741.08, totalValues=83524.84)
+        markup = self._render_in_server_font(dict(
+            PAYLOAD, items=[line] * 5,
+            totalExcl=353918.80, totalTax=63705.40, totalInclusive=417624.20))
+        page = WeasyHTML(string=markup, base_url=ROOT).render().pages[0]
+
+        def walk(box):
+            yield box
+            for child in getattr(box, "children", ()) or ():
+                for item in walk(child):
+                    yield item
+
+        px_mm = 25.4 / 96.0
+        wrapped = []
+        for box in walk(page._page_box):
+            tag = getattr(box, "element_tag", None)
+            if tag not in ("td", "th"):
+                continue
+            try:
+                classes = (box.element.get("class") or "").split()
+            except Exception:
+                classes = []
+            lines = [b for b in walk(box) if type(b).__name__ == "LineBox"]
+            if len(lines) < 2:
+                continue
+            text = "".join(c.text for ln in lines for c in walk(ln)
+                           if type(c).__name__ == "TextBox")
+            if tag == "th":
+                # Several words may share a heading's lines; one word may not.
+                # The heading's own source text is what says which it is --
+                # the rendered line boxes come back with the spaces at the
+                # breaks already consumed, so "Part Unit" reads as one token
+                # there and would be mistaken for a split word.
+                source = (getattr(box.element, "text", "") or "").strip()
+                if " " in source:
+                    continue
+            elif not ({"hs", "num"} & set(classes)):
+                continue
+            wrapped.append("%r over %d lines in a %.2fmm cell"
+                           % (text, len(lines), box.width * px_mm))
+
+        # A cell that cannot wrap does not wrap when it is too narrow -- it
+        # OVERFLOWS, and .items sets overflow:hidden, so the surplus is
+        # simply cut off. On the HS code that means a truncated code printed
+        # as though it were the whole one, which is worse than the split the
+        # nowrap was added to prevent. Counting lines cannot see it; this
+        # measures the text against the box it had to fit in.
+        clipped = []
+        for box in walk(page._page_box):
+            if getattr(box, "element_tag", None) not in ("td", "th"):
+                continue
+            try:
+                classes = (box.element.get("class") or "").split()
+            except Exception:
+                classes = []
+            if "hs" not in classes:
+                continue
+            for inner in walk(box):
+                if type(inner).__name__ != "LineBox":
+                    continue
+                if inner.width > box.width + 0.5:
+                    text = "".join(c.text for c in walk(inner)
+                                   if type(c).__name__ == "TextBox")
+                    clipped.append(
+                        "%r needs %.2fmm and was given %.2fmm"
+                        % (text, inner.width * px_mm, box.width * px_mm))
+
+        self.assertEqual([], wrapped + clipped)
 
     def test_the_closing_block_never_lands_alone_on_a_second_page(self):
         # The failure this exists for: a last page holding nothing but the
