@@ -3083,9 +3083,17 @@
                 populateScenarioSelect(scenarioId, state.formOptions.scenarioIds);
             }
 
-            // Populate product UoM
-            const productUom = document.getElementById("product-uom");
-            populateSelect(productUom, state.formOptions.uoms);
+            /* The UoM box is FBR's list or nothing at all.
+
+               /api/form-options used to carry its own hardcoded list of
+               thirty-five units, and this line poured it straight into the
+               box. It now carries FBR's catalogue (reference API 5.6), and
+               this goes through restoreOriginalUomOptions so the box, its
+               tooltip and the note under it are built by the same code that
+               an HS-code lookup uses -- including the case where FBR is
+               unreachable and the honest answer is an empty box that says
+               so. */
+            restoreOriginalUomOptions(document.getElementById("product-uom"));
 
             // Populate tax rate
             const taxRate = document.getElementById("product-tax-rate");
@@ -5461,7 +5469,7 @@
             setHsDescription('');
             if (showsHsCodeDescription()) { lookupHsDescription(p.hs_code || ''); }
             if (p.rate != null) { document.getElementById('product-rate').value = p.rate; }
-            if (p.uom) { document.getElementById('product-uom').value = p.uom; }
+            if (p.uom) { ensureUomOption(document.getElementById('product-uom'), p.uom); }
             if (p.default_tax_rate != null) { const taxSelect = document.getElementById('product-tax-rate'); const target = `${p.default_tax_rate}%`; for (let i = 0; i < taxSelect.options.length; i++) { if (taxSelect.options[i].textContent.trim() === target) { taxSelect.selectedIndex = i; break; } } }
             document.getElementById('product-sale-type').value = p.sale_type || document.getElementById('product-sale-type').value;
             if (showsProductCode()) {
@@ -5653,7 +5661,11 @@
 
             // Set UOM if available
             const uomSelect = document.getElementById("product-uom");
+            // ensureUomOption keeps a saved unit FBR does not list -- one
+            // of the old hardcoded short codes, say -- on screen and marked,
+            // instead of leaving the box on whatever it was showing.
             if (product.uom) {
+                ensureUomOption(uomSelect, product.uom);
                 for (let i = 0; i < uomSelect.options.length; i++) {
                     if (uomSelect.options[i].value === product.uom) {
                         uomSelect.selectedIndex = i;
@@ -6311,7 +6323,7 @@
             if (pmCodeInput) { pmCodeInput.value = showsProductCode() ? (p.product_code || '') : ''; } 
             document.getElementById('pm-hs').value = p.hs_code || ''; 
             document.getElementById('pm-rate').value = p.rate || ''; 
-            document.getElementById('pm-uom').value = p.uom || ''; 
+            ensureUomOption(document.getElementById('pm-uom'), p.uom || ''); 
             document.getElementById('pm-tax').value = p.default_tax_rate || ''; 
             // Set sale type dropdown value
             const pmSaleType = document.getElementById('pm-sale-type');
@@ -6345,7 +6357,7 @@
             document.getElementById('product-description').value = p.description || '';
             document.getElementById('product-hs-code').value = p.hs_code || '';
             if (p.rate != null) { document.getElementById('product-rate').value = p.rate; }
-            if (p.uom) { document.getElementById('product-uom').value = p.uom; }
+            if (p.uom) { ensureUomOption(document.getElementById('product-uom'), p.uom); }
             // match tax rate label if exists
             if (p.default_tax_rate != null) { const taxSelect = document.getElementById('product-tax-rate'); const target = `${p.default_tax_rate}%`; for (let i = 0; i < taxSelect.options.length; i++) { if (taxSelect.options[i].textContent.trim() === target) { taxSelect.selectedIndex = i; break; } } }
             // Set sale type dropdown for product
@@ -6405,7 +6417,18 @@
         const hsCodeCache = { data: [], loaded: false, loading: false };
         const uomCache = { all: [], byHsCode: {}, loading: false };
         let hsSearchTimeout = null;
+        let hsUomTimeout = null;
         let currentHsDropdown = null;
+
+        /* A finished HS code, which is the point at which it is worth asking
+           FBR which units it takes. FBR writes them as four digits, a dot and
+           four more (2710.1951); some are entered as the eight digits alone.
+           Anything shorter is still being typed. */
+        const HS_CODE_COMPLETE = /^\d{4}\.?\d{4}$/;
+
+        function looksLikeCompleteHsCode(value) {
+            return HS_CODE_COMPLETE.test(String(value || '').trim());
+        }
         
         // Initialize HS Code autocomplete for both main form and product modal
         function initHsCodeAutocomplete() {
@@ -6439,6 +6462,21 @@
                 hsSearchTimeout = setTimeout(() => {
                     searchHsCodes(query, dropdown, input, uomSelect);
                 }, 300);
+
+                /* And ask FBR for this code's units as soon as the code looks
+                   finished, rather than waiting for the field to be left. The
+                   unit is then already chosen by the time they tab into the
+                   UoM box, which is the whole point of choosing it for them.
+                   Still cheap: fetchValidUomsForHsCode caches per code, so
+                   re-typing one costs nothing, and the blur and change
+                   handlers below remain as the catch-all for a code that does
+                   not match the usual shape. */
+                clearTimeout(hsUomTimeout);
+                if (uomSelect && looksLikeCompleteHsCode(query)) {
+                    hsUomTimeout = setTimeout(() => {
+                        fetchValidUomsForHsCode(query.trim(), uomSelect);
+                    }, 350);
+                }
             });
             
             // Focus event - show dropdown if there's text
@@ -6666,37 +6704,50 @@
                 
                 console.log('[fetchValidUomsForHsCode] API response:', data);
                 
-                if (data.valid_uoms && data.valid_uoms.length > 0 && data.source === 'api') {
-                    // Cache the result
-                    uomCache.byHsCode[hsCode] = data.valid_uoms;
-                    populateUomSelect(uomSelect, data.valid_uoms, true);
-                    
+                /* Three different things used to arrive here as one answer,
+                   all of them labelled 'fallback' and all of them carrying the
+                   same invented list. They are now distinct, because the right
+                   thing to show differs for each:
+
+                     api          FBR named the units for this code. Narrow to
+                                  them and select the first.
+                     unrestricted FBR answered and records no restriction, so
+                                  its whole catalogue is valid here. Not a
+                                  failure, so no warning.
+                     unavailable  FBR could not be asked, so the narrowing is
+                                  unknown. Offer FBR's catalogue if we hold
+                                  it, with a warning -- and if we do not hold
+                                  that either, offer nothing at all. */
+                const list = data.valid_uoms || [];
+
+                if (data.source === 'api' && list.length > 0) {
+                    uomCache.byHsCode[hsCode] = list;
+                    populateUomSelect(uomSelect, list, true);
                     // The note under the box says this; a toast per HS code was
                     // noise on a form where every line has one.
-                    console.log(`HS code ${hsCode} has ${data.count} valid UOMs: ${data.valid_uoms.map(u => u.description).join(', ')}`);
-                } else if (data.source === 'fallback' || data.source === 'error') {
-                    // API failed or not configured - restore original options
-                    console.log('[fetchValidUomsForHsCode] API returned fallback/error, restoring original UOM options');
-                    restoreOriginalUomOptions(uomSelect);
+                    console.log(`HS code ${hsCode}: ${list.length} valid units (${list.map(u => u.description).join(', ')})`);
+                } else if (data.source === 'unrestricted' && list.length > 0) {
+                    populateUomSelect(uomSelect, list, false);
+                    setUomHint(uomSelect,
+                        'FBR records no unit restriction for this HS code, so '
+                        + 'every FBR unit is listed.');
+                } else {
                     if (data.error) {
                         console.warn('HS-UOM API error:', data.error);
                     }
-                    setUomHint(uomSelect,
-                        'FBR could not confirm the units for this HS code, so all '
-                        + 'units are listed. Check the unit before you submit.',
-                        'warn');
-                } else if (data.valid_uoms && data.valid_uoms.length > 0 && (data.source === 'cache' || data.source === 'fallback')) {
-                    // Fallback data with UOMs - show all available
-                    console.log('[fetchValidUomsForHsCode] Using fallback UOM list');
-                    populateUomSelect(uomSelect, data.valid_uoms, false);
-                } else {
-                    // No specific UOMs returned, restore all options
-                    console.log('[fetchValidUomsForHsCode] No specific UOMs, restoring all options');
-                    restoreOriginalUomOptions(uomSelect);
+                    if (baseUomList().length > 0) {
+                        restoreOriginalUomOptions(uomSelect);
+                        setUomHint(uomSelect,
+                            'FBR could not confirm which units this HS code '
+                            + 'takes, so every FBR unit is listed. Check the '
+                            + 'unit before you submit.',
+                            'warn');
+                    } else {
+                        showUomsUnavailable(uomSelect);
+                    }
                 }
             } catch (error) {
                 console.error('[fetchValidUomsForHsCode] Error:', error);
-                // Restore original options on error
                 restoreOriginalUomOptions(uomSelect);
             }
             
@@ -6704,19 +6755,25 @@
             console.log(`[fetchValidUomsForHsCode] Done. UOM select now has ${uomSelect.options.length} options`);
         }
         
-        /* The list to show when no HS code has narrowed it.
+        /* The list to show when no HS code has narrowed it: FBR's own, and
+           nothing else.
 
-           FBR's own catalogue (reference API 5.6) whenever we have it, and the
-           static list in /api/form-options only when FBR cannot be reached.
-           That static list is the one clients get confused by: it is a guess at
-           FBR's vocabulary rather than a copy of it, so it offers units FBR does
-           not use under those names and a line built from it can be rejected on
-           submission. It stays as a stand-in for an unreachable FBR, not as the
-           list people are shown by default. */
+           There used to be a second list behind this one -- thirty-five units
+           hardcoded in /api/form-options, with a near-identical copy in
+           fbr_reference_routes.py -- shown whenever FBR had not answered. It
+           was a guess at FBR's vocabulary rather than a copy of it: it offered
+           LTR where FBR says Litre, invented short codes for a dozen other
+           units, and the guesses were indistinguishable on screen from the
+           real thing. A line built from one was accepted by the form, saved,
+           and then rejected by FBR at submission with nothing on screen to
+           explain it. Both copies are gone. /api/form-options serves FBR's
+           catalogue (reference API 5.6) now, so this reads FBR either way, and
+           when FBR cannot be reached there is nothing to offer and the box
+           says so instead of inventing one. */
         function baseUomList() {
             if (uomCache.all && uomCache.all.length > 0) return uomCache.all;
-            const staticList = (state.formOptions && state.formOptions.uoms) || [];
-            return staticList.map(o => ({
+            const fromFormOptions = (state.formOptions && state.formOptions.uoms) || [];
+            return fromFormOptions.map(o => ({
                 value: o.value,
                 description: o.label || o.value
             }));
@@ -6725,16 +6782,64 @@
         function restoreOriginalUomOptions(select) {
             if (!select) return;
             const list = baseUomList();
-            if (list.length === 0) return;
+            if (list.length === 0) {
+                showUomsUnavailable(select);
+                return;
+            }
             populateUomSelect(select, list, false);
-            const live = uomCache.all && uomCache.all.length > 0;
-            select.title = live
-                ? 'All units FBR recognises (no HS code restriction)'
-                : 'Offline unit list (FBR unreachable)';
-            setUomHint(select, live
-                ? 'Enter an HS code to narrow this to the units FBR accepts for it.'
-                : 'The FBR unit list is unavailable, so a stand-in list is shown.',
-                live ? '' : 'warn');
+            select.title = 'Every unit FBR recognises (no HS code restriction)';
+            setUomHint(select,
+                'Enter an HS code to narrow this to the units FBR accepts for it.');
+        }
+
+        /* No list at all, because FBR could not be reached.
+
+           The box is emptied rather than left holding whatever was in it: what
+           it was holding is exactly what we can no longer stand behind. An
+           empty required field is a problem the user can see and wait out. A
+           plausible wrong unit is one they cannot see at all until FBR throws
+           the invoice back. Anything already chosen is kept and marked rather
+           than dropped, so a draft does not quietly change what it says. */
+        function showUomsUnavailable(select) {
+            if (!select) return;
+            const keep = select.value;
+            select.innerHTML = '';
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = 'FBR unit list unavailable';
+            select.appendChild(placeholder);
+            select.selectedIndex = 0;
+            if (keep) ensureUomOption(select, keep);
+            select.classList.remove('uom-filtered');
+            setUomHint(select,
+                'The FBR unit list could not be loaded, so no unit can be '
+                + 'offered yet. Try again in a moment: a unit FBR does not '
+                + 'recognise is rejected when the invoice is submitted.',
+                'warn');
+        }
+
+        /* A unit that is on a saved draft or a saved product but is not in
+           FBR's list -- most often one of the old hardcoded ones, like LTR.
+
+           Silently dropping it would change what the line says without telling
+           anyone: a draft saved as LTR would come back as whatever happened to
+           be first in the list. It is kept, selected and labelled instead, so
+           the thing FBR is going to object to is the thing on screen. */
+        function ensureUomOption(select, value) {
+            const wanted = String(value === null || value === undefined ? '' : value).trim();
+            if (!select || !wanted) return false;
+            if (applySelectValueNow(select, wanted)) return true;
+            const option = document.createElement('option');
+            option.value = wanted;
+            option.textContent = wanted + '  (not an FBR unit)';
+            option.dataset.offList = '1';
+            select.appendChild(option);
+            select.value = wanted;
+            setUomHint(select,
+                'This line was saved with the unit ' + wanted + ', which is not '
+                + 'one FBR recognises. Pick an FBR unit before submitting.',
+                'warn');
+            return false;
         }
         
         /* The note under the UoM box. It replaces the toast that used to pop up
@@ -6756,13 +6861,17 @@
             select.innerHTML = '';
 
             const options = (uoms || []).map(uom => ({
-                /* What gets POSTED has to be FBR's own word for the unit. The
-                   reference endpoints set value === description for live data,
-                   so either works there; the offline list carries a short code
-                   in `value` and a friendlier wording in `description`, and it
-                   is the code that goes to FBR. Reading `description` first --
-                   which is what this did -- sent "KG - Kilogram" whenever the
-                   offline list was in play. */
+                /* What gets POSTED has to be FBR's own word for the unit.
+
+                   Every list that reaches here is FBR's now, and FBR's rows
+                   set value === description, so the two are the same string
+                   and the order of this fallback no longer decides anything.
+                   It mattered while the hardcoded list was in play: that one
+                   put a short code in `value` and a friendlier wording in
+                   `description`, and reading `description` first -- which is
+                   what this did -- posted the whole display label, dash and
+                   all. Keep `value` first so a list shaped like that one can
+                   never do it again. */
                 value: uom.value || uom.description || '',
                 label: uom.description || uom.value || ''
             })).filter(o => o.value);
@@ -6821,25 +6930,27 @@
                 const response = await fetch(apiUrl('/api/reference/uoms'));
                 const data = await response.json();
 
-                // 'fallback' is the server handing back the same static list,
-                // so it is not worth promoting over what is already shown --
-                // and recording it as live would silence the warning that the
-                // list cannot be trusted against FBR.
+                // There is no 'fallback' source any more: the endpoint hands
+                // back FBR's list, or says 'unavailable' with nothing in it.
                 const live = data.source === 'api' || data.source === 'cache';
                 if (live && data.uoms && data.uoms.length > 0) {
                     uomCache.all = data.uoms;
-                    console.log(`Loaded ${data.uoms.length} UOMs from FBR (source: ${data.source})`);
-
-                    // Swap the static list out wherever it is still showing.
-                    // A box already narrowed by an HS code is left alone: that
-                    // list is the more specific answer to the same question.
-                    ['product-uom', 'pm-uom'].forEach(id => {
-                        const select = document.getElementById(id);
-                        if (select && !select.classList.contains('uom-filtered')) {
-                            restoreOriginalUomOptions(select);
-                        }
-                    });
+                    console.log(`Loaded ${data.uoms.length} units from FBR (source: ${data.source})`);
+                } else {
+                    console.warn('FBR unit list unavailable:', data.message || data.source);
                 }
+
+                // Refresh every box that an HS code has not already narrowed
+                // -- that list is the more specific answer to the same
+                // question. This runs on the unavailable path too, so a box
+                // left holding a stale list is emptied and labelled rather
+                // than quietly kept.
+                ['product-uom', 'pm-uom'].forEach(id => {
+                    const select = document.getElementById(id);
+                    if (select && !select.classList.contains('uom-filtered')) {
+                        restoreOriginalUomOptions(select);
+                    }
+                });
             } catch (error) {
                 console.error('Error preloading UOMs:', error);
             }

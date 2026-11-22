@@ -365,7 +365,24 @@
         // ------------------------------------------------------------- sheet
 
         var optionsReady = MD.formOptions().then(function (opts) {
-            MD.fillSelect($('p-uom'), opts.uoms || [], 'Select UoM');
+            /* FBR's own unit list (DI reference 5.6), served through
+               /api/form-options. That endpoint used to hold a hardcoded list
+               of thirty-five units -- a guess at FBR's vocabulary, offering
+               LTR where FBR says Litre -- so a product could be saved with a
+               unit no invoice built from it would ever get past FBR. When FBR
+               cannot be reached the list is empty and the box says so, rather
+               than offering units nobody can stand behind. */
+            var uomsLive = (opts.uoms || []).length > 0;
+            MD.fillSelect($('p-uom'), opts.uoms || [],
+                uomsLive ? 'Select UoM' : 'FBR unit list unavailable');
+            $('p-uom').disabled = !uomsLive;
+            if (!uomsLive) {
+                $('p-uom-hint').hidden = false;
+                $('p-uom-hint').className = 'md-hint warn';
+                $('p-uom-hint').textContent = 'FBR\u2019s unit list could not be '
+                    + 'loaded. Reload in a moment: a unit FBR does not recognise '
+                    + 'is rejected when an invoice using it is submitted.';
+            }
             // Stored as a number (18); FBR's list labels it "18%".
             MD.fillSelect($('p-tax'), (opts.taxRates || []).map(function (o) {
                 return { value: String(parseFloat(String(o.label).replace('%', ''))), label: o.label };
@@ -484,16 +501,54 @@
             els.sheet.addEventListener('md:closed', close);
         })();
 
+        /* An HS code answers the unit question, so it answers it.
+
+           This used to list FBR's valid units as a hint and then only fill
+           the box when there was exactly one, which left the common case --
+           two or three valid units -- as a sentence to read and a dropdown to
+           go hunting through. Now the box is narrowed to what FBR accepts for
+           this code and the first is selected, the same as on the invoice
+           form. It is an ordinary selection; changing it is one click.
+
+           'unrestricted' is FBR answering that it records no restriction for
+           this code. Its whole catalogue is valid, so the box is restored
+           rather than narrowed, and nothing is chosen for them: with no
+           narrowing there is no first valid unit, only an alphabetical
+           accident. */
         function suggestUom(code) {
             var hint = $('p-uom-hint');
             MD.request('/api/reference/hs-uom?hs_code=' + encodeURIComponent(code)).then(function (res) {
-                var valid = (res.ok && res.data.source === 'api' && res.data.valid_uoms) || [];
-                if (!valid.length) { hint.hidden = true; return; }
+                var source = (res.ok && res.data.source) || 'unavailable';
+                var valid = (res.ok && res.data.valid_uoms) || [];
+                if (source === 'unavailable' || !valid.length) { hint.hidden = true; return; }
+
+                var kept = $('p-uom').value;
                 var names = valid.map(function (u) { return u.description; });
                 hint.hidden = false;
                 hint.className = 'md-hint';
-                hint.textContent = 'FBR accepts for this HS code: ' + names.join(', ');
-                if (names.length === 1) MD.selectValue($('p-uom'), names[0]);
+
+                if (source === 'unrestricted') {
+                    MD.fillSelect($('p-uom'), valid.map(function (u) {
+                        return { value: u.value || u.description, label: u.description };
+                    }), 'Select UoM');
+                    if (kept) MD.selectValue($('p-uom'), kept);
+                    hint.textContent = 'FBR records no unit restriction for this HS code.';
+                    return;
+                }
+
+                MD.fillSelect($('p-uom'), valid.map(function (u) {
+                    return { value: u.value || u.description, label: u.description };
+                }));
+                // Keep what they already picked if FBR still allows it,
+                // otherwise take FBR's first -- never silently keep a unit
+                // FBR has just said is not valid for this code.
+                if (!kept || !MD.selectValue($('p-uom'), kept)) {
+                    $('p-uom').selectedIndex = 0;
+                }
+                hint.textContent = names.length === 1
+                    ? 'Only unit FBR accepts for this HS code: ' + names[0]
+                    : names.length + ' units valid for this HS code ('
+                      + names.join(', ') + '); the first is selected.';
             });
         }
 
