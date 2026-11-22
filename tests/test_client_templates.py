@@ -41,10 +41,11 @@ import invoice_templates  # noqa: E402
 # module runnable if the PDF stack is ever stripped out of a CI image.
 try:
     import pypdfium2
+    import qrcode
     from PIL import Image
     from weasyprint import HTML as WeasyHTML
 except Exception:  # pragma: no cover
-    pypdfium2 = Image = WeasyHTML = None
+    pypdfium2 = qrcode = Image = WeasyHTML = None
 
 # template file -> the client it was built for. Add a row when you build one.
 # The value is what `username` is rendered with, so it is the client's
@@ -250,6 +251,21 @@ def real_fbr_logo():
     buffer = io.BytesIO()
     logo.save(buffer, format="PNG")
     return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode()
+
+
+def real_qr(payload=FBR_NUMBER):
+    """A real QR code as a base64 PNG, made exactly as app.py makes it.
+
+    QR_B64 is seventeen bytes of nonsense, which is all a test asserting
+    the page carries the code needs. A page being MEASURED needs more:
+    a broken image renders as its alt text, and the Zahid Brothers band
+    sizes the mark at 17mm, so with the fake code the band measures the
+    height of one line of "FBR QR code" instead. Pagination read six
+    millimetres of slack that no printed invoice has.
+    """
+    buffer = io.BytesIO()
+    qrcode.make(payload).save(buffer, format="PNG")
+    return base64.b64encode(buffer.getvalue()).decode()
 
 
 def with_reams(count=REAMS):
@@ -2022,13 +2038,20 @@ class ZahidBrothersFields(unittest.TestCase):
 
 @unittest.skipIf(WeasyHTML is None, "WeasyPrint/pypdfium2 not installed")
 class ZahidBrothersPagination(unittest.TestCase):
-    """Their ten-line form has to come out as one page, and does.
+    """How many lines come out as one page, measured on a real sheet.
 
     Their own sheet is 329.9 mm tall. This one is A4, and it has to carry a
     masthead where they had two typed lines and an FBR band they never had,
     so the fit is tight by construction. The filler budget in the template is
     set from these measurements -- re-run them after changing anything above
     or below the items table.
+
+    These used to say ten lines fit. They do not, and never did: the renders
+    were handed QR_B64, seventeen bytes that are not a PNG, so the QR came
+    out as the words "FBR QR code" and the band measured one text line deep
+    instead of the mark's 17mm. Every page here is now rendered with a real
+    QR, which is why the figure dropped to nine -- nine is what their
+    clients have been getting all along.
     """
 
     TEMPLATE = "invoice_zahid_brothers.html"
@@ -2038,6 +2061,7 @@ class ZahidBrothersPagination(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.fbr_logo = real_fbr_logo()
+        cls.qr = real_qr()
 
     def markup(self, count, description="PLATE FENDER LH %d"):
         items = [dict(PAYLOAD["items"][0],
@@ -2046,7 +2070,10 @@ class ZahidBrothersPagination(unittest.TestCase):
                       hsCodeDescription="VEHICLES OTHER THAN RAILWAY OR...VEHICLE",
                       saleType="3rd Schedule Goods")
                  for i in range(count)]
-        return render(self.TEMPLATE, dict(PAYLOAD, items=items), logo=self.fbr_logo)
+        # Both FBR marks are real images here. Either one broken collapses
+        # the band and hands the items table depth the server never gives it.
+        return render(self.TEMPLATE, dict(PAYLOAD, items=items),
+                      qr=self.qr, logo=self.fbr_logo)
 
     def pages(self, count, description="PLATE FENDER LH %d"):
         pdf = WeasyHTML(string=self.markup(count, description),
@@ -2061,17 +2088,16 @@ class ZahidBrothersPagination(unittest.TestCase):
     def test_their_own_five_line_invoice_is_one_page(self):
         self.assertEqual(1, len(self.pages(5)))
 
-    def test_the_full_ten_line_form_is_one_page(self):
-        self.assertEqual(1, len(self.pages(10)))
+    def test_their_nine_line_form_is_one_page(self):
+        self.assertEqual(1, len(self.pages(9)))
 
-    def test_the_tenth_line_is_the_last_one_that_fits(self):
-        # Measured on the restyled sheet: ten lines and the whole closing
-        # block fit one page, the eleventh starts a second. It was eleven
-        # before the amount in words was added, which is what a row above
-        # the totals costs -- so a change anywhere outside the table shows
-        # up here first rather than on a client's invoice.
-        self.assertEqual(1, len(self.pages(10)))
-        self.assertEqual(2, len(self.pages(11)))
+    def test_the_ninth_line_is_the_last_one_that_fits(self):
+        # Measured on the restyled sheet with both FBR marks rendering:
+        # nine lines and the whole closing block fit one page, the tenth
+        # starts a second. A change anywhere outside the table shows up
+        # here first rather than on a client's invoice.
+        self.assertEqual(1, len(self.pages(9)))
+        self.assertEqual(2, len(self.pages(10)))
 
     def test_no_money_column_is_too_narrow_for_its_figures(self):
         # A wrapped figure reads as two figures -- "1,534,000.0" over "0" --
